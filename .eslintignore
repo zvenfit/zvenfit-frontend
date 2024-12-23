@@ -1,0 +1,6 @@
+/artifacts
+/dist
+/build
+*.config.js
+*.json
+/browser
