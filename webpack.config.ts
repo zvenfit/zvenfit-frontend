@@ -6,6 +6,11 @@ import ForkTsCheckerWebpackPlugin from 'fork-ts-checker-webpack-plugin';
 import ESLintPlugin from 'eslint-webpack-plugin';
 import 'webpack-dev-server';
 
+enum Entries {
+  main = 'main',
+  platforms = 'platforms',
+}
+
 const config = (env: Record<string, unknown>, argv: WebpackOptionsNormalized): Configuration => {
   const isProduction = argv.mode === 'production';
 
@@ -14,10 +19,9 @@ const config = (env: Record<string, unknown>, argv: WebpackOptionsNormalized): C
     mode: isProduction ? 'production' : 'development',
 
     // Точка входа приложения
-    // entry: ['./src/pages/main/index.ts', './src/pages/platforms/index.ts'],
     entry: {
-      main: './src/pages/main/index.ts',
-      platforms: './src/pages/platforms/index.ts',
+      [Entries.main]: './src/pages/main/index.ts',
+      [Entries.platforms]: './src/pages/platforms/index.ts',
     },
 
     // Выходные файлы
@@ -80,22 +84,17 @@ const config = (env: Record<string, unknown>, argv: WebpackOptionsNormalized): C
     // Плагины
     plugins: [
       new ForkTsCheckerWebpackPlugin(),
+      // Для главной страницы (main.html)
       new HtmlWebpackPlugin({
-        template: './public/index.html', // Шаблон HTML
-        minify: isProduction
-          ? {
-            collapseWhitespace: true,
-            removeComments: true,
-            removeRedundantAttributes: true,
-            useShortDoctype: true,
-            removeEmptyAttributes: true,
-            removeStyleLinkTypeAttributes: true,
-            keepClosingSlash: true,
-            minifyJS: true,
-            minifyCSS: true,
-            minifyURLs: true,
-          }
-          : false,
+        filename: `${Entries.main}.html`,   // Имя файла HTML для main страницы
+        template: './public/template.html', // Шаблон для страницы
+        chunks: [Entries.main],  // Указываем, что для этой страницы будет использован только main.js
+      }),
+      // Для страницы admin (admin.html)
+      new HtmlWebpackPlugin({
+        filename: `${Entries.platforms}.html`,  // Имя файла HTML для admin страницы
+        template: './public/template.html',  // Используем тот же шаблон, или можно указать другой
+        chunks: [Entries.platforms], // Указываем, что для этой страницы будет использован только admin.js
       }),
       new ESLintPlugin({
         extensions: ['js', 'ts', 'jsx', 'tsx'], // Укажите расширения файлов, которые будут проверяться
