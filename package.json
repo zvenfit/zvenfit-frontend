@@ -4,12 +4,11 @@
   "private": true,
   "scripts": {
     "start": "webpack serve --config webpack.config.ts --mode development",
-    "build": "npm run clean:dist && cross-env TS_NODE_PROJECT=\"tsconfig-webpack.json\" webpack --config webpack.config.ts --mode production",
+    "build": "cross-env TS_NODE_PROJECT=\"tsconfig-webpack.json\" webpack --config webpack.config.ts --mode production",
     "lint": "eslint  \"src/**/*.{ts,tsx,js,jsx}\"",
     "lint:fix": "npm run lint -- --fix",
     "test": "TZ=Europe/Moscow jest --ci",
-    "test:dev": "TZ=Europe/Moscow jest --watchAll --verbose",
-    "clean:dist": "for d in packages/*/dist; do echo $d; rm -rf $d; done"
+    "test:dev": "TZ=Europe/Moscow jest --watchAll --verbose"
   },
   "dependencies": {
     "react": "^19.0.0",

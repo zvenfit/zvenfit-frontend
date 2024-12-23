@@ -14,12 +14,16 @@ const config = (env: Record<string, unknown>, argv: WebpackOptionsNormalized): C
     mode: isProduction ? 'production' : 'development',
 
     // Точка входа приложения
-    entry: './src/index.ts',
+    // entry: ['./src/pages/main/index.ts', './src/pages/platforms/index.ts'],
+    entry: {
+      main: './src/pages/main/index.ts',
+      platforms: './src/pages/platforms/index.ts',
+    },
 
     // Выходные файлы
     output: {
       path: path.resolve(__dirname, 'dist'),
-      filename: 'bundle.js', // Всё в одном файле
+      filename: '[name].[contenthash].js',  // [name] — это имя ключа из entry
       clean: true, // Очистка папки dist перед новой сборкой
     },
 
@@ -94,13 +98,12 @@ const config = (env: Record<string, unknown>, argv: WebpackOptionsNormalized): C
           : false,
       }),
       new ESLintPlugin({
-        eslintPath: path.resolve(__dirname, '.eslintrc.js'),
-        // context: path.resolve(__dirname, 'src/'),
         extensions: ['js', 'ts', 'jsx', 'tsx'], // Укажите расширения файлов, которые будут проверяться
         emitWarning: false,  // Показывать предупреждения в консоли (по умолчанию false)
         emitError: true,    // Генерировать ошибки при нарушении правил (по умолчанию false)
         failOnError: true,  // Остановить сборку при ошибках ESLint (по умолчанию false)
         lintDirtyModulesOnly: true, // Проверка только изменённых файлов
+        configType: 'eslintrc',
       }),
     ],
 
