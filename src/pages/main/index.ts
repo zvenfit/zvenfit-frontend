@@ -1,5 +1,11 @@
 import { App } from './App';
+import { renderYandexMetrika } from '../../common/analitycs/renderYandexMetrika';
 import '../../common/assets/index.css';
+import { setupDependencies } from '../../common/services/dependencies/service';
 import { renderApplication } from '../../common/services/renderApplication';
 
-renderApplication(App);
+(async () => {
+  await setupDependencies();
+  renderApplication(App);
+  renderYandexMetrika();
+})();

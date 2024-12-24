@@ -1,9 +1,10 @@
 import path from 'path';
 import HtmlWebpackPlugin from 'html-webpack-plugin';
 import TerserPlugin from 'terser-webpack-plugin';
-import { Configuration, WebpackOptionsNormalized } from 'webpack';
+import { Configuration, WebpackOptionsNormalized, DefinePlugin } from 'webpack';
 import ForkTsCheckerWebpackPlugin from 'fork-ts-checker-webpack-plugin';
 import ESLintPlugin from 'eslint-webpack-plugin';
+import dotenv from 'dotenv';
 import 'webpack-dev-server';
 
 enum Entries {
@@ -12,11 +13,14 @@ enum Entries {
 }
 
 const config = (env: Record<string, unknown>, argv: WebpackOptionsNormalized): Configuration => {
+  const mode = argv.mode === 'production' ? 'production' : 'development';
   const isProduction = argv.mode === 'production';
+
+  const dotenvParsed = dotenv.config({ path: path.resolve(__dirname, `.env.${mode}`) }).parsed || {};
 
   return {
     // Режим сборки: development или production
-    mode: isProduction ? 'production' : 'development',
+    mode,
 
     // Точка входа приложения
     entry: {
@@ -83,6 +87,9 @@ const config = (env: Record<string, unknown>, argv: WebpackOptionsNormalized): C
 
     // Плагины
     plugins: [
+      new DefinePlugin({
+        'process.env': JSON.stringify(dotenvParsed),
+      }),
       new ForkTsCheckerWebpackPlugin(),
       // Для главной страницы (main.html)
       new HtmlWebpackPlugin({

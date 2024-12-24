@@ -149,3 +149,6 @@ sftp-config.json
 .settings/
 .vscode/
 .idea/
+
+.env.development
+.env.*
