@@ -2,6 +2,7 @@ import React from 'react';
 import ReactModal from 'react-modal';
 
 import * as styles from './Modal.module.css';
+import { CloseButton } from './components/CloseButton';
 
 type ModalProps = React.PropsWithChildren<{
   open: boolean;
@@ -18,6 +19,7 @@ export const Modal: React.FC<ModalProps> = ({ open, onClose, children }) => {
       overlayClassName={styles['overlay']}
       className={styles['content']}
     >
+      <CloseButton onClick={onClose} className={styles['close-button']} />
       {children}
     </ReactModal>
   );

@@ -1,15 +1,19 @@
 import React from 'react';
 
-import './App.css';
+import * as styles from './App.module.css';
 
-export const App: React.FC<{ page: string }> = ({ page }) => {
+interface AppProps {
+  page: string;
+}
+
+export const App: React.FC<AppProps> = ({ page }) => {
   return (
-    <div className="App">
-      <header className="App-header">
+    <div className={styles['app']}>
+      <header className={styles['app-header']}>
         <p>
           Edit <code>src/App.tsx</code> and save to reload.
         </p>
-        <a className="App-link" href="https://reactjs.org" target="_blank" rel="noopener noreferrer">
+        <a className={styles['app-link']} href="https://reactjs.org" target="_blank" rel="noopener noreferrer">
           Learn React {page}
         </a>
       </header>

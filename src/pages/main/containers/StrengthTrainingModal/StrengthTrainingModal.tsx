@@ -6,9 +6,8 @@ export const StrengthTrainingModal: React.FC = () => {
   const { open, onClose } = useHashHistoryModal();
 
   return (
-    <Modal open={open}>
+    <Modal open={open} onClose={onClose}>
       <p>Modal text!</p>
-      <button onClick={onClose}>Close Modal</button>
     </Modal>
   );
 };

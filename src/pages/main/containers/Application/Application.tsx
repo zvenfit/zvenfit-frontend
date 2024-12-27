@@ -23,6 +23,7 @@ export const Application: React.FC = () => {
           <Route path={MODALS_URLS.DANCE_FITNESS} Component={StrengthTrainingModal} />
           <Route path={MODALS_URLS.YOGALATES} Component={StrengthTrainingModal} />
           <Route path={MODALS_URLS.STRETCHING} Component={StrengthTrainingModal} />
+          <Route path="*" element={null} />
         </Routes>
       </HashRouter>
     </React.StrictMode>

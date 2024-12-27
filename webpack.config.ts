@@ -78,8 +78,9 @@ const config = (env: Record<string, unknown>, argv: WebpackOptionsNormalized): C
               loader: 'css-loader',
               options: {
                 modules: {
+                  namedExport: true,
                   localIdentName: '[name]__[local]___[hash:base64:5]',
-                  exportLocalsConvention: 'dashesOnly',
+                  exportLocalsConvention: 'asIs',
                 },
               },
             },
