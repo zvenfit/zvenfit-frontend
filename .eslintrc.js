@@ -150,7 +150,7 @@ module.exports = {
         '@typescript-eslint/explicit-module-boundary-types': 'off',
         '@typescript-eslint/naming-convention': [
           'error',
-          { selector: 'interface', format: ['PascalCase'], prefix: ['I'], filter: { regex: 'Window', match: false } },
+          { selector: 'interface', format: ['PascalCase'], filter: { regex: 'Window', match: false } },
           { selector: 'class', format: ['PascalCase'] },
           { selector: 'method', format: null, filter: { regex: '^UNSAFE_', match: true } },
         ],

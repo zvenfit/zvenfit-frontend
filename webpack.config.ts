@@ -66,6 +66,24 @@ const config = (env: Record<string, unknown>, argv: WebpackOptionsNormalized): C
           use: [
             'style-loader', // Встраивает CSS в JS
             'css-loader',
+            'postcss-loader',
+          ],
+          exclude: /\.module\.css$/,
+        },
+        {
+          test: /\.module\.css$/,
+          use: [
+            'style-loader', // Встраивает CSS в JS
+            {
+              loader: 'css-loader',
+              options: {
+                modules: {
+                  localIdentName: '[name]__[local]___[hash:base64:5]',
+                  exportLocalsConvention: 'dashesOnly',
+                },
+              },
+            },
+            'postcss-loader',
           ],
         },
         {
