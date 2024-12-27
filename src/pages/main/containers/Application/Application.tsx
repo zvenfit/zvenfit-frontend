@@ -4,8 +4,8 @@ import { HashRouter, Route, Routes } from 'react-router-dom';
 const DevelopmentApp = React.lazy(() =>
   import('../../components/DevelopmentApp').then(({ DevelopmentApp }) => ({ default: DevelopmentApp })),
 );
+import { StrengthTrainingModal } from '../../components/group-training-modals/StrengthTrainingModal';
 import { MODALS_URLS } from '../../constants/modalsUrls';
-import { StrengthTrainingModal } from '../StrengthTrainingModal';
 
 export const Application: React.FC = () => {
   return (
