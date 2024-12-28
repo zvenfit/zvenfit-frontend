@@ -1,7 +1,7 @@
 import * as React from 'react';
 
 import { Modal, useHashHistoryModal } from '../../../../../common/components/Modal';
-import { MAIN_FORM_ID } from '../../../constants/pageAnchors';
+import { MainFormLink } from '../../MainFormAnchor';
 import { Layout } from '../Layout';
 import * as commonStyles from '../assets/common-styles.module.css';
 
@@ -41,10 +41,8 @@ export const StepAerobicsModal: React.FC = () => {
           движения уже сегодня!
         </p>
         <p>
-          <a href={`#${MAIN_FORM_ID}`} className={commonStyles['bold']}>
-            Запишитесь тут
-          </a>{' '}
-          и сделайте первый шаг к сильному и подтянутому телу!
+          <MainFormLink className={commonStyles['bold']}>Запишитесь тут</MainFormLink> и сделайте первый шаг к сильному
+          и подтянутому телу!
         </p>
       </Layout>
     </Modal>

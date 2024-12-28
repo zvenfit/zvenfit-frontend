@@ -20,6 +20,7 @@ export const Modal: React.FC<ModalProps> = ({ title, open, onClose, children }) 
       appElement={window.document.body}
       overlayClassName={styles['overlay']}
       className={styles['modal']}
+      bodyOpenClassName={styles['modal--open']}
     >
       <div className={styles['content']}>
         <div className={styles['header']}>

@@ -33,6 +33,7 @@ const config = (env: Record<string, unknown>, argv: WebpackOptionsNormalized): C
       path: path.resolve(__dirname, 'dist'),
       filename: '[name].[contenthash].js',  // [name] — это имя ключа из entry
       clean: true, // Очистка папки dist перед новой сборкой
+      publicPath: '',
     },
 
     // Специально убираем source map для production
