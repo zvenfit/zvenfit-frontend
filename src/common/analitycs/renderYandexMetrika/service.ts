@@ -35,7 +35,7 @@ export function renderYandexMetrika(): void {
     return;
   }
 
-  if (getMetrika(counterId)) {
+  if (getMetrika()) {
     return;
   }
 

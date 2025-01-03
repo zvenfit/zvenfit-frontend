@@ -1,1 +1,1 @@
-export * from './getMetrika';
+export * from './metrika';

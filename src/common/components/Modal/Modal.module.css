@@ -1,0 +1,81 @@
+.overlay {
+  position: fixed;
+  display: flex;
+  justify-content: center;
+  inset: 0;
+  background-color: rgba(17, 17, 17, .56);
+  overflow: hidden;
+  width: 100%;
+  height: 100%;
+  z-index: 100;
+}
+
+.modal {
+  display: flex;
+  margin: auto;
+  max-height: 100%;
+  max-width: 100%;
+  outline: none;
+}
+
+.modal--open {
+  overflow: hidden !important;
+}
+
+.content {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid rgb(204, 204, 204);
+  background: rgb(255, 255, 255);
+  overflow: hidden;
+  border-radius: 4px;
+  outline: none;
+  width: 600px;
+  margin: 24px;
+}
+
+.close-button {
+  position: absolute;
+  top: 12px;
+  right: 8px;
+  opacity: 0.5;
+}
+
+.header {
+  height: 32px;
+  padding: 8px;
+  border-bottom: 1px solid rgba(204, 204, 204, 0.5);
+}
+
+.title {
+  /*font-family: 'Dela Gothic One', sans-serif, system-ui;*/
+  font-weight: 400;
+  font-size: 24px;
+  line-height: 32px;
+}
+
+.body {
+  overflow: auto;
+}
+
+@media (max-width: 640px) {
+  .modal {
+    max-height: 90%;
+    justify-content: flex-end;
+    margin-bottom: 0;
+  }
+
+  .content {
+    width: 100%;
+    bottom: 0;
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+    margin: 0;
+  }
+
+  .title {
+    font-size: 20px;
+    line-height: 28px;
+  }
+}
