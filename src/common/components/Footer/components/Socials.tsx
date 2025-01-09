@@ -1,15 +1,18 @@
-import { FC } from "react";
-import { VkSvg } from "./VkSvg";
-import { TelegramSvg } from "./TelegramSvg";
-import { WhatsappSvg } from "./WhatsappSvg";
-import { PhoneSvg } from "./PhoneSvg";
-import { EmailSvg } from "./EmailSvg";
+import { FC } from 'react';
 
-export const Socials: {
+import { EmailSvg } from './EmailSvg';
+import { PhoneSvg } from './PhoneSvg';
+import { TelegramSvg } from './TelegramSvg';
+import { VkSvg } from './VkSvg';
+import { WhatsappSvg } from './WhatsappSvg';
+
+export interface ISocialItem {
   link: string;
   description: string;
   component: FC;
-}[] = [
+}
+
+export const Socials: ISocialItem[] = [
   {
     link: 'https://vk.com/zvenfit',
     description: 'Вконтакте',

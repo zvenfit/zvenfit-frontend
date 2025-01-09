@@ -10,6 +10,7 @@ import { StrengthTrainingModal } from '../../components/group-training-modals/St
 import { StretchingModal } from '../../components/group-training-modals/StretchingModal';
 import { YogalatesModal } from '../../components/group-training-modals/YogalatesModal';
 import { MODALS_URLS } from '../../constants/modalsUrls';
+import {Footer} from "../../../../common/components/Footer/Footer";
 
 export const Application: React.FC = () => {
   return (
@@ -17,6 +18,7 @@ export const Application: React.FC = () => {
       {process.env.NODE_ENV === 'development' && (
         <React.Suspense fallback={null}>
           <DevelopmentApp />
+          <Footer />
         </React.Suspense>
       )}
 
