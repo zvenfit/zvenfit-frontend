@@ -25,12 +25,12 @@ export const socials: ISocialItem[] = [
     component: TelegramIcon,
   },
   {
-    link: `https://wa.me/${constants.phone.slice(1)}`,
+    link: `https://wa.me/${constants.phone}`,
     description: 'Whatsapp',
     component: WhatsappIcon,
   },
   {
-    link: `tel:${constants.phone}`,
+    link: `tel:+${constants.phone}`,
     description: 'Номер телефона',
     component: PhoneIcon,
   },

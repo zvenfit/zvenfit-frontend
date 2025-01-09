@@ -4,6 +4,6 @@ interface IConstants {
 }
 
 export const constants: IConstants = {
-  phone: '+79253082323',
+  phone: '79253082323',
   email: 'zvenfit-reception@yandex.ru',
 };
