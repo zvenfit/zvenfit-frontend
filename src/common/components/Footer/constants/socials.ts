@@ -1,11 +1,11 @@
 import { FC } from 'react';
 
-import { EmailIcon } from './components/EmailIcon';
-import { PhoneIcon } from './components/PhoneIcon';
-import { TelegramIcon } from './components/TelegramIcon';
-import { VkIcon } from './components/VkIcon';
-import { WhatsappIcon } from './components/WhatsappIcon';
-import { CONTACTS } from '../../../constants';
+import { CONTACTS } from '../../../../constants';
+import { EmailIcon } from '../components/EmailIcon';
+import { PhoneIcon } from '../components/PhoneIcon';
+import { TelegramIcon } from '../components/TelegramIcon';
+import { VkIcon } from '../components/VkIcon';
+import { WhatsappIcon } from '../components/WhatsappIcon';
 
 export interface ISocialItem {
   link: string;

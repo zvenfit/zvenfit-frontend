@@ -1,7 +1,7 @@
 import React from 'react';
 
 import * as styles from './Footer.module.css';
-import { socials, ISocialItem } from './socials';
+import { socials, ISocialItem } from './constants/socials';
 
 export const Footer: React.FC = () => {
   return (
