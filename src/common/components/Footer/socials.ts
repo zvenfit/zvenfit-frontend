@@ -5,7 +5,7 @@ import { PhoneIcon } from './components/PhoneIcon';
 import { TelegramIcon } from './components/TelegramIcon';
 import { VkIcon } from './components/VkIcon';
 import { WhatsappIcon } from './components/WhatsappIcon';
-import { constants } from '../../../constants';
+import { CONTACTS } from '../../../constants';
 
 export interface ISocialItem {
   link: string;
@@ -25,17 +25,17 @@ export const socials: ISocialItem[] = [
     component: TelegramIcon,
   },
   {
-    link: `https://wa.me/${constants.phone}`,
+    link: `https://wa.me/${CONTACTS.phone}`,
     description: 'Whatsapp',
     component: WhatsappIcon,
   },
   {
-    link: `tel:+${constants.phone}`,
+    link: `tel:+${CONTACTS.phone}`,
     description: 'Номер телефона',
     component: PhoneIcon,
   },
   {
-    link: `mailto:${constants.email}`,
+    link: `mailto:${CONTACTS.email}`,
     description: 'Электронная почта',
     component: EmailIcon,
   },
