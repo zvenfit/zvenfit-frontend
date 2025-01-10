@@ -1,6 +1,6 @@
 import { FC } from 'react';
 
-import { CONTACTS } from '../../../../constants';
+import { CONTACTS } from '../../../../constants/contacts';
 import { EmailIcon } from '../components/EmailIcon';
 import { PhoneIcon } from '../components/PhoneIcon';
 import { TelegramIcon } from '../components/TelegramIcon';
