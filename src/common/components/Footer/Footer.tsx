@@ -1,7 +1,7 @@
 import React from 'react';
 
 import * as styles from './Footer.module.css';
-import { socials, ISocialItem } from './constants/socials';
+import { SOCIALS, ISocialItem } from './constants/socials';
 
 export const Footer: React.FC = () => {
   return (
@@ -14,7 +14,7 @@ export const Footer: React.FC = () => {
 
         <div className={styles['footer__socials-container']}>
           <nav className={styles['footer__socials']}>
-            {socials.map((social: ISocialItem) => {
+            {SOCIALS.map((social: ISocialItem) => {
               const Icon: React.FC = social.component;
 
               return (

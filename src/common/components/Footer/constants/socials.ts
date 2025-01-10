@@ -13,7 +13,7 @@ export interface ISocialItem {
   component: FC;
 }
 
-export const socials: ISocialItem[] = [
+export const SOCIALS: ISocialItem[] = [
   {
     link: 'https://vk.com/zvenfit',
     description: 'Вконтакте',
