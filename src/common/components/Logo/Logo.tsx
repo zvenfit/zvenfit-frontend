@@ -1,11 +1,9 @@
 import React from 'react';
 
-interface IProps {
+export const Logo: React.FC<{
   className?: string;
   style?: React.CSSProperties;
-}
-
-export const Logo: React.FC<IProps> = ({ className, style }) => {
+}> = ({ className, style }) => {
   return (
     <div className={className} style={style}>
       <span style={{ color: '#54c263' }}>ZVEN</span>FIT
