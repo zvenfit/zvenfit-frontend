@@ -4,6 +4,7 @@ import { HashRouter, Route, Routes } from 'react-router-dom';
 const DevelopmentApp = React.lazy(() =>
   import('../../components/DevelopmentApp').then(({ DevelopmentApp }) => ({ default: DevelopmentApp })),
 );
+import { Contacts } from '../../../../common/components/Contacts';
 import { Footer } from '../../../../common/components/Footer';
 import { DanceFitnessModal } from '../../components/group-training-modals/DanceFitnessModal/DanceFitnessModal';
 import { StepAerobicsModal } from '../../components/group-training-modals/StepAerobicsModal';
@@ -32,6 +33,7 @@ export const Application: React.FC = () => {
         </Routes>
       </HashRouter>
 
+      <Contacts />
       <Footer />
     </React.StrictMode>
   );

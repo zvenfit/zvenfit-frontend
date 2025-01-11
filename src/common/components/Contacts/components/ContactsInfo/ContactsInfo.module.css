@@ -1,0 +1,102 @@
+.contacts-info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  width: 100%;
+  padding: 56px 16px;
+  background-color: #111111;
+}
+.contacts-info__main-title {
+  margin-bottom: 16px;
+  font-size: 28px;
+  line-height: 36px;
+  color: #ffffff;
+}
+.contacts-info__list {
+  display: flex;
+  flex-direction: column;
+}
+.contacts-info__list-item {
+  display: flex;
+}
+.contacts-info__list-item + .contacts-info__list-item {
+  margin-top: 28px;
+}
+.contacts-info__list-item-icon-wrapper {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  margin-right: 20px;
+  border: 1px solid #e7e8ea;
+  border-radius: 50%;
+}
+.contacts-info__list-item-icon {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+.contacts-info__list-item-info-wrapper {
+  display: flex;
+  flex-direction: column;
+}
+.contacts-info__list-item-title {
+  margin-bottom: 8px;
+  font-size: 16px;
+  line-height: 24px;
+  color: #ffffff;
+}
+.contacts-info__list-item-text {
+  font-size: 14px;
+  line-height: 20px;
+  color: hsla(0, 0%, 100%, .56);;
+}
+@media screen and (min-width: 640px) {
+  .contacts-info {
+    padding: 64px;
+  }
+  .contacts-info__main-title {
+    margin-bottom: 20px;
+    font-size: 40px;
+    line-height: 48px;
+  }
+  .contacts-info__list-item + .contacts-info__list-item {
+    margin-top: 32px;
+  }
+  .contacts-info__list-item-title {
+    font-size: 20px;
+    line-height: 28px;
+  }
+}
+@media screen and (min-width: 960px) {
+  .contacts-info {
+    justify-content: center;
+    width: 50%;
+  }
+  .contacts-info__main-title {
+    margin-bottom: 24px;
+    font-size: 48px;
+    line-height: 56px;
+  }
+  .contacts-info__list-item-text {
+    font-size: 16px;
+    line-height: 24px;
+  }
+}
+@media screen and (min-width: 1360px) {
+  .contacts-info__main-title {
+    margin-bottom: 28px;
+    font-size: 56px;
+    line-height: 64px;
+  }
+  .contacts-info__list-item + .contacts-info__list-item {
+    margin-top: 36px;
+  }
+  .contacts-info__list-item-title {
+    margin-bottom: 12px;
+    font-size: 24px;
+    line-height: 32px;
+    color: #ffffff;
+  }
+}
