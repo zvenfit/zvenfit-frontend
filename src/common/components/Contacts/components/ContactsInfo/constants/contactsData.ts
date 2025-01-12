@@ -13,7 +13,7 @@ export interface IContactsInfoItem {
   component: FC;
 }
 
-export const CONTACTS_INFO: IContactsInfoItem[] = [
+export const CONTACTS_DATA: IContactsInfoItem[] = [
   {
     title: 'Адрес',
     text: 'г. Звенигород, ул Чехова, д. 13А',

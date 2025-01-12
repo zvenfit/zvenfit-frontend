@@ -1,7 +1,7 @@
 import React from 'react';
 
 import * as styles from './ContactsInfo.module.css';
-import { CONTACTS_INFO, IContactsInfoItem } from './constants/contactsInfo';
+import { CONTACTS_DATA, IContactsInfoItem } from './constants/contactsData';
 
 export const ContactsInfo: React.FC = () => {
   return (
@@ -9,7 +9,7 @@ export const ContactsInfo: React.FC = () => {
       <h2 className={styles['contacts-info__main-title']}>Контакты</h2>
 
       <ul className={styles['contacts-info__list']}>
-        {CONTACTS_INFO.map((item: IContactsInfoItem) => {
+        {CONTACTS_DATA.map((item: IContactsInfoItem) => {
           const Icon = item.component;
 
           return (
