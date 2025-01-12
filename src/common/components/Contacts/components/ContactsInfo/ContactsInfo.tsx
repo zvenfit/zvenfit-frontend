@@ -9,12 +9,12 @@ export const ContactsInfo: React.FC = () => {
       <h2 className={styles['contacts-info__main-title']}>Контакты</h2>
       <ul className={styles['contacts-info__list']}>
         {CONTACTS_INFO.map((item: IContactsInfoItem) => {
-          const Icon: React.FC<{ className: string }> = item.component;
+          const Icon = item.component;
 
           return (
             <li key={item.title} className={styles['contacts-info__list-item']}>
               <div className={styles['contacts-info__list-item-icon-wrapper']}>
-                <Icon className={styles['contacts-info__list-item-icon']} />
+                <Icon />
               </div>
 
               <div className={styles['contacts-info__list-item-info-wrapper']}>

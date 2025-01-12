@@ -32,7 +32,7 @@
   box-shadow: inset 0 0 8px -2px #c8f447;
   border-radius: 50%;
 }
-.contacts-info__list-item-icon {
+.contacts-info__list-item-icon-wrapper > svg {
   position: absolute;
   top: 50%;
   left: 50%;

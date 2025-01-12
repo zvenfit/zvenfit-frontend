@@ -10,7 +10,7 @@ export interface IContactsInfoItem {
   title: string;
   link?: string;
   text: string;
-  component: FC<{ className: string }>;
+  component: FC;
 }
 
 export const CONTACTS_INFO: IContactsInfoItem[] = [
