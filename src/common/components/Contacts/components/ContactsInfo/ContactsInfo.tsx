@@ -7,6 +7,7 @@ export const ContactsInfo: React.FC = () => {
   return (
     <div className={styles['contacts-info']}>
       <h2 className={styles['contacts-info__main-title']}>Контакты</h2>
+
       <ul className={styles['contacts-info__list']}>
         {CONTACTS_INFO.map((item: IContactsInfoItem) => {
           const Icon = item.component;
@@ -19,10 +20,11 @@ export const ContactsInfo: React.FC = () => {
 
               <div className={styles['contacts-info__list-item-info-wrapper']}>
                 <h5 className={styles['contacts-info__list-item-title']}>{item.title}</h5>
+
                 {(item.link && (
                   <a
                     href={item.link}
-                    target="blank"
+                    target="_blank"
                     rel="noopener noreferrer"
                     className={styles['contacts-info__list-item-link']}
                   >
