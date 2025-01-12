@@ -51,10 +51,15 @@
   line-height: 24px;
   color: #ffffff;
 }
+.contacts-info__list-item-link,
 .contacts-info__list-item-text {
   font-size: 14px;
   line-height: 20px;
-  color: hsla(0, 0%, 100%, .56);;
+  color: #ffffff;
+  opacity: 0.5;
+}
+.contacts-info__list-item-link:hover {
+  opacity: 0.75;
 }
 @media screen and (min-width: 640px) {
   .contacts-info {
@@ -83,6 +88,7 @@
     font-size: 48px;
     line-height: 56px;
   }
+  .contacts-info__list-item-link,
   .contacts-info__list-item-text {
     font-size: 16px;
     line-height: 24px;
