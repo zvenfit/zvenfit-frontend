@@ -1,12 +1,17 @@
 .contacts-info {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  justify-content: center;
+  align-items: center;
+  justify-content: flex-start;
   width: 100%;
   padding: 56px 16px;
   box-sizing: border-box;
   background-color: #111111;
+}
+.contacts-info__wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
 }
 .contacts-info__main-title {
   margin-bottom: 16px;
@@ -82,7 +87,6 @@
 @media screen and (min-width: 960px) {
   .contacts-info {
     justify-content: center;
-    align-items: center;
     width: 50%;
     min-height: 100vh;
     margin-right: auto;
