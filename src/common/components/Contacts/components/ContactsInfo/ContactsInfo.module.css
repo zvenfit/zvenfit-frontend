@@ -5,6 +5,7 @@
   justify-content: center;
   width: 100%;
   padding: 56px 16px;
+  box-sizing: border-box;
   background-color: #111111;
 }
 .contacts-info__main-title {
@@ -81,7 +82,10 @@
 @media screen and (min-width: 960px) {
   .contacts-info {
     justify-content: center;
+    align-items: center;
     width: 50%;
+    min-height: 100vh;
+    margin-right: auto;
   }
   .contacts-info__main-title {
     margin-bottom: 24px;
