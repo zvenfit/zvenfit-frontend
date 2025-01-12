@@ -1,4 +1,8 @@
 .logo {
+  font-size: inherit;
+  font-weight: inherit;
+  line-height: inherit;
+  text-align: inherit;
 }
 .logo__text--highlighted {
   color: #54c263;
