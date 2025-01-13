@@ -64,6 +64,11 @@
   color: #ffffff;
   opacity: 0.5;
 }
+.contacts-info__list-item-link {
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.2em;
+}
 .contacts-info__list-item-link:hover {
   opacity: 0.75;
 }
