@@ -3,6 +3,7 @@ import React from 'react';
 import * as styles from './Map.module.css';
 
 //55.733647, 36.850640
+//apikey=a9eba83c-b342-4dfe-ab11-2c7cbd6839cb
 export const Map: React.FC = () => {
   return (
     <div id="map" className={styles['map']}>
