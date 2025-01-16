@@ -19,7 +19,7 @@ export const YMapDefaultSchemeLayer: React.FC<YMapDefaultSchemeLayerProps> = pro
   }, [context.ready]);
 
   React.useEffect(() => {
-    if (context.ready && defaultSchemeLayerRef.current && context.mapRef.current) {
+    if (context.ready && defaultSchemeLayerRef.current) {
       defaultSchemeLayerRef.current.update(props);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
