@@ -36,5 +36,5 @@ interface GetUrlParameters {
 }
 
 function getUrl({ apiKey }: GetUrlParameters) {
-  return `https://api-maps.yandex.ru/3.0/?apikey=${apiKey}&lang=rus`;
+  return `https://api-maps.yandex.ru/3.0/?apikey=${apiKey}&lang=ru_RU`;
 }

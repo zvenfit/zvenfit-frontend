@@ -3,7 +3,8 @@ import { GenericRootEntity } from '@yandex/ymaps3-types/imperative/Entities';
 import { YMap } from '@yandex/ymaps3-types/imperative/YMap';
 import React from 'react';
 
-import { YMaps } from '../types';
+import { YMaps } from '../../types';
+import { attachYMapsReact } from '../../utils/attachYMapsReact';
 
 interface YMapsContextValueInitial {
   ready: false;
@@ -12,6 +13,7 @@ interface YMapsContextValueInitial {
 export interface YMapsContextValueReady {
   ready: true;
   ymaps: YMaps;
+  components: Awaited<ReturnType<typeof attachYMapsReact>>;
   mapRef: MapRef;
 }
 

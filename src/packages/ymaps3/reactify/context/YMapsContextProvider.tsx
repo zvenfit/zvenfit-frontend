@@ -2,7 +2,8 @@ import * as React from 'react';
 
 import { YMapsContext } from './context';
 import { MapRef, YMapsContextValue } from './types';
-import { loadYMapsApi } from '../utils/loadYMaps';
+import { attachYMapsReact } from '../../utils/attachYMapsReact';
+import { loadYMapsApi } from '../../utils/loadYMaps';
 
 export const YMapsContextProvider: React.FC<React.PropsWithChildren> = ({ children }) => {
   const mapRef: MapRef = React.useRef(null);
@@ -12,10 +13,12 @@ export const YMapsContextProvider: React.FC<React.PropsWithChildren> = ({ childr
     async function load() {
       try {
         const ymaps = await loadYMapsApi();
+        const components = await attachYMapsReact(ymaps);
 
         setContextValue({
           ready: true,
           ymaps,
+          components,
           mapRef,
         });
       } catch (error) {
