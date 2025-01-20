@@ -15,6 +15,7 @@
     "dotenv": "^16.4.7",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "react-helmet": "^6.1.0",
     "react-modal": "^3.16.3",
     "react-router-dom": "^7.1.1"
   },
@@ -25,6 +26,7 @@
     "@babel/preset-typescript": "^7.26.0",
     "@types/react": "^19.0.2",
     "@types/react-dom": "^19.0.2",
+    "@types/react-helmet": "^6.1.11",
     "@types/react-modal": "^3.16.3",
     "@typescript-eslint/eslint-plugin": "^8.18.1",
     "@yandex/ymaps3-types": "^1.0.15542062",
