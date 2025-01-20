@@ -11,7 +11,7 @@ export const ContactsInfo: React.FC = () => {
 
         <ul className={styles['contacts-info__list']}>
           {CONTACTS_DATA.map((item: IContactsInfoItem) => {
-            const Icon = item.component;
+            const Icon: React.FC = item.component;
 
             return (
               <li key={item.title} className={styles['contacts-info__list-item']}>
