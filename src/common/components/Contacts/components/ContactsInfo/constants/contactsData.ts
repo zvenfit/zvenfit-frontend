@@ -16,7 +16,7 @@ export interface IContactsInfoItem {
 export const CONTACTS_DATA: IContactsInfoItem[] = [
   {
     title: 'Адрес',
-    text: 'г. Звенигород, ул Чехова, д. 13А',
+    text: 'г. Звенигород, ул. Чехова, д. 13А',
     link: 'https://yandex.ru/maps/-/CDXPQWnS',
     component: AddressIcon,
   },
