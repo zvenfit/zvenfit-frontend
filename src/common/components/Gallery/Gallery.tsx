@@ -6,7 +6,19 @@ export const Gallery: React.FC = () => {
   return (
     <section className={styles['gallery']}>
       <div className={'container'}>
-        <div style={{ width: '100%', height: '300px', background: 'red' }}></div>
+        <header className={styles['gallery__header']}>
+          <h2 className={styles['gallery__header-title']}>Наша студия</h2>
+
+          <p className={styles['gallery__header-text']}>
+            В нашем фитнес-клубе просторные залы с тренажерами последнего поколения.
+          </p>
+
+          <p className={styles['gallery__header-text']}>
+            Каждый найдёт для себя всё необходимое для эффективных тренировок 💪
+          </p>
+        </header>
+
+        <div className={styles['gallery__content']}>Content</div>
       </div>
     </section>
   );
