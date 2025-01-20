@@ -5,8 +5,8 @@ const DevelopmentApp = React.lazy(() =>
   import('../../components/DevelopmentApp').then(({ DevelopmentApp }) => ({ default: DevelopmentApp })),
 );
 import { Contacts } from '../../../../common/components/Contacts';
+import { ContactsLdJson } from '../../../../common/components/Contacts/components/ContactsInfo/components/ContactsLdJson';
 import { Footer } from '../../../../common/components/Footer';
-import { SemanticContactsInfo } from '../../../../common/components/SemanticContactsInfo';
 import { DanceFitnessModal } from '../../components/group-training-modals/DanceFitnessModal/DanceFitnessModal';
 import { StepAerobicsModal } from '../../components/group-training-modals/StepAerobicsModal';
 import { StrengthTrainingModal } from '../../components/group-training-modals/StrengthTrainingModal';
@@ -34,7 +34,7 @@ export const Application: React.FC = () => {
         </Routes>
       </HashRouter>
 
-      <SemanticContactsInfo />
+      <ContactsLdJson />
       <Contacts />
       <Footer />
     </React.StrictMode>
