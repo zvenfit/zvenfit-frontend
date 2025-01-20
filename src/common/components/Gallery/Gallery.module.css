@@ -21,6 +21,9 @@
   display: flex;
   flex-wrap: wrap;
 }
+.gallery__content-img {
+
+}
 @media screen and (min-width: 640px) {
   .gallery__header {
     margin-bottom: 40px;

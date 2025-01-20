@@ -1,6 +1,7 @@
 import React from 'react';
 
 import * as styles from './Gallery.module.css';
+import { IImageItem, IMAGES } from './constants/images';
 
 export const Gallery: React.FC = () => {
   return (
@@ -18,7 +19,11 @@ export const Gallery: React.FC = () => {
           </p>
         </header>
 
-        <div className={styles['gallery__content']}>Content</div>
+        <div className={styles['gallery__content']}>
+          {IMAGES.map((image: IImageItem, index: number) => (
+            <img key={index} className={styles['gallery__content-img']} src={image.src} alt={image.alt} />
+          ))}
+        </div>
       </div>
     </section>
   );
