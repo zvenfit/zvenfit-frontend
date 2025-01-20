@@ -20,9 +20,9 @@ export const ContactsInfo: React.FC = () => {
                 </div>
 
                 <div className={styles['contacts-info__list-item-info-wrapper']}>
-                  <h5 className={styles['contacts-info__list-item-title']}>{item.title}</h5>
+                  <span className={styles['contacts-info__list-item-title']}>{item.title}</span>
 
-                  {(item.link && (
+                  {item.link ? (
                     <a
                       href={item.link}
                       target="_blank"
@@ -31,7 +31,9 @@ export const ContactsInfo: React.FC = () => {
                     >
                       {item.text}
                     </a>
-                  )) || <span className={styles['contacts-info__list-item-text']}>{item.text}</span>}
+                  ) : (
+                    <span className={styles['contacts-info__list-item-text']}>{item.text}</span>
+                  )}
                 </div>
               </li>
             );
