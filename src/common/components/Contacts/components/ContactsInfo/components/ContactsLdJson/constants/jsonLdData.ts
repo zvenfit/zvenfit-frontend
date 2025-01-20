@@ -15,7 +15,7 @@ interface IJsonLdData {
   name: string;
   telephone: string;
 }
-
+/*TODO исправить ссылку на логотип, когда она будет известна*/
 export const JSON_LD_DATA: IJsonLdData = {
   '@context': 'http://schema.org',
   '@type': 'Organization',
