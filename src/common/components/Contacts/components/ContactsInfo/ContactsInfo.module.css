@@ -57,6 +57,10 @@
   line-height: 24px;
   color: #ffffff;
 }
+.contacts-info__list-item-address {
+  font-style: normal;
+  font-weight: 400;
+}
 .contacts-info__list-item-link,
 .contacts-info__list-item-text {
   font-size: 14px;

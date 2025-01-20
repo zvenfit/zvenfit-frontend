@@ -23,14 +23,16 @@ export const ContactsInfo: React.FC = () => {
                   <span className={styles['contacts-info__list-item-title']}>{item.title}</span>
 
                   {item.link ? (
-                    <a
-                      href={item.link}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className={styles['contacts-info__list-item-link']}
-                    >
-                      {item.text}
-                    </a>
+                    <address className={styles['contacts-info__list-item-address']}>
+                      <a
+                        href={item.link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={styles['contacts-info__list-item-link']}
+                      >
+                        {item.text}
+                      </a>
+                    </address>
                   ) : (
                     <span className={styles['contacts-info__list-item-text']}>{item.text}</span>
                   )}
