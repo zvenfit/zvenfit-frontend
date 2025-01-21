@@ -21,7 +21,9 @@ export const Gallery: React.FC = () => {
 
         <div className={styles['gallery__content']}>
           {IMAGES.map((image: IImageItem, index: number) => (
-            <img key={index} className={styles['gallery__content-img']} src={image.src} alt={image.alt} />
+            <div key={index} className={styles['gallery__img-wrapper']}>
+              <img className={styles['gallery__content-img']} src={image.src} alt={image.alt} />
+            </div>
           ))}
         </div>
       </div>
