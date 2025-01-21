@@ -1,3 +1,6 @@
+import { CONTACTS } from '../../../../../../../../constants/contacts';
+import { formatPhoneNumber } from '../../../../../../../../packages/utils/formatPhoneNumber';
+
 interface IAddress {
   '@type': string;
   addressLocality: string;
@@ -19,15 +22,15 @@ interface IJsonLdData {
 export const JSON_LD_DATA: IJsonLdData = {
   '@context': 'http://schema.org',
   '@type': 'Organization',
-  url: 'https://zvenfit.ru',
-  logo: 'https://259506.selcdn.ru/sites-static/site959140/3861673f-1856-473f-84bf-11eaee774160/3861673f-1856-473f-84bf-11eaee774160-10815684.png',
+  url: CONTACTS.url,
+  logo: CONTACTS.logoUrl,
   address: {
     '@type': 'PostalAddress',
-    addressLocality: 'г. Звенигород',
-    postalCode: '143180',
-    streetAddress: 'ул. Чехова, д. 13А',
+    addressLocality: CONTACTS.locality,
+    postalCode: CONTACTS.postalCode,
+    streetAddress: CONTACTS.address,
   },
-  email: 'zvenfit-reception@yandex.ru',
-  name: 'Фитнес-клуб ZVENFIT',
-  telephone: '+7 (925) 308-23-23',
+  email: CONTACTS.email,
+  name: CONTACTS.name,
+  telephone: `${formatPhoneNumber(CONTACTS.phone)}`,
 };

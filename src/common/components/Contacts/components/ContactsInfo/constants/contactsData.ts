@@ -1,6 +1,7 @@
 import { FC } from 'react';
 
 import { CONTACTS } from '../../../../../../constants/contacts';
+import { formatPhoneNumber } from '../../../../../../packages/utils/formatPhoneNumber';
 import { AddressIcon } from '../components/AddressIcon';
 import { ClockIcon } from '../components/ClockIcon';
 import { EmailIcon } from '../components/EmailIcon';
@@ -16,13 +17,13 @@ export interface IContactsInfoItem {
 export const CONTACTS_DATA: IContactsInfoItem[] = [
   {
     title: 'Адрес',
-    text: 'г. Звенигород, ул. Чехова, д. 13А',
-    link: 'https://yandex.ru/maps/-/CDXPQWnS',
+    text: `${CONTACTS.locality}, ${CONTACTS.address}`,
+    link: CONTACTS.yMapLink,
     component: AddressIcon,
   },
   {
     title: 'Время работы',
-    text: 'Пн-Вс: 08:00-22:00',
+    text: CONTACTS.operatingMode,
     component: ClockIcon,
   },
   {
@@ -38,13 +39,3 @@ export const CONTACTS_DATA: IContactsInfoItem[] = [
     component: EmailIcon,
   },
 ];
-
-function formatPhoneNumber(phoneNumber: string): string {
-  if (!phoneNumber || phoneNumber.length !== 11) {
-    return phoneNumber; // Возвращаем исходную строку, если она некорректна
-  }
-
-  const cleanedPhoneNumber = phoneNumber.replace(/\D/g, ''); // Удаляем все нецифровые символы
-
-  return `+${cleanedPhoneNumber.slice(0, 1)} (${cleanedPhoneNumber.slice(1, 4)}) ${cleanedPhoneNumber.slice(4, 7)}-${cleanedPhoneNumber.slice(7, 9)}-${cleanedPhoneNumber.slice(9)}`;
-}
