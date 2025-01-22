@@ -1,10 +1,14 @@
 import React from 'react';
 
 import * as styles from './Footer.module.css';
-import { Logo } from '../Logo';
-import { SOCIALS, ISocialItem } from './constants/socials';
+import { ISocialItem } from './types';
+import { Logo } from '../../../../components/Logo';
 
-export const Footer: React.FC = () => {
+interface FooterProps {
+  socials: ISocialItem[];
+}
+
+export const Footer: React.FC<FooterProps> = ({ socials }) => {
   return (
     <footer className={styles['footer']}>
       <div className={styles['footer__container']}>
@@ -14,8 +18,8 @@ export const Footer: React.FC = () => {
 
         <div className={styles['footer__socials-container']}>
           <nav className={styles['footer__socials']}>
-            {SOCIALS.map((social: ISocialItem) => {
-              const Icon: React.FC = social.component;
+            {socials.map((social: ISocialItem) => {
+              const Icon: React.FC = social.icon;
 
               return (
                 <a
