@@ -9,8 +9,8 @@ import { ClockIcon } from './components/icons/ClockIcon';
 import { EmailIcon } from './components/icons/EmailIcon';
 import { PhoneIcon } from './components/icons/PhoneIcon';
 import { COMPANY_FULL_ADDRESS } from '../../../constants/companyAddress';
-import { CompanyContacts, RECEPTION_EMAIL, RECEPTION_PHONE } from '../../../constants/companyContacts';
-import { COMPANY_Y_MAPS_URL } from '../../../constants/companyInfo';
+import { RECEPTION_EMAIL, RECEPTION_PHONE } from '../../../constants/companyContacts';
+import { COMPANY_WORKING_HOURS, COMPANY_Y_MAPS_URL } from '../../../constants/companyInfo';
 import { formatPhoneNumber } from '../../../packages/utils/formatPhoneNumber';
 
 export const CONTACTS_DATA: IContactsInfoItem[] = [
@@ -22,7 +22,7 @@ export const CONTACTS_DATA: IContactsInfoItem[] = [
   },
   {
     title: 'Время работы',
-    text: CompanyContacts.operatingMode,
+    text: COMPANY_WORKING_HOURS,
     icon: ClockIcon,
   },
   {
