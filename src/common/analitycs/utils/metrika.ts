@@ -13,10 +13,7 @@ export function getMetrikaById(metrikaID: string): Metrika {
 
 export function getMetrika() {
   const config = getConfig();
-  const counterId = config.get('YA_METRIKA_COUNTER_ID');
-  if (!counterId) {
-    throw new Error('Counter Id is not defined');
-  }
+  const counterId = config.getStrict('YA_METRIKA_COUNTER_ID');
 
   return getMetrikaById(counterId);
 }

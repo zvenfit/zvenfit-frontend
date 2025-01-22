@@ -1,17 +1,21 @@
 import React from 'react';
 
 import * as styles from './ContactsInfo.module.css';
-import { CONTACTS_DATA, IContactsInfoItem } from './constants/contactsData';
+import { IContactsInfoItem } from './types';
 
-export const ContactsInfo: React.FC = () => {
+interface ContactsInfoProps {
+  items: IContactsInfoItem[];
+}
+
+export const ContactsInfo: React.FC<ContactsInfoProps> = ({ items }) => {
   return (
     <div className={styles['contacts-info']}>
       <div className={styles['contacts-info__wrapper']}>
         <h2 className={styles['contacts-info__main-title']}>Контакты</h2>
 
         <ul className={styles['contacts-info__list']}>
-          {CONTACTS_DATA.map((item: IContactsInfoItem) => {
-            const Icon: React.FC = item.component;
+          {items.map((item: IContactsInfoItem) => {
+            const Icon: React.FC = item.icon;
 
             return (
               <li key={item.title} className={styles['contacts-info__list-item']}>

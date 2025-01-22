@@ -4,9 +4,8 @@ import { HashRouter, Route, Routes } from 'react-router-dom';
 const DevelopmentApp = React.lazy(() =>
   import('../../components/DevelopmentApp').then(({ DevelopmentApp }) => ({ default: DevelopmentApp })),
 );
-import { Contacts } from '../../../../common/components/Contacts';
-import { ContactsLdJson } from '../../../../common/components/Contacts/components/ContactsInfo/components/ContactsLdJson';
-import { Footer } from '../../../../common/components/Footer';
+import { ContactsContainer } from '../../../../common/containers/ContactsContainer';
+import { FooterContainer } from '../../../../common/containers/FooterContainer';
 import { DanceFitnessModal } from '../../components/group-training-modals/DanceFitnessModal/DanceFitnessModal';
 import { StepAerobicsModal } from '../../components/group-training-modals/StepAerobicsModal';
 import { StrengthTrainingModal } from '../../components/group-training-modals/StrengthTrainingModal';
@@ -34,9 +33,8 @@ export const Application: React.FC = () => {
         </Routes>
       </HashRouter>
 
-      <ContactsLdJson />
-      <Contacts />
-      <Footer />
+      <ContactsContainer />
+      <FooterContainer />
     </React.StrictMode>
   );
 };

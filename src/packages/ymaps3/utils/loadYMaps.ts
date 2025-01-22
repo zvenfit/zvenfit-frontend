@@ -7,10 +7,7 @@ let loadPromise: Promise<YMaps>;
 // TODO где-то сделать проверку чтобы не загружались карты дважды, если они хотя бы один раз были ранее загружены
 export function loadYMapsApi() {
   const config = getConfig();
-  const apiKey = config.get('Y_MAPS_API_KEY');
-  if (!apiKey) {
-    throw new Error('YMaps Api Key is not defined');
-  }
+  const apiKey = config.getStrict('Y_MAPS_API_KEY');
 
   if (!loadPromise) {
     const requestUrl = getUrl({ apiKey });
