@@ -42,6 +42,36 @@
   text-align: center;
   text-transform: uppercase;
 }
+.trainer-list__wrapper {
+  position: relative;
+  overflow-x: auto;
+  scroll-snap-type: both mandatory;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.trainer-list__wrapper::-webkit-scrollbar {
+  display: none;
+}
+.trainer-list__list {
+  display: flex;
+  flex-wrap: nowrap;
+}
+.trainer-list__list-item {
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+}
+.trainer-list__photo-wrapper {
+
+}
+.trainer-list__photo-helper {
+
+}
+.trainer-list__photo {
+
+}
+.trainer-list__photo-tile {
+
+}
 @media screen and (min-width: 640px) {
   .trainer-list__skew {
     height: 70px;
