@@ -9,6 +9,7 @@
   width: 100%;
   height: 56px;
   background-color: #ffffff;
+  overflow: hidden;
 }
 .trainer-list__skew::before {
   content: "";
@@ -30,7 +31,6 @@
   background-color: #ffffff;
 }
 .trainer-list__header {
-  padding-top: 30px;
 }
 .trainer-list__title {
   margin-bottom: 16px;
@@ -43,9 +43,6 @@
   .trainer-list__skew {
     height: 70px;
   }
-  .trainer-list__header {
-    padding-top: 40px;
-  }
   .trainer-list__title {
     margin-bottom: 20px;
     font-size: 40px;
@@ -55,9 +52,6 @@
 @media screen and (min-width: 960px) {
   .trainer-list__skew {
     height: 140px;
-  }
-  .trainer-list__header {
-    padding-top: 70px;
   }
   .trainer-list__title {
     margin-bottom: 24px;
