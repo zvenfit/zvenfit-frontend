@@ -1,7 +1,8 @@
 import React from 'react';
 
 import * as styles from './TrainerList.module.css';
-import { Slider } from './components/Slider';
+import { PHOTOS } from '../../constants/photos';
+import { Slider } from '../Slider';
 
 export const TrainerList: React.FC = () => {
   return (
@@ -14,7 +15,7 @@ export const TrainerList: React.FC = () => {
             <h2 className={styles['trainer-list__title']}>Тренерский состав</h2>
           </header>
 
-          <Slider />
+          <Slider photos={PHOTOS} />
         </div>
       </div>
 

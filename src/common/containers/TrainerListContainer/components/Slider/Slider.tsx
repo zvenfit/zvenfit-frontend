@@ -1,13 +1,17 @@
 import React from 'react';
 
 import * as styles from './Slider.module.css';
-import { IPhotos, PHOTOS } from '../constants/photos';
+import { IPhotos } from './types';
 
-export const Slider: React.FC = () => {
+interface TrainerListProps {
+  photos: IPhotos[];
+}
+
+export const Slider: React.FC<TrainerListProps> = ({ photos }) => {
   return (
     <div className={styles['slider']}>
       <ul className={styles['slider__list']}>
-        {PHOTOS.map((photo: IPhotos) => {
+        {photos.map((photo: IPhotos) => {
           return (
             <li key={photo.src} className={styles['slider__list-item']}>
               <figure className={styles['slider__photo-wrapper']}>

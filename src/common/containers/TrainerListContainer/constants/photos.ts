@@ -1,7 +1,4 @@
-export interface IPhotos {
-  name: string;
-  src: string;
-}
+import { IPhotos } from '../components/Slider';
 
 export const PHOTOS: IPhotos[] = [
   {
