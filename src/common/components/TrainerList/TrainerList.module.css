@@ -30,7 +30,7 @@
   transform: skewY(-3deg);
   background-color: #ffffff;
 }
-.trainer-list__container {
+.trainer-list__wrapper {
   padding: 72px 0;
 }
 .trainer-list__header {
