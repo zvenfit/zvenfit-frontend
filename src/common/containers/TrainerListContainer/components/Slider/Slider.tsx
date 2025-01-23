@@ -3,11 +3,11 @@ import React from 'react';
 import * as styles from './Slider.module.css';
 import { IPhotos } from './types';
 
-interface TrainerListProps {
+interface SliderListProps {
   photos: IPhotos[];
 }
 
-export const Slider: React.FC<TrainerListProps> = ({ photos }) => {
+export const Slider: React.FC<SliderListProps> = ({ photos }) => {
   return (
     <div className={styles['slider']}>
       <ul className={styles['slider__list']}>
