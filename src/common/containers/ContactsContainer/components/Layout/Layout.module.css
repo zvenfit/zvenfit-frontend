@@ -1,0 +1,11 @@
+.contacts {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+@media screen and (min-width: 960px) {
+  .contacts {
+    flex-direction: row-reverse;
+  }
+}

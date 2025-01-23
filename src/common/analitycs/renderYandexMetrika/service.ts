@@ -28,12 +28,7 @@ function getNoscriptContent(id: string) {
 
 export function renderYandexMetrika(): void {
   const config = getConfig();
-  const counterId = config.get('YA_METRIKA_COUNTER_ID');
-  if (!counterId) {
-    console.error('Counter Id is not defined');
-
-    return;
-  }
+  const counterId = config.getStrict('YA_METRIKA_COUNTER_ID');
 
   if (getMetrika()) {
     return;
