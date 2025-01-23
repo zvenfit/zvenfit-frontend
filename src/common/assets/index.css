@@ -12,6 +12,10 @@ code {
     monospace;
 }
 
+ul, ol {
+  list-style: none;
+}
+
 .container {
   position: relative;
   display: block;
