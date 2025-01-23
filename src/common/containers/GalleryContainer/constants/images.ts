@@ -1,7 +1,4 @@
-export interface IImageItem {
-  src: string;
-  alt: string;
-}
+import { IImageItem } from '../components/Gallery';
 
 export const IMAGES: IImageItem[] = [
   {
