@@ -10,27 +10,29 @@ interface SliderProps {
 export const Slider: React.FC<SliderProps> = ({ photos }) => {
   return (
     <div className={styles['slider']}>
-      <ul className={styles['slider__list']}>
-        {photos.map((photo: IPhotos) => {
+      <div className={styles['slider__content']}>
+        <ul className={styles['slider__list']}>
+          {photos.map((photo: IPhotos) => {
+            return (
+              <li key={photo.src} className={styles['slider__list-item']}>
+                <figure className={styles['slider__photo-wrapper']}>
+                  <div className={styles['slider__photo-helper']}>
+                    <img src={photo.src} alt="Изображение" className={styles['slider__photo']} />
+                  </div>
+
+                  <span className={styles['slider__photo-title']}>{photo.name}</span>
+                </figure>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+
+      <ul className={styles['slide__dot-list']}>
+        {photos.map(button => {
           return (
-            <li key={photo.src} className={styles['slider__list-item']}>
-              <figure className={styles['slider__photo-wrapper']}>
-                <div className={styles['slider__photo-helper']}>
-                  <img src={photo.src} alt="Изображение" className={styles['slider__photo']} />
-                </div>
-
-                <span className={styles['slider__photo-title']}>{photo.name}</span>
-              </figure>
-
-              <ul className={styles['slide__dot-list']}>
-                {photos.map(button => {
-                  return (
-                    <li key={button.src} className={styles['slide__dot-list-item']}>
-                      <button type="button" className={styles['slide__dot-button']}></button>
-                    </li>
-                  );
-                })}
-              </ul>
+            <li key={button.src} className={styles['slide__dot-list-item']}>
+              <button type="button" className={styles['slide__dot-button']}></button>
             </li>
           );
         })}

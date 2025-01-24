@@ -1,5 +1,9 @@
 .slider {
+
+}
+.slider__content {
   position: relative;
+  margin-bottom: 32px;
   overflow-x: auto;
   scroll-snap-type: both mandatory;
   scrollbar-width: none;
@@ -19,7 +23,7 @@
   scroll-snap-stop: always;
 }
 .slider__photo-wrapper {
-  margin: 0 0 32px 0;
+  margin: 0;
 }
 .slider__photo-helper {
   position: relative;
