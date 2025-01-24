@@ -57,3 +57,32 @@
   line-height: 24px;
   color: rgba(17, 17, 17, 0.56);
 }
+@media screen and (min-width: 640px) {
+  .training-list__header-title {
+    margin-bottom: 48px;
+    font-size: 40px;
+    line-height: 48px;
+  }
+  .training-list__list-item-title {
+    margin-bottom: 16px;
+    font-size: 24px;
+    line-height: 32px;
+  }
+}
+@media screen and (min-width: 960px) {
+  .training-list__header-title {
+    font-size: 48px;
+    line-height: 56px;
+  }
+  .training-list__list-item-description {
+    font-size: 20px;
+    line-height: 28px;
+  }
+}
+@media screen and (min-width: 1360px) {
+  .training-list__header-title {
+    margin-bottom: 56px;
+    font-size: 56px;
+    line-height: 64px;
+  }
+}
