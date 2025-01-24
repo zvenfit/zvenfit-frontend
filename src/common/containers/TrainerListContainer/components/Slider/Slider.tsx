@@ -21,6 +21,16 @@ export const Slider: React.FC<SliderProps> = ({ photos }) => {
 
                 <span className={styles['slider__photo-title']}>{photo.name}</span>
               </figure>
+
+              <ul className={styles['slide__dot-list']}>
+                {photos.map(button => {
+                  return (
+                    <li key={button.src} className={styles['slide__dot-list-item']}>
+                      <button type="button" className={styles['slide__dot-button']}></button>
+                    </li>
+                  );
+                })}
+              </ul>
             </li>
           );
         })}
