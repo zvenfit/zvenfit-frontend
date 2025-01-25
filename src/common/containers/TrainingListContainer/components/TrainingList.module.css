@@ -85,4 +85,9 @@
     font-size: 56px;
     line-height: 64px;
   }
+  .training-list__list-item-title {
+    margin-bottom: 20px;
+    font-size: 32px;
+    line-height: 40px;
+  }
 }
