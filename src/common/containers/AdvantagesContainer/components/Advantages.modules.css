@@ -33,6 +33,7 @@
 .advantages__list-item-button {
   display: inline-block;
   width: 100%;
+  max-width: 100%;
   padding: 0 24px;
   border-radius: 8px;
   font-size: 14px;
