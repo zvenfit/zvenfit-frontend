@@ -62,6 +62,12 @@
   white-space: nowrap;
   overflow: hidden;
 }
+.advantages__list-item-button:hover {
+  opacity: 0.8;
+}
+.advantages__list-item-button:active {
+  opacity: 0.88;
+}
 @media screen and (min-width: 640px) {
   .advantages__list-item-title {
     font-size: 28px;
