@@ -1,4 +1,6 @@
-export const CONTENT = [
+import { IContent } from '../components/types';
+
+export const CONTENT: IContent[] = [
   {
     bgImage:
       'https://259506.selcdn.ru/sites-static/site959140/3feaa4c0-403d-4148-b58b-c66ed03bc4fe/3feaa4c0-403d-4148-b58b-c66ed03bc4fe-10816053.jpeg',
