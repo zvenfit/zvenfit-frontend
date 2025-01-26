@@ -12,10 +12,10 @@ export const Advantages: React.FC<AdvantagesProps> = ({ content }) => {
     <section className={styles['advantages']}>
       <h2 className={'visually-hidden'}>Преимущества</h2>
 
-      <div className={styles['advantages__wrapper']}>
+      <ul className={styles['advantages__wrapper']}>
         {content.map((item: IContent) => {
           return (
-            <div
+            <li
               key={item.title}
               style={{ backgroundImage: `url(${item.bgImage})` }}
               className={styles['advantages__item']}
@@ -31,10 +31,10 @@ export const Advantages: React.FC<AdvantagesProps> = ({ content }) => {
               >
                 Подробнее
               </button>
-            </div>
+            </li>
           );
         })}
-      </div>
+      </ul>
     </section>
   );
 };
