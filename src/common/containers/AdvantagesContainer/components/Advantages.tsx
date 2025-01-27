@@ -2,6 +2,7 @@ import React from 'react';
 
 import * as styles from './Advantages.modules.css';
 import { IContent } from './types';
+import { Button } from '../../../components/Button';
 
 interface AdvantagesProps {
   content: IContent[];
@@ -24,13 +25,7 @@ export const Advantages: React.FC<AdvantagesProps> = ({ content }) => {
 
               <p className={styles['advantages__list-item-description']}>{item.description}</p>
 
-              <button
-                type={'button'}
-                style={{ backgroundColor: item.btnColor }}
-                className={styles['advantages__list-item-button']}
-              >
-                Подробнее
-              </button>
+              <Button color={item.btnColor}>Подробнее</Button>
             </li>
           );
         })}
