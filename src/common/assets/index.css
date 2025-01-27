@@ -37,6 +37,14 @@ code {
   }
 }
 
+.gray-text {
+  color: #ffffff;
+  opacity: 0.5;
+}
+.green-text {
+  color: #54c263;
+}
+
 .visually-hidden {
   position: absolute;
   width: 1px;

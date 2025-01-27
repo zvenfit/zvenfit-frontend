@@ -32,13 +32,13 @@ export const ContactsInfo: React.FC<ContactsInfoProps> = ({ items }) => {
                         href={item.link}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className={styles['contacts-info__list-item-link']}
+                        className={`gray-text ${styles['contacts-info__list-item-link']}`}
                       >
                         {item.text}
                       </a>
                     </address>
                   ) : (
-                    <span className={styles['contacts-info__list-item-text']}>{item.text}</span>
+                    <span className={`gray-text ${styles['contacts-info__list-item-text']}`}>{item.text}</span>
                   )}
                 </div>
               </li>
