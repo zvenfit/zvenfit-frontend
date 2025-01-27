@@ -1,32 +1,33 @@
 import React from 'react';
 
 import * as styles from './Button.module.css';
-import { TTypes, TVariants } from './types';
+import { TType, TVariant } from './types';
 
-interface ButtonProps {
-  type?: TTypes;
-  variant?: TVariants;
+type ButtonProps = React.PropsWithChildren<{
+  type?: TType;
+  variant?: TVariant;
   color?: string;
   textColor?: string;
-  children: React.ReactNode;
-}
+}>;
 
 export const Button: React.FC<ButtonProps> = ({
-  type = 'button',
-  variant = 'flat',
+  type,
+  variant,
   color = '#111111',
   textColor = '#ffffff',
   children,
 }) => {
+  const typeValue = type ?? 'button';
+  const variantValue = variant ?? 'flat';
   const style = {
-    backgroundColor: variant === 'flat' ? color : 'transparent',
-    border: variant === 'outlined' ? '2px solid' : 'none',
-    borderColor: variant === 'outlined' ? color : 'transparent',
+    backgroundColor: variantValue === 'flat' ? color : 'transparent',
+    border: variantValue === 'outlined' ? '2px solid' : 'none',
+    borderColor: variantValue === 'outlined' ? color : 'transparent',
     color: textColor,
   };
 
   return (
-    <button type={type} style={style} className={styles['button']}>
+    <button type={typeValue} style={style} className={styles['button']}>
       {children}
     </button>
   );
