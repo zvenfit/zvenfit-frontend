@@ -1,7 +1,9 @@
 import React from 'react';
 
 import * as styles from './Button.module.css';
-import { TType, TVariant } from './types';
+
+type TType = 'button' | 'submit' | 'reset';
+type TVariant = 'flat' | 'outlined';
 
 type ButtonProps = React.PropsWithChildren<{
   type?: TType;
@@ -11,23 +13,21 @@ type ButtonProps = React.PropsWithChildren<{
 }>;
 
 export const Button: React.FC<ButtonProps> = ({
-  type,
-  variant,
+  type = 'button' as TType,
+  variant = 'flat' as TVariant,
   color = '#111111',
   textColor = '#ffffff',
   children,
 }) => {
-  const typeValue = type ?? 'button';
-  const variantValue = variant ?? 'flat';
   const style = {
-    backgroundColor: variantValue === 'flat' ? color : 'transparent',
-    border: variantValue === 'outlined' ? '2px solid' : 'none',
-    borderColor: variantValue === 'outlined' ? color : 'transparent',
+    backgroundColor: variant === 'flat' ? color : 'transparent',
+    border: variant === 'outlined' ? '2px solid' : 'none',
+    borderColor: variant === 'outlined' ? color : 'transparent',
     color: textColor,
   };
 
   return (
-    <button type={typeValue} style={style} className={styles['button']}>
+    <button type={type} style={style} className={styles['button']}>
       {children}
     </button>
   );
