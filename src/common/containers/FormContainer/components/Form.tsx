@@ -48,7 +48,35 @@ export const Form: React.FC = () => {
 
             <span className={styles['form__form-input-details']}>Поле обязательно для заполнения</span>
           </div>
+
+          <div className={styles['form__form-input-wrapper']}>
+            {/*TODO сделать маскированный ввод*/}
+            <input
+              id="name-field"
+              type="tel"
+              name="Телефон"
+              autoComplete="off"
+              required
+              className={styles['form__form-input']}
+            />
+
+            <label htmlFor="name-field" className={`gray-text ${styles['form__form-input-label']}`}>
+              Номер телефона *
+            </label>
+
+            <span className={styles['form__form-input-details']}>Поле обязательно для заполнения</span>
+          </div>
+
+          <button type="submit" style={{ padding: '8px', backgroundColor: 'green', color: '#ffffff' }}>
+            Отправить
+          </button>
         </form>
+
+        {/*TODO сделать линку на политику конфиденциальности*/}
+        <p className={`gray-text ${styles['form__agreement-text']}`}>
+          Нажимая на кнопку, вы даете согласие на обработку своих персональных данных и соглашаетесь с политикой
+          конфиденциальности.
+        </p>
       </div>
     </section>
   );

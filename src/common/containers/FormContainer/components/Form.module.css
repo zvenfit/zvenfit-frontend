@@ -8,7 +8,7 @@
   line-height: 32px;
 }
 .form__text-block {
-  margin-bottom: 12px;
+  margin-bottom: 20px;
   font-size: 16px;
   line-height: 24px;
 }
@@ -19,12 +19,14 @@ b.form__text {
   text-transform: uppercase;
 }
 .form__form {
+  margin-bottom: 12px;
   font-size: 14px;
   line-height: 20px;
   font-weight: 300;
 }
 .form__form-input-wrapper {
   position: relative;
+  margin-bottom: 20px;
 }
 .form__form-input {
   display: block;
@@ -64,4 +66,8 @@ b.form__text {
   white-space: nowrap;
   cursor: text;
   transition: top 0.15s ease;
+}
+.form__agreement-text {
+  font-size: 12px;
+  line-height: 16px;
 }
