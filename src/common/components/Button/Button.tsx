@@ -1,11 +1,11 @@
 import React from 'react';
 
 import * as styles from './Button.module.css';
-import { TType, TVariant } from './types';
+import { TTypes, TVariants } from './types';
 
 interface ButtonProps {
-  type?: TType;
-  variant?: TVariant;
+  type?: TTypes;
+  variant?: TVariants;
   color?: string;
   textColor?: string;
   children: React.ReactNode;
