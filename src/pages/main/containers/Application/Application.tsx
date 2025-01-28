@@ -8,6 +8,7 @@ import { AdvantagesContainer } from '../../../../common/containers/AdvantagesCon
 import { ContactsContainer } from '../../../../common/containers/ContactsContainer';
 import { FooterContainer } from '../../../../common/containers/FooterContainer';
 import { GalleryContainer } from '../../../../common/containers/GalleryContainer';
+import { TrainingListContainer } from '../../../../common/containers/TrainingListContainer';
 import { DanceFitnessModal } from '../../components/group-training-modals/DanceFitnessModal/DanceFitnessModal';
 import { StepAerobicsModal } from '../../components/group-training-modals/StepAerobicsModal';
 import { StrengthTrainingModal } from '../../components/group-training-modals/StrengthTrainingModal';
@@ -36,6 +37,7 @@ export const Application: React.FC = () => {
       </HashRouter>
 
       <AdvantagesContainer />
+      <TrainingListContainer />
       <GalleryContainer />
       <ContactsContainer />
       <FooterContainer />
