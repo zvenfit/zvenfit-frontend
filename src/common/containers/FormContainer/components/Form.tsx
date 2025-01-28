@@ -48,7 +48,7 @@ export const Form: React.FC = () => {
               id="phone"
               type="tel"
               name="Номер телефона"
-              minLength="16"
+              minLength={16}
               pattern="^[\+]?[\d\s\-]*[\d\s]$"
               required
               className={styles['form__form-input']}

@@ -81,4 +81,9 @@ b.form__text {
   text-decoration-thickness: 1px;
   text-underline-offset: 0.2em;
   white-space: nowrap;
+  opacity: 0.64;
+  cursor: pointer;
+}
+.form__agreement-link:hover {
+  opacity: 1;
 }
