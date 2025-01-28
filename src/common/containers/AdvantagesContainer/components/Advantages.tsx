@@ -23,7 +23,11 @@ export const Advantages: React.FC<AdvantagesProps> = ({ content }) => {
             >
               <h3 className={styles['advantages__list-item-title']}>{item.title}</h3>
 
-              <p className={styles['advantages__list-item-description']}>{item.description}</p>
+              <div className={styles['advantages__list-item-description']}>
+                {item.description.map((text: string) => (
+                  <p key={text}>{text}</p>
+                ))}
+              </div>
 
               <Button color={item.btnColor}>Подробнее</Button>
             </li>
