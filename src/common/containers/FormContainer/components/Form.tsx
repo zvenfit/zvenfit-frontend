@@ -33,16 +33,9 @@ export const Form: React.FC = () => {
 
         <form className={styles['form__form']}>
           <div className={styles['form__form-input-wrapper']}>
-            <input
-              id="name-field"
-              type="text"
-              name="Имя"
-              autoComplete="off"
-              required
-              className={styles['form__form-input']}
-            />
+            <input id="name" type="text" name="Имя" required className={styles['form__form-input']} />
 
-            <label htmlFor="name-field" className={`gray-text ${styles['form__form-input-label']}`}>
+            <label htmlFor="name" className={`gray-text ${styles['form__form-input-label']}`}>
               Имя *
             </label>
 
@@ -52,20 +45,22 @@ export const Form: React.FC = () => {
           <div className={styles['form__form-input-wrapper']}>
             {/*TODO сделать маскированный ввод*/}
             <input
-              id="name-field"
+              id="phone"
               type="tel"
-              name="Телефон"
-              autoComplete="off"
+              name="Номер телефона"
+              minLength="16"
+              pattern="^[\+]?[\d\s\-]*[\d\s]$"
               required
               className={styles['form__form-input']}
             />
 
-            <label htmlFor="name-field" className={`gray-text ${styles['form__form-input-label']}`}>
+            <label htmlFor="phone" className={`gray-text ${styles['form__form-input-label']}`}>
               Номер телефона *
             </label>
 
             <span className={styles['form__form-input-details']}>Поле обязательно для заполнения</span>
           </div>
+
           {/*TODO заменить на компонент Button*/}
           <button
             type="submit"
