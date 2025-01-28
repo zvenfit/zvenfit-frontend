@@ -4,18 +4,18 @@ import * as styles from './Form.module.css';
 
 export const Form: React.FC = () => {
   return (
-    <form className={styles['form__form']}>
-      <div className={styles['form__form-input-wrapper']}>
-        <input id="name" type="text" name="Имя" required className={styles['form__form-input']} />
+    <form className={styles['form']}>
+      <div className={styles['form__input-wrapper']}>
+        <input id="name" type="text" name="Имя" required className={styles['form__input']} />
 
-        <label htmlFor="name" className={`gray-text ${styles['form__form-input-label']}`}>
+        <label htmlFor="name" className={`gray-text ${styles['form__input-label']}`}>
           Имя *
         </label>
 
-        <span className={styles['form__form-input-details']}>Поле обязательно для заполнения</span>
+        <span className={styles['form__input-details']}>Поле обязательно для заполнения</span>
       </div>
 
-      <div className={styles['form__form-input-wrapper']}>
+      <div className={styles['form__input-wrapper']}>
         {/*TODO сделать маскированный ввод*/}
         <input
           id="phone"
@@ -24,21 +24,21 @@ export const Form: React.FC = () => {
           minLength={16}
           pattern="^[\+]?[\d\s\-]*[\d\s]$"
           required
-          className={styles['form__form-input']}
+          className={styles['form__input']}
         />
 
-        <label htmlFor="phone" className={`gray-text ${styles['form__form-input-label']}`}>
+        <label htmlFor="phone" className={`gray-text ${styles['form__input-label']}`}>
           Номер телефона *
         </label>
 
-        <span className={styles['form__form-input-details']}>Поле обязательно для заполнения</span>
+        <span className={styles['form__input-details']}>Поле обязательно для заполнения</span>
       </div>
 
       {/*TODO заменить на компонент Button*/}
       <button
         type="submit"
         style={{ padding: '8px', backgroundColor: 'green', color: '#ffffff' }}
-        className={styles['form__form-submit-button']}
+        className={styles['form__submit-button']}
       >
         Отправить
       </button>

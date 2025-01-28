@@ -1,3 +1,13 @@
+.registration-form {
+  padding: 72px 0;
+  background-color: #111111;
+}
+.registration-form__info-text {
+  margin-bottom: 20px;
+}
+.registration-form__form {
+  margin-bottom: 12px;
+}
 .registration-form__agreement-text {
   font-size: 12px;
   line-height: 16px;

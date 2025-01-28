@@ -6,13 +6,17 @@ import { InfoText } from '../InfoText';
 
 export const RegistrationForm: React.FC = () => {
   return (
-    <section className={styles['form']}>
+    <section className={styles['registration-form']}>
       <h2 className="visually-hidden">Форма для записи на тренировки</h2>
 
       <div className="container">
-        <InfoText />
+        <div className={styles['registration-form__info-text']}>
+          <InfoText />
+        </div>
 
-        <Form />
+        <div className={styles['registration-form__form']}>
+          <Form />
+        </div>
 
         {/*TODO сделать линку на политику конфиденциальности*/}
         <p className={`gray-text ${styles['registration-form__agreement-text']}`}>
