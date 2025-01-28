@@ -1,9 +1,7 @@
 import React from 'react';
 
 import * as styles from './Button.module.css';
-
-type TType = 'button' | 'submit' | 'reset';
-type TVariant = 'flat' | 'outlined';
+import { TType, TVariant } from './types';
 
 type ButtonProps = React.PropsWithChildren<{
   type?: TType;
