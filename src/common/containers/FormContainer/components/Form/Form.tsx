@@ -22,7 +22,7 @@ export const Form: React.FC = () => {
           type="tel"
           name="Номер телефона"
           minLength={16}
-          pattern="^[\+]?[\d\s\-]*[\d\s]$"
+          pattern="\+7\ [0-9]{3}\ [0-9]{3}\-[0-9]{2}\-[0-9]{2}"
           required
           className={styles['form__input']}
         />
