@@ -2,22 +2,6 @@
   padding: 72px 0;
   background-color: #111111;
 }
-.form__title-block {
-  margin-bottom: 16px;
-  font-size: 24px;
-  line-height: 32px;
-}
-.form__text-block {
-  margin-bottom: 20px;
-  font-size: 16px;
-  line-height: 24px;
-}
-.form__text {
-  color: #ffffff;
-}
-b.form__text {
-  text-transform: uppercase;
-}
 .form__form {
   margin-bottom: 12px;
   font-size: 14px;
@@ -86,4 +70,10 @@ b.form__text {
 }
 .form__agreement-link:hover {
   opacity: 1;
+}
+@media screen and (min-width: 640px) {
+}
+@media screen and (min-width: 960px) {
+}
+@media screen and (min-width: 1360px) {
 }
