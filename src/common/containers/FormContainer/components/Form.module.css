@@ -26,7 +26,12 @@ b.form__text {
 }
 .form__form-input-wrapper {
   position: relative;
-  margin-bottom: 20px;
+}
+.form__form-input-wrapper + .form__form-input-wrapper {
+  margin-top: 20px;
+}
+.form__form-input-wrapper + .form__form-submit-button {
+  margin-top: 32px;
 }
 .form__form-input {
   display: block;
@@ -70,4 +75,10 @@ b.form__text {
 .form__agreement-text {
   font-size: 12px;
   line-height: 16px;
+}
+.form__agreement-link {
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.2em;
+  white-space: nowrap;
 }

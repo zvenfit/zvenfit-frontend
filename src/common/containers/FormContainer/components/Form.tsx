@@ -66,16 +66,20 @@ export const Form: React.FC = () => {
 
             <span className={styles['form__form-input-details']}>Поле обязательно для заполнения</span>
           </div>
-
-          <button type="submit" style={{ padding: '8px', backgroundColor: 'green', color: '#ffffff' }}>
+          {/*TODO заменить на компонент Button*/}
+          <button
+            type="submit"
+            style={{ padding: '8px', backgroundColor: 'green', color: '#ffffff' }}
+            className={styles['form__form-submit-button']}
+          >
             Отправить
           </button>
         </form>
 
         {/*TODO сделать линку на политику конфиденциальности*/}
         <p className={`gray-text ${styles['form__agreement-text']}`}>
-          Нажимая на кнопку, вы даете согласие на обработку своих персональных данных и соглашаетесь с политикой
-          конфиденциальности.
+          Нажимая на кнопку, вы даете согласие на обработку своих персональных данных и соглашаетесь{' '}
+          <span className={styles['form__agreement-link']}>с политикой конфиденциальности.</span>
         </p>
       </div>
     </section>
