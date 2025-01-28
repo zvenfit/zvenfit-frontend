@@ -24,8 +24,22 @@
   opacity: 1;
 }
 @media screen and (min-width: 640px) {
+  .registration-form__agreement-text {
+    margin-bottom: 32px;
+  }
+  .registration-form__form {
+    margin-bottom: 16px;
+  }
 }
 @media screen and (min-width: 960px) {
+  .registration-form__agreement-text {
+    width: 50%;
+    font-size: 14px;
+    line-height: 20px;
+  }
 }
 @media screen and (min-width: 1360px) {
+  .registration-form__form {
+    margin-bottom: 20px;
+  }
 }
