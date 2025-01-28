@@ -1,0 +1,38 @@
+.description {
+  padding: 72px 0;
+}
+.description__container {
+  font-size: 24px;
+  line-height: 32px;
+}
+.description__text {
+  padding-top: 16px;
+  font-size: 16px;
+  line-height: 24px;
+}
+@media screen and (min-width: 640px) {
+  .description__container {
+    font-size: 28px;
+    line-height: 36px;
+  }
+}
+@media screen and (min-width: 960px) {
+  .description__container {
+    font-size: 32px;
+    line-height: 40px;
+  }
+  .description__text {
+    padding-top: 20px;
+    font-size: 20px;
+    line-height: 28px;
+  }
+}
+@media screen and (min-width: 1360px) {
+  .description__container {
+    font-size: 40px;
+    line-height: 48px;
+  }
+  .description__text {
+    padding-top: 24px;
+  }
+}
