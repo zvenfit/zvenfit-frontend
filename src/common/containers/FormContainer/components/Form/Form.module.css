@@ -1,10 +1,14 @@
 .form {
+  display: flex;
+  flex-wrap: wrap;
   font-size: 14px;
   line-height: 20px;
   font-weight: 300;
 }
 .form__input-wrapper {
   position: relative;
+  width: 100%;
+  box-sizing: border-box;
 }
 .form__input-wrapper + .form__input-wrapper {
   margin-top: 20px;
@@ -67,8 +71,21 @@
   opacity: 1;
 }
 @media screen and (min-width: 640px) {
+  .form__input-label {
+    top: 11px;
+    font-size: 16px;
+    line-height: 24px;
+  }
+  .form__input:focus ~ .form__input-label {
+    font-size: 14px;
+  }
 }
 @media screen and (min-width: 960px) {
-}
-@media screen and (min-width: 1360px) {
+  .form__input-wrapper {
+    width: calc(50% - 20px);
+  }
+  .form__input-wrapper + .form__input-wrapper {
+    margin-top: 0;
+    margin-left: 40px;
+  }
 }
