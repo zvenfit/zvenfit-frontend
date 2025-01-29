@@ -72,6 +72,26 @@ div.main__container {
   border-bottom: 2px solid;
   transform: rotate(45deg);
 }
+@media screen and (min-width: 640px) {
+  .main__title {
+    /*margin-bottom: 36px;*/
+    font-size: 48px;
+    line-height: 56px;
+  }
+}
+@media screen and (min-width: 960px) {
+  .main__title {
+    font-size: 56px;
+    line-height: 64px;
+  }
+}
+@media screen and (min-width: 1360px) {
+  .main__title {
+    /*margin-bottom: 40px;*/
+    font-size: 72px;
+    line-height: 80px;
+  }
+}
 @keyframes animation-step-scroll {
   0%, 50%, 100% {
     transform: translateY(0);
@@ -91,25 +111,5 @@ div.main__container {
   75%, 80% {
     transform: translateY(30%);
     opacity: 0;
-  }
-}
-@media screen and (min-width: 640px) {
-  .main__title {
-    /*margin-bottom: 36px;*/
-    font-size: 48px;
-    line-height: 56px;
-  }
-}
-@media screen and (min-width: 960px) {
-  .main__title {
-    font-size: 56px;
-    line-height: 64px;
-  }
-}
-@media screen and (min-width: 1360px) {
-  .main__title {
-    /*margin-bottom: 40px;*/
-    font-size: 72px;
-    line-height: 80px;
   }
 }
