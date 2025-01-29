@@ -21,16 +21,30 @@ export const Main: React.FC<MainProps> = ({ content }) => {
         <div className={styles['main__buttons-wrapper']}>
           <button
             type="button"
-            style={{ display: 'block', width: '100%', padding: '11px', marginBottom: '16px', backgroundColor: 'green' }}
+            style={{
+              display: 'block',
+              width: '100%',
+              padding: '11px',
+              marginBottom: '16px',
+              backgroundColor: 'green',
+              cursor: 'pointer',
+            }}
           >
             Оставить заявку
           </button>
 
-          <button type="button" style={{ display: 'block', width: '100%', padding: '11px', backgroundColor: 'green' }}>
+          <button
+            type="button"
+            style={{ display: 'block', width: '100%', padding: '11px', backgroundColor: 'green', cursor: 'pointer' }}
+          >
             Узнать подробности
           </button>
         </div>
       </div>
+
+      <button type="button" className={styles['main__scroll-button']}>
+        <span className={styles['main__scroll-button-arrow']} />
+      </button>
     </section>
   );
 };
