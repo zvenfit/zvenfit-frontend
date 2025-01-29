@@ -7,7 +7,7 @@ interface MobileMenuToggleProps {
   onClick: () => void;
 }
 
-export const MobileMenuToggle: React.FC<MobileMenuToggleProps> = ({ opened = false, onClick }) => {
+export const MobileMenuToggle: React.FC<MobileMenuToggleProps> = ({ opened, onClick }) => {
   return (
     <button
       type="button"
