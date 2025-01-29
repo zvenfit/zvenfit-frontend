@@ -7,6 +7,7 @@ type ButtonProps = React.PropsWithChildren<{
   type?: TType;
   variant?: TVariant;
   theme?: TTheme;
+  children: string;
 }>;
 
 export const Button: React.FC<ButtonProps> = ({
