@@ -9,7 +9,7 @@ export const Header: React.FC = () => {
 
   return (
     <header className={styles['header']}>
-      <nav className={`container ${styles['header__container']}`}>
+      <nav className={`container ${styles['header__nav']}`}>
         <a href="#" target="_self" className={styles['header__logo']}>
           <img src={LOGO_URL} alt="Логотип" className={styles['header__logo-img']} />
         </a>
