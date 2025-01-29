@@ -11,7 +11,7 @@ interface AdvantagesProps {
 export const Advantages: React.FC<AdvantagesProps> = ({ content }) => {
   return (
     <section className={styles['advantages']}>
-      <h2 className={'visually-hidden'}>Преимущества</h2>
+      <h2 className="visually-hidden">Направления тренировок</h2>
 
       <ul className={styles['advantages__list']}>
         {content.map((item: IContent) => {
