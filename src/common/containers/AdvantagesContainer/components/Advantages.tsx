@@ -29,7 +29,7 @@ export const Advantages: React.FC<AdvantagesProps> = ({ content }) => {
                 ))}
               </div>
 
-              <Button color={item.btnColor}>Подробнее</Button>
+              <Button theme={item.btnTheme}>Подробнее</Button>
             </li>
           );
         })}
