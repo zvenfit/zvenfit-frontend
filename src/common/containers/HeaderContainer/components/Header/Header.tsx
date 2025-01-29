@@ -14,13 +14,6 @@ export const Header: React.FC = () => {
           <img src={LOGO_URL} alt="Логотип" className={styles['header__logo-img']} />
         </a>
 
-        {/*TODO заменить на компонент*/}
-        <button
-          style={{ height: '40px', padding: '0 8px', marginRight: '16px', backgroundColor: 'green', color: '#ffffff' }}
-        >
-          Оставить заявку
-        </button>
-
         <MobileMenuToggle opened={menuOpened} onClick={() => setMenuOpened(prev => !prev)} />
       </nav>
     </header>
