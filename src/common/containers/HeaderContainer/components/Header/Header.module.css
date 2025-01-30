@@ -3,14 +3,22 @@
   min-height: 72px;
   background-color: #111111;
 }
-.header--menu-opened::before {
+.header::before {
   content: "";
   position: absolute;
   top: 0;
   right: 0;
   left: 0;
-  height: 100vh;
+  visibility: hidden;
+  height: 0;
   background-color: inherit;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 1s cubic-bezier(0.19, 1, 0.22, 1);
+}
+.header--menu-opened.header::before {
+  height: 100vh;
+  visibility: visible;
   opacity: 0.8;
 }
 nav.header__nav {
