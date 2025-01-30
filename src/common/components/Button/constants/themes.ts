@@ -1,6 +1,6 @@
-import { TTheme } from '../types';
-
 export const THEMES = {
-  orange: 'orange' as TTheme,
-  green: 'green' as TTheme,
-};
+  orangeFlat: 'orange-flat',
+  orangeOutlined: 'orange-outlined',
+  greenFlat: 'green-flat',
+  greenOutlined: 'green-outlined',
+} as const;

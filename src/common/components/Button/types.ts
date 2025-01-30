@@ -1,3 +1,4 @@
+import { THEMES } from './constants/themes';
+
 export type TType = 'button' | 'submit' | 'reset';
-export type TVariant = 'flat' | 'outlined';
-export type TTheme = 'orange' | 'green';
+export type TTheme = (typeof THEMES)[keyof typeof THEMES];

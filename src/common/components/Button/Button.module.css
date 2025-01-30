@@ -27,15 +27,15 @@
 .button:active {
   opacity: 0.88;
 }
-.button--flat.button--orange {
+.button--orange-flat {
   background-color: #ed7a24;
 }
-.button--flat.button--green {
+.button--green-flat {
   background-color: #54c263;
 }
-.button--outlined.button--orange {
+.button--orange-outlined {
   border-color: #ed7a24;
 }
-.button--outlined.button--green {
+.button--green-outlined {
   border-color: #54c263;
 }
