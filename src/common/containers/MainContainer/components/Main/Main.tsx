@@ -2,9 +2,9 @@ import React from 'react';
 
 import * as styles from './Main.module.css';
 import { IContent } from './types';
-import { RECEPTION_PHONE } from '../../../../constants/companyContacts';
-import { formatPhoneNumber } from '../../../../packages/utils/formatPhoneNumber';
-import { Logo } from '../../../components/Logo';
+import { RECEPTION_PHONE } from '../../../../../constants/companyContacts';
+import { formatPhoneNumber } from '../../../../../packages/utils/formatPhoneNumber';
+import { Logo } from '../../../../components/Logo';
 
 interface MainProps {
   content: IContent;

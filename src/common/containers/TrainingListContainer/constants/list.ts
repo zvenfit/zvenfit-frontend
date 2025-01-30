@@ -1,4 +1,4 @@
-import { IListItem } from '../components';
+import { IListItem } from '../components/TrainingList';
 
 export const LIST: IListItem[] = [
   {

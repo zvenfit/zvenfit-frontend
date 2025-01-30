@@ -1,7 +1,7 @@
 import React from 'react';
 
 import * as styles from './Description.module.css';
-import { Logo } from '../../../components/Logo';
+import { Logo } from '../../../../components/Logo';
 
 export const Description: React.FC = () => {
   return (
