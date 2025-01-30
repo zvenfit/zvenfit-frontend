@@ -1,4 +1,4 @@
-import { TTheme } from '../../../components/Button/types';
+import { TTheme } from '../../../../components/Button/types';
 
 export interface IContent {
   bgImage: string;

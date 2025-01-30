@@ -4,11 +4,11 @@ import { HashRouter, Route, Routes } from 'react-router-dom';
 const DevelopmentApp = React.lazy(() =>
   import('../../components/DevelopmentApp').then(({ DevelopmentApp }) => ({ default: DevelopmentApp })),
 );
-import { AdvantagesContainer } from '../../../../common/containers/AdvantagesContainer';
 import { ContactsContainer } from '../../../../common/containers/ContactsContainer';
 import { DescriptionContainer } from '../../../../common/containers/DescriptionContainer';
 import { FooterContainer } from '../../../../common/containers/FooterContainer';
 import { GalleryContainer } from '../../../../common/containers/GalleryContainer';
+import { TrainingDirectionsContainer } from '../../../../common/containers/TrainingDirectionsContainer';
 import { TrainingListContainer } from '../../../../common/containers/TrainingListContainer';
 import { DanceFitnessModal } from '../../components/group-training-modals/DanceFitnessModal/DanceFitnessModal';
 import { StepAerobicsModal } from '../../components/group-training-modals/StepAerobicsModal';
@@ -37,7 +37,7 @@ export const Application: React.FC = () => {
         </Routes>
       </HashRouter>
 
-      <AdvantagesContainer />
+      <TrainingDirectionsContainer />
       <DescriptionContainer />
       <TrainingListContainer />
       <GalleryContainer />

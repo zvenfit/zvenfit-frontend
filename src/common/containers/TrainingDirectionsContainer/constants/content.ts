@@ -1,5 +1,5 @@
 import { THEMES } from '../../../components/Button/constants/themes';
-import { IContent } from '../components/types';
+import { IContent } from '../components/TrainingDirections/types';
 
 export const CONTENT: IContent[] = [
   {

@@ -1,29 +1,29 @@
 import React from 'react';
 
-import * as styles from './Advantages.modules.css';
+import * as styles from './TrainingDirections.modules.css';
 import { IContent } from './types';
-import { Button } from '../../../components/Button';
+import { Button } from '../../../../components/Button';
 
-interface AdvantagesProps {
+interface TrainingDirectionsProps {
   content: IContent[];
 }
 
-export const Advantages: React.FC<AdvantagesProps> = ({ content }) => {
+export const TrainingDirections: React.FC<TrainingDirectionsProps> = ({ content }) => {
   return (
-    <section className={styles['advantages']}>
+    <section className={styles['training-directions']}>
       <h2 className="visually-hidden">Направления тренировок</h2>
 
-      <ul className={styles['advantages__list']}>
+      <ul className={styles['training-directions__list']}>
         {content.map((item: IContent) => {
           return (
             <li
               key={item.title}
               style={{ backgroundImage: `url(${item.bgImage})` }}
-              className={styles['advantages__list-item']}
+              className={styles['training-directions__list-item']}
             >
-              <h3 className={styles['advantages__list-item-title']}>{item.title}</h3>
+              <h3 className={styles['training-directions__list-item-title']}>{item.title}</h3>
 
-              <div className={styles['advantages__list-item-description']}>
+              <div className={styles['training-directions__list-item-description']}>
                 {item.description.map((text: string) => (
                   <p key={text}>{text}</p>
                 ))}
