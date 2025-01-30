@@ -2,6 +2,8 @@ import React from 'react';
 
 import * as styles from './Main.module.css';
 import { IContent } from './types';
+import { RECEPTION_PHONE } from '../../../../constants/companyContacts';
+import { formatPhoneNumber } from '../../../../packages/utils/formatPhoneNumber';
 import { Logo } from '../../../components/Logo';
 
 interface MainProps {
@@ -11,6 +13,18 @@ interface MainProps {
 export const Main: React.FC<MainProps> = ({ content }) => {
   return (
     <section style={{ backgroundImage: `url(${content.bgImage})` }} className={styles['main']}>
+      <address className={styles['main__coll-us']}>
+        Позвоните нам
+        <a
+          className={styles['main__contact-phone']}
+          href={`tel:+${RECEPTION_PHONE}`}
+          rel="noopener noreferrer"
+          target="_blank"
+        >
+          {formatPhoneNumber(RECEPTION_PHONE)}
+        </a>
+      </address>
+
       <div className={`container ${styles['main__container']}`}>
         <h1 className={styles['main__title']}>
           {content.title}
