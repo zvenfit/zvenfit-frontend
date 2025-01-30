@@ -1,5 +1,6 @@
 .mobile-menu-toggle {
   position: relative;
+  z-index: 1;
   flex-shrink: 0;
   display: block;
   width: 36px;
