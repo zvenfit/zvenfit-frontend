@@ -7,7 +7,7 @@ import { TTheme, TType } from './types';
 type ButtonProps = React.PropsWithChildren<{
   type?: TType;
   theme?: TTheme;
-  children: string;
+  children: string | number;
 }>;
 
 export const Button: React.FC<ButtonProps> = ({
