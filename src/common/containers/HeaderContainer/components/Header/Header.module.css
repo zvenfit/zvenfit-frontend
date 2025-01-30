@@ -3,6 +3,16 @@
   min-height: 72px;
   background-color: #111111;
 }
+.header--menu-opened::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 100vh;
+  background-color: inherit;
+  opacity: 0.8;
+}
 nav.header__nav {
   display: flex;
   align-items: center;
