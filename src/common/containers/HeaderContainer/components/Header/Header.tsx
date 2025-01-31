@@ -14,7 +14,7 @@ export const Header: React.FC<HeaderProps> = ({ menuItems }) => {
   const [menuOpened, setMenuOpened] = useState(false);
 
   return (
-    <header className={`${styles['header']} ${menuOpened && styles['header--menu-opened']}`}>
+    <header id="header" className={`${styles['header']} ${menuOpened && styles['header--menu-opened']}`}>
       <nav className={`container ${styles['header__nav']}`}>
         <Router>
           <NavLink to="/" className={styles['header__logo']}>
