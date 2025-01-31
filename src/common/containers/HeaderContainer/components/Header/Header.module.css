@@ -1,5 +1,6 @@
 .header {
   position: relative;
+  /*TODO проверить необходимость*/
   min-height: 72px;
   background-color: #111111;
 }
@@ -87,6 +88,7 @@ nav.header__nav {
 }
 @media screen and (min-width: 640px) {
   .header {
+    /*TODO проверить необходимость*/
     min-height: 96px;
   }
   .header__menu {
@@ -97,16 +99,33 @@ nav.header__nav {
   .header__menu::before {
     left: -80%;
   }
+  nav.header__nav {
+    padding-top: 24px;
+    padding-bottom: 24px;
+  }
 }
 @media screen and (min-width: 960px) {
+  .header::before {
+    content: none;
+  }
   .header__nav > button {
     display: none;
   }
   .header__menu {
+    position: relative;
+    top: initial;
+    left: initial;
     flex-direction: row;
+    width: fit-content;
+    height: 100%;
+    padding: 0;
     margin: 0 auto;
   }
+  .header__menu::before {
+    content: none;
+  }
   .header__menu-item {
+    height: 100%;
     font-size: 16px;
     line-height: 24px;
   }
