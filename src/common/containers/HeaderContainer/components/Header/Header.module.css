@@ -19,7 +19,7 @@
   pointer-events: none;
   transition: opacity 1s cubic-bezier(0.19, 1, 0.22, 1);
 }
-.header--menu-opened.header::before {
+.header--menu-opened::before {
   height: 100vh;
   visibility: visible;
   opacity: 0.8;
