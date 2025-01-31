@@ -121,6 +121,7 @@ nav.header__nav {
   }
   .header__logo {
     height: 54px;
+    margin: 0;
   }
   .header__menu {
     position: relative;
