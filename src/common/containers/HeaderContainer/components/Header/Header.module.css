@@ -3,6 +3,7 @@
   min-height: 72px;
   background-color: #111111;
 }
+/*Фейдинг пр  открытии мобильного меню*/
 .header::before {
   content: "";
   position: absolute;
@@ -61,6 +62,7 @@ nav.header__nav {
   background-color: inherit;
   transition: left 0.6s cubic-bezier(0.19, 1, 0.22, 1);
 }
+/*Чёрный блок слева от мобильного меню (костыль), чтоб штока была слева до конца экрана*/
 .header__menu::before {
   content: "";
   position: absolute;
