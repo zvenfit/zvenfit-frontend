@@ -1,5 +1,6 @@
 .header {
   position: relative;
+  max-width: 100vw;
   min-height: 62px;
   background-color: #111111;
 }
@@ -27,6 +28,7 @@ nav.header__nav {
   z-index: 1;
   display: flex;
   align-items: center;
+  max-width: 100%;
   padding-top: 16px;
   padding-bottom: 16px;
   background-color: inherit;
