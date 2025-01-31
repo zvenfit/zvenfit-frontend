@@ -9,7 +9,7 @@ interface GalleryProps {
 
 export const Gallery: React.FC<GalleryProps> = ({ images }) => {
   return (
-    <section className={styles['gallery']}>
+    <section id="gallery" className={styles['gallery']}>
       <div className={'container'}>
         <header className={styles['gallery__header']}>
           <h2 className={styles['gallery__header-title']}>Наша студия</h2>

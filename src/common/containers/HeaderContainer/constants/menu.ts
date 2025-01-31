@@ -3,14 +3,14 @@ import { IMenuItem } from '../components/Header';
 export const MENU: IMenuItem[] = [
   {
     title: 'Направления тренировок',
-    link: '#',
+    link: '#directions',
   },
   {
     title: 'Галерея',
-    link: '#',
+    link: '#gallery',
   },
   {
     title: 'Контакты',
-    link: '#',
+    link: '#contacts',
   },
 ];

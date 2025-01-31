@@ -23,7 +23,7 @@ export const Header: React.FC<HeaderProps> = ({ menuItems }) => {
           {menuItems.map(item => {
             return (
               <li key={item.title} className={styles['header__menu-item']}>
-                <a href={item.link} className={styles['header__menu-item-link']}>
+                <a href={item.link} className={styles['header__menu-item-link']} onClick={() => setMenuOpened(false)}>
                   {item.title}
                 </a>
               </li>
