@@ -10,7 +10,7 @@ interface TrainingDirectionsProps {
 
 export const TrainingDirections: React.FC<TrainingDirectionsProps> = ({ content }) => {
   return (
-    <section className={styles['training-directions']}>
+    <section id="directions" className={styles['training-directions']}>
       <h2 className="visually-hidden">Направления тренировок</h2>
 
       <ul className={styles['training-directions__list']}>
