@@ -17,6 +17,7 @@ code {
 }
 
 body.body--no-scroll {
+  position: fixed;
   overflow: hidden;
 }
 
