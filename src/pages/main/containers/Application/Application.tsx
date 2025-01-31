@@ -5,9 +5,10 @@ const DevelopmentApp = React.lazy(() =>
   import('../../components/DevelopmentApp').then(({ DevelopmentApp }) => ({ default: DevelopmentApp })),
 );
 import { ContactsContainer } from '../../../../common/containers/ContactsContainer';
+import { DescriptionContainer } from '../../../../common/containers/DescriptionContainer';
 import { FooterContainer } from '../../../../common/containers/FooterContainer';
 import { GalleryContainer } from '../../../../common/containers/GalleryContainer';
-import { TrainerListContainer } from '../../../../common/containers/TrainerListContainer';
+import { TrainingListContainer } from '../../../../common/containers/TrainingListContainer';
 import { DanceFitnessModal } from '../../components/group-training-modals/DanceFitnessModal/DanceFitnessModal';
 import { StepAerobicsModal } from '../../components/group-training-modals/StepAerobicsModal';
 import { StrengthTrainingModal } from '../../components/group-training-modals/StrengthTrainingModal';
@@ -35,7 +36,8 @@ export const Application: React.FC = () => {
         </Routes>
       </HashRouter>
 
-      <TrainerListContainer />
+      <DescriptionContainer />
+      <TrainingListContainer />
       <GalleryContainer />
       <ContactsContainer />
       <FooterContainer />
