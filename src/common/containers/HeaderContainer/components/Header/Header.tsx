@@ -16,7 +16,7 @@ export const Header: React.FC<HeaderProps> = ({ menuItems }) => {
     <header className={`${styles['header']} ${menuOpened && styles['header--menu-opened']}`}>
       <nav className={`container ${styles['header__nav']}`}>
         <a href="#" target="_self" className={styles['header__logo']}>
-          <img src={LOGO_URL} alt="Логотип" width="105" height="54" className={styles['header__logo-img']} />
+          <img src={LOGO_URL} alt="Логотип" width="105" height="30" className={styles['header__logo-img']} />
         </a>
 
         <ul className={`${styles['header__menu']} ${menuOpened && styles['header__menu--active']}`}>
