@@ -4,7 +4,7 @@
   min-height: 62px;
   background-color: #111111;
 }
-/*Фейдинг пр  открытии мобильного меню*/
+/*Фейдинг при открытии мобильного меню*/
 .header::before {
   content: "";
   position: absolute;
