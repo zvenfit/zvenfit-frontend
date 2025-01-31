@@ -16,6 +16,10 @@ code {
     monospace;
 }
 
+body.body--no-scroll {
+  overflow: hidden;
+}
+
 .container {
   position: relative;
   display: block;

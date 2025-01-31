@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { BrowserRouter as Router, NavLink } from 'react-router-dom';
 
 import * as styles from './Header.module.css';
@@ -12,6 +12,11 @@ interface HeaderProps {
 
 export const Header: React.FC<HeaderProps> = ({ menuItems }) => {
   const [menuOpened, setMenuOpened] = useState(false);
+
+  useEffect(() => {
+    const method = menuOpened ? 'add' : 'remove';
+    document.body.classList[method]('body--no-scroll');
+  }, [menuOpened]);
 
   return (
     <header id="header" className={`${styles['header']} ${menuOpened && styles['header--menu-opened']}`}>
