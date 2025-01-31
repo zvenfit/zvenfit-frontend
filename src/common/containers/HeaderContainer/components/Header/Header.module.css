@@ -30,6 +30,9 @@ nav.header__nav {
   background-color: inherit;
   color: #ffffff;
 }
+.header__nav > button {
+  z-index: 1;
+}
 .header__logo {
   z-index: 2;
   display: block;
