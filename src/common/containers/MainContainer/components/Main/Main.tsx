@@ -4,6 +4,7 @@ import * as styles from './Main.module.css';
 import { IContent } from './types';
 import { RECEPTION_PHONE } from '../../../../../constants/companyContacts';
 import { formatPhoneNumber } from '../../../../../packages/utils/formatPhoneNumber';
+import { Button } from '../../../../components/Button';
 import { Logo } from '../../../../components/Logo';
 
 interface MainProps {
@@ -33,26 +34,9 @@ export const Main: React.FC<MainProps> = ({ content }) => {
         </h1>
 
         <div className={styles['main__buttons-wrapper']}>
-          <button
-            type="button"
-            style={{
-              display: 'block',
-              width: '100%',
-              padding: '11px',
-              marginBottom: '16px',
-              backgroundColor: 'green',
-              cursor: 'pointer',
-            }}
-          >
-            Оставить заявку
-          </button>
+          <Button theme="green-flat">Оставить заявку</Button>
 
-          <button
-            type="button"
-            style={{ display: 'block', width: '100%', padding: '11px', backgroundColor: 'green', cursor: 'pointer' }}
-          >
-            Узнать подробности
-          </button>
+          <Button theme="green-outlined">Узнать подробности</Button>
         </div>
       </div>
 
