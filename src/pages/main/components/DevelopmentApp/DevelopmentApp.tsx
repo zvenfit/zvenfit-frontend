@@ -13,13 +13,19 @@ export const DevelopmentApp: React.FC = () => {
           <a href={`#${MODALS_URLS.STEP_AEROBICS}`}>Степ аэробика</a>
         </li>
         <li>
-          <a href={`#${MODALS_URLS.DANCE_FITNESS}`}>Танцевальный фитнес</a>
+          <a href={`#${MODALS_URLS.ZUMBA}`}>Зумба</a>
         </li>
         <li>
           <a href={`#${MODALS_URLS.YOGALATES}`}>Йогалатес</a>
         </li>
         <li>
-          <a href={`#${MODALS_URLS.STRETCHING}`}>Стретчинг</a>
+          <a href={`#${MODALS_URLS.YOGA}`}>Йога</a>
+        </li>
+        <li>
+          <a href={`#${MODALS_URLS.PILATES}`}>Пилатес</a>
+        </li>
+        <li>
+          <a href={`#${MODALS_URLS.JUMPING_FITNESS}`}>Jumping fitness</a>
         </li>
       </ul>
     </>
