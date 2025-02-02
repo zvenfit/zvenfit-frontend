@@ -11,6 +11,7 @@
   top: 0;
   right: 0;
   left: 0;
+  z-index: 2;
   visibility: hidden;
   height: 0;
   background-color: inherit;
@@ -25,7 +26,7 @@
   opacity: 0.8;
 }
 nav.header__nav {
-  z-index: 1;
+  z-index: 2;
   display: flex;
   align-items: center;
   padding-top: 16px;
@@ -37,7 +38,7 @@ nav.header__nav {
   z-index: 1;
 }
 .header__logo {
-  z-index: 2;
+  z-index: 1;
   display: block;
   height: 30px;
   margin-right: auto;
