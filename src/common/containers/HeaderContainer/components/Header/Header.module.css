@@ -16,7 +16,6 @@
   height: 0;
   background-color: inherit;
   opacity: 0;
-  /*TODO поведение при клике/свайпе*/
   pointer-events: none;
   transition: opacity 1s cubic-bezier(0.19, 1, 0.22, 1);
 }
