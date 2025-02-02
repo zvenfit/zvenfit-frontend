@@ -13,7 +13,7 @@
 .form__input-wrapper + .form__input-wrapper {
   margin-top: 20px;
 }
-.form__input-wrapper + .form__submit-button {
+.form__input-wrapper + button {
   margin-top: 32px;
 }
 .form__input {

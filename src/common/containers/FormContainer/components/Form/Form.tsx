@@ -1,6 +1,8 @@
+import { clsx } from 'clsx';
 import React from 'react';
 
 import * as styles from './Form.module.css';
+import { Button } from '../../../../components/Button';
 
 export const Form: React.FC = () => {
   return (
@@ -8,7 +10,7 @@ export const Form: React.FC = () => {
       <div className={styles['form__input-wrapper']}>
         <input id="name" type="text" name="Имя" required className={styles['form__input']} />
 
-        <label htmlFor="name" className={`gray-text ${styles['form__input-label']}`}>
+        <label htmlFor="name" className={clsx('gray-text', styles['form__input-label'])}>
           Имя *
         </label>
 
@@ -27,21 +29,16 @@ export const Form: React.FC = () => {
           className={styles['form__input']}
         />
 
-        <label htmlFor="phone" className={`gray-text ${styles['form__input-label']}`}>
+        <label htmlFor="phone" className={clsx('gray-text', styles['form__input-label'])}>
           Номер телефона *
         </label>
 
         <span className={styles['form__input-details']}>Поле обязательно для заполнения</span>
       </div>
 
-      {/*TODO заменить на компонент Button*/}
-      <button
-        type="submit"
-        style={{ padding: '8px', backgroundColor: 'green', color: '#ffffff' }}
-        className={styles['form__submit-button']}
-      >
+      <Button type="submit" theme="green-outlined">
         Отправить
-      </button>
+      </Button>
     </form>
   );
 };
