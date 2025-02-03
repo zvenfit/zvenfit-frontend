@@ -42,6 +42,12 @@ nav.header__nav {
   height: 30px;
   margin-right: auto;
 }
+.header__logo:hover {
+  opacity: 0.8;
+}
+.header__logo:active {
+  opacity: 0.88;
+}
 .header__logo-img {
   display: block;
   width: fit-content;
