@@ -99,6 +99,9 @@ nav.header__nav {
 .header__menu-item-link:hover {
   opacity: 0.8;
 }
+.header__menu-item-link:active {
+  opacity: 0.88;
+}
 @media screen and (min-width: 640px) {
   .header {
     min-height: 78px;
