@@ -29,7 +29,7 @@ export const Main: React.FC<MainProps> = ({ content }) => {
 
       <div className={clsx('container', styles['main__container'])}>
         <h1 className={styles['main__title']}>
-          {content.title}
+          <div className={styles['main__title-text']}>{content.title}</div>
 
           <Logo />
         </h1>

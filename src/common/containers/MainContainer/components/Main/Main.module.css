@@ -21,13 +21,14 @@
   height: 100%;
   background-color: #000000;
   pointer-events: none;
-  opacity: 0.29;
+  opacity: 0.3;
 }
 div.main__container {
   display: flex;
   flex-direction: column;
   justify-content: space-around;
   height: 80vh;
+  max-height: 80vh;
 }
 .main__coll-us {
   position: absolute;
@@ -48,10 +49,15 @@ div.main__container {
 }
 .main__title {
   display: block;
+  max-height: 55%;
   font-size: 32px;
   line-height: 40px;
   font-weight: 400;
   text-transform: uppercase;
+}
+.main__title-text {
+  max-height: 80%;
+  overflow: hidden;
 }
 .main__buttons-wrapper {
   display: flex;
