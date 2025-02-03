@@ -1,14 +1,25 @@
 import { clsx } from 'clsx';
-import React from 'react';
+import React, { useState } from 'react';
 
 import * as styles from './Form.module.css';
 import { Button } from '../../../../components/Button';
 
 export const Form: React.FC = () => {
+  const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
+
   return (
     <form className={styles['form']}>
       <div className={styles['form__input-wrapper']}>
-        <input id="name" type="text" name="Имя" required className={styles['form__input']} />
+        <input
+          id="name"
+          type="text"
+          name="Имя"
+          value={name}
+          required
+          className={styles['form__input']}
+          onChange={e => setName(e.target.value)}
+        />
 
         <label htmlFor="name" className={clsx('gray-text', styles['form__input-label'])}>
           Имя *
@@ -25,8 +36,10 @@ export const Form: React.FC = () => {
           name="Номер телефона"
           minLength={16}
           pattern="\+7\ [0-9]{3}\ [0-9]{3}\-[0-9]{2}\-[0-9]{2}"
+          value={phone}
           required
           className={styles['form__input']}
+          onChange={e => setPhone(e.target.value)}
         />
 
         <label htmlFor="phone" className={clsx('gray-text', styles['form__input-label'])}>
@@ -36,7 +49,7 @@ export const Form: React.FC = () => {
         <span className={styles['form__input-details']}>Поле обязательно для заполнения</span>
       </div>
 
-      <Button type="submit" theme="green-outlined">
+      <Button type="submit" theme="green-outlined" disabled={!(name || phone)}>
         Отправить
       </Button>
     </form>
