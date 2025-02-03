@@ -1,10 +1,14 @@
 import { clsx } from 'clsx';
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 
 import * as styles from './Form.module.css';
+import { ClearButton } from './components/ClearButton';
 import { Button } from '../../../../components/Button';
 
 export const Form: React.FC = () => {
+  const nameInputRef = useRef<HTMLInputElement | null>(null);
+  const phoneInputRef = useRef<HTMLInputElement | null>(null);
+
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
 
@@ -15,6 +19,7 @@ export const Form: React.FC = () => {
           id="name"
           type="text"
           name="Имя"
+          ref={nameInputRef}
           value={name}
           required
           className={styles['form__input']}
@@ -28,6 +33,14 @@ export const Form: React.FC = () => {
           Имя *
         </label>
 
+        <ClearButton
+          show={!!name}
+          onClick={() => {
+            setName('');
+            nameInputRef.current?.focus();
+          }}
+        />
+
         <span className={styles['form__input-details']}>Поле обязательно для заполнения</span>
       </div>
 
@@ -38,7 +51,8 @@ export const Form: React.FC = () => {
           type="tel"
           name="Номер телефона"
           minLength={16}
-          pattern="\+7\ [0-9]{3}\ [0-9]{3}\-[0-9]{2}\-[0-9]{2}"
+          pattern="/\+7\ [0-9]{3}\ [0-9]{3}\-[0-9]{2}\-[0-9]{2}/"
+          ref={phoneInputRef}
           value={phone}
           required
           className={styles['form__input']}
@@ -51,6 +65,14 @@ export const Form: React.FC = () => {
         >
           Номер телефона *
         </label>
+
+        <ClearButton
+          show={!!phone}
+          onClick={() => {
+            setPhone('');
+            phoneInputRef.current?.focus();
+          }}
+        />
 
         <span className={styles['form__input-details']}>Поле обязательно для заполнения</span>
       </div>

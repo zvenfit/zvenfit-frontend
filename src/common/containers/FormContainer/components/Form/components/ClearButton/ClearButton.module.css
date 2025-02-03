@@ -1,0 +1,16 @@
+.clear-button {
+  position: absolute;
+  top: 22px;
+  right: 4px;
+  color: #ffffff;
+  cursor: pointer;
+}
+.clear-button:hover {
+  opacity: 0.8;
+}
+.clear-button:active {
+  opacity: 0.88;
+}
+.clear-button > svg {
+  display: block;
+}
