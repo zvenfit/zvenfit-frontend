@@ -63,6 +63,7 @@
   cursor: text;
   transition: top 0.15s ease;
 }
+.form__input-label--to-top,
 .form__input:focus ~ .form__input-label {
   top: 0;
   font-size: 12px;
@@ -90,6 +91,7 @@
   .form__input-label {
     top: 11px;
   }
+  .form__input-label--to-top,
   .form__input:focus ~ .form__input-label {
     top: -5px;
     font-size: 14px;

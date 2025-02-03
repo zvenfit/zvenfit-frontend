@@ -21,7 +21,10 @@ export const Form: React.FC = () => {
           onChange={e => setName(e.target.value)}
         />
 
-        <label htmlFor="name" className={clsx('gray-text', styles['form__input-label'])}>
+        <label
+          htmlFor="name"
+          className={clsx('gray-text', styles['form__input-label'], name && styles['form__input-label--to-top'])}
+        >
           Имя *
         </label>
 
@@ -42,14 +45,17 @@ export const Form: React.FC = () => {
           onChange={e => setPhone(e.target.value)}
         />
 
-        <label htmlFor="phone" className={clsx('gray-text', styles['form__input-label'])}>
+        <label
+          htmlFor="phone"
+          className={clsx('gray-text', styles['form__input-label'], phone && styles['form__input-label--to-top'])}
+        >
           Номер телефона *
         </label>
 
         <span className={styles['form__input-details']}>Поле обязательно для заполнения</span>
       </div>
 
-      <Button type="submit" theme="green-outlined" disabled={!(name || phone)}>
+      <Button type="submit" theme="green-outlined" disabled={!(name && phone)}>
         Отправить
       </Button>
     </form>
