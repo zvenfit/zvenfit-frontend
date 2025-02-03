@@ -41,9 +41,14 @@ export const Main: React.FC<MainProps> = ({ content }) => {
         </div>
       </div>
 
-      <button type="button" className={styles['main__scroll-button']}>
+      <a
+        href={content.formAnchor}
+        role="button"
+        aria-label="Скролл к форме регистрации"
+        className={styles['main__scroll-button']}
+      >
         <span className={styles['main__scroll-button-arrow']} />
-      </button>
+      </a>
     </section>
   );
 };
