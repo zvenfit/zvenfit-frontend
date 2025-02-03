@@ -1,3 +1,4 @@
+import { clsx } from 'clsx';
 import React from 'react';
 
 import * as styles from './Main.module.css';
@@ -26,7 +27,7 @@ export const Main: React.FC<MainProps> = ({ content }) => {
         </a>
       </address>
 
-      <div className={`container ${styles['main__container']}`}>
+      <div className={clsx('container', styles['main__container'])}>
         <h1 className={styles['main__title']}>
           {content.title}
 
