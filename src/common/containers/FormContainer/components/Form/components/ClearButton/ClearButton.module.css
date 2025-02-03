@@ -1,9 +1,12 @@
 .clear-button {
   position: absolute;
   top: 22px;
-  right: 4px;
+  right: -20px;
   color: #ffffff;
+  opacity: 0;
   cursor: pointer;
+  transition: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  transition-property: opacity, transform;
 }
 .clear-button:hover {
   opacity: 0.8;
@@ -13,4 +16,10 @@
 }
 .clear-button > svg {
   display: block;
+}
+.clear-button--show {
+  transform: translateX(-24px);
+}
+.clear-button--hide {
+  display: none;
 }

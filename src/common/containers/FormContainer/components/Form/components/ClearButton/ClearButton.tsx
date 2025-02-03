@@ -1,4 +1,5 @@
-import React from 'react';
+import { clsx } from 'clsx';
+import React, { useEffect, useState } from 'react';
 
 import * as styles from './ClearButton.module.css';
 import { ClearIcon } from '../../icons/ClearIcon';
@@ -9,11 +10,24 @@ interface ClearButtonProps {
 }
 
 export const ClearButton: React.FC<ClearButtonProps> = ({ show, onClick }) => {
+  const [hide, setHide] = useState(true);
+
+  useEffect(() => {
+    setTimeout(() => setHide(!show), 150);
+  }, [show]);
+
   return (
-    show && (
-      <button type="button" aria-label="Очистить поле" className={styles['clear-button']} onClick={onClick}>
-        <ClearIcon />
-      </button>
-    )
+    <button
+      type="button"
+      aria-label="Очистить поле"
+      className={clsx(
+        styles['clear-button'],
+        show && styles['clear-button--show'],
+        hide && styles['clear-button--hide'],
+      )}
+      onClick={onClick}
+    >
+      <ClearIcon />
+    </button>
   );
 };
