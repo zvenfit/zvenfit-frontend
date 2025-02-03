@@ -91,6 +91,7 @@
     top: 11px;
   }
   .form__input:focus ~ .form__input-label {
+    top: -5px;
     font-size: 14px;
   }
 }
