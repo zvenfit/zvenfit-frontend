@@ -26,14 +26,20 @@
   border-bottom-color: rgba(255, 255, 255, 0.5);
   box-sizing: border-box;
   cursor: text;
+  font-size: inherit;
+  line-height: inherit;
   color: #ffffff;
 }
 .form__input:hover {
   border-bottom-color: rgba(255, 255, 255, 0.8);
 }
-.form__input:focus ~ .form__input-label {
-  top: 0;
-  font-size: 12px;
+.form__input:-webkit-autofill,
+.form__input:-webkit-autofill:hover,
+.form__input:-webkit-autofill:focus,
+.form__input:-webkit-autofill:active {
+  -webkit-text-fill-color: #ffffff;
+  -webkit-background-clip: text;
+  transition: background-color 5000s ease-in-out 0s;
 }
 .form__input-details {
   display: block;
@@ -52,8 +58,14 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-size: inherit;
+  line-height: inherit;
   cursor: text;
   transition: top 0.15s ease;
+}
+.form__input:focus ~ .form__input-label {
+  top: 0;
+  font-size: 12px;
 }
 .form__agreement-text {
   font-size: 12px;
@@ -71,10 +83,12 @@
   opacity: 1;
 }
 @media screen and (min-width: 640px) {
-  .form__input-label {
-    top: 11px;
+  .form {
     font-size: 16px;
     line-height: 24px;
+  }
+  .form__input-label {
+    top: 11px;
   }
   .form__input:focus ~ .form__input-label {
     font-size: 14px;
