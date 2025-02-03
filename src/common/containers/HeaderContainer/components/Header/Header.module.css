@@ -113,7 +113,7 @@ nav.header__nav {
   .header::before {
     content: none;
   }
-  nav.header__nav {
+  .header__nav {
     padding-top: 20px;
     padding-bottom: 20px;
   }
@@ -150,13 +150,12 @@ nav.header__nav {
   .header {
     min-height: unset;
   }
-  nav.header__nav {
+  .header__nav {
     padding-top: 24px;
     padding-bottom: 24px;
   }
   .header__menu {
     height: 64px;
-    margin-left: 80px;
   }
   .header__logo {
     height: 64px;
