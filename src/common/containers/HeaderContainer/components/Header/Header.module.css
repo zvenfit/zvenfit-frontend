@@ -84,7 +84,7 @@ nav.header__nav {
   left: 0;
 }
 .header__menu-item {
-  height: 44px;
+  min-height: 44px;
   font-size: 14px;
   line-height: 20px;
   cursor: pointer;
@@ -95,6 +95,7 @@ nav.header__nav {
   height: 100%;
   padding: 0 12px;
   text-decoration: none;
+  word-break: normal;
 }
 .header__menu-item-link:hover {
   opacity: 0.8;
