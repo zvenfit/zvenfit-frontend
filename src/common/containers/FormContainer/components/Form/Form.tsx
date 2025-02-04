@@ -3,6 +3,7 @@ import React, { useRef, useState } from 'react';
 
 import * as styles from './Form.module.css';
 import { ClearButton } from './components/ClearButton';
+import { InputDetails } from './components/InputDetails';
 import { Button } from '../../../../components/Button';
 
 export const Form: React.FC = () => {
@@ -41,7 +42,7 @@ export const Form: React.FC = () => {
           }}
         />
 
-        <span className={styles['form__input-details']}>Поле обязательно для заполнения</span>
+        <InputDetails />
       </div>
 
       <div className={styles['form__input-wrapper']}>
@@ -74,7 +75,7 @@ export const Form: React.FC = () => {
           }}
         />
 
-        <span className={styles['form__input-details']}>Поле обязательно для заполнения</span>
+        <InputDetails />
       </div>
 
       <Button type="submit" theme="green-outlined" disabled={!(name && phone)}>

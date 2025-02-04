@@ -70,14 +70,6 @@
   top: 0;
   font-size: 12px;
 }
-.form__input-details {
-  display: block;
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: #ffffff;
-}
 .form__agreement-text {
   font-size: 12px;
   line-height: 16px;
