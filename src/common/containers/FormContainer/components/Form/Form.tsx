@@ -1,4 +1,5 @@
-import React, { RefObject, useRef, useState } from 'react';
+import React, { useRef } from 'react';
+import { useForm, Controller } from 'react-hook-form';
 import { IMaskInput } from 'react-imask';
 
 import * as styles from './Form.module.css';
@@ -6,89 +7,109 @@ import { ClearButton } from './components/ClearButton';
 import { InputDetails } from './components/InputDetails';
 import { InputLabel } from './components/InputLabel';
 import { INPUT_DETAILS } from './constants/inputDetails';
-import { PHONE_LENGTH } from './constants/phoneLength';
+import { PHONE } from './constants/phone';
 import { Button } from '../../../../components/Button';
 
 export const Form: React.FC = () => {
+  const {
+    watch,
+    handleSubmit,
+    control,
+    setValue,
+    formState: { errors, isValid },
+  } = useForm({
+    mode: 'all',
+    defaultValues: { name: '', phone: '' },
+    shouldFocusError: true,
+  });
+
   const nameInputRef = useRef<HTMLInputElement | null>(null);
   const phoneInputRef = useRef<HTMLInputElement | null>(null);
 
-  const [name, setName] = useState('');
-  const [phone, setPhone] = useState('');
+  const name = watch('name', '');
+  const phone = watch('phone', '');
+
+  const onClickClear = (field: 'name' | 'phone') => {
+    setValue(field, '');
+
+    if (field === 'name') {
+      nameInputRef.current?.focus();
+    }
+
+    if (field === 'phone') {
+      phoneInputRef.current?.focus();
+    }
+  };
 
   const onFocusPhoneField = () => {
     if (!phone) {
-      setPhone(' ');
+      setValue('phone', ' ');
     }
   };
 
   const onBlurPhoneField = () => {
-    if (phone.trim() === '+7') {
-      setPhone('');
+    if (phone.trim() === PHONE.countryPrefix) {
+      setValue('phone', '');
     }
   };
 
-  const onClickClear = (inputRef: RefObject<HTMLInputElement | null>, setFn: (val: string) => void) => {
-    setFn('');
-    inputRef.current?.focus();
-  };
-
   return (
-    <form className={styles['form']}>
+    // eslint-disable-next-line no-console
+    <form onSubmit={handleSubmit(data => console.log(data))} className={styles['form']}>
       <div className={styles['form__input-wrapper']}>
-        <input
-          id="name"
-          type="text"
-          ref={nameInputRef}
-          value={name}
-          required
-          className={styles['form__input']}
-          onChange={e => setName(e.target.value)}
+        <Controller
+          name="name"
+          control={control}
+          rules={{ required: { value: true, message: INPUT_DETAILS.required } }}
+          render={({ field }) => (
+            <input {...field} ref={nameInputRef} id="name" type="text" className={styles['form__input']} />
+          )}
         />
 
         <InputLabel htmlFor="name" isTopPosition={!!name}>
           Имя *
         </InputLabel>
 
-        <ClearButton show={!!name} onClick={() => onClickClear(nameInputRef, setName)} />
+        <ClearButton show={!!name} onClick={() => onClickClear('name')} />
 
-        <InputDetails>{name ? '' : INPUT_DETAILS.required}</InputDetails>
+        <InputDetails>{errors.name?.message || ''}</InputDetails>
       </div>
 
       <div className={styles['form__input-wrapper']}>
-        <IMaskInput
-          id="phone"
-          inputRef={phoneInputRef}
-          mask="+7 (000) 000-00-00"
-          lazy={true}
-          unmask={false}
-          value={phone}
-          className={styles['form__input']}
-          onFocus={onFocusPhoneField}
-          onBlur={onBlurPhoneField}
-          onAccept={value => setPhone(value)}
+        <Controller
+          name="phone"
+          control={control}
+          rules={{
+            required: { value: true, message: INPUT_DETAILS.required },
+            validate: (value: string) =>
+              value.replace(/\D/g, '').length === PHONE.validLength || INPUT_DETAILS.phoneLength,
+          }}
+          render={({ field }) => (
+            <IMaskInput
+              id="phone"
+              inputRef={phoneInputRef}
+              mask="+7 (000) 000-00-00"
+              lazy={true}
+              unmask={false}
+              className={styles['form__input']}
+              value={field.value || ''}
+              onBlur={onBlurPhoneField}
+              onFocus={onFocusPhoneField}
+              onAccept={value => field.onChange(value)}
+            />
+          )}
         />
 
         <InputLabel htmlFor="phone" isTopPosition={!!phone}>
           Номер телефона *
         </InputLabel>
 
-        <ClearButton show={!!phone} onClick={() => onClickClear(phoneInputRef, setPhone)} />
+        <ClearButton show={!!phone} onClick={() => onClickClear('phone')} />
 
-        <InputDetails>
-          {phone && phone.match(/\d/g)?.length !== PHONE_LENGTH
-            ? INPUT_DETAILS.phoneLength
-            : phone
-              ? ''
-              : INPUT_DETAILS.required}
-        </InputDetails>
+        <InputDetails>{errors.phone?.message || ''}</InputDetails>
       </div>
 
-      <Button
-        type="submit"
-        theme="green-outlined"
-        disabled={!(name && phone && phone.match(/\d/g)?.length === PHONE_LENGTH)}
-      >
+      <Button type="submit" theme="green-outlined" disabled={!isValid}>
         Отправить
       </Button>
     </form>
