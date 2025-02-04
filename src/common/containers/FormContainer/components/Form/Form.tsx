@@ -72,7 +72,11 @@ export const Form: React.FC = () => {
         />
 
         <InputDetails>
-          {phone && phone.length < PHONE_LENGTH ? INPUT_DETAILS.phoneLength : phone ? '' : INPUT_DETAILS.required}
+          {phone && (phone.length < PHONE_LENGTH || phone.length > PHONE_LENGTH)
+            ? INPUT_DETAILS.phoneLength
+            : phone
+              ? ''
+              : INPUT_DETAILS.required}
         </InputDetails>
       </div>
 
