@@ -4,6 +4,8 @@ import * as styles from './Form.module.css';
 import { ClearButton } from './components/ClearButton';
 import { InputDetails } from './components/InputDetails';
 import { InputLabel } from './components/InputLabel';
+import { INPUT_DETAILS } from './constants/inputDetails';
+import { PHONE_LENGTH } from './constants/phoneLength';
 import { Button } from '../../../../components/Button';
 
 export const Form: React.FC = () => {
@@ -39,7 +41,7 @@ export const Form: React.FC = () => {
           }}
         />
 
-        <InputDetails />
+        <InputDetails>{name ? '' : INPUT_DETAILS.required}</InputDetails>
       </div>
 
       <div className={styles['form__input-wrapper']}>
@@ -69,7 +71,9 @@ export const Form: React.FC = () => {
           }}
         />
 
-        <InputDetails />
+        <InputDetails>
+          {phone && phone.length < PHONE_LENGTH ? INPUT_DETAILS.phoneLength : phone ? '' : INPUT_DETAILS.required}
+        </InputDetails>
       </div>
 
       <Button type="submit" theme="green-outlined" disabled={!(name && phone)}>
