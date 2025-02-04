@@ -59,6 +59,7 @@ export const Form: React.FC = () => {
       <div className={styles['form__input-wrapper']}>
         <IMaskInput
           id="phone"
+          inputRef={phoneInputRef}
           mask="+7 (000) 000-00-00"
           lazy={true}
           unmask={false}
