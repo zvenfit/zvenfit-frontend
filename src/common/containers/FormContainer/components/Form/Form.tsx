@@ -62,7 +62,7 @@ export const Form: React.FC = () => {
           control={control}
           rules={{ required: { value: true, message: INPUT_DETAILS.required } }}
           render={({ field }) => (
-            <input {...field} ref={nameInputRef} id="name" type="text" className={styles['form__input']} />
+            <input {...field} id="name" ref={nameInputRef} type="text" className={styles['form__input']} />
           )}
         />
 
@@ -91,8 +91,8 @@ export const Form: React.FC = () => {
               mask="+7 (000) 000-00-00"
               lazy={true}
               unmask={false}
-              className={styles['form__input']}
               value={field.value || ''}
+              className={styles['form__input']}
               onBlur={onBlurPhoneField}
               onFocus={onFocusPhoneField}
               onAccept={value => field.onChange(value)}
