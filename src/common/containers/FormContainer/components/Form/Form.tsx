@@ -1,4 +1,5 @@
 import React, { RefObject, useRef, useState } from 'react';
+import { useForm } from 'react-hook-form';
 import { IMaskInput } from 'react-imask';
 
 import * as styles from './Form.module.css';
@@ -10,6 +11,12 @@ import { PHONE_LENGTH } from './constants/phoneLength';
 import { Button } from '../../../../components/Button';
 
 export const Form: React.FC = () => {
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm();
+
   const nameInputRef = useRef<HTMLInputElement | null>(null);
   const phoneInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -34,15 +41,15 @@ export const Form: React.FC = () => {
   };
 
   return (
-    <form className={styles['form']}>
+    // eslint-disable-next-line no-console
+    <form onSubmit={handleSubmit(data => console.log(data))} className={styles['form']}>
       <div className={styles['form__input-wrapper']}>
         <input
           id="name"
           type="text"
-          name="Имя"
+          {...register('name', { required: true })}
           ref={nameInputRef}
           value={name}
-          required
           className={styles['form__input']}
           onChange={e => setName(e.target.value)}
         />
@@ -53,7 +60,7 @@ export const Form: React.FC = () => {
 
         <ClearButton show={!!name} onClick={() => onClickClear(nameInputRef, setName)} />
 
-        <InputDetails>{name ? '' : INPUT_DETAILS.required}</InputDetails>
+        <InputDetails>{errors.name ? INPUT_DETAILS.required : ''}</InputDetails>
       </div>
 
       <div className={styles['form__input-wrapper']}>
