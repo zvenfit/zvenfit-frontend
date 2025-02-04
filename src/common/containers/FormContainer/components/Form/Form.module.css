@@ -51,22 +51,7 @@
   -webkit-background-clip: text;
   transition: background-color 5000s ease-in-out 0s;
 }
-.form__input-label {
-  position: absolute;
-  top: 16px;
-  left: 0;
-  display: block;
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: inherit;
-  line-height: inherit;
-  cursor: text;
-  transition: top 0.15s ease;
-}
-.form__input-label--to-top,
-.form__input:focus ~ .form__input-label {
+.form__input:focus ~ label {
   top: 0;
   font-size: 12px;
 }
@@ -90,11 +75,7 @@
     font-size: 16px;
     line-height: 24px;
   }
-  .form__input-label {
-    top: 11px;
-  }
-  .form__input-label--to-top,
-  .form__input:focus ~ .form__input-label {
+  .form__input:focus ~ label {
     top: -5px;
     font-size: 14px;
   }

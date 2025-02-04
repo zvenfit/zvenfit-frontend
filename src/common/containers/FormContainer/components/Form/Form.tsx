@@ -1,9 +1,9 @@
-import { clsx } from 'clsx';
 import React, { useRef, useState } from 'react';
 
 import * as styles from './Form.module.css';
 import { ClearButton } from './components/ClearButton';
 import { InputDetails } from './components/InputDetails';
+import { InputLabel } from './components/InputLabel';
 import { Button } from '../../../../components/Button';
 
 export const Form: React.FC = () => {
@@ -27,12 +27,9 @@ export const Form: React.FC = () => {
           onChange={e => setName(e.target.value)}
         />
 
-        <label
-          htmlFor="name"
-          className={clsx('gray-text', styles['form__input-label'], name && styles['form__input-label--to-top'])}
-        >
+        <InputLabel htmlFor="name" isTopPosition={!!name}>
           Имя *
-        </label>
+        </InputLabel>
 
         <ClearButton
           show={!!name}
@@ -60,12 +57,9 @@ export const Form: React.FC = () => {
           onChange={e => setPhone(e.target.value)}
         />
 
-        <label
-          htmlFor="phone"
-          className={clsx('gray-text', styles['form__input-label'], phone && styles['form__input-label--to-top'])}
-        >
+        <InputLabel htmlFor="phone" isTopPosition={!!phone}>
           Номер телефона *
-        </label>
+        </InputLabel>
 
         <ClearButton
           show={!!phone}
