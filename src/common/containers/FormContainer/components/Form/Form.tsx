@@ -1,4 +1,5 @@
-import React, { useRef, useState } from 'react';
+import React, { RefObject, useRef, useState } from 'react';
+import { IMaskInput } from 'react-imask';
 
 import * as styles from './Form.module.css';
 import { ClearButton } from './components/ClearButton';
@@ -14,6 +15,23 @@ export const Form: React.FC = () => {
 
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
+
+  const onFocusPhoneField = () => {
+    if (!phone) {
+      setPhone(' ');
+    }
+  };
+
+  const onBlurPhoneField = () => {
+    if (phone.trim() === '+7') {
+      setPhone('');
+    }
+  };
+
+  const onClickClear = (inputRef: RefObject<HTMLInputElement | null>, setFn: (val: string) => void) => {
+    setFn('');
+    inputRef.current?.focus();
+  };
 
   return (
     <form className={styles['form']}>
@@ -33,46 +51,32 @@ export const Form: React.FC = () => {
           Имя *
         </InputLabel>
 
-        <ClearButton
-          show={!!name}
-          onClick={() => {
-            setName('');
-            nameInputRef.current?.focus();
-          }}
-        />
+        <ClearButton show={!!name} onClick={() => onClickClear(nameInputRef, setName)} />
 
         <InputDetails>{name ? '' : INPUT_DETAILS.required}</InputDetails>
       </div>
 
       <div className={styles['form__input-wrapper']}>
-        {/*TODO сделать маскированный ввод*/}
-        <input
+        <IMaskInput
           id="phone"
-          type="tel"
-          name="Номер телефона"
-          minLength={16}
-          pattern="/\+7\ [0-9]{3}\ [0-9]{3}\-[0-9]{2}\-[0-9]{2}/"
-          ref={phoneInputRef}
+          mask="+7 (000) 000-00-00"
+          lazy={true}
+          unmask={false}
           value={phone}
-          required
           className={styles['form__input']}
-          onChange={e => setPhone(e.target.value)}
+          onFocus={onFocusPhoneField}
+          onBlur={onBlurPhoneField}
+          onAccept={value => setPhone(value)}
         />
 
         <InputLabel htmlFor="phone" isTopPosition={!!phone}>
           Номер телефона *
         </InputLabel>
 
-        <ClearButton
-          show={!!phone}
-          onClick={() => {
-            setPhone('');
-            phoneInputRef.current?.focus();
-          }}
-        />
+        <ClearButton show={!!phone} onClick={() => onClickClear(phoneInputRef, setPhone)} />
 
         <InputDetails>
-          {phone && (phone.length < PHONE_LENGTH || phone.length > PHONE_LENGTH)
+          {phone && phone.match(/\d/g)?.length !== PHONE_LENGTH
             ? INPUT_DETAILS.phoneLength
             : phone
               ? ''
