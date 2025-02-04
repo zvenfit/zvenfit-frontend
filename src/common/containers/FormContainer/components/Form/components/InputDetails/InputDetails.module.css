@@ -1,8 +1,11 @@
 .input-details {
-  display: block;
+  display: inline-block;
   max-width: 100%;
+  min-height: 20px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-size: 14px;
+  line-height: 20px;
   color: #ffffff;
 }
