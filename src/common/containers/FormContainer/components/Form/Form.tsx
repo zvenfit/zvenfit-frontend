@@ -92,7 +92,11 @@ export const Form: React.FC = () => {
         </InputDetails>
       </div>
 
-      <Button type="submit" theme="green-outlined" disabled={!(name && phone)}>
+      <Button
+        type="submit"
+        theme="green-outlined"
+        disabled={!(name && phone && phone.match(/\d/g)?.length === PHONE_LENGTH)}
+      >
         Отправить
       </Button>
     </form>
