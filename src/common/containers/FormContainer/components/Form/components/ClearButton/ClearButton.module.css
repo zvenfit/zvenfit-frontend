@@ -7,6 +7,9 @@
   transition: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
   transition-property: opacity, right;
 }
+.clear-button:focus {
+  opacity: 1;
+}
 .clear-button:hover {
   opacity: 0.8;
 }
