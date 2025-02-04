@@ -35,6 +35,10 @@
 .form__input:focus {
   border-bottom-color: rgba(255, 255, 255, 0.8);
 }
+.form__input ~ button {
+  opacity: 0;
+  transition: opacity 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+}
 .form__input:hover ~ button,
 .form__input:focus ~ button {
   opacity: 1;
