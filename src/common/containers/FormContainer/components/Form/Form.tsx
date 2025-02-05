@@ -84,7 +84,7 @@ export const Form: React.FC = () => {
             <IMaskInput
               id="phone"
               inputRef={phoneInputRef}
-              mask="+7 (000) 000-00-00"
+              mask={`${PHONE.countryPrefix} (000) 000-00-00`}
               lazy={true}
               unmask={false}
               value={field.value || ''}
