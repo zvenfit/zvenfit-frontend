@@ -1,25 +1,25 @@
 import { clsx } from 'clsx';
 import React from 'react';
 
-import * as styles from './Main.module.css';
+import * as styles from './Hero.module.css';
 import { IContent } from './types';
 import { RECEPTION_PHONE } from '../../../../../constants/companyContacts';
 import { formatPhoneNumber } from '../../../../../packages/utils/formatPhoneNumber';
 import { Button } from '../../../../components/Button';
 import { Logo } from '../../../../components/Logo';
-import { ArrowButton } from '../ArrowButton/ArrowButton';
+import { ArrowButton } from '../ArrowButton';
 
-interface MainProps {
+interface HeroProps {
   content: IContent;
 }
 
-export const Main: React.FC<MainProps> = ({ content }) => {
+export const Hero: React.FC<HeroProps> = ({ content }) => {
   return (
-    <section style={{ backgroundImage: `url(${content.bgImage})` }} className={styles['main']}>
-      <address className={styles['main__call-us']}>
+    <section style={{ backgroundImage: `url(${content.bgImage})` }} className={styles['hero']}>
+      <address className={styles['hero__call-us']}>
         Позвоните нам
         <a
-          className={styles['main__contact-phone']}
+          className={styles['hero__contact-phone']}
           href={`tel:+${RECEPTION_PHONE}`}
           rel="noopener noreferrer"
           target="_blank"
@@ -28,14 +28,14 @@ export const Main: React.FC<MainProps> = ({ content }) => {
         </a>
       </address>
 
-      <div className={clsx('container', styles['main__container'])}>
-        <h1 className={styles['main__title']}>
-          <div className={styles['main__title-text']}>{content.title}</div>
+      <div className={clsx('container', styles['hero__container'])}>
+        <h1 className={styles['hero__title']}>
+          <div className={styles['hero__title-text']}>{content.title}</div>
 
           <Logo />
         </h1>
 
-        <div className={styles['main__buttons-wrapper']}>
+        <div className={styles['hero__buttons-wrapper']}>
           <Button theme="green-flat">Оставить заявку</Button>
 
           <Button theme="green-outlined">Узнать подробности</Button>

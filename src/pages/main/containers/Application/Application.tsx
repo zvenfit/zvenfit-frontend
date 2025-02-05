@@ -9,7 +9,7 @@ import { DescriptionContainer } from '../../../../common/containers/DescriptionC
 import { FooterContainer } from '../../../../common/containers/FooterContainer';
 import { GalleryContainer } from '../../../../common/containers/GalleryContainer';
 import { HeaderContainer } from '../../../../common/containers/HeaderContainer/HeaderContainer';
-import { MainContainer } from '../../../../common/containers/MainContainer/MainContainer';
+import { HeroContainer } from '../../../../common/containers/HeroContainer';
 import { TrainingDirectionsContainer } from '../../../../common/containers/TrainingDirectionsContainer';
 import { TrainingListContainer } from '../../../../common/containers/TrainingListContainer';
 import { DanceFitnessModal } from '../../components/group-training-modals/DanceFitnessModal/DanceFitnessModal';
@@ -40,7 +40,7 @@ export const Application: React.FC = () => {
       </HashRouter>
 
       <HeaderContainer />
-      <MainContainer />
+      <HeroContainer />
       <TrainingDirectionsContainer />
       <DescriptionContainer />
       <TrainingListContainer />

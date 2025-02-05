@@ -1,4 +1,4 @@
-.main {
+.hero {
   position: relative;
   display: flex;
   align-items: center;
@@ -13,7 +13,7 @@
   overflow: hidden;
   color: #ffffff;
 }
-.main::before {
+.hero::before {
   content: "";
   position: absolute;
   top: 0;
@@ -24,14 +24,14 @@
   pointer-events: none;
   opacity: 0.3;
 }
-div.main__container {
+div.hero__container {
   display: flex;
   flex-direction: column;
   justify-content: space-around;
   height: 80vh;
   max-height: 80vh;
 }
-.main__call-us {
+.hero__call-us {
   position: absolute;
   top: 40px;
   right: 20px;
@@ -42,14 +42,14 @@ div.main__container {
   line-height: 24px;
   font-weight: 400;
 }
-.main__contact-phone {
+.hero__contact-phone {
   text-decoration: underline;
   text-decoration-thickness: 1px;
   text-underline-offset: 0.2em;
   font-style: normal;
   color: inherit;
 }
-.main__title {
+.hero__title {
   display: block;
   max-height: 55%;
   font-size: 32px;
@@ -57,54 +57,54 @@ div.main__container {
   font-weight: 400;
   text-transform: uppercase;
 }
-.main__title-text {
+.hero__title-text {
   max-height: 80%;
   overflow: hidden;
 }
-.main__buttons-wrapper {
+.hero__buttons-wrapper {
   display: flex;
   flex-wrap: wrap;
 }
-.main__buttons-wrapper > button + button {
+.hero__buttons-wrapper > button + button {
   margin-top: 16px;
 }
-.main > a {
+.hero > a {
   position: absolute;
   left: 50%;
   bottom: 30px;
   transform: translateX(-50%);
 }
 @media screen and (min-width: 640px) {
-  .main__call-us {
+  .hero__call-us {
     right: 40px;
     font-size: 20px;
     line-height: 28px;
   }
-  .main__title {
+  .hero__title {
     font-size: 48px;
     line-height: 56px;
   }
-  .main__buttons-wrapper > button + button {
+  .hero__buttons-wrapper > button + button {
     margin-top: 0;
     margin-left: 16px;
   }
 }
 @media screen and (min-width: 960px) {
-  .main__call-us {
+  .hero__call-us {
     right: 60px;
   }
-  .main__title {
+  .hero__title {
     font-size: 56px;
     line-height: 64px;
   }
 }
 @media screen and (min-width: 1360px) {
-  .main__call-us {
+  .hero__call-us {
     right: 80px;
     font-size: 24px;
     line-height: 32px;
   }
-  .main__title {
+  .hero__title {
     font-size: 72px;
     line-height: 80px;
   }
