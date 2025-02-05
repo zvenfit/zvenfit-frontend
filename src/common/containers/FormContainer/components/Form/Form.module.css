@@ -54,6 +54,17 @@
   top: 0;
   font-size: 12px;
 }
+.form__input-details {
+  display: inline-block;
+  max-width: 100%;
+  min-height: 20px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+  line-height: 20px;
+  color: #ffffff;
+}
 .form__agreement-text {
   font-size: 12px;
   line-height: 16px;

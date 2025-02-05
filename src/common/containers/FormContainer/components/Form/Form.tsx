@@ -4,7 +4,6 @@ import { IMaskInput } from 'react-imask';
 
 import * as styles from './Form.module.css';
 import { ClearButton } from './components/ClearButton';
-import { InputDetails } from './components/InputDetails';
 import { InputLabel } from './components/InputLabel';
 import { PHONE } from './constants/phone';
 import { RULES } from './constants/rules';
@@ -72,7 +71,7 @@ export const Form: React.FC = () => {
 
         <ClearButton show={!!name} onClick={() => onClickClear('name')} />
 
-        <InputDetails>{errors.name?.message || ''}</InputDetails>
+        <span className={styles['form__input-details']}>{errors.name?.message}</span>
       </div>
 
       <div className={styles['form__input-wrapper']}>
@@ -102,7 +101,7 @@ export const Form: React.FC = () => {
 
         <ClearButton show={!!phone} onClick={() => onClickClear('phone')} />
 
-        <InputDetails>{errors.phone?.message || ''}</InputDetails>
+        <span className={styles['form__input-details']}>{errors.phone?.message}</span>
       </div>
 
       <Button type="submit" theme="green-outlined" disabled={!isValid}>
