@@ -7,6 +7,7 @@ import { RECEPTION_PHONE } from '../../../../../constants/companyContacts';
 import { formatPhoneNumber } from '../../../../../packages/utils/formatPhoneNumber';
 import { Button } from '../../../../components/Button';
 import { Logo } from '../../../../components/Logo';
+import { ArrowButton } from '../ArrowButton/ArrowButton';
 
 interface MainProps {
   content: IContent;
@@ -41,14 +42,7 @@ export const Main: React.FC<MainProps> = ({ content }) => {
         </div>
       </div>
 
-      <a
-        href={content.formAnchor}
-        role="button"
-        aria-label="Перейти к форме регистрации"
-        className={styles['main__scroll-button']}
-      >
-        <span className={styles['main__scroll-button-arrow']} />
-      </a>
+      <ArrowButton href={content.formAnchor} />
     </section>
   );
 };

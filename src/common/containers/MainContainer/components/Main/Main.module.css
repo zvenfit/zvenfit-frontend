@@ -47,6 +47,7 @@ div.main__container {
   text-decoration-thickness: 1px;
   text-underline-offset: 0.2em;
   font-style: normal;
+  color: inherit;
 }
 .main__title {
   display: block;
@@ -67,36 +68,11 @@ div.main__container {
 .main__buttons-wrapper > button + button {
   margin-top: 16px;
 }
-.main__scroll-button {
+.main > a {
   position: absolute;
   left: 50%;
   bottom: 30px;
   transform: translateX(-50%);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  width: 40px;
-  height: 40px;
-  border: 2px solid #ffffff;
-  border-radius: 50px;
-  opacity: 0.3;
-  cursor: pointer;
-  animation: 3s ease-in-out 1s infinite animation-step-scroll;
-}
-.main__scroll-button-arrow {
-  position: relative;
-  animation: 3s ease-in-out 1s infinite animation-arrow;
-}
-.main__scroll-button-arrow::after {
-  content: "";
-  position: relative;
-  top: -1px;
-  display: block;
-  width: 8px;
-  height: 8px;
-  border-right: 2px solid;
-  border-bottom: 2px solid;
-  transform: rotate(45deg);
 }
 @media screen and (min-width: 640px) {
   .main__call-us {
@@ -131,26 +107,5 @@ div.main__container {
   .main__title {
     font-size: 72px;
     line-height: 80px;
-  }
-}
-@keyframes animation-step-scroll {
-  0%, 50%, 100% {
-    transform: translateY(0);
-  }
-  65% {
-    transform: translateY(-15%);
-  }
-  80% {
-    transform: translateY(30%);
-  }
-}
-@keyframes animation-arrow {
-  0%, 50%, 65%, 100% {
-    transform: translateY(0);
-    opacity: 1;
-  }
-  75%, 80% {
-    transform: translateY(30%);
-    opacity: 0;
   }
 }
