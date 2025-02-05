@@ -15,7 +15,7 @@ interface MainProps {
 export const Main: React.FC<MainProps> = ({ content }) => {
   return (
     <section style={{ backgroundImage: `url(${content.bgImage})` }} className={styles['main']}>
-      <address className={styles['main__coll-us']}>
+      <address className={styles['main__call-us']}>
         Позвоните нам
         <a
           className={styles['main__contact-phone']}
