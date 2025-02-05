@@ -6,8 +6,8 @@ import * as styles from './Form.module.css';
 import { ClearButton } from './components/ClearButton';
 import { InputDetails } from './components/InputDetails';
 import { InputLabel } from './components/InputLabel';
-import { INPUT_DETAILS } from './constants/inputDetails';
 import { PHONE } from './constants/phone';
+import { RULES } from './constants/rules';
 import { Button } from '../../../../components/Button';
 
 export const Form: React.FC = () => {
@@ -60,7 +60,7 @@ export const Form: React.FC = () => {
         <Controller
           name="name"
           control={control}
-          rules={{ required: { value: true, message: INPUT_DETAILS.required } }}
+          rules={{ required: RULES.required }}
           render={({ field }) => (
             <input {...field} id="name" ref={nameInputRef} type="text" className={styles['form__input']} />
           )}
@@ -79,11 +79,7 @@ export const Form: React.FC = () => {
         <Controller
           name="phone"
           control={control}
-          rules={{
-            required: { value: true, message: INPUT_DETAILS.required },
-            validate: (value: string) =>
-              value.replace(/\D/g, '').length === PHONE.validLength || INPUT_DETAILS.phoneLength,
-          }}
+          rules={{ required: RULES.required, validate: RULES.validate }}
           render={({ field }) => (
             <IMaskInput
               id="phone"
