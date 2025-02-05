@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { RefObject, useRef } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { IMaskInput } from 'react-imask';
 
@@ -28,15 +28,11 @@ export const Form: React.FC = () => {
   const name = watch('name', '');
   const phone = watch('phone', '');
 
-  const onClickClear = (field: 'name' | 'phone') => {
+  const onClickClear = (field: 'name' | 'phone', inputRef: RefObject<HTMLInputElement | null>) => {
     setValue(field, '');
 
-    if (field === 'name') {
-      nameInputRef.current?.focus();
-    }
-
-    if (field === 'phone') {
-      phoneInputRef.current?.focus();
+    if (inputRef) {
+      inputRef.current?.focus();
     }
   };
 
@@ -69,7 +65,7 @@ export const Form: React.FC = () => {
           Имя *
         </InputLabel>
 
-        <ClearButton show={!!name} onClick={() => onClickClear('name')} />
+        <ClearButton show={!!name} onClick={() => onClickClear('name', nameInputRef)} />
 
         <span className={styles['form__input-details']}>{errors.name?.message}</span>
       </div>
@@ -100,7 +96,7 @@ export const Form: React.FC = () => {
           Номер телефона *
         </InputLabel>
 
-        <ClearButton show={!!phone} onClick={() => onClickClear('phone')} />
+        <ClearButton show={!!phone} onClick={() => onClickClear('phone', phoneInputRef)} />
 
         <span className={styles['form__input-details']}>{errors.phone?.message}</span>
       </div>
