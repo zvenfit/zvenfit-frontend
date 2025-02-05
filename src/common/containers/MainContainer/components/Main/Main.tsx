@@ -44,7 +44,7 @@ export const Main: React.FC<MainProps> = ({ content }) => {
       <a
         href={content.formAnchor}
         role="button"
-        aria-label="Скролл к форме регистрации"
+        aria-label="Перейти к форме регистрации"
         className={styles['main__scroll-button']}
       >
         <span className={styles['main__scroll-button-arrow']} />
