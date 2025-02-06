@@ -1,7 +1,5 @@
 .hero {
   position: relative;
-  display: flex;
-  align-items: center;
   min-height: 100dvh;
   max-height: 100dvh;
   padding-top: 40px;
@@ -27,17 +25,13 @@
 div.hero__container {
   display: flex;
   flex-direction: column;
-  justify-content: space-around;
-  height: 80dvh;
-  max-height: 80dvh;
+  height: 85dvh;
 }
 .hero__call-us {
-  position: absolute;
-  top: 40px;
-  right: 20px;
   display: flex;
   flex-direction: column;
   align-items: center;
+  margin-left: auto;
   font-size: 16px;
   line-height: 24px;
   font-weight: 400;
@@ -48,6 +42,12 @@ div.hero__container {
   text-underline-offset: 0.2em;
   font-style: normal;
   color: inherit;
+}
+.hero__wrapper {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+  height: 100%;
 }
 .hero__title {
   display: block;
@@ -76,7 +76,6 @@ div.hero__container {
 }
 @media screen and (min-width: 640px) {
   .hero__call-us {
-    right: 40px;
     font-size: 20px;
     line-height: 28px;
   }
@@ -90,9 +89,6 @@ div.hero__container {
   }
 }
 @media screen and (min-width: 960px) {
-  .hero__call-us {
-    right: 60px;
-  }
   .hero__title {
     font-size: 56px;
     line-height: 64px;
@@ -100,7 +96,6 @@ div.hero__container {
 }
 @media screen and (min-width: 1360px) {
   .hero__call-us {
-    right: 80px;
     font-size: 24px;
     line-height: 32px;
   }

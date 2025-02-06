@@ -16,29 +16,31 @@ interface HeroProps {
 export const Hero: React.FC<HeroProps> = ({ content }) => {
   return (
     <section style={{ backgroundImage: `url(${content.bgImage})` }} className={styles['hero']}>
-      <address className={styles['hero__call-us']}>
-        Позвоните нам
-        <a
-          className={styles['hero__contact-phone']}
-          href={`tel:+${RECEPTION_PHONE}`}
-          rel="noopener noreferrer"
-          target="_blank"
-        >
-          {formatPhoneNumber(RECEPTION_PHONE)}
-        </a>
-      </address>
-
       <div className={clsx('container', styles['hero__container'])}>
-        <h1 className={styles['hero__title']}>
-          <div className={styles['hero__title-text']}>{content.title}</div>
+        <address className={styles['hero__call-us']}>
+          Позвоните нам
+          <a
+            className={styles['hero__contact-phone']}
+            href={`tel:+${RECEPTION_PHONE}`}
+            rel="noopener noreferrer"
+            target="_blank"
+          >
+            {formatPhoneNumber(RECEPTION_PHONE)}
+          </a>
+        </address>
 
-          <Logo />
-        </h1>
+        <div className={styles['hero__wrapper']}>
+          <h1 className={styles['hero__title']}>
+            <div className={styles['hero__title-text']}>{content.title}</div>
 
-        <div className={styles['hero__buttons-wrapper']}>
-          <Button theme="green-flat">Оставить заявку</Button>
+            <Logo />
+          </h1>
 
-          <Button theme="green-outlined">Узнать подробности</Button>
+          <div className={styles['hero__buttons-wrapper']}>
+            <Button theme="green-flat">Оставить заявку</Button>
+
+            <Button theme="green-outlined">Узнать подробности</Button>
+          </div>
         </div>
       </div>
 
