@@ -100,7 +100,7 @@
   .contacts-info {
     justify-content: center;
     width: 50%;
-    min-height: 100vh;
+    min-height: 100dvh;
     margin-right: auto;
   }
   .contacts-info__main-title {

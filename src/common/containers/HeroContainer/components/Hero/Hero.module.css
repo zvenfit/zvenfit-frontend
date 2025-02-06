@@ -2,8 +2,8 @@
   position: relative;
   display: flex;
   align-items: center;
-  min-height: 100vh;
-  max-height: 100vh;
+  min-height: 100dvh;
+  max-height: 100dvh;
   padding-top: 40px;
   padding-bottom: 80px;
   background-position: 82% 50%;
@@ -28,8 +28,8 @@ div.hero__container {
   display: flex;
   flex-direction: column;
   justify-content: space-around;
-  height: 80vh;
-  max-height: 80vh;
+  height: 80dvh;
+  max-height: 80dvh;
 }
 .hero__call-us {
   position: absolute;
