@@ -9,7 +9,7 @@ interface LayoutProps {
 
 export const Layout: React.FC<LayoutProps> = ({ map, contacts }) => {
   return (
-    <section className={styles['contacts']}>
+    <section id="contacts" className={styles['contacts']}>
       {map}
       {contacts}
     </section>

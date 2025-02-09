@@ -12,6 +12,11 @@ code {
     monospace;
 }
 
+body.body--no-scroll {
+  position: fixed;
+  overflow: hidden;
+}
+
 ul, ol {
   list-style: none;
 }
