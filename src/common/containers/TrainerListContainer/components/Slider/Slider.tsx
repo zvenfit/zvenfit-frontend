@@ -7,10 +7,10 @@ import { Swiper, SwiperSlide } from 'swiper/react';
 
 import * as styles from './Slider.module.css';
 import './swiper.css';
-import { IPhotos } from './types';
+import { IPhoto } from './types';
 
 interface SliderProps {
-  photos: IPhotos[];
+  photos: IPhoto[];
 }
 
 export const Slider: React.FC<SliderProps> = ({ photos }) => {
@@ -40,7 +40,7 @@ export const Slider: React.FC<SliderProps> = ({ photos }) => {
       modules={[Pagination, Navigation]}
       className={styles['slider']}
     >
-      {photos.map((photo: IPhotos) => {
+      {photos.map((photo: IPhoto) => {
         return (
           <SwiperSlide key={photo.src}>
             <figure className={styles['slider__photo-wrapper']}>

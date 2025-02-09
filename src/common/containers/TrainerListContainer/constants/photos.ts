@@ -1,6 +1,6 @@
-import { IPhotos } from '../components/Slider';
+import { IPhoto } from '../components/Slider';
 
-export const PHOTOS: IPhotos[] = [
+export const PHOTOS: IPhoto[] = [
   {
     name: 'Елена',
     src: 'https://259506.selcdn.ru/sites-static/site959140/ee2f63cb-b0e9-4813-9f51-a9de4370cb61/ee2f63cb-b0e9-4813-9f51-a9de4370cb61-10816184.jpeg',
