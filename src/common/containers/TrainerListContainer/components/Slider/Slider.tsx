@@ -45,7 +45,7 @@ export const Slider: React.FC<SliderProps> = ({ photos }) => {
           <SwiperSlide key={photo.src}>
             <figure className={styles['slider__photo-wrapper']}>
               <div className={styles['slider__photo-helper']}>
-                <img src={photo.src} alt="Изображение" className={styles['slider__photo']} />
+                <img src={photo.src} alt="Фото" className={styles['slider__photo']} />
               </div>
 
               <span className={styles['slider__photo-title']}>{photo.name}</span>
