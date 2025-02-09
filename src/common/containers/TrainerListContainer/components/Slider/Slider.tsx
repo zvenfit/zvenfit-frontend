@@ -1,4 +1,9 @@
 import React from 'react';
+import 'swiper/css';
+import 'swiper/css/navigation';
+import 'swiper/css/pagination';
+import { Pagination, Navigation } from 'swiper/modules';
+import { Swiper, SwiperSlide } from 'swiper/react';
 
 import * as styles from './Slider.module.css';
 import { IPhotos } from './types';
@@ -9,34 +14,44 @@ interface SliderProps {
 
 export const Slider: React.FC<SliderProps> = ({ photos }) => {
   return (
-    <div className={styles['slider']}>
-      <div className={styles['slider__content']}>
-        <ul className={styles['slider__list']}>
-          {photos.map((photo: IPhotos) => {
-            return (
-              <li key={photo.src} className={styles['slider__list-item']}>
-                <figure className={styles['slider__photo-wrapper']}>
-                  <div className={styles['slider__photo-helper']}>
-                    <img src={photo.src} alt="Изображение" className={styles['slider__photo']} />
-                  </div>
+    <Swiper
+      slidesPerView={1}
+      spaceBetween={10}
+      rewind={true}
+      navigation={true}
+      pagination={{
+        clickable: true,
+      }}
+      breakpoints={{
+        640: {
+          slidesPerView: 2,
+          spaceBetween: 24,
+        },
+        960: {
+          slidesPerView: 3,
+          spaceBetween: 40,
+        },
+        1360: {
+          slidesPerView: 3,
+          spaceBetween: 48,
+        },
+      }}
+      modules={[Pagination, Navigation]}
+      className={styles['slider']}
+    >
+      {photos.map((photo: IPhotos) => {
+        return (
+          <SwiperSlide key={photo.src} className={styles['slider__item']}>
+            <figure className={styles['slider__photo-wrapper']}>
+              <div className={styles['slider__photo-helper']}>
+                <img src={photo.src} alt="Изображение" className={styles['slider__photo']} />
+              </div>
 
-                  <span className={styles['slider__photo-title']}>{photo.name}</span>
-                </figure>
-              </li>
-            );
-          })}
-        </ul>
-      </div>
-
-      <ul className={styles['slide__dot-list']}>
-        {photos.map(button => {
-          return (
-            <li key={button.src} className={styles['slide__dot-list-item']}>
-              <button type="button" className={styles['slide__dot-button']}></button>
-            </li>
-          );
-        })}
-      </ul>
-    </div>
+              <span className={styles['slider__photo-title']}>{photo.name}</span>
+            </figure>
+          </SwiperSlide>
+        );
+      })}
+    </Swiper>
   );
 };
