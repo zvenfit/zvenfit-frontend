@@ -11,6 +11,18 @@
   transform: translateY(-100%);
   color: #ffffff;
 }
+.swiper-button-prev::after,
+.swiper-button-next::after {
+  text-shadow: 4px 4px 4px #111111;
+}
+.swiper-button-prev:active,
+.swiper-button-next:active {
+  opacity: 0.5;
+}
+.swiper-button-prev:active::after,
+.swiper-button-next:active::after {
+  text-shadow: none;
+}
 .swiper-pagination-bullet {
   width: 16px;
   height: 16px;
