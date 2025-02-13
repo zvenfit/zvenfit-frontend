@@ -48,6 +48,9 @@
   border-right: 2px solid #111111;
   opacity: 0.48;
 }
+.slider__custom-button:focus-visible {
+  outline: #ffdd2d auto 1px;
+}
 .slider__custom-button:hover {
   opacity: 0.8;
 }
