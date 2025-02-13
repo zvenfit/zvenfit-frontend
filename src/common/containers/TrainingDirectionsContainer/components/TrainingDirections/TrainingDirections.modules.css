@@ -55,8 +55,11 @@
   }
 }
 @media screen and (min-width: 960px) {
-  .training-directions__list-item:not(:last-child) {
+  .training-directions__list-item {
     width: 50%;
+  }
+  .training-directions__list-item:last-child:nth-child(odd) {
+    width: 100%;
   }
   .training-directions__list-item-title {
     margin-bottom: 20px;
