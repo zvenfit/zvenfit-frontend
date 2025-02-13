@@ -22,6 +22,7 @@ export const Slider: React.FC<SliderProps> = ({ photos }) => {
     <div className={styles['slider']}>
       <button
         type="button"
+        aria-label="Предыдущий слайд"
         className={clsx(styles['slider__custom-button'], styles['slider__custom-button--prev'])}
         onClick={() => swiperRef.current?.slidePrev()}
       />
@@ -67,6 +68,7 @@ export const Slider: React.FC<SliderProps> = ({ photos }) => {
 
       <button
         type="button"
+        aria-label="Следующий слайд"
         className={clsx(styles['slider__custom-button'], styles['slider__custom-button--next'])}
         onClick={() => swiperRef.current?.slideNext()}
       />
