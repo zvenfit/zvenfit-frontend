@@ -57,8 +57,12 @@
     row-gap: 40px;
     column-gap: 24px;
   }
-  .gallery__img-wrapper:first-child {
+  .gallery__img-wrapper:first-child,
+  .gallery__img-wrapper:last-child:nth-child(even) {
     grid-column: span 2 / span 2;
+  }
+  .gallery__img-wrapper:last-child:nth-child(even) {
+    padding-top: 50%;
   }
 }
 @media screen and (min-width: 960px) {
