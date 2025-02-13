@@ -1,10 +1,36 @@
-import React from 'react';
+import { clsx } from 'clsx';
+import React, { useEffect, useState } from 'react';
 
 import * as styles from './FloatingButton.modules.css';
 
 export const FloatingButton: React.FC = () => {
+  const [isVisible, setIsVisible] = useState(false);
+
+  useEffect(() => {
+    const toggleVisibility = () => {
+      if (window.scrollY > 300) {
+        setIsVisible(true);
+      } else {
+        setIsVisible(false);
+      }
+    };
+
+    window.addEventListener('scroll', toggleVisibility);
+
+    return () => window.removeEventListener('scroll', toggleVisibility);
+  }, []);
+
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   return (
-    <button type="button" className={styles['floating-button']}>
+    <button
+      type="button"
+      aria-label="Прокрутка к началу страницы"
+      className={clsx(styles['floating-button'], !isVisible && styles['floating-button--hidden'])}
+      onClick={scrollToTop}
+    >
       <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32">
         <path
           fillRule="evenodd"

@@ -15,7 +15,8 @@
   box-sizing: border-box;
   transform: translateZ(0);
   cursor: pointer;
-  transition: 200ms border-color linear;
+  transition: 200ms linear;
+  transition-property: border-color, opacity, visibility;
 }
 .floating-button:hover {
   border-color: rgba(255, 255, 255, 0.56);
@@ -25,4 +26,8 @@
 }
 .floating-button:focus-visible {
   outline: 1px solid #ffdd2d;
+}
+.floating-button--hidden {
+  opacity: 0;
+  visibility: hidden;
 }
