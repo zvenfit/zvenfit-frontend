@@ -14,7 +14,6 @@
   background-color: rgba(17, 17, 17, 0.56);
   color: #ffffff;
   box-sizing: border-box;
-  transform: translateZ(0);
   cursor: pointer;
   transition: 200ms linear;
   transition-property: border-color, opacity, visibility;
