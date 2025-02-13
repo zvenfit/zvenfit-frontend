@@ -1,0 +1,28 @@
+.floating-button {
+  position: fixed;
+  right: 18px;
+  bottom: 20px;
+  z-index: 10;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 56px;
+  height: 56px;
+  border: 2px solid rgba(255, 255, 255, 0.12);
+  border-radius: 16px;
+  background-color: rgba(17, 17, 17, 0.56);
+  color: #ffffff;
+  box-sizing: border-box;
+  transform: translateZ(0);
+  cursor: pointer;
+  transition: 200ms border-color linear;
+}
+.floating-button:hover {
+  border-color: rgba(255, 255, 255, 0.56);
+}
+.floating-button:active {
+  border-color: rgba(255, 255, 255, 0.8);
+}
+.floating-button:focus-visible {
+  outline: 1px solid #ffdd2d;
+}

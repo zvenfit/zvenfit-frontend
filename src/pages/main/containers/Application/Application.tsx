@@ -4,6 +4,7 @@ import { HashRouter, Route, Routes } from 'react-router-dom';
 const DevelopmentApp = React.lazy(() =>
   import('../../components/DevelopmentApp').then(({ DevelopmentApp }) => ({ default: DevelopmentApp })),
 );
+import { FloatingButton } from '../../../../common/components/FloatingButton/FloatingButton';
 import { ContactsContainer } from '../../../../common/containers/ContactsContainer';
 import { DescriptionContainer } from '../../../../common/containers/DescriptionContainer';
 import { FooterContainer } from '../../../../common/containers/FooterContainer';
@@ -38,6 +39,7 @@ export const Application: React.FC = () => {
         </Routes>
       </HashRouter>
 
+      <FloatingButton />
       <HeaderContainer />
       <TrainingDirectionsContainer />
       <DescriptionContainer />
