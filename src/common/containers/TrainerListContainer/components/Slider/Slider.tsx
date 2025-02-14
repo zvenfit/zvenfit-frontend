@@ -1,7 +1,6 @@
 import { clsx } from 'clsx';
 import React, { useRef } from 'react';
 import 'swiper/css';
-import 'swiper/css/navigation';
 import 'swiper/css/pagination';
 import { Pagination, Navigation } from 'swiper/modules';
 import { Swiper, SwiperSlide } from 'swiper/react';
