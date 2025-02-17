@@ -1,0 +1,50 @@
+.arrow-button {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 40px;
+  height: 40px;
+  border: 2px solid #ffffff;
+  border-radius: 50px;
+  text-decoration: none;
+  color: #ffffff;
+  opacity: 0.3;
+  cursor: pointer;
+  animation: 3s ease-in-out 1s infinite animation-step-scroll;
+}
+.arrow-button__arrow {
+  position: relative;
+  animation: 3s ease-in-out 1s infinite animation-arrow;
+}
+.arrow-button__arrow::after {
+  content: "";
+  position: relative;
+  top: -1px;
+  display: block;
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid;
+  border-bottom: 2px solid;
+  transform: rotate(45deg);
+}
+@keyframes animation-step-scroll {
+  0%, 50%, 100% {
+    transform: translateY(0);
+  }
+  65% {
+    transform: translateY(-15%);
+  }
+  80% {
+    transform: translateY(30%);
+  }
+}
+@keyframes animation-arrow {
+  0%, 50%, 65%, 100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  75%, 80% {
+    transform: translateY(30%);
+    opacity: 0;
+  }
+}
