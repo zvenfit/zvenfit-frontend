@@ -1,21 +1,21 @@
 import { clsx } from 'clsx';
-import React from 'react';
+import React, { ReactNode } from 'react';
 
 import * as styles from './Hero.module.css';
-import { IContent } from './types';
 import { RECEPTION_PHONE } from '../../../../../constants/companyContacts';
 import { formatPhoneNumber } from '../../../../../packages/utils/formatPhoneNumber';
 import { Button } from '../../../../components/Button';
 import { Logo } from '../../../../components/Logo';
-import { ArrowButton } from '../ArrowButton';
 
 interface HeroProps {
-  content: IContent;
+  title: string;
+  imageUrl: string;
+  children?: ReactNode;
 }
 
-export const Hero: React.FC<HeroProps> = ({ content }) => {
+export const Hero: React.FC<HeroProps> = ({ title, imageUrl, children }) => {
   return (
-    <section style={{ backgroundImage: `url(${content.bgImage})` }} className={styles['hero']}>
+    <section style={{ backgroundImage: `url(${imageUrl})` }} className={styles['hero']}>
       <div className={clsx('container', styles['hero__container'])}>
         <address className={styles['hero__call-us']}>
           Позвоните нам
@@ -31,7 +31,7 @@ export const Hero: React.FC<HeroProps> = ({ content }) => {
 
         <div className={styles['hero__wrapper']}>
           <h1 className={styles['hero__title']}>
-            <div className={styles['hero__title-text']}>{content.title}</div>
+            <div className={styles['hero__title-text']}>{title}</div>
 
             <Logo />
           </h1>
@@ -44,7 +44,7 @@ export const Hero: React.FC<HeroProps> = ({ content }) => {
         </div>
       </div>
 
-      <ArrowButton href={content.formAnchor} />
+      {children}
     </section>
   );
 };
