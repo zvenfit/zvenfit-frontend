@@ -7,11 +7,11 @@ import { formatPhoneNumber } from '../../../../../packages/utils/formatPhoneNumb
 import { Button } from '../../../../components/Button';
 import { Logo } from '../../../../components/Logo';
 
-interface HeroProps {
+type HeroProps = React.PropsWithChildren<{
   title: string;
   imageUrl: string;
   children?: ReactNode;
-}
+}>;
 
 export const Hero: React.FC<HeroProps> = ({ title, imageUrl, children }) => {
   return (
