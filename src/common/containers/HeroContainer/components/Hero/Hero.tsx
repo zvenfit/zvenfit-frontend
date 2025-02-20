@@ -1,5 +1,5 @@
 import { clsx } from 'clsx';
-import React, { ReactNode } from 'react';
+import React from 'react';
 
 import * as styles from './Hero.module.css';
 import { RECEPTION_PHONE } from '../../../../../constants/companyContacts';
@@ -10,7 +10,6 @@ import { Logo } from '../../../../components/Logo';
 type HeroProps = React.PropsWithChildren<{
   title: string;
   imageUrl: string;
-  children?: ReactNode;
 }>;
 
 export const Hero: React.FC<HeroProps> = ({ title, imageUrl, children }) => {
