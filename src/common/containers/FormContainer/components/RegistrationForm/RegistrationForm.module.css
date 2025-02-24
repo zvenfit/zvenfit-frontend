@@ -11,6 +11,8 @@
 .registration-form__agreement-text {
   font-size: 12px;
   line-height: 16px;
+  color: #ffffff;
+  opacity: 0.5;
 }
 .registration-form__agreement-link {
   text-decoration: underline;

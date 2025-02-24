@@ -1,4 +1,3 @@
-import { clsx } from 'clsx';
 import React from 'react';
 
 import * as styles from './RegistrationForm.module.css';
@@ -20,7 +19,7 @@ export const RegistrationForm: React.FC = () => {
         </div>
 
         {/*TODO сделать линку на политику конфиденциальности*/}
-        <p className={clsx('gray-text', styles['registration-form__agreement-text'])}>
+        <p className={styles['registration-form__agreement-text']}>
           Нажимая на кнопку, вы даете согласие на обработку своих персональных данных и соглашаетесь{' '}
           <span className={styles['registration-form__agreement-link']}>с политикой конфиденциальности.</span>
         </p>
