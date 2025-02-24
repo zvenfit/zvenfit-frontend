@@ -9,6 +9,7 @@ import { DescriptionContainer } from '../../../../common/containers/DescriptionC
 import { FooterContainer } from '../../../../common/containers/FooterContainer';
 import { GalleryContainer } from '../../../../common/containers/GalleryContainer';
 import { HeaderContainer } from '../../../../common/containers/HeaderContainer';
+import { HeroContainer } from '../../../../common/containers/HeroContainer';
 import { TrainerListContainer } from '../../../../common/containers/TrainerListContainer';
 import { TrainingDirectionsContainer } from '../../../../common/containers/TrainingDirectionsContainer';
 import { TrainingListContainer } from '../../../../common/containers/TrainingListContainer';
@@ -40,6 +41,7 @@ export const Application: React.FC = () => {
       </HashRouter>
 
       <HeaderContainer />
+      <HeroContainer />
       <TrainingDirectionsContainer />
       <DescriptionContainer />
       <TrainingListContainer />
