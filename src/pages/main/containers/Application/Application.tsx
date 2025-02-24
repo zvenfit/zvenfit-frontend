@@ -7,10 +7,10 @@ const DevelopmentApp = React.lazy(() =>
 import { ContactsContainer } from '../../../../common/containers/ContactsContainer';
 import { DescriptionContainer } from '../../../../common/containers/DescriptionContainer';
 import { FooterContainer } from '../../../../common/containers/FooterContainer';
-import { RegistrationFormContainer } from '../../../../common/containers/FormContainer';
 import { GalleryContainer } from '../../../../common/containers/GalleryContainer';
 import { HeaderContainer } from '../../../../common/containers/HeaderContainer';
 import { HeroContainer } from '../../../../common/containers/HeroContainer';
+import { RegistrationFormContainer } from '../../../../common/containers/RegistrationFormContainer';
 import { TrainingDirectionsContainer } from '../../../../common/containers/TrainingDirectionsContainer';
 import { TrainingListContainer } from '../../../../common/containers/TrainingListContainer';
 import { DanceFitnessModal } from '../../components/group-training-modals/DanceFitnessModal/DanceFitnessModal';
