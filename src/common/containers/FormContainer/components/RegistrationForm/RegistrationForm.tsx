@@ -7,7 +7,7 @@ import { InfoText } from '../InfoText';
 
 export const RegistrationForm: React.FC = () => {
   return (
-    <section className={styles['registration-form']}>
+    <section id="form" className={styles['registration-form']}>
       <h2 className="visually-hidden">Форма для записи на тренировки</h2>
 
       <div className="container">
