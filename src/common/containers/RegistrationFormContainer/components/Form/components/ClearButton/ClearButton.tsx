@@ -13,7 +13,7 @@ export const ClearButton: React.FC<ClearButtonProps> = ({ show, onClick }) => {
   const [hide, setHide] = useState(true);
 
   useEffect(() => {
-    const timerId = setTimeout(() => setHide(!show), 150);
+    const timerId = setTimeout(() => setHide(prevHide => !prevHide), 150);
 
     return () => clearTimeout(timerId);
   }, [show]);
