@@ -10,7 +10,7 @@ interface ClearButtonProps {
 }
 
 export const ClearButton: React.FC<ClearButtonProps> = ({ show, onClick }) => {
-  const [hide, setHide] = useState(true);
+  const [hide, setHide] = useState(false);
 
   useEffect(() => {
     const timerId = setTimeout(() => setHide(prevHide => !prevHide), 150);
