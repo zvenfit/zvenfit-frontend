@@ -1,0 +1,27 @@
+.input-label {
+  position: absolute;
+  top: 16px;
+  left: 0;
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: inherit;
+  line-height: inherit;
+  cursor: text;
+  transition: top 0.15s ease;
+}
+.input-label--to-top {
+  top: 0;
+  font-size: 12px;
+}
+@media screen and (min-width: 640px) {
+  .input-label {
+    top: 11px;
+  }
+  .input-label--to-top {
+    top: -5px;
+    font-size: 14px;
+  }
+}
