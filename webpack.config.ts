@@ -8,7 +8,7 @@ import dotenv from 'dotenv';
 import 'webpack-dev-server';
 
 enum Entries {
-  main = 'main',
+  main = 'index',
   platforms = 'platforms',
 }
 
@@ -111,7 +111,7 @@ const config = (env: Record<string, unknown>, argv: WebpackOptionsNormalized): C
         'process.env': JSON.stringify(dotenvParsed),
       }),
       new ForkTsCheckerWebpackPlugin(),
-      // Для главной страницы (main.html)
+      // Для главной страницы (index.html)
       new HtmlWebpackPlugin({
         filename: `${Entries.main}.html`,   // Имя файла HTML для main страницы
         template: './public/template.html', // Шаблон для страницы
