@@ -1,10 +1,10 @@
 import React, { RefObject, useRef } from 'react';
 import { useForm, Controller } from 'react-hook-form';
-import { IMaskInput } from 'react-imask';
 
 import * as styles from './Form.module.css';
 import { ClearButton } from './components/ClearButton';
 import { InputLabel } from './components/InputLabel';
+import { PhoneInput } from './components/PhoneInput';
 import { PHONE } from './constants/phone';
 import { RULES } from './constants/rules';
 import { Button } from '../../../../components/Button';
@@ -76,14 +76,10 @@ export const Form: React.FC = () => {
           control={control}
           rules={{ required: RULES.required, validate: RULES.validate }}
           render={({ field }) => (
-            <IMaskInput
+            <PhoneInput
               id="phone"
-              type="tel"
               inputRef={phoneInputRef}
-              mask={`${PHONE.countryPrefix} (000) 000-00-00`}
-              lazy={true}
-              unmask={false}
-              value={field.value || ''}
+              value={field.value}
               className={styles['form__input']}
               onBlur={onBlurPhoneField}
               onFocus={onFocusPhoneField}
