@@ -1,4 +1,5 @@
-import React, { RefObject, useRef } from 'react';
+import { clsx } from 'clsx';
+import React, { RefObject, useRef, useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 
 import * as styles from './Form.module.css';
@@ -22,6 +23,7 @@ export const Form: React.FC = () => {
     shouldFocusError: true,
   });
 
+  const [focused, setFocused] = useState('');
   const nameInputRef = useRef<HTMLInputElement | null>(null);
   const phoneInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -40,12 +42,14 @@ export const Form: React.FC = () => {
     if (!phone) {
       setValue('phone', ' ');
     }
+    setFocused('phone');
   };
 
   const onBlurPhoneField = () => {
     if (phone.trim() === PHONE.countryPrefix) {
       setValue('phone', '');
     }
+    setFocused('');
   };
 
   return (
@@ -57,7 +61,16 @@ export const Form: React.FC = () => {
           control={control}
           rules={{ required: RULES.required }}
           render={({ field }) => (
-            <input {...field} id="name" ref={nameInputRef} type="text" className={styles['form__input']} />
+            <div className={clsx(styles['form__input'], focused === 'name' && styles['form__input--focused'])}>
+              <input
+                {...field}
+                id="name"
+                ref={nameInputRef}
+                type="text"
+                onBlur={() => setFocused('')}
+                onFocus={() => setFocused('name')}
+              />
+            </div>
           )}
         />
 
@@ -76,15 +89,16 @@ export const Form: React.FC = () => {
           control={control}
           rules={{ required: RULES.required, validate: RULES.validate }}
           render={({ field }) => (
-            <PhoneInput
-              id="phone"
-              inputRef={phoneInputRef}
-              value={field.value}
-              className={styles['form__input']}
-              onBlur={onBlurPhoneField}
-              onFocus={onFocusPhoneField}
-              onAccept={value => field.onChange(value)}
-            />
+            <div className={clsx(styles['form__input'], focused === 'phone' && styles['form__input--focused'])}>
+              <PhoneInput
+                id="phone"
+                inputRef={phoneInputRef}
+                value={field.value}
+                onBlur={onBlurPhoneField}
+                onFocus={onFocusPhoneField}
+                onAccept={value => field.onChange(value)}
+              />
+            </div>
           )}
         />
 

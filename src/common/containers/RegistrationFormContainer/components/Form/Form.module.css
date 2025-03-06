@@ -17,7 +17,7 @@
 .form__input-wrapper + button {
   margin-top: 32px;
 }
-.form__input {
+.form__input > input {
   display: block;
   width: 100%;
   height: 47px;
@@ -31,26 +31,26 @@
   line-height: inherit;
   color: #ffffff;
 }
-.form__input:hover,
-.form__input:focus {
+.form__input:hover > input,
+.form__input--focused > input {
   border-bottom-color: rgba(255, 255, 255, 0.8);
 }
 .form__input ~ button {
   opacity: 0;
 }
 .form__input:hover ~ button,
-.form__input:focus ~ button {
+.form__input--focused ~ button {
   opacity: 1;
 }
-.form__input:-webkit-autofill,
-.form__input:-webkit-autofill:hover,
-.form__input:-webkit-autofill:focus,
-.form__input:-webkit-autofill:active {
+.form__input > input:-webkit-autofill,
+.form__input > input:-webkit-autofill:hover,
+.form__input > input:-webkit-autofill:focus,
+.form__input > input:-webkit-autofill:active {
   -webkit-text-fill-color: #ffffff;
   -webkit-background-clip: text;
   transition: background-color 5000s ease-in-out 0s;
 }
-.form__input:focus ~ label {
+.form__input--focused ~ label {
   top: 0;
   font-size: 12px;
 }
