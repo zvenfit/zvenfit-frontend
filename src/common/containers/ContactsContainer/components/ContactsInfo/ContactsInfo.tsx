@@ -1,3 +1,4 @@
+import { clsx } from 'clsx';
 import React from 'react';
 
 import * as styles from './ContactsInfo.module.css';
@@ -32,13 +33,13 @@ export const ContactsInfo: React.FC<ContactsInfoProps> = ({ items }) => {
                         href={item.link}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className={styles['contacts-info__list-item-link']}
+                        className={clsx('gray-text', styles['contacts-info__list-item-link'])}
                       >
                         {item.text}
                       </a>
                     </address>
                   ) : (
-                    <span className={styles['contacts-info__list-item-text']}>{item.text}</span>
+                    <span className={clsx('gray-text', styles['contacts-info__list-item-text'])}>{item.text}</span>
                   )}
                 </div>
               </li>

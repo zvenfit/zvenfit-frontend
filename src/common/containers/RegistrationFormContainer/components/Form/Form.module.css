@@ -1,0 +1,101 @@
+.form {
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 300;
+}
+.form__input-wrapper {
+  position: relative;
+  width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+.form__input-wrapper + .form__input-wrapper {
+  margin-top: 20px;
+}
+.form__input-wrapper + button {
+  margin-top: 32px;
+}
+.form__input > input {
+  display: block;
+  width: 100%;
+  height: 47px;
+  padding: 22px 28px 4px 0;
+  margin-bottom: 2px;
+  border-bottom: 2px solid;
+  border-bottom-color: rgba(255, 255, 255, 0.5);
+  box-sizing: border-box;
+  cursor: text;
+  font-size: inherit;
+  line-height: inherit;
+  color: #ffffff;
+}
+.form__input:hover > input,
+.form__input--focused > input {
+  border-bottom-color: rgba(255, 255, 255, 0.8);
+}
+.form__input ~ button {
+  opacity: 0;
+}
+.form__input:hover ~ button,
+.form__input--focused ~ button {
+  opacity: 1;
+}
+.form__input > input:-webkit-autofill,
+.form__input > input:-webkit-autofill:hover,
+.form__input > input:-webkit-autofill:focus,
+.form__input > input:-webkit-autofill:active {
+  -webkit-text-fill-color: #ffffff;
+  -webkit-background-clip: text;
+  transition: background-color 5000s ease-in-out 0s;
+}
+.form__input--focused ~ label {
+  top: 0;
+  font-size: 12px;
+}
+.form__input-details {
+  display: inline-block;
+  max-width: 100%;
+  min-height: 20px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+  line-height: 20px;
+  color: #ffffff;
+}
+.form__agreement-text {
+  font-size: 12px;
+  line-height: 16px;
+}
+.form__agreement-link {
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.2em;
+  white-space: nowrap;
+  opacity: 0.64;
+  cursor: pointer;
+}
+.form__agreement-link:hover {
+  opacity: 1;
+}
+@media screen and (min-width: 640px) {
+  .form {
+    font-size: 16px;
+    line-height: 24px;
+  }
+  .form__input:focus ~ label {
+    top: -5px;
+    font-size: 14px;
+  }
+}
+@media screen and (min-width: 960px) {
+  .form__input-wrapper {
+    width: calc(50% - 20px);
+  }
+  .form__input-wrapper + .form__input-wrapper {
+    margin-top: 0;
+    margin-left: auto;
+  }
+}
