@@ -1,0 +1,54 @@
+name: Deploy to Yandex Object Storage
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  NODE_VERSION: '18'
+  S3_BUCKET: 'zvenfit-frontend'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: |
+          npm ci
+
+      - name: Run linter
+        run: |
+          npm run lint || exit 1
+
+      - name: Build app
+        run: |
+          npm run build || exit 1
+
+      - name: Install Yandex Cloud CLI
+        run: |
+          curl -s https://storage.yandexcloud.net/yandexcloud-yc/install.sh | bash
+          echo "$HOME/yandex-cloud/bin" >> $GITHUB_PATH  # Добавляем yc в PATH
+
+      - name: Verify yc installation
+        run: |
+          yc --version
+
+      - name: Configure Yandex Cloud CLI
+        run: |
+          yc config set service-account-key ${{ secrets.YC_ACCESS_KEY_ID }}:${{ secrets.YC_SECRET_ACCESS_KEY }}
+          yc config set cloud-id ${{ secrets.YC_CLOUD_ID }}  # Указываем Cloud ID
+          yc config set folder-id ${{ secrets.YC_FOLDER_ID }}  # Указываем Folder ID
+
+      - name: Upload files to Yandex Object Storage
+        run: |
+          yc storage object upload --bucket-name ${{ env.S3_BUCKET }} --prefix ./dist/ --recursive
