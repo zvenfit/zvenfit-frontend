@@ -11,6 +11,7 @@ import { GalleryContainer } from '../../../../common/containers/GalleryContainer
 import { HeaderContainer } from '../../../../common/containers/HeaderContainer';
 import { HeroContainer } from '../../../../common/containers/HeroContainer';
 import { RegistrationFormContainer } from '../../../../common/containers/RegistrationFormContainer';
+import { TrainerListContainer } from '../../../../common/containers/TrainerListContainer';
 import { TrainingDirectionsContainer } from '../../../../common/containers/TrainingDirectionsContainer';
 import { TrainingListContainer } from '../../../../common/containers/TrainingListContainer';
 import { DanceFitnessModal } from '../../components/group-training-modals/DanceFitnessModal/DanceFitnessModal';
@@ -46,6 +47,7 @@ export const Application: React.FC = () => {
       <TrainingDirectionsContainer />
       <DescriptionContainer />
       <TrainingListContainer />
+      <TrainerListContainer />
       <GalleryContainer />
       <ContactsContainer />
       <FooterContainer />
