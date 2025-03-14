@@ -7,6 +7,7 @@ import { Swiper as SwiperType } from 'swiper/types';
 
 import * as styles from './Slider.module.css';
 import { SliderButton } from './components/SliderButton';
+import { SliderImage } from './components/SliderImage';
 import './swiper.css';
 import { IPhoto } from './types';
 
@@ -48,13 +49,7 @@ export const Slider: React.FC<SliderProps> = ({ photos }) => {
         {photos.map((photo: IPhoto) => {
           return (
             <SwiperSlide key={photo.src}>
-              <figure className={styles['slider__photo-wrapper']}>
-                <div className={styles['slider__photo-helper']}>
-                  <img src={photo.src} alt="Фото" className={styles['slider__photo']} />
-                </div>
-
-                <span className={styles['slider__photo-title']}>{photo.name}</span>
-              </figure>
+              <SliderImage imageSrc={photo.src} imageTitle={photo.name} />
             </SwiperSlide>
           );
         })}
