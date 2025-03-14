@@ -1,0 +1,52 @@
+.slider-button {
+  position: absolute;
+  top: 33%;
+  display: none;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  margin: 0;
+  border: none;
+  border-radius: 50%;
+  background-color: #ffffff;
+  cursor: pointer;
+}
+.slider-button::before {
+  content: "";
+  position: relative;
+  top: 0;
+  display: block;
+  width: 8px;
+  height: 8px;
+  border-top: 2px solid #111111;
+  border-right: 2px solid #111111;
+  opacity: 0.48;
+}
+.slider-button:focus-visible {
+  outline: #ffdd2d auto 1px;
+}
+.slider-button:hover {
+  opacity: 0.8;
+}
+.slider-button:active {
+  opacity: 0.88;
+}
+.slider-button--prev {
+  left: -50px;
+}
+.slider-button--next {
+  right: -50px;
+}
+.slider-button--prev::before {
+  left: 13px;
+  transform: rotate(-135deg);
+}
+.slider-button--next::before {
+  left: 10px;
+  transform: rotate(45deg);
+}
+@media screen and (min-width: 960px) {
+  .slider-button {
+    display: block;
+  }
+}

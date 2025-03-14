@@ -1,4 +1,3 @@
-import { clsx } from 'clsx';
 import React, { useRef } from 'react';
 import 'swiper/css';
 import 'swiper/css/pagination';
@@ -7,6 +6,7 @@ import { Swiper, SwiperSlide } from 'swiper/react';
 import { Swiper as SwiperType } from 'swiper/types';
 
 import * as styles from './Slider.module.css';
+import { SliderButton } from './components/SliderButton';
 import './swiper.css';
 import { IPhoto } from './types';
 
@@ -19,12 +19,7 @@ export const Slider: React.FC<SliderProps> = ({ photos }) => {
 
   return (
     <div className={styles['slider']}>
-      <button
-        type="button"
-        aria-label="Предыдущий слайд"
-        className={clsx(styles['slider__custom-button'], styles['slider__custom-button--prev'])}
-        onClick={() => swiperRef.current?.slidePrev()}
-      />
+      <SliderButton slideTo="prev" ariaLabel="Предыдущий слайд" onClick={() => swiperRef.current?.slidePrev()} />
 
       <Swiper
         slidesPerView={1}
@@ -65,12 +60,7 @@ export const Slider: React.FC<SliderProps> = ({ photos }) => {
         })}
       </Swiper>
 
-      <button
-        type="button"
-        aria-label="Следующий слайд"
-        className={clsx(styles['slider__custom-button'], styles['slider__custom-button--next'])}
-        onClick={() => swiperRef.current?.slideNext()}
-      />
+      <SliderButton slideTo="next" ariaLabel="Следующий слайд" onClick={() => swiperRef.current?.slideNext()} />
     </div>
   );
 };
