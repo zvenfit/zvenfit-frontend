@@ -3,8 +3,7 @@ import { IContent } from '../components/TrainingDirections/types';
 
 export const CONTENT: IContent[] = [
   {
-    bgImage:
-      'https://259506.selcdn.ru/sites-static/site959140/3feaa4c0-403d-4148-b58b-c66ed03bc4fe/3feaa4c0-403d-4148-b58b-c66ed03bc4fe-10816053.jpeg',
+    bgImage: 'https://storage.yandexcloud.net/zvenfit/static-images/training-directions/01-power-training.jpeg',
     title: 'Силовые тренировки',
     description: [
       'Мечтаете о подтянутом теле, но боитесь, что допустите ошибок в тренировке без тренера?',
@@ -13,8 +12,7 @@ export const CONTENT: IContent[] = [
     btnTheme: THEMES.orangeFlat,
   },
   {
-    bgImage:
-      'https://259506.selcdn.ru/sites-static/site959140/2cdfc71d-2b1f-453c-b190-1c397321de8a/2cdfc71d-2b1f-453c-b190-1c397321de8a-10816052.jpeg',
+    bgImage: 'https://storage.yandexcloud.net/zvenfit/static-images/training-directions/02-step-aerobics.jpeg',
     title: 'Степ-аэробика',
     description: [
       'Хотите получить заряд бодрости и улучшить свою физическую форму?',
@@ -23,8 +21,7 @@ export const CONTENT: IContent[] = [
     btnTheme: THEMES.greenFlat,
   },
   {
-    bgImage:
-      'https://259506.selcdn.ru/sites-static/site959140/01f11479-da0d-4ae0-92e6-a5dd77c99616/01f11479-da0d-4ae0-92e6-a5dd77c99616-10816180.jpeg',
+    bgImage: 'https://storage.yandexcloud.net/zvenfit/static-images/training-directions/03-dance-fitness.jpeg',
     title: 'Танцевальный фитнес',
     description: [
       'Хотите получить удовольствие от движения и забыть о скучных занятиях в зале?',
@@ -33,8 +30,7 @@ export const CONTENT: IContent[] = [
     btnTheme: THEMES.greenFlat,
   },
   {
-    bgImage:
-      'https://259506.selcdn.ru/sites-static/site959140/3ca2cb91-c644-4675-9482-946d60f2a37f/3ca2cb91-c644-4675-9482-946d60f2a37f-10816063.jpeg',
+    bgImage: 'https://storage.yandexcloud.net/zvenfit/static-images/training-directions/04-yogalates.jpeg',
     title: 'Йогалатес',
     description: [
       'Хотите похудеть и избавиться от боли в спине, но не знаете, с чего начать?',
@@ -44,12 +40,29 @@ export const CONTENT: IContent[] = [
     btnTheme: THEMES.orangeFlat,
   },
   {
-    bgImage:
-      'https://259506.selcdn.ru/sites-static/site959140/49e4ca26-39a8-413e-9b38-3517dae4ef3d/49e4ca26-39a8-413e-9b38-3517dae4ef3d-10816092.jpeg',
-    title: 'Стретчинг',
+    bgImage: 'https://storage.yandexcloud.net/zvenfit/static-images/training-directions/05-yoga.jpeg',
+    title: 'Йога',
     description: [
-      'Мы знаем, как важно добиться желаемого тела и сделать это эффективно!',
-      'Если вы уже пытались худеть, растягиваться, пробовали разные тренировки, но ничего не помогло — у нас есть решение.',
+      'Ищете способ справиться со стрессом, улучшить осанку и обрести внутренний баланс?',
+      'Йога — это не просто тренировка, это философия, которая помогает сделать ваше тело сильным, гибким и здоровым, а разум — спокойным и сосредоточенным.',
+    ],
+    btnTheme: THEMES.orangeFlat,
+  },
+  {
+    bgImage: 'https://storage.yandexcloud.net/zvenfit/static-images/training-directions/06-pilates.jpeg',
+    title: 'Пилатес',
+    description: [
+      'Хотите укрепить мышцы, улучшить осанку и почувствовать себя сильнее, не перегружая суставы?',
+      'Пилатес — это метод тренировки, который бережно работает с вашим телом, помогая развить гибкость, координацию и силу.',
+    ],
+    btnTheme: THEMES.greenFlat,
+  },
+  {
+    bgImage: 'https://storage.yandexcloud.net/zvenfit/static-images/training-directions/07-jumping-fitness.jpeg',
+    title: 'JUMPING FITNESS',
+    description: [
+      'Прыгай, веселись, почувствуй себя ребёнком с пользой!',
+      'Кто сказал, что тренировки должны быть скучными? Джампинг фитнес — это возвращение в детство, где каждый прыжок приносит радость и потрясающие результаты.',
     ],
     btnTheme: THEMES.orangeFlat,
   },

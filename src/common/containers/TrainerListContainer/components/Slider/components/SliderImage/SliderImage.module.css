@@ -1,0 +1,23 @@
+.slider-image {
+  margin: 0;
+}
+.slider-image__image-helper {
+  position: relative;
+  padding-top: 100%;
+}
+.slider-image__image {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.slider-image__image-title {
+  display: block;
+  padding: 20px;
+  font-size: 16px;
+  line-height: 24px;
+  text-align: center;
+  color: #ffffff;
+}
