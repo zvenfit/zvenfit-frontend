@@ -113,6 +113,7 @@ module.exports = {
     {
       // Settings for TS
       files: ['*.ts', '*.tsx'],
+      excludedFiles: ['webpack.config.ts'],
       parser: '@typescript-eslint/parser',
       parserOptions: {
         project: ['./tsconfig.test.json'],
@@ -225,6 +226,21 @@ module.exports = {
           },
         },
       ],
+    },
+    {
+      files: ['webpack.config.ts'],
+      parser: '@typescript-eslint/parser',
+      parserOptions: {
+        project: ['./tsconfig-webpack.json'],
+      },
+      overrides: [
+        {
+          files: ['webpack.config.ts'],
+          rules: {
+            'import/no-extraneous-dependencies': 'off',
+          },
+        },
+      ]
     },
   ],
 };

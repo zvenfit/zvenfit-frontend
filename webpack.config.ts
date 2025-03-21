@@ -1,10 +1,10 @@
-import path from 'path';
+import * as dotenv from 'dotenv';
+import ESLintPlugin from 'eslint-webpack-plugin';
+import ForkTsCheckerWebpackPlugin from 'fork-ts-checker-webpack-plugin';
 import HtmlWebpackPlugin from 'html-webpack-plugin';
+import path from 'path';
 import TerserPlugin from 'terser-webpack-plugin';
 import { Configuration, WebpackOptionsNormalized, DefinePlugin } from 'webpack';
-import ForkTsCheckerWebpackPlugin from 'fork-ts-checker-webpack-plugin';
-import ESLintPlugin from 'eslint-webpack-plugin';
-import dotenv from 'dotenv';
 import 'webpack-dev-server';
 
 enum Entries {
@@ -31,7 +31,7 @@ const config = (env: Record<string, unknown>, argv: WebpackOptionsNormalized): C
     // Выходные файлы
     output: {
       path: path.resolve(__dirname, 'dist'),
-      filename: '[name].[contenthash].js',  // [name] — это имя ключа из entry
+      filename: '[name].[contenthash].js', // [name] — это имя ключа из entry
       clean: true, // Очистка папки dist перед новой сборкой
       publicPath: '',
     },
@@ -98,11 +98,9 @@ const config = (env: Record<string, unknown>, argv: WebpackOptionsNormalized): C
     // Оптимизация для production
     optimization: isProduction
       ? {
-        minimize: true,
-        minimizer: [
-          new TerserPlugin(),
-        ],
-      }
+          minimize: true,
+          minimizer: [new TerserPlugin()],
+        }
       : {},
 
     // Плагины
@@ -113,21 +111,21 @@ const config = (env: Record<string, unknown>, argv: WebpackOptionsNormalized): C
       new ForkTsCheckerWebpackPlugin(),
       // Для главной страницы (index.html)
       new HtmlWebpackPlugin({
-        filename: `${Entries.main}.html`,   // Имя файла HTML для main страницы
+        filename: `${Entries.main}.html`, // Имя файла HTML для main страницы
         template: './public/template.html', // Шаблон для страницы
-        chunks: [Entries.main],  // Указываем, что для этой страницы будет использован только main.js
+        chunks: [Entries.main], // Указываем, что для этой страницы будет использован только main.js
       }),
       // Для страницы admin (admin.html)
       new HtmlWebpackPlugin({
-        filename: `${Entries.platforms}.html`,  // Имя файла HTML для admin страницы
-        template: './public/template.html',  // Используем тот же шаблон, или можно указать другой
+        filename: `${Entries.platforms}.html`, // Имя файла HTML для admin страницы
+        template: './public/template.html', // Используем тот же шаблон, или можно указать другой
         chunks: [Entries.platforms], // Указываем, что для этой страницы будет использован только admin.js
       }),
       new ESLintPlugin({
         extensions: ['js', 'ts', 'jsx', 'tsx'], // Укажите расширения файлов, которые будут проверяться
-        emitWarning: false,  // Показывать предупреждения в консоли (по умолчанию false)
-        emitError: true,    // Генерировать ошибки при нарушении правил (по умолчанию false)
-        failOnError: true,  // Остановить сборку при ошибках ESLint (по умолчанию false)
+        emitWarning: false, // Показывать предупреждения в консоли (по умолчанию false)
+        emitError: true, // Генерировать ошибки при нарушении правил (по умолчанию false)
+        failOnError: true, // Остановить сборку при ошибках ESLint (по умолчанию false)
         lintDirtyModulesOnly: true, // Проверка только изменённых файлов
         configType: 'eslintrc',
       }),
