@@ -34,21 +34,13 @@ jobs:
         run: |
           npm run build || exit 1
 
-      - name: Install Yandex Cloud CLI
-        run: |
-          curl -s https://storage.yandexcloud.net/yandexcloud-yc/install.sh | bash
-          echo "$HOME/yandex-cloud/bin" >> $GITHUB_PATH  # Добавляем yc в PATH
-
-      - name: Verify yc installation
-        run: |
-          yc --version
-
-      - name: Configure Yandex Cloud CLI
-        run: |
-          yc config set service-account-key ${{ secrets.YC_ACCESS_KEY_ID }}:${{ secrets.YC_SECRET_ACCESS_KEY }}
-          yc config set cloud-id ${{ secrets.YC_CLOUD_ID }}  # Указываем Cloud ID
-          yc config set folder-id ${{ secrets.YC_FOLDER_ID }}  # Указываем Folder ID
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.YC_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.YC_SECRET_ACCESS_KEY }}
+          aws-region: ru-central1
 
       - name: Upload files to Yandex Object Storage
         run: |
-          yc storage object upload --bucket-name ${{ env.S3_BUCKET }} --prefix ./dist/ --recursive
+          aws --endpoint-url=https://storage.yandexcloud.net s3 sync ./dist s3://${{ env.S3_BUCKET }} --delete --debug
