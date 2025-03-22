@@ -3,7 +3,7 @@ import React from 'react';
 
 import * as styles from './Hero.module.css';
 import { RECEPTION_PHONE } from '../../../../../constants/companyContacts';
-import { formatPhoneNumber } from '../../../../../packages/utils/formatPhoneNumber';
+import { formatPhoneNumber, scrollIntoAnchor } from '../../../../../packages/utils';
 import { Button } from '../../../../components/Button';
 import { Logo } from '../../../../components/Logo';
 
@@ -13,8 +13,6 @@ type HeroProps = React.PropsWithChildren<{
 }>;
 
 export const Hero: React.FC<HeroProps> = ({ title, imageUrl, children }) => {
-  const scrollIntoAnchor = (anchor: string) => document.getElementById(anchor)?.scrollIntoView({ behavior: 'smooth' });
-
   return (
     <section style={{ backgroundImage: `url(${imageUrl})` }} className={styles['hero']}>
       <div className={clsx('container', styles['hero__container'])}>

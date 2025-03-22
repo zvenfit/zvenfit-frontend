@@ -11,7 +11,7 @@ import { PhoneIcon } from './components/icons/PhoneIcon';
 import { COMPANY_FULL_ADDRESS } from '../../../constants/companyAddress';
 import { RECEPTION_EMAIL, RECEPTION_PHONE } from '../../../constants/companyContacts';
 import { COMPANY_WORKING_HOURS, COMPANY_Y_MAPS_URL } from '../../../constants/companyInfo';
-import { formatPhoneNumber } from '../../../packages/utils/formatPhoneNumber';
+import { formatPhoneNumber } from '../../../packages/utils';
 
 export const CONTACTS_DATA: IContactsInfoItem[] = [
   {

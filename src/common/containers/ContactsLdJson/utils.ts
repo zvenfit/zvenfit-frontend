@@ -2,7 +2,7 @@ import { HOST_DEFAULT, LOGO_URL } from '../../../constants/common';
 import { COMPANY_ADDRESS } from '../../../constants/companyAddress';
 import { RECEPTION_EMAIL, RECEPTION_PHONE } from '../../../constants/companyContacts';
 import { IConfig } from '../../../packages/config';
-import { formatPhoneNumber } from '../../../packages/utils/formatPhoneNumber';
+import { formatPhoneNumber } from '../../../packages/utils';
 
 interface Dependencies {
   config: IConfig;

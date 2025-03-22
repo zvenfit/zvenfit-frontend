@@ -2,6 +2,7 @@ import { clsx } from 'clsx';
 import React, { useEffect, useState } from 'react';
 
 import * as styles from './FloatingButton.modules.css';
+import { scrollToTop } from '../../../packages/utils';
 
 export const FloatingButton: React.FC = () => {
   const [isVisible, setIsVisible] = useState(false);
@@ -19,10 +20,6 @@ export const FloatingButton: React.FC = () => {
 
     return () => window.removeEventListener('scroll', toggleVisibility);
   }, []);
-
-  const scrollToTop = () => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
 
   return (
     <button
