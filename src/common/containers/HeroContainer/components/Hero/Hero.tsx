@@ -13,6 +13,8 @@ type HeroProps = React.PropsWithChildren<{
 }>;
 
 export const Hero: React.FC<HeroProps> = ({ title, imageUrl, children }) => {
+  const scrollIntoAnchor = (anchor: string) => document.getElementById(anchor)?.scrollIntoView({ behavior: 'smooth' });
+
   return (
     <section style={{ backgroundImage: `url(${imageUrl})` }} className={styles['hero']}>
       <div className={clsx('container', styles['hero__container'])}>
@@ -36,9 +38,13 @@ export const Hero: React.FC<HeroProps> = ({ title, imageUrl, children }) => {
           </h1>
 
           <div className={styles['hero__buttons-wrapper']}>
-            <Button theme="green-flat">Оставить заявку</Button>
+            <Button theme="green-flat" onClick={() => scrollIntoAnchor('form')}>
+              Оставить заявку
+            </Button>
 
-            <Button theme="green-outlined">Узнать подробности</Button>
+            <Button theme="green-outlined" onClick={() => scrollIntoAnchor('directions')}>
+              Узнать подробности
+            </Button>
           </div>
         </div>
       </div>
