@@ -44,6 +44,12 @@ div.hero__container {
   font-style: normal;
   color: inherit;
 }
+.hero__contact-phone:hover {
+  opacity: 0.8;
+}
+.hero__contact-phone:active {
+  opacity: 0.88;
+}
 .hero__wrapper {
   display: flex;
   flex-direction: column;
