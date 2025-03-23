@@ -4,7 +4,7 @@ import { HashRouter, Route, Routes } from 'react-router-dom';
 const DevelopmentApp = React.lazy(() =>
   import('../../components/DevelopmentApp').then(({ DevelopmentApp }) => ({ default: DevelopmentApp })),
 );
-import { FloatingButton } from '../../../../common/components/FloatingButton/FloatingButton';
+import { FloatingButton } from '../../../../common/components/FloatingButton';
 import { ContactsContainer } from '../../../../common/containers/ContactsContainer';
 import { DescriptionContainer } from '../../../../common/containers/DescriptionContainer';
 import { FooterContainer } from '../../../../common/containers/FooterContainer';
