@@ -9,6 +9,7 @@ type ButtonProps = React.PropsWithChildren<{
   theme?: TTheme;
   disabled?: boolean;
   children: string | number;
+  onClick?: () => void;
 }>;
 
 export const Button: React.FC<ButtonProps> = ({
@@ -16,12 +17,14 @@ export const Button: React.FC<ButtonProps> = ({
   theme = 'orange-flat' as TTheme,
   disabled = false,
   children,
+  onClick,
 }) => {
   return (
     <button
       type={type}
       disabled={disabled}
       className={clsx(styles['button'], styles[`button--${theme}`], disabled && styles['button--disabled'])}
+      onClick={onClick}
     >
       {children}
     </button>

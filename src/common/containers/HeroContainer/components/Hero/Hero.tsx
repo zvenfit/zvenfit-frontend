@@ -3,7 +3,7 @@ import React from 'react';
 
 import * as styles from './Hero.module.css';
 import { RECEPTION_PHONE } from '../../../../../constants/companyContacts';
-import { formatPhoneNumber } from '../../../../../packages/utils/formatPhoneNumber';
+import { formatPhoneNumber, scrollIntoAnchor } from '../../../../../packages/utils';
 import { Button } from '../../../../components/Button';
 import { Logo } from '../../../../components/Logo';
 
@@ -36,9 +36,13 @@ export const Hero: React.FC<HeroProps> = ({ title, imageUrl, children }) => {
           </h1>
 
           <div className={styles['hero__buttons-wrapper']}>
-            <Button theme="green-flat">Оставить заявку</Button>
+            <Button theme="green-flat" onClick={() => scrollIntoAnchor('form')}>
+              Оставить заявку
+            </Button>
 
-            <Button theme="green-outlined">Узнать подробности</Button>
+            <Button theme="green-outlined" onClick={() => scrollIntoAnchor('directions')}>
+              Узнать подробности
+            </Button>
           </div>
         </div>
       </div>

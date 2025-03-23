@@ -23,13 +23,19 @@
   height: 47px;
   padding: 22px 28px 4px 0;
   margin-bottom: 2px;
-  border-bottom: 2px solid;
-  border-bottom-color: rgba(255, 255, 255, 0.5);
+  border-top: none;
+  border-right: none;
+  border-bottom: 2px solid rgba(255, 255, 255, 0.5);
+  border-left: none;
+  background: inherit;
   box-sizing: border-box;
   cursor: text;
   font-size: inherit;
   line-height: inherit;
   color: #ffffff;
+}
+.form__input:focus-visible > input {
+  outline: none;
 }
 .form__input:hover > input,
 .form__input--focused > input {

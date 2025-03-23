@@ -2,6 +2,8 @@
   position: absolute;
   top: 22px;
   right: -20px;
+  border: none;
+  background: inherit;
   color: #ffffff;
   cursor: pointer;
   transition: 0.15s cubic-bezier(0.4, 0, 0.2, 1);

@@ -24,7 +24,7 @@
   }
 }
 .button:focus-visible {
-  outline: 2px solid;
+  outline: 2px solid #ffdd2d;
 }
 .button:not(:disabled):hover {
   opacity: 0.8;
