@@ -5,8 +5,7 @@ import { MainFormLink } from '../../MainFormAnchor';
 import { Layout } from '../Layout';
 import * as commonStyles from '../assets/common-styles.module.css';
 
-const IMAGE_URL =
-  'https://sun9-54.userapi.com/s/v1/ig2/JSUdNRGio36AuVh5eqXfEeye79n4m402VgSqIK6tdr_2-wIO3gTIBIrOFA7R-krs1eeNvveT8pDMyKve9artO7rx.jpg?quality=95&as=32x32,48x48,72x72,108x108,160x160,240x240,360x360,480x480,540x540,640x640,720x720,1080x1080&from=bu&u=4WmMC86uSBe74-dAxzP-BPLlT5DKkJuscFhOGABaJTI&cs=807x807';
+const IMAGE_URL = 'https://storage.yandexcloud.net/zvenfit/static-images/modals/strength-training.jpg';
 
 export const StrengthTrainingModal: React.FC = () => {
   const { open, onClose } = useHashHistoryModal();

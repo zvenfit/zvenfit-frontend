@@ -5,8 +5,7 @@ import { MainFormLink } from '../../MainFormAnchor';
 import { Layout } from '../Layout';
 import * as commonStyles from '../assets/common-styles.module.css';
 
-const IMAGE_URL =
-  'https://sun9-16.userapi.com/s/v1/ig2/dhE4hxvGhZfFi6pMpX8dO6_vrMOFB81fmBT_GuKyRIiEpZQJDNNHG2cCrOUKQFnliKxHRy4FIxrSC596VyxpbrJw.jpg?quality=95&as=32x32,48x48,72x72,108x108,160x160,240x240,360x360,480x480,540x540,640x640,720x720,1080x1080&from=bu&u=Gwk01EfmgpGrrD5PW98OW9s55y2v0uyhG70kF0UYIF0&cs=807x807';
+const IMAGE_URL = 'https://storage.yandexcloud.net/zvenfit/static-images/modals/stretching.jpg';
 
 export const StretchingModal: React.FC = () => {
   const { open, onClose } = useHashHistoryModal();
