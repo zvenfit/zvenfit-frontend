@@ -20,7 +20,7 @@ export const TrainingList: React.FC<TrainingListProps> = ({ list }) => {
           {list.map((item: IListItem, index: number) => {
             return (
               <li key={item.title} className={styles['training-list__list-item']}>
-                <div className={styles['training-list__list-item-number']}>{`0${index + 1}.`.slice(-3)}</div>
+                <span className={styles['training-list__list-item-number']}>{`0${index + 1}.`.slice(-3)}</span>
 
                 <div className={styles['training-list__list-item-wrapper']}>
                   <h3 className={styles['training-list__list-item-title']}>{item.title}</h3>
