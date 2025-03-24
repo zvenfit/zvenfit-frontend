@@ -48,7 +48,7 @@
   bottom: 0;
 }
 .training-list__list-item-title {
-  margin-bottom: 12px;
+  margin: 0 0 0 12px;
   font-size: 20px;
   line-height: 28px;
 }

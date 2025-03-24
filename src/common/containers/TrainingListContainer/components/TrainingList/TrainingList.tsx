@@ -12,7 +12,7 @@ export const TrainingList: React.FC<TrainingListProps> = ({ list }) => {
     <section className={styles['training-list']}>
       <div className={'container'}>
         <header>
-          <h2 className={'visually-hidden'}>Описание тренировок</h2>
+          <h2 className="visually-hidden">Описание тренировок</h2>
           <p className={styles['training-list__header-title']}>Здесь ты найдёшь то, что искал</p>
         </header>
 

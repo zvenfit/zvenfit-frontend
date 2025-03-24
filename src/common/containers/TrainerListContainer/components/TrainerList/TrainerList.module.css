@@ -38,6 +38,7 @@
   margin-bottom: 16px;
 }
 .trainer-list__title {
+  margin: 0;
   font-size: 28px;
   line-height: 36px;
   text-align: center;
