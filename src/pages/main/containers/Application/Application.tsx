@@ -1,9 +1,6 @@
 import * as React from 'react';
 import { HashRouter, Route, Routes } from 'react-router-dom';
 
-const DevelopmentApp = React.lazy(() =>
-  import('../../components/DevelopmentApp').then(({ DevelopmentApp }) => ({ default: DevelopmentApp })),
-);
 import { FloatingButton } from '../../../../common/components/FloatingButton';
 import { ContactsContainer } from '../../../../common/containers/ContactsContainer';
 import { DescriptionContainer } from '../../../../common/containers/DescriptionContainer';
@@ -27,12 +24,6 @@ import { MODALS_URLS } from '../../constants/modalsUrls';
 export const Application: React.FC = () => {
   return (
     <React.StrictMode>
-      {process.env.NODE_ENV === 'development' && (
-        <React.Suspense fallback={null}>
-          <DevelopmentApp />
-        </React.Suspense>
-      )}
-
       <HashRouter>
         <Routes>
           <Route path={MODALS_URLS.STRENGTH_TRAINING} Component={StrengthTrainingModal} />
