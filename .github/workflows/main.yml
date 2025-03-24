@@ -43,7 +43,3 @@ jobs:
           AWS_ENDPOINT_URL: https://storage.yandexcloud.net
         with:
           args: s3 sync ./dist s3://${{ env.S3_BUCKET }} --delete --debug
-
-#      - name: Upload files to Yandex Object Storage
-#        run: |
-#          aws --endpoint-url=https://storage.yandexcloud.net s3 sync ./dist s3://${{ env.S3_BUCKET }} --delete --debug
