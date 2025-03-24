@@ -40,19 +40,19 @@ export const Application: React.FC = () => {
           <Route path={MODALS_URLS.STRETCHING} Component={StretchingModal} />
           <Route path="*" element={null} />
         </Routes>
-      </HashRouter>
 
-      <FloatingButton />
-      <HeaderContainer />
-      <HeroContainer />
-      <RegistrationFormContainer />
-      <TrainingDirectionsContainer />
-      <DescriptionContainer />
-      <TrainingListContainer />
-      <TrainerListContainer />
-      <GalleryContainer />
-      <ContactsContainer />
-      <FooterContainer />
+        <FloatingButton />
+        <HeaderContainer />
+        <HeroContainer />
+        <RegistrationFormContainer />
+        <TrainingDirectionsContainer />
+        <DescriptionContainer />
+        <TrainingListContainer />
+        <TrainerListContainer />
+        <GalleryContainer />
+        <ContactsContainer />
+        <FooterContainer />
+      </HashRouter>
     </React.StrictMode>
   );
 };

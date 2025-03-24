@@ -1,7 +1,9 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 
 import * as styles from './TrainingDirections.modules.css';
 import { IContent } from './types';
+import { MODALS_URLS } from '../../../../../pages/main/constants/modalsUrls';
 import { Button } from '../../../../components/Button';
 
 interface TrainingDirectionsProps {
@@ -9,6 +11,8 @@ interface TrainingDirectionsProps {
 }
 
 export const TrainingDirections: React.FC<TrainingDirectionsProps> = ({ content }) => {
+  const navigate = useNavigate();
+
   return (
     <section id="directions" className={styles['training-directions']}>
       <h2 className="visually-hidden">Направления тренировок</h2>
@@ -29,7 +33,9 @@ export const TrainingDirections: React.FC<TrainingDirectionsProps> = ({ content 
                 ))}
               </div>
 
-              <Button theme={item.btnTheme}>Подробнее</Button>
+              <Button theme={item.btnTheme} onClick={() => navigate(MODALS_URLS.STRENGTH_TRAINING)}>
+                Подробнее
+              </Button>
             </li>
           );
         })}

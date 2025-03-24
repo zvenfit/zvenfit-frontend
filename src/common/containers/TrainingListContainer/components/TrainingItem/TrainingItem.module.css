@@ -1,20 +1,7 @@
-.training-list {
-  padding: 72px 0;
-  background-color: #ffffff;
-}
-.training-list__header-title {
-  margin-bottom: 40px;
-  font-size: 28px;
-  line-height: 36px;
-  text-align: left;
-}
-.training-list__header-title,
 .training-list__item-title {
   color: #111111;
 }
-.training-list__list {
-  counter-reset: list 1;
-}
+
 .training-list__list-item-number {
   flex-shrink: 0;
   font-family: Arial, sans-serif;

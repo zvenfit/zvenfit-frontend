@@ -1,0 +1,16 @@
+.training-list {
+  padding: 72px 0;
+  background-color: #ffffff;
+}
+
+.training-list__header-title {
+  margin-bottom: 40px;
+  font-size: 28px;
+  line-height: 36px;
+  text-align: left;
+  color: #111111;
+}
+
+.training-list__list {
+  counter-reset: list 1;
+}

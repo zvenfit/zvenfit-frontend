@@ -1,6 +1,5 @@
 import { clsx } from 'clsx';
 import React, { useEffect, useState } from 'react';
-import { BrowserRouter as Router, NavLink } from 'react-router-dom';
 
 import * as styles from './Header.module.css';
 import { LOGO_URL } from '../../../../../constants/common';
@@ -22,11 +21,9 @@ export const Header: React.FC<HeaderProps> = ({ menuItems }) => {
   return (
     <header id="header" className={clsx(styles['header'], menuOpened && styles['header--menu-opened'])}>
       <nav className={clsx('container', styles['header__nav'])}>
-        <Router>
-          <NavLink to="/" className={styles['header__logo']}>
-            <img src={LOGO_URL} alt="Логотип" width="105" height="30" className={styles['header__logo-img']} />
-          </NavLink>
-        </Router>
+        <a href="/" className={styles['header__logo']}>
+          <img src={LOGO_URL} alt="Логотип" width="105" height="30" className={styles['header__logo-img']} />
+        </a>
 
         <ul className={clsx(styles['header__menu'], menuOpened && styles['header__menu--active'])}>
           {menuItems.map(item => {
