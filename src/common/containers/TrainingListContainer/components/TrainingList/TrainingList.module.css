@@ -3,6 +3,7 @@
   background-color: #ffffff;
 }
 .training-list__header-title {
+  margin-top: 0;
   margin-bottom: 40px;
   font-size: 28px;
   line-height: 36px;
@@ -48,7 +49,8 @@
   bottom: 0;
 }
 .training-list__list-item-title {
-  margin: 0 0 12px 0;
+  margin-top: 0;
+  margin-bottom: 12px;
   font-size: 20px;
   line-height: 28px;
 }
