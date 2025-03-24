@@ -14,7 +14,7 @@
   justify-content: center;
 }
 .contacts-info__main-title {
-  margin: 0 0 0 16px;
+  margin: 0 0 16px 0;
   font-size: 28px;
   line-height: 36px;
   color: #ffffff;
