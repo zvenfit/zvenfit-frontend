@@ -51,6 +51,9 @@
   line-height: 28px;
   overflow-y: auto;
 }
+.training-directions__list-item-description > p {
+  margin: 0;
+}
 @media screen and (min-width: 640px) {
   .training-directions__list-item-title {
     font-size: 28px;

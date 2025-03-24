@@ -14,6 +14,7 @@
   text-transform: uppercase;
 }
 .gallery__header-text {
+  margin: 0;
   font-size: 14px;
   line-height: 20px;
   text-align: center;

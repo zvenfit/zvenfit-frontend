@@ -53,6 +53,7 @@
   line-height: 28px;
 }
 .training-list__list-item-description {
+  margin: 0;
   font-size: 16px;
   line-height: 24px;
   color: rgba(17, 17, 17, 0.56);
