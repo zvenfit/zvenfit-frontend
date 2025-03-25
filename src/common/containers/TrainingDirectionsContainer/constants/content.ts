@@ -1,5 +1,6 @@
+import { MODALS_URLS } from '../../../../pages/main/constants/modalsUrls';
 import { THEMES } from '../../../components/Button/constants/themes';
-import { IContent } from '../components/TrainingDirections/types';
+import { IContent } from '../types';
 
 export const CONTENT: IContent[] = [
   {
@@ -10,6 +11,7 @@ export const CONTENT: IContent[] = [
       'Мы знаем, как важно не только работать над своей силой, но и видеть изменения в теле. Если вы хотите достичь результатов и стать сильнее — у нас есть решение.',
     ],
     btnTheme: THEMES.orangeFlat,
+    href: MODALS_URLS.STRENGTH_TRAINING,
   },
   {
     bgImage: 'https://storage.yandexcloud.net/zvenfit/static-images/training-directions/02-step-aerobics.jpeg',
@@ -19,16 +21,18 @@ export const CONTENT: IContent[] = [
       'Степ-аэробика — это идеальный способ сжигать калории, укреплять мышцы и при этом получать удовольствие от тренировки!',
     ],
     btnTheme: THEMES.greenFlat,
+    href: MODALS_URLS.STEP_AEROBICS,
   },
-  {
-    bgImage: 'https://storage.yandexcloud.net/zvenfit/static-images/training-directions/03-dance-fitness.jpeg',
-    title: 'Танцевальный фитнес',
-    description: [
-      'Хотите получить удовольствие от движения и забыть о скучных занятиях в зале?',
-      'Танцевальный фитнес — это веселая и динамичная тренировка, где каждый сможет почувствовать себя звездой танцпола, не задумываясь о том, что это на самом деле эффективный тренинг!',
-    ],
-    btnTheme: THEMES.greenFlat,
-  },
+  // {
+  //   bgImage: 'https://storage.yandexcloud.net/zvenfit/static-images/training-directions/03-dance-fitness.jpeg',
+  //   title: 'Танцевальный фитнес',
+  //   description: [
+  //     'Хотите получить удовольствие от движения и забыть о скучных занятиях в зале?',
+  //     'Танцевальный фитнес — это веселая и динамичная тренировка, где каждый сможет почувствовать себя звездой танцпола, не задумываясь о том, что это на самом деле эффективный тренинг!',
+  //   ],
+  //   btnTheme: THEMES.greenFlat,
+  //   href: MODALS_URLS.DANCE_FITNESS,
+  // },
   {
     bgImage: 'https://storage.yandexcloud.net/zvenfit/static-images/training-directions/04-yogalates.jpeg',
     title: 'Йогалатес',
@@ -38,6 +42,7 @@ export const CONTENT: IContent[] = [
       'Если вы уже пытались достичь своих целей, но все еще далеки от результата — у нас есть решение.',
     ],
     btnTheme: THEMES.orangeFlat,
+    href: MODALS_URLS.YOGALATES,
   },
   {
     bgImage: 'https://storage.yandexcloud.net/zvenfit/static-images/training-directions/05-yoga.jpeg',
@@ -47,6 +52,7 @@ export const CONTENT: IContent[] = [
       'Йога — это не просто тренировка, это философия, которая помогает сделать ваше тело сильным, гибким и здоровым, а разум — спокойным и сосредоточенным.',
     ],
     btnTheme: THEMES.orangeFlat,
+    href: MODALS_URLS.YOGA,
   },
   {
     bgImage: 'https://storage.yandexcloud.net/zvenfit/static-images/training-directions/06-pilates.jpeg',
@@ -56,6 +62,7 @@ export const CONTENT: IContent[] = [
       'Пилатес — это метод тренировки, который бережно работает с вашим телом, помогая развить гибкость, координацию и силу.',
     ],
     btnTheme: THEMES.greenFlat,
+    href: MODALS_URLS.PILATES,
   },
   {
     bgImage: 'https://storage.yandexcloud.net/zvenfit/static-images/training-directions/07-jumping-fitness.jpeg',
@@ -65,5 +72,6 @@ export const CONTENT: IContent[] = [
       'Кто сказал, что тренировки должны быть скучными? Джампинг фитнес — это возвращение в детство, где каждый прыжок приносит радость и потрясающие результаты.',
     ],
     btnTheme: THEMES.orangeFlat,
+    href: MODALS_URLS.JUMPING_FITNESS,
   },
 ];
