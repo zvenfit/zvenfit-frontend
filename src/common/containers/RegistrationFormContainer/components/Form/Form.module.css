@@ -34,7 +34,7 @@
   line-height: inherit;
   color: #ffffff;
 }
-.form__input:focus-visible > input {
+.form__input > input:focus-visible {
   outline: none;
 }
 .form__input:hover > input,

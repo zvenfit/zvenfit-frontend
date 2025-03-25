@@ -6,10 +6,6 @@ import { setupDependencies } from '../../common/services/dependencies';
 import { renderApplication } from '../../common/services/renderApplication';
 import { startSendFormWatcher } from '../../common/services/sendFormWatcher';
 
-if (process.env.NODE_ENV !== 'production') {
-  import('../../common/assets/temp-styles-for-dev.css');
-}
-
 (async () => {
   await setupDependencies();
   renderApplication(Application);

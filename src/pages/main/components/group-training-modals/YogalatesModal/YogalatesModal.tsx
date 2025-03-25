@@ -5,8 +5,7 @@ import { MainFormLink } from '../../MainFormAnchor';
 import { Layout } from '../Layout';
 import * as commonStyles from '../assets/common-styles.module.css';
 
-const IMAGE_URL =
-  'https://sun9-71.userapi.com/s/v1/ig2/tJgPl-0ll_nG1KOD3tjJpDnVeC-nB2Gn5TJBtECeq4yqmG0KKIr6-PCh15ylW-94k2VAsUqfygEwheFeeZoZ7DYx.jpg?quality=95&as=32x32,48x48,72x72,108x108,160x160,240x240,360x360,480x480,540x540,640x640,720x720,1080x1080&from=bu&u=rnF8y6-mUFvUs_wZwP_kVcxJJSzprR9eJ4VkrPuclZ0&cs=807x807';
+const IMAGE_URL = 'https://storage.yandexcloud.net/zvenfit/static-images/modals/yogalates.jpg';
 
 export const YogalatesModal: React.FC = () => {
   const { open, onClose } = useHashHistoryModal();
