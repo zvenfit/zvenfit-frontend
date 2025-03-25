@@ -60,6 +60,7 @@ div.hero__container {
   display: block;
   max-height: 55%;
   margin: 0;
+  font-family: sans-serif, system-ui;
   font-size: 32px;
   line-height: 40px;
   font-weight: 400;

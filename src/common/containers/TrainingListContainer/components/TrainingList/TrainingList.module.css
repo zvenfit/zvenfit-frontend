@@ -5,6 +5,7 @@
 .training-list__header-title {
   margin-top: 0;
   margin-bottom: 40px;
+  font-family: sans-serif, system-ui;
   font-size: 28px;
   line-height: 36px;
   text-align: left;
@@ -51,7 +52,9 @@
 .training-list__list-item-title {
   margin-top: 0;
   margin-bottom: 12px;
+  font-family: sans-serif, system-ui;
   font-size: 20px;
+  font-weight: 400;
   line-height: 28px;
 }
 .training-list__list-item-description {
