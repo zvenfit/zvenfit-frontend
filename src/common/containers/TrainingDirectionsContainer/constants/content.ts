@@ -24,7 +24,7 @@ export const CONTENT: IContent[] = [
     href: MODALS_URLS.STEP_AEROBICS,
   },
   {
-    bgImage: 'https://storage.yandexcloud.net/zvenfit/static-images/training-directions/03-dance-fitness.jpeg',
+    bgImage: 'https://storage.yandexcloud.net/zvenfit/static-images/training-directions/03-zumba.jpeg',
     title: 'Зумба',
     description: [
       'Хотите получить удовольствие от движения и забыть о скучных занятиях в зале?',
