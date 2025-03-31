@@ -1,6 +1,8 @@
 import React from 'react';
 
 import * as styles from './InfoText.module.css';
+import { numberToGenitive } from '../../../../../packages/utils/numberToGenitive';
+import { LIST } from '../../../TrainingListContainer/constants/list';
 
 export const InfoText: React.FC = () => {
   return (
@@ -11,7 +13,8 @@ export const InfoText: React.FC = () => {
         </b>
 
         <p className={styles['info-text__text']}>
-          <span className="green-text">2 групповые</span> тренировки по одному из пяти направлений по
+          <span className="green-text">2 групповые</span> тренировки по одному из {numberToGenitive(LIST.length)}
+          &nbsp;направлений по
           <span className="green-text"> 299 ₽</span>
         </p>
       </div>
