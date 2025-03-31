@@ -4,6 +4,7 @@ import React from 'react';
 import * as styles from './RegistrationForm.module.css';
 import { Form } from '../Form';
 import { InfoText } from '../InfoText';
+import { PrivacyPolicy } from '../PrivacyPolicy';
 
 export const RegistrationForm: React.FC = () => {
   return (
@@ -19,11 +20,9 @@ export const RegistrationForm: React.FC = () => {
           <Form />
         </div>
 
-        {/*TODO сделать линку на политику конфиденциальности*/}
-        <p className={clsx('gray-text', styles['registration-form__agreement-text'])}>
-          Нажимая на кнопку, вы даете согласие на обработку своих персональных данных и соглашаетесь{' '}
-          <span className={styles['registration-form__agreement-link']}>с политикой конфиденциальности.</span>
-        </p>
+        <div className={clsx('gray-text', styles['registration-form__agreement-text'])}>
+          <PrivacyPolicy />
+        </div>
       </div>
     </section>
   );

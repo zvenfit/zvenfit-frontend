@@ -13,17 +13,6 @@
   font-size: 12px;
   line-height: 16px;
 }
-.registration-form__agreement-link {
-  text-decoration: underline;
-  text-decoration-thickness: 1px;
-  text-underline-offset: 0.2em;
-  white-space: nowrap;
-  opacity: 0.64;
-  cursor: pointer;
-}
-.registration-form__agreement-link:hover {
-  opacity: 1;
-}
 @media screen and (min-width: 640px) {
   .registration-form__agreement-text {
     margin-bottom: 32px;
