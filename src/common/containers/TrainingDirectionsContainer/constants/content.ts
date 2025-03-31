@@ -25,7 +25,7 @@ export const CONTENT: IContent[] = [
   },
   {
     bgImage: 'https://storage.yandexcloud.net/zvenfit/static-images/training-directions/03-dance-fitness.jpeg',
-    title: 'Танцевальный фитнес',
+    title: 'Зумба',
     description: [
       'Хотите получить удовольствие от движения и забыть о скучных занятиях в зале?',
       'Зумба — это веселая и динамичная тренировка, где каждый сможет почувствовать себя звездой танцпола, не задумываясь о том, что это на самом деле эффективный тренинг!',
