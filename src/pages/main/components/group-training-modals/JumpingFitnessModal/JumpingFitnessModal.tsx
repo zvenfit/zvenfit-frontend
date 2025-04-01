@@ -39,7 +39,7 @@ export const JumpingFitnessModal: React.FC = () => {
         </p>
         <p>
           <MainFormLink className={commonStyles['bold']}>Запишитесь тут</MainFormLink> и ощутите, как легко может быть
-          быть активным и счастливым!
+          активным и счастливым!
         </p>
       </Layout>
     </Modal>
