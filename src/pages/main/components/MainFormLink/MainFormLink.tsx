@@ -1,10 +1,11 @@
 import * as React from 'react';
 
+import * as styles from './MainFormLink.module.css';
 import { MAIN_FORM_ID } from '../../constants/pageAnchors';
 
-type MainFormAnchorProps = React.PropsWithChildren<Omit<React.HTMLProps<HTMLAnchorElement>, 'href'>>;
+type MainFormLinkProps = React.PropsWithChildren<Omit<React.HTMLProps<HTMLAnchorElement>, 'href'>>;
 
-export const MainFormLink: React.FC<MainFormAnchorProps> = ({ children, onClick, ...props }) => {
+export const MainFormLink: React.FC<MainFormLinkProps> = ({ children, onClick, ...props }) => {
   const handleClick: React.MouseEventHandler<HTMLAnchorElement> = e => {
     e.nativeEvent.stopImmediatePropagation();
 
@@ -21,7 +22,7 @@ export const MainFormLink: React.FC<MainFormAnchorProps> = ({ children, onClick,
   };
 
   return (
-    <a href={`#${MAIN_FORM_ID}`} onClick={handleClick} {...props}>
+    <a href={`#${MAIN_FORM_ID}`} onClick={handleClick} {...props} className={styles['main-form-link']}>
       {children}
     </a>
   );

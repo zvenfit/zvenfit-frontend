@@ -1,0 +1,16 @@
+.main-form-link {
+  font-size: inherit;
+  line-height: inherit;
+  font-weight: bold;
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.2em;
+  opacity: 0.75;
+}
+.main-form-link:hover {
+  opacity: 0.75;
+}
+.main-form-link:active {
+  opacity: 0.88;
+}

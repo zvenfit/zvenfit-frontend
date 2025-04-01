@@ -1,7 +1,7 @@
 import * as React from 'react';
 
 import { Modal, useHashHistoryModal } from '../../../../../common/components/Modal';
-import { MainFormLink } from '../../MainFormAnchor';
+import { MainFormLink } from '../../MainFormLink';
 import { ModalLayout } from '../../ModalLayout';
 import * as commonStyles from '../assets/common-styles.module.css';
 
