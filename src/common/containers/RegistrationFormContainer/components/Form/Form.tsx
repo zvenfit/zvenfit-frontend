@@ -16,6 +16,7 @@ export const Form: React.FC = () => {
     handleSubmit,
     control,
     setValue,
+    trigger,
     formState: { errors, isValid },
   } = useForm({
     mode: 'all',
@@ -32,6 +33,7 @@ export const Form: React.FC = () => {
 
   const onClickClear = (field: 'name' | 'phone', inputRef: RefObject<HTMLInputElement | null>) => {
     setValue(field, '');
+    trigger(field);
 
     if (inputRef) {
       inputRef.current?.focus();
@@ -67,7 +69,10 @@ export const Form: React.FC = () => {
                 id="name"
                 ref={nameInputRef}
                 type="text"
-                onBlur={() => setFocused('')}
+                onBlur={() => {
+                  setFocused('');
+                  trigger('name');
+                }}
                 onFocus={() => setFocused('name')}
               />
             </div>

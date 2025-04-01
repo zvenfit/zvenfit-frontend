@@ -12,6 +12,7 @@ import { RegistrationFormContainer } from '../../../../common/containers/Registr
 import { TrainerListContainer } from '../../../../common/containers/TrainerListContainer';
 import { TrainingDirectionsContainer } from '../../../../common/containers/TrainingDirectionsContainer';
 import { TrainingListContainer } from '../../../../common/containers/TrainingListContainer';
+import { PrivacyPolicyModal } from '../../components/PrivacyPolicyModal/PrivacyPolicyModal';
 import { JumpingFitnessModal } from '../../components/group-training-modals/JumpingFitnessModal';
 import { PilatesModal } from '../../components/group-training-modals/PilatesModal';
 import { StepAerobicsModal } from '../../components/group-training-modals/StepAerobicsModal';
@@ -33,6 +34,7 @@ export const Application: React.FC = () => {
           <Route path={MODALS_URLS.YOGA} Component={YogaModal} />
           <Route path={MODALS_URLS.PILATES} Component={PilatesModal} />
           <Route path={MODALS_URLS.JUMPING_FITNESS} Component={JumpingFitnessModal} />
+          <Route path={MODALS_URLS.PRIVACY_POLICY} Component={PrivacyPolicyModal} />
           <Route path="*" element={null} />
         </Routes>
 

@@ -14,4 +14,5 @@ export const MODALS_URLS = {
   YOGA: 'joga',
   PILATES: 'pilates',
   JUMPING_FITNESS: 'jumping-fitness',
+  PRIVACY_POLICY: 'privacy-policy',
 };

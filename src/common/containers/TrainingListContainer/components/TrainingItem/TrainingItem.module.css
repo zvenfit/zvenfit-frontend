@@ -35,8 +35,10 @@
   bottom: 0;
 }
 .training-list__list-item-title {
+  margin-top: 0;
   margin-bottom: 12px;
   font-size: 20px;
+  font-weight: 400;
   line-height: 28px;
 }
 .training-list__list-item-description {

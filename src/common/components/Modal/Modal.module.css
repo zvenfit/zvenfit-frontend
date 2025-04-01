@@ -43,13 +43,13 @@
 }
 
 .header {
-  height: 32px;
-  padding: 8px;
+  padding: 8px 16px;
   border-bottom: 1px solid rgba(204, 204, 204, 0.5);
 }
 
 .title {
-  /*font-family: 'Dela Gothic One', sans-serif, system-ui;*/
+  margin: 0;
+  font-family: sans-serif, system-ui;
   font-weight: 400;
   font-size: 24px;
   line-height: 32px;

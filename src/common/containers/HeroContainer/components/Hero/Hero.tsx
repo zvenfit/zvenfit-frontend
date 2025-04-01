@@ -4,6 +4,7 @@ import React from 'react';
 import * as styles from './Hero.module.css';
 import { RECEPTION_PHONE } from '../../../../../constants/companyContacts';
 import { formatPhoneNumber, scrollIntoAnchor } from '../../../../../packages/utils';
+import { DIRECTIONS_ID, MAIN_FORM_ID } from '../../../../../pages/main/constants/pageAnchors';
 import { Button } from '../../../../components/Button';
 import { Logo } from '../../../../components/Logo';
 
@@ -36,11 +37,11 @@ export const Hero: React.FC<HeroProps> = ({ title, imageUrl, children }) => {
           </h1>
 
           <div className={styles['hero__buttons-wrapper']}>
-            <Button theme="green-flat" onClick={() => scrollIntoAnchor('form')}>
+            <Button theme="green-flat" onClick={() => scrollIntoAnchor(MAIN_FORM_ID)}>
               Оставить заявку
             </Button>
 
-            <Button theme="green-outlined" onClick={() => scrollIntoAnchor('directions')}>
+            <Button theme="green-outlined" onClick={() => scrollIntoAnchor(DIRECTIONS_ID)}>
               Узнать подробности
             </Button>
           </div>

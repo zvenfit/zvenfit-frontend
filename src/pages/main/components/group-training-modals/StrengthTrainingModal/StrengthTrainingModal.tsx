@@ -1,8 +1,8 @@
 import * as React from 'react';
 
 import { Modal, useHashHistoryModal } from '../../../../../common/components/Modal';
-import { MainFormLink } from '../../MainFormAnchor';
-import { Layout } from '../Layout';
+import { MainFormLink } from '../../MainFormLink';
+import { ModalLayout } from '../../ModalLayout';
 import * as commonStyles from '../assets/common-styles.module.css';
 
 const IMAGE_URL = 'https://storage.yandexcloud.net/zvenfit/static-images/modals/strength-training.jpg';
@@ -12,7 +12,7 @@ export const StrengthTrainingModal: React.FC = () => {
 
   return (
     <Modal title="Силовые тренировки" open={open} onClose={onClose}>
-      <Layout img={IMAGE_URL}>
+      <ModalLayout img={IMAGE_URL}>
         <p>
           Мечтаете о подтянутом теле, но боитесь, что допустите ошибок в тренировке без трененра? Мы знаем, как важно не
           только работать над своей силой, но и видеть изменения в теле. Если вы хотите достичь результатов и стать
@@ -43,7 +43,7 @@ export const StrengthTrainingModal: React.FC = () => {
           <MainFormLink className={commonStyles['bold']}>Запишитесь тут</MainFormLink> и сделайте первый шаг к сильному
           и подтянутому телу!
         </p>
-      </Layout>
+      </ModalLayout>
     </Modal>
   );
 };

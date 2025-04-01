@@ -1,0 +1,22 @@
+.privacy-policy {
+  margin: 0;
+  font-size: inherit;
+  line-height: inherit;
+  color: inherit;
+}
+.privacy-policy__agreement-link {
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.2em;
+  white-space: nowrap;
+  opacity: 0.64;
+  cursor: pointer;
+}
+.privacy-policy__agreement-link:hover {
+  opacity: 1;
+}

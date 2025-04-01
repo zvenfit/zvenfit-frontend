@@ -1,8 +1,8 @@
 import * as React from 'react';
 
 import { Modal, useHashHistoryModal } from '../../../../../common/components/Modal';
-import { MainFormLink } from '../../MainFormAnchor';
-import { Layout } from '../Layout';
+import { MainFormLink } from '../../MainFormLink';
+import { ModalLayout } from '../../ModalLayout';
 import * as commonStyles from '../assets/common-styles.module.css';
 
 const IMAGE_URL =
@@ -13,7 +13,7 @@ export const ZumbaModal: React.FC = () => {
 
   return (
     <Modal title="Зумба" open={open} onClose={onClose}>
-      <Layout img={IMAGE_URL}>
+      <ModalLayout img={IMAGE_URL}>
         <p>Зумба: Тренировка, которая не ощущается как тренировка!</p>
         <p>
           Хотите сжигать калории, улучшать физическую форму и получать удовольствие одновременно? Зумба — это
@@ -47,7 +47,7 @@ export const ZumbaModal: React.FC = () => {
           <MainFormLink className={commonStyles['bold']}>Запишитесь тут</MainFormLink> и сделайте первый шаг к активному
           и яркому образу жизни!
         </p>
-      </Layout>
+      </ModalLayout>
     </Modal>
   );
 };

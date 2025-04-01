@@ -1,8 +1,8 @@
 import * as React from 'react';
 
 import { Modal, useHashHistoryModal } from '../../../../../common/components/Modal';
-import { MainFormLink } from '../../MainFormAnchor';
-import { Layout } from '../Layout';
+import { MainFormLink } from '../../MainFormLink';
+import { ModalLayout } from '../../ModalLayout';
 import * as commonStyles from '../assets/common-styles.module.css';
 
 const IMAGE_URL =
@@ -13,7 +13,7 @@ export const JumpingFitnessModal: React.FC = () => {
 
   return (
     <Modal title="Jumping Fitness" open={open} onClose={onClose}>
-      <Layout img={IMAGE_URL}>
+      <ModalLayout img={IMAGE_URL}>
         <p>Джампинг фитнес: Прыгай, веселись, почувствуй себя ребёнком с пользой!</p>
         <p>
           Кто сказал, что тренировки должны быть скучными? Джампинг фитнес — это возвращение в детство, где каждый
@@ -39,9 +39,9 @@ export const JumpingFitnessModal: React.FC = () => {
         </p>
         <p>
           <MainFormLink className={commonStyles['bold']}>Запишитесь тут</MainFormLink> и ощутите, как легко может быть
-          быть активным и счастливым!
+          активным и счастливым!
         </p>
-      </Layout>
+      </ModalLayout>
     </Modal>
   );
 };

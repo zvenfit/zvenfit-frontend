@@ -1,8 +1,8 @@
 import * as React from 'react';
 
 import { Modal, useHashHistoryModal } from '../../../../../common/components/Modal';
-import { MainFormLink } from '../../MainFormAnchor';
-import { Layout } from '../Layout';
+import { MainFormLink } from '../../MainFormLink';
+import { ModalLayout } from '../../ModalLayout';
 import * as commonStyles from '../assets/common-styles.module.css';
 
 const IMAGE_URL = 'https://storage.yandexcloud.net/zvenfit/static-images/modals/step-aerobics.jpg';
@@ -12,7 +12,7 @@ export const StepAerobicsModal: React.FC = () => {
 
   return (
     <Modal title="Степ-аэробика" open={open} onClose={onClose}>
-      <Layout img={IMAGE_URL}>
+      <ModalLayout img={IMAGE_URL}>
         <p>
           Хотите получить заряд бодрости и улучшить свою физическую форму? Степ-аэробика — это идеальный способ сжигать
           калории, укреплять мышцы и при этом получать удовольствие от тренировки!
@@ -43,7 +43,7 @@ export const StepAerobicsModal: React.FC = () => {
           <MainFormLink className={commonStyles['bold']}>Запишитесь тут</MainFormLink> и сделайте первый шаг к сильному
           и подтянутому телу!
         </p>
-      </Layout>
+      </ModalLayout>
     </Modal>
   );
 };

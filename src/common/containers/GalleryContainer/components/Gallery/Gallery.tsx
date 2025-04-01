@@ -2,6 +2,7 @@ import React from 'react';
 
 import * as styles from './Gallery.module.css';
 import { IImageItem } from './types';
+import { GALLERY_ID } from '../../../../../pages/main/constants/pageAnchors';
 
 interface GalleryProps {
   images: IImageItem[];
@@ -9,7 +10,7 @@ interface GalleryProps {
 
 export const Gallery: React.FC<GalleryProps> = ({ images }) => {
   return (
-    <section id="gallery" className={styles['gallery']}>
+    <section id={GALLERY_ID} className={styles['gallery']}>
       <div className={'container'}>
         <header className={styles['gallery__header']}>
           <h2 className={styles['gallery__header-title']}>Наша студия</h2>

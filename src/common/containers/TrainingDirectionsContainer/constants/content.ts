@@ -23,16 +23,16 @@ export const CONTENT: IContent[] = [
     btnTheme: THEMES.greenFlat,
     href: MODALS_URLS.STEP_AEROBICS,
   },
-  // {
-  //   bgImage: 'https://storage.yandexcloud.net/zvenfit/static-images/training-directions/03-dance-fitness.jpeg',
-  //   title: 'Танцевальный фитнес',
-  //   description: [
-  //     'Хотите получить удовольствие от движения и забыть о скучных занятиях в зале?',
-  //     'Танцевальный фитнес — это веселая и динамичная тренировка, где каждый сможет почувствовать себя звездой танцпола, не задумываясь о том, что это на самом деле эффективный тренинг!',
-  //   ],
-  //   btnTheme: THEMES.greenFlat,
-  //   href: MODALS_URLS.DANCE_FITNESS,
-  // },
+  {
+    bgImage: 'https://storage.yandexcloud.net/zvenfit/static-images/training-directions/03-zumba.jpeg',
+    title: 'Зумба',
+    description: [
+      'Хотите получить удовольствие от движения и забыть о скучных занятиях в зале?',
+      'Зумба — это веселая и динамичная тренировка, где каждый сможет почувствовать себя звездой танцпола, не задумываясь о том, что это на самом деле эффективный тренинг!',
+    ],
+    btnTheme: THEMES.greenFlat,
+    href: MODALS_URLS.ZUMBA,
+  },
   {
     bgImage: 'https://storage.yandexcloud.net/zvenfit/static-images/training-directions/04-yogalates.jpeg',
     title: 'Йогалатес',
