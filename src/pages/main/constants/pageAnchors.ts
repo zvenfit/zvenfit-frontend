@@ -1,1 +1,1 @@
-export const MAIN_FORM_ID = 'ooalnvy';
+export const MAIN_FORM_ID = 'form';
