@@ -77,7 +77,7 @@ div.hero__container {
 .hero__buttons-wrapper > button + button {
   margin-top: 16px;
 }
-.hero > a {
+.hero__arrow-button {
   position: absolute;
   left: 50%;
   bottom: 30px;
