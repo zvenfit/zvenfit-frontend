@@ -2,7 +2,7 @@ import * as React from 'react';
 
 import { Modal, useHashHistoryModal } from '../../../../../common/components/Modal';
 import { MainFormLink } from '../../MainFormAnchor';
-import { Layout } from '../Layout';
+import { ModalLayout } from '../../ModalLayout';
 import * as commonStyles from '../assets/common-styles.module.css';
 
 const IMAGE_URL =
@@ -13,7 +13,7 @@ export const YogaModal: React.FC = () => {
 
   return (
     <Modal title="Йога" open={open} onClose={onClose}>
-      <Layout img={IMAGE_URL}>
+      <ModalLayout img={IMAGE_URL}>
         <p>Йога: Гармония тела и ума — путь к лучшему себе</p>
         <p>
           Ищете способ справиться со стрессом, улучшить осанку и обрести внутренний баланс? Йога — это не просто
@@ -41,7 +41,7 @@ export const YogaModal: React.FC = () => {
           <MainFormLink className={commonStyles['bold']}>Запишитесь тут</MainFormLink> и откройте для себя силу и
           спокойствие, которые дарит йога.
         </p>
-      </Layout>
+      </ModalLayout>
     </Modal>
   );
 };

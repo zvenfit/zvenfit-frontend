@@ -2,7 +2,7 @@ import * as React from 'react';
 
 import { Modal, useHashHistoryModal } from '../../../../../common/components/Modal';
 import { MainFormLink } from '../../MainFormAnchor';
-import { Layout } from '../Layout';
+import { ModalLayout } from '../../ModalLayout';
 import * as commonStyles from '../assets/common-styles.module.css';
 
 const IMAGE_URL =
@@ -13,7 +13,7 @@ export const PilatesModal: React.FC = () => {
 
   return (
     <Modal title="Пилатес" open={open} onClose={onClose}>
-      <Layout img={IMAGE_URL}>
+      <ModalLayout img={IMAGE_URL}>
         <p>Пилатес: Сильное тело и здоровая спина — без лишней нагрузки</p>
         <p>
           Хотите укрепить мышцы, улучшить осанку и почувствовать себя сильнее, не перегружая суставы? Пилатес — это
@@ -40,7 +40,7 @@ export const PilatesModal: React.FC = () => {
           <MainFormLink className={commonStyles['bold']}>Запишитесь тут</MainFormLink> и сделайте первый шаг к здоровой
           спине и телу, которое вы полюбите.
         </p>
-      </Layout>
+      </ModalLayout>
     </Modal>
   );
 };

@@ -2,7 +2,7 @@ import * as React from 'react';
 
 import { Modal, useHashHistoryModal } from '../../../../../common/components/Modal';
 import { MainFormLink } from '../../MainFormAnchor';
-import { Layout } from '../Layout';
+import { ModalLayout } from '../../ModalLayout';
 import * as commonStyles from '../assets/common-styles.module.css';
 
 const IMAGE_URL = 'https://storage.yandexcloud.net/zvenfit/static-images/modals/yogalates.jpg';
@@ -12,7 +12,7 @@ export const YogalatesModal: React.FC = () => {
 
   return (
     <Modal title="Йогалатес" open={open} onClose={onClose}>
-      <Layout img={IMAGE_URL}>
+      <ModalLayout img={IMAGE_URL}>
         <p>Йогалатес: Путь к здоровой спине и подтянутому телу, без изнурительных тренировок с тяжелыми весами!</p>
         <p>
           Хотите похудеть и избавиться от боли в спине, но не знаете, с чего начать? Мы понимаем, как важно не просто
@@ -43,7 +43,7 @@ export const YogalatesModal: React.FC = () => {
           <MainFormLink className={commonStyles['bold']}>Запишитесь тут</MainFormLink> и сделайте первый шаг к
           достижению своей цели уже сегодня!
         </p>
-      </Layout>
+      </ModalLayout>
     </Modal>
   );
 };

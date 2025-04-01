@@ -4,13 +4,14 @@ import * as styles from './PrivacyPolicyModal.module.css';
 import { CONTENT } from './constants/content';
 import { Modal, useHashHistoryModal } from '../../../../common/components/Modal';
 import { RECEPTION_EMAIL } from '../../../../constants/companyContacts';
+import { ModalLayout } from '../ModalLayout';
 
 export const PrivacyPolicyModal: React.FC = () => {
   const { open, onClose } = useHashHistoryModal();
 
   return (
     <Modal title="Политика конфиденциальности" open={open} onClose={onClose}>
-      <div className={styles['privacy-policy-modal']}>
+      <ModalLayout>
         {CONTENT.map((text, index) => (
           <p key={index} className={styles['privacy-policy-modal__text']}>
             {text}
@@ -29,7 +30,7 @@ export const PrivacyPolicyModal: React.FC = () => {
             )}
           </p>
         ))}
-      </div>
+      </ModalLayout>
     </Modal>
   );
 };
