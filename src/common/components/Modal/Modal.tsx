@@ -1,4 +1,3 @@
-import { clsx } from 'clsx';
 import React from 'react';
 import ReactModal from 'react-modal';
 
@@ -24,7 +23,7 @@ export const Modal: React.FC<ModalProps> = ({ title, open, onClose, children }) 
     >
       <div className={styles['content']}>
         <div className={styles['header']}>
-          {title && <h4 className={clsx(styles['title'], 'sb-font-h4 sb-font-title sb-m-18-bottom')}>{title}</h4>}
+          {title && <h4 className={styles['title']}>{title}</h4>}
           <CloseButton onClick={onClose} className={styles['close-button']} />
         </div>
         <div className={styles['body']}>{children}</div>

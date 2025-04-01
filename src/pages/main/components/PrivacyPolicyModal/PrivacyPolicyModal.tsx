@@ -9,10 +9,8 @@ export const PrivacyPolicyModal: React.FC = () => {
   const { open, onClose } = useHashHistoryModal();
 
   return (
-    <Modal open={open} onClose={onClose}>
+    <Modal title="Политика конфиденциальности" open={open} onClose={onClose}>
       <div className={styles['privacy-policy-modal']}>
-        <h4 className={styles['privacy-policy-modal__title']}>Политика конфиденциальности</h4>
-
         {CONTENT.map((text, index) => (
           <p key={index} className={styles['privacy-policy-modal__text']}>
             {text}

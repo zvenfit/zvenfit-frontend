@@ -1,15 +1,6 @@
 .privacy-policy-modal {
   padding: 16px;
 }
-.privacy-policy-modal__title {
-  margin-top: 0;
-  margin-bottom: 12px;
-  font-family: sans-serif, system-ui;
-  font-size: 20px;
-  line-height: 28px;
-  font-weight: 400;
-  text-align: center;
-}
 .privacy-policy-modal__text {
   margin: 0;
   font-size: 14px;
@@ -42,23 +33,9 @@
 .privacy-policy-modal__link:active {
   opacity: 0.88;
 }
-@media screen and (min-width: 640px) {
-  .privacy-policy-modal__title {
-    margin-bottom: 16px;
-    font-size: 24px;
-    line-height: 32px;
-  }
-}
 @media screen and (min-width: 960px) {
   .privacy-policy-modal__text {
     font-size: 16px;
     line-height: 24px;
-  }
-}
-@media screen and (min-width: 1360px) {
-  .privacy-policy-modal__title {
-    margin-bottom: 20px;
-    font-size: 32px;
-    line-height: 40px;
   }
 }
