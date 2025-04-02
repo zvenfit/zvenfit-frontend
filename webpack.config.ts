@@ -1,21 +1,26 @@
+import CssMinimizerPlugin from 'css-minimizer-webpack-plugin';
 import * as dotenv from 'dotenv';
 import ESLintPlugin from 'eslint-webpack-plugin';
 import ForkTsCheckerWebpackPlugin from 'fork-ts-checker-webpack-plugin';
 import HtmlWebpackPlugin from 'html-webpack-plugin';
+import MiniCssExtractPlugin from 'mini-css-extract-plugin';
 import path from 'path';
 import TerserPlugin from 'terser-webpack-plugin';
 import { Configuration, WebpackOptionsNormalized, DefinePlugin } from 'webpack';
 import 'webpack-dev-server';
 
+// Определяем точки входа для разных страниц
 enum Entries {
   main = 'index',
   platforms = 'platforms',
 }
 
 const config = (env: Record<string, unknown>, argv: WebpackOptionsNormalized): Configuration => {
+  // Определяем режим работы Webpack: development или production
   const mode = argv.mode === 'production' ? 'production' : 'development';
   const isProduction = argv.mode === 'production';
 
+  // Загружаем переменные окружения из файла .env.
   const dotenvParsed = dotenv.config({ path: path.resolve(__dirname, `.env.${mode}`) }).parsed || {};
 
   return {
@@ -65,7 +70,7 @@ const config = (env: Record<string, unknown>, argv: WebpackOptionsNormalized): C
         {
           test: /\.css$/,
           use: [
-            'style-loader', // Встраивает CSS в JS
+            isProduction ? MiniCssExtractPlugin.loader : 'style-loader', // В продакшене выносим CSS в отдельные файлы
             'css-loader',
             'postcss-loader',
           ],
@@ -74,7 +79,7 @@ const config = (env: Record<string, unknown>, argv: WebpackOptionsNormalized): C
         {
           test: /\.module\.css$/,
           use: [
-            'style-loader', // Встраивает CSS в JS
+            isProduction ? MiniCssExtractPlugin.loader : 'style-loader',
             {
               loader: 'css-loader',
               options: {
@@ -90,48 +95,57 @@ const config = (env: Record<string, unknown>, argv: WebpackOptionsNormalized): C
         },
         {
           test: /\.(png|jpe?g|gif|svg)$/i,
-          type: 'asset/inline', // Встраивает ресурсы в JS
+          type: 'asset', // Webpack сам решает, инлайнить или выносить в файл
+          parser: {
+            dataUrlCondition: {
+              maxSize: 8192, // Картинки до 8KB будут инлайниться, остальные — выноситься в файлы
+            },
+          },
         },
       ],
     },
 
-    // Оптимизация для production
+    // Оптимизация сборки
     optimization: isProduction
       ? {
-          minimize: true,
-          minimizer: [new TerserPlugin()],
+          minimize: true, // Включаем минимизацию
+          minimizer: [new TerserPlugin(), new CssMinimizerPlugin()], // Минифицируем JS и CSS
+          splitChunks: {
+            chunks: 'all', // Разбиваем код на чанки
+          },
         }
       : {},
 
-    // Плагины
+    // Подключаем плагины
     plugins: [
       new DefinePlugin({
         'process.env': JSON.stringify(dotenvParsed),
       }),
-      new ForkTsCheckerWebpackPlugin(),
-      // Для главной страницы (index.html)
+      new ForkTsCheckerWebpackPlugin(), // Проверка типов в отдельном процессе
       new HtmlWebpackPlugin({
         filename: `${Entries.main}.html`, // Имя файла HTML для main страницы
         template: './public/template.html', // Шаблон для страницы
         chunks: [Entries.main], // Указываем, что для этой страницы будет использован только main.js
       }),
-      // Для страницы admin (admin.html)
       new HtmlWebpackPlugin({
-        filename: `${Entries.platforms}.html`, // Имя файла HTML для admin страницы
-        template: './public/template.html', // Используем тот же шаблон, или можно указать другой
-        chunks: [Entries.platforms], // Указываем, что для этой страницы будет использован только admin.js
+        filename: `${Entries.platforms}.html`,
+        template: './public/template.html',
+        chunks: [Entries.platforms],
+      }),
+      new MiniCssExtractPlugin({
+        filename: '[name].[contenthash].css', // Генерация отдельных CSS-файлов
       }),
       new ESLintPlugin({
-        extensions: ['js', 'ts', 'jsx', 'tsx'], // Укажите расширения файлов, которые будут проверяться
+        extensions: ['js', 'ts', 'jsx', 'tsx'],
         emitWarning: false, // Показывать предупреждения в консоли (по умолчанию false)
         emitError: true, // Генерировать ошибки при нарушении правил (по умолчанию false)
-        failOnError: true, // Остановить сборку при ошибках ESLint (по умолчанию false)
-        lintDirtyModulesOnly: true, // Проверка только изменённых файлов
+        failOnError: true, // Останавливаем сборку при ошибках ESLint
+        lintDirtyModulesOnly: true, // Проверяем только изменённые файлы
         configType: 'eslintrc',
       }),
     ],
 
-    // Расширения, которые можно не указывать при импорте
+    // Разрешенные расширения для импортов
     resolve: {
       extensions: ['.ts', '.tsx', '.js', '.jsx'],
     },
