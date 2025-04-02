@@ -1,6 +1,7 @@
 .simple-ul {
   list-style: outside;
   padding: 0 0 0 16px;
+  margin: 0;
 }
 
 .simple-ul > li {
