@@ -3,8 +3,11 @@ import React, { useEffect, useState } from 'react';
 
 import * as styles from './Header.module.css';
 import { LOGO_URL } from '../../../../../constants/common';
+import { scrollIntoAnchor } from '../../../../../packages/utils';
+import { MAIN_FORM_ID } from '../../../../../pages/main/constants/pageAnchors';
 import { MobileMenuToggle } from '../MobileMenuToggle';
 import { IMenuItem } from './types';
+import { Button } from '../../../../components/Button';
 
 interface HeaderProps {
   menuItems: IMenuItem[];
@@ -36,6 +39,16 @@ export const Header: React.FC<HeaderProps> = ({ menuItems }) => {
             );
           })}
         </ul>
+
+        <Button
+          theme="green-outlined"
+          onClick={() => {
+            setMenuOpened(false);
+            setTimeout(() => scrollIntoAnchor(MAIN_FORM_ID), 100);
+          }}
+        >
+          Оставить заявку
+        </Button>
 
         <MobileMenuToggle opened={menuOpened} onClick={() => setMenuOpened(prev => !prev)} />
       </nav>

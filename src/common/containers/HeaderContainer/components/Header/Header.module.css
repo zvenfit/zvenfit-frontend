@@ -33,7 +33,12 @@ nav.header__nav {
   background-color: inherit;
   color: #ffffff;
 }
-.header__nav > button {
+.header__nav > button:nth-last-child(2) {
+  position: relative;
+  z-index: 1;
+  display: none;
+}
+.header__nav > button:last-child {
   z-index: 1;
 }
 .header__logo {
@@ -110,6 +115,11 @@ nav.header__nav {
   .header__menu--active {
     left: -200px;
   }
+  .header__nav > button:nth-last-child(2) {
+    display: inline-block;
+    margin-right: 40px;
+    line-height: 40px;
+  }
 }
 @media screen and (min-width: 960px) {
   .header::before {
@@ -119,7 +129,10 @@ nav.header__nav {
     padding-top: 20px;
     padding-bottom: 20px;
   }
-  .header__nav > button {
+  .header__nav > button:nth-last-child(2) {
+    margin-right: 0;
+  }
+  .header__nav > button:last-child {
     display: none;
   }
   .header__logo {
