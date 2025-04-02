@@ -5,7 +5,7 @@ import { MainFormLink } from '../../MainFormLink';
 import { ModalLayout } from '../../ModalLayout';
 import * as commonStyles from '../assets/common-styles.module.css';
 
-const IMAGE_URL = 'https://storage.yandexcloud.net/zvenfit/static-images/modals/dance-fitness.jpg';
+const IMAGE_URL = 'https://storage.yandexcloud.net/zvenfit/static-images/modals/zumba.jpg';
 
 export const ZumbaModal: React.FC = () => {
   const { open, onClose } = useHashHistoryModal();
