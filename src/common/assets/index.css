@@ -23,8 +23,7 @@ body {
 }
 
 body.body--no-scroll {
-  position: fixed;
-  overflow: hidden;
+  overflow: hidden !important;
 }
 
 code {
