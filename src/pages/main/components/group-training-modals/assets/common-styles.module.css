@@ -1,5 +1,10 @@
 .simple-ul {
-  list-style: inside;
+  list-style: outside;
+  padding: 0 0 0 16px;
+}
+
+.simple-ul > li {
+  text-align: justify;
 }
 
 .bold {
