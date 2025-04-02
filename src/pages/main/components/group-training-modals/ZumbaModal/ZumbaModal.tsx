@@ -5,8 +5,7 @@ import { MainFormLink } from '../../MainFormLink';
 import { ModalLayout } from '../../ModalLayout';
 import * as commonStyles from '../assets/common-styles.module.css';
 
-const IMAGE_URL =
-  'https://sun9-24.userapi.com/s/v1/ig2/RlfWIIsCTHycSWxb6ChvX_wU0-GN5olfYmWFAHHQ2resbwvrmH4p4Gk4iE6R5UdnbLVoxQH2n1rf8tcSc17BCZxx.jpg?quality=95&as=32x32,48x48,72x72,108x108,160x160,240x240,360x360,480x480,540x540,640x640,720x720,1080x1080&from=bu&u=Nh76FprPSBSoY-Y-07tk6S5NeJ0hNtOpeK1VsFl27ys&cs=807x807';
+const IMAGE_URL = 'https://storage.yandexcloud.net/zvenfit/static-images/modals/dance-fitness.jpg';
 
 export const ZumbaModal: React.FC = () => {
   const { open, onClose } = useHashHistoryModal();
