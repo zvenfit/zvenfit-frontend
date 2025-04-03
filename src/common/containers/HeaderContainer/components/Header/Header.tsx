@@ -32,7 +32,15 @@ export const Header: React.FC<HeaderProps> = ({ menuItems }) => {
           {menuItems.map(item => {
             return (
               <li key={item.title} className={styles['header__menu-item']}>
-                <a href={item.link} className={styles['header__menu-item-link']} onClick={() => setMenuOpened(false)}>
+                <a
+                  href={`#${item.link}`}
+                  className={styles['header__menu-item-link']}
+                  onClick={e => {
+                    e.preventDefault();
+                    setMenuOpened(false);
+                    scrollIntoAnchor(item.link);
+                  }}
+                >
                   {item.title}
                 </a>
               </li>
