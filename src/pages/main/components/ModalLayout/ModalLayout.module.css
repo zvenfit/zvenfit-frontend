@@ -29,6 +29,7 @@
 .image {
   width: 100%;
   min-height: 373px;
+  content-visibility: auto;
 }
 
 .content strong {
