@@ -25,7 +25,7 @@ export const Header: React.FC<HeaderProps> = ({ menuItems }) => {
     <header id="header" className={clsx(styles['header'], menuOpened && styles['header--menu-opened'])}>
       <nav className={clsx('container', styles['header__nav'])}>
         <a href="/" className={styles['header__logo']}>
-          <img src={LOGO_URL} alt="Логотип" width="59" height="30" className={styles['header__logo-img']} />
+          <img src={LOGO_URL} alt="Логотип" width="250" height="128" className={styles['header__logo-img']} />
         </a>
 
         <ul className={clsx(styles['header__menu'], menuOpened && styles['header__menu--active'])}>
