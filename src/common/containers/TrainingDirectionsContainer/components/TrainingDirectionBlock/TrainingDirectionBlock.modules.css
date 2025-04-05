@@ -33,9 +33,6 @@
   font-weight: 400;
   line-height: 32px;
   text-transform: uppercase;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  overflow: hidden;
 }
 .training-directions__list-item-description {
   max-height: 75dvh;
