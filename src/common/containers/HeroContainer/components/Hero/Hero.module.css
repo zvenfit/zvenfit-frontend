@@ -1,9 +1,9 @@
 .hero {
   position: relative;
-  height: calc(100dvh - 62px);
-  max-height: calc(100dvh - 62px);
-  padding-top: 40px;
-  padding-bottom: 80px;
+  height: calc(100dvh - 54px);
+  max-height: calc(100dvh - 54px);
+  padding-top: 10px;
+  padding-bottom: 60px;
   background-position: 82% 50%;
   background-repeat: no-repeat;
   background-size: cover;
@@ -54,6 +54,7 @@ div.hero__container {
   display: flex;
   flex-direction: column;
   justify-content: space-around;
+  gap: 10px;
   height: 100%;
 }
 .hero__title {
@@ -77,16 +78,16 @@ div.hero__container {
 .hero__buttons-wrapper > button + button {
   margin-top: 16px;
 }
-.hero > a {
+.hero__arrow-button {
   position: absolute;
   left: 50%;
-  bottom: 30px;
+  bottom: 16px;
   transform: translateX(-50%);
 }
 @media screen and (min-width: 640px) {
   .hero {
-    height: calc(100dvh - 78px);
-    max-height: calc(100dvh - 78px);
+    height: calc(100dvh - 70px);
+    max-height: calc(100dvh - 70px);
   }
   .hero__call-us {
     font-size: 20px;
@@ -105,10 +106,14 @@ div.hero__container {
   .hero {
     height: calc(100dvh - 94px);
     max-height: calc(100dvh - 94px);
+    padding-top: 40px;
   }
   .hero__title {
     font-size: 56px;
     line-height: 64px;
+  }
+  .hero__arrow-button {
+    bottom: 30px;
   }
 }
 @media screen and (min-width: 1360px) {

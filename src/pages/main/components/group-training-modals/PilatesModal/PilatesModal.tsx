@@ -5,8 +5,7 @@ import { MainFormLink } from '../../MainFormLink';
 import { ModalLayout } from '../../ModalLayout';
 import * as commonStyles from '../assets/common-styles.module.css';
 
-const IMAGE_URL =
-  'https://sun9-21.userapi.com/s/v1/ig2/hB0_xTpR9Zqs1Q8dL_vmMIvrBVYgVU7YaGhxPSOm8XA2-CBLyzQu3iKAsCSjYepLu5spa9Wbi47bqW3DWfOzB0hm.jpg?quality=95&as=32x32,48x48,72x72,108x108,160x160,240x240,360x360,480x480,540x540,640x640,720x720,1080x1080&from=bu&u=1-4UhKSB3NqkW7VjFdj70uJ8uAqezCGvwNxeAmhtLUk&cs=807x807';
+const IMAGE_URL = 'https://storage.yandexcloud.net/zvenfit/static-images/modals/pilatates.jpg';
 
 export const PilatesModal: React.FC = () => {
   const { open, onClose } = useHashHistoryModal();

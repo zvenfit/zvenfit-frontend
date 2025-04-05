@@ -79,8 +79,8 @@ export const Form: React.FC = () => {
           )}
         />
 
-        <InputLabel htmlFor="name" isTopPosition={!!name}>
-          Имя *
+        <InputLabel htmlFor="name" isTopPosition={!!name} required>
+          Имя
         </InputLabel>
 
         <ClearButton show={!!name} onClick={() => onClickClear('name', nameInputRef)} />
@@ -107,8 +107,8 @@ export const Form: React.FC = () => {
           )}
         />
 
-        <InputLabel htmlFor="phone" isTopPosition={!!phone}>
-          Номер телефона *
+        <InputLabel htmlFor="phone" isTopPosition={!!phone} required>
+          Номер телефона
         </InputLabel>
 
         <ClearButton show={!!phone} onClick={() => onClickClear('phone', phoneInputRef)} />

@@ -8,7 +8,6 @@ interface Dependencies {
   config: IConfig;
 }
 
-/*TODO исправить ссылку на логотип, когда она будет известна*/
 export function getLdJsonSchema({ config }: Dependencies) {
   const host = config.get('HOST', HOST_DEFAULT);
 

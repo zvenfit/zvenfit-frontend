@@ -106,7 +106,7 @@
   .contacts-info {
     justify-content: center;
     width: 50%;
-    min-height: 100dvh;
+    min-height: 100vh;
     margin-right: auto;
   }
   .contacts-info__main-title {

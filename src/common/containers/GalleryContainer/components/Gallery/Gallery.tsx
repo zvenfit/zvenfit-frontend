@@ -27,7 +27,14 @@ export const Gallery: React.FC<GalleryProps> = ({ images }) => {
         <div className={styles['gallery__content']}>
           {images.map((image: IImageItem, index: number) => (
             <div key={index} className={styles['gallery__img-wrapper']}>
-              <img className={styles['gallery__content-img']} src={image.src} alt={image.alt} />
+              <img
+                src={image.src}
+                alt={image.alt || 'Изображение'}
+                width="827"
+                height="827"
+                loading="lazy"
+                className={styles['gallery__content-img']}
+              />
             </div>
           ))}
         </div>

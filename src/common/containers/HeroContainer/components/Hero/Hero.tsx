@@ -48,7 +48,7 @@ export const Hero: React.FC<HeroProps> = ({ title, imageUrl, children }) => {
         </div>
       </div>
 
-      {children}
+      <div className={styles['hero__arrow-button']}>{children}</div>
     </section>
   );
 };

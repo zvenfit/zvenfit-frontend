@@ -12,6 +12,9 @@
   cursor: text;
   transition: top 0.15s ease;
 }
+.input-label--required::after {
+  content: " *"
+}
 .input-label--to-top {
   top: 0;
   font-size: 12px;
