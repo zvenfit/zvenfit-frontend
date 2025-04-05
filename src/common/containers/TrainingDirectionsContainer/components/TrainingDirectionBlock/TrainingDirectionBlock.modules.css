@@ -35,7 +35,7 @@
   text-transform: uppercase;
 }
 .training-directions__list-item-description {
-  max-height: 75dvh;
+  max-height: 70dvh;
   margin-bottom: 32px;
   font-size: 20px;
   line-height: 28px;
