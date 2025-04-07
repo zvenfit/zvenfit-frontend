@@ -1,5 +1,5 @@
 import { clsx } from 'clsx';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 
 import * as styles from './Header.module.css';
 import { LOGO_URL } from '../../../../../constants/common';
@@ -21,6 +21,17 @@ export const Header: React.FC<HeaderProps> = ({ menuItems }) => {
     document.body.classList[method]('body--no-scroll');
   }, [menuOpened]);
 
+  const onClickMenuItem = (e: React.MouseEvent<HTMLAnchorElement>, anchor = 'string') => {
+    e.preventDefault();
+    setMenuOpened(false);
+    scrollIntoAnchor(anchor);
+  };
+
+  const submitApplication = useCallback(() => {
+    setMenuOpened(false);
+    setTimeout(() => scrollIntoAnchor(MAIN_FORM_ID), 100);
+  }, []);
+
   return (
     <header id="header" className={clsx(styles['header'], menuOpened && styles['header--menu-opened'])}>
       <nav className={clsx('container', styles['header__nav'])}>
@@ -35,11 +46,7 @@ export const Header: React.FC<HeaderProps> = ({ menuItems }) => {
                 <a
                   href={`#${item.link}`}
                   className={styles['header__menu-item-link']}
-                  onClick={e => {
-                    e.preventDefault();
-                    setMenuOpened(false);
-                    scrollIntoAnchor(item.link);
-                  }}
+                  onClick={e => onClickMenuItem(e, item.link)}
                 >
                   {item.title}
                 </a>
@@ -48,13 +55,7 @@ export const Header: React.FC<HeaderProps> = ({ menuItems }) => {
           })}
         </ul>
 
-        <Button
-          theme="green-outlined"
-          onClick={() => {
-            setMenuOpened(false);
-            setTimeout(() => scrollIntoAnchor(MAIN_FORM_ID), 100);
-          }}
-        >
+        <Button theme="green-outlined" onClick={submitApplication}>
           Оставить заявку
         </Button>
 
