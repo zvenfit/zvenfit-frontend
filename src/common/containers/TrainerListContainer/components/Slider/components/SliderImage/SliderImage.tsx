@@ -8,7 +8,7 @@ interface SliderImageProps {
   imageAlt?: string;
 }
 
-export const SliderImage: React.FC<SliderImageProps> = ({ imageSrc, imageTitle, imageAlt = 'Фото' }) => {
+export const SliderImage: React.FC<SliderImageProps> = ({ imageSrc, imageTitle, imageAlt = '' }) => {
   return (
     <figure className={styles['slider-image']}>
       <div className={styles['slider-image__image-helper']}>

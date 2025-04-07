@@ -49,7 +49,7 @@ export const Slider: React.FC<SliderProps> = ({ photos }) => {
         {photos.map((photo: IPhoto) => {
           return (
             <SwiperSlide key={photo.src}>
-              <SliderImage imageSrc={photo.src} imageTitle={photo.name} />
+              <SliderImage imageSrc={photo.src} imageAlt={photo.name} imageTitle={photo.name} />
             </SwiperSlide>
           );
         })}

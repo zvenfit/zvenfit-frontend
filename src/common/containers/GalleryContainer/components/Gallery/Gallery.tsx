@@ -29,7 +29,7 @@ export const Gallery: React.FC<GalleryProps> = ({ images }) => {
             <div key={index} className={styles['gallery__img-wrapper']}>
               <img
                 src={image.src}
-                alt={image.alt || 'Изображение'}
+                alt={image.alt || ''}
                 width="827"
                 height="827"
                 loading="lazy"
