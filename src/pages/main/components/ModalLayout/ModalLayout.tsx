@@ -9,7 +9,7 @@ type LayoutProps = React.PropsWithChildren<{
 export const ModalLayout: React.FC<LayoutProps> = ({ img, children }) => {
   return (
     <div className={styles['wrapper']}>
-      {img && <img src={img} alt="" className={styles['image']} />}
+      {img && <img src={img} width="1080" height="1080" alt="" loading="lazy" className={styles['image']} />}
       <div className={styles['content']}>{children}</div>
     </div>
   );
