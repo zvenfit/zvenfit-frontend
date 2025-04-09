@@ -21,9 +21,10 @@ export const Header: React.FC<HeaderProps> = ({ menuItems }) => {
     document.body.classList[method]('body--no-scroll');
   }, [menuOpened]);
 
-  const onClickMenuItem = (e: React.MouseEvent<HTMLAnchorElement>, anchor = 'string') => {
+  const onClickMenuItem = (e: React.MouseEvent<HTMLAnchorElement>) => {
     e.preventDefault();
     setMenuOpened(false);
+    const anchor = e.currentTarget.hash.replace('#', '');
     scrollIntoAnchor(anchor);
   };
 
@@ -43,11 +44,7 @@ export const Header: React.FC<HeaderProps> = ({ menuItems }) => {
           {menuItems.map(item => {
             return (
               <li key={item.title} className={styles['header__menu-item']}>
-                <a
-                  href={`#${item.link}`}
-                  className={styles['header__menu-item-link']}
-                  onClick={e => onClickMenuItem(e, item.link)}
-                >
+                <a href={`#${item.link}`} className={styles['header__menu-item-link']} onClick={onClickMenuItem}>
                   {item.title}
                 </a>
               </li>
