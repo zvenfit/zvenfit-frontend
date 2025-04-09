@@ -24,7 +24,8 @@ export const Header: React.FC<HeaderProps> = ({ menuItems }) => {
   const onClickMenuItem = (e: React.MouseEvent<HTMLAnchorElement>) => {
     e.preventDefault();
     setMenuOpened(false);
-    const anchor = e.currentTarget.hash.replace('#', '');
+
+    const anchor = e.currentTarget.hash.slice(1);
     scrollIntoAnchor(anchor);
   };
 
