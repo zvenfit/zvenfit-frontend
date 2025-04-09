@@ -122,6 +122,9 @@ nav.header__nav {
   }
 }
 @media screen and (min-width: 960px) {
+  .header {
+    min-height: 94px;
+  }
   .header::before {
     content: none;
   }
@@ -163,7 +166,7 @@ nav.header__nav {
 }
 @media screen and (min-width: 1360px) {
   .header {
-    min-height: unset;
+    min-height: 112px;
   }
   nav.header__nav {
     padding-top: 24px;
