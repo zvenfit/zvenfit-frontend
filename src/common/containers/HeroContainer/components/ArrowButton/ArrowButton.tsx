@@ -19,7 +19,7 @@ export const ArrowButton: React.FC<ArrowButtonProps> = ({ href }) => {
       role="button"
       aria-label="Перейти к форме регистрации"
       className={styles['arrow-button']}
-      onClick={e => onClick(e)}
+      onClick={onClick}
     >
       <span className={styles['arrow-button__arrow']} />
     </a>
