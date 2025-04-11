@@ -102,7 +102,11 @@ nav.header__nav {
 }
 @media screen and (min-width: 640px) {
   .header {
-    min-height: 70px;
+    min-height: 62px;
+  }
+  nav.header__nav {
+    padding-top: 8px;
+    padding-bottom: 8px;
   }
   .header__logo {
     height: 46px;
@@ -122,6 +126,9 @@ nav.header__nav {
   }
 }
 @media screen and (min-width: 960px) {
+  .header {
+    min-height: 94px;
+  }
   .header::before {
     content: none;
   }
@@ -163,7 +170,7 @@ nav.header__nav {
 }
 @media screen and (min-width: 1360px) {
   .header {
-    min-height: unset;
+    min-height: 112px;
   }
   nav.header__nav {
     padding-top: 24px;
