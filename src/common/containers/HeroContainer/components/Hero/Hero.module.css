@@ -55,7 +55,7 @@ div.hero__container {
   display: flex;
   flex-direction: column;
   justify-content: space-around;
-  gap: 10px;
+  gap: 4px;
   height: 100%;
 }
 .hero__title {
@@ -96,8 +96,8 @@ div.hero__container {
     line-height: 28px;
   }
   .hero__title {
-    font-size: 48px;
-    line-height: 56px;
+    font-size: clamp(28px, 10vh, 48px);
+    line-height: clamp(36px, 10vh, 56px);
   }
   .hero__buttons-wrapper > button + button {
     margin-top: 0;
