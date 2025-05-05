@@ -14,7 +14,11 @@ export const PHOTOS: IPhoto[] = [
     src: 'https://storage.yandexcloud.net/zvenfit/static-images/trainer-list/03-oksana.jpeg',
   },
   {
-    name: 'Елена',
-    src: 'https://storage.yandexcloud.net/zvenfit/static-images/trainer-list/04-elena.jpeg',
+    name: 'Анна',
+    src: 'https://storage.yandexcloud.net/zvenfit/static-images/trainer-list/04-anna.jpeg',
+  },
+  {
+    name: 'Олег',
+    src: 'https://storage.yandexcloud.net/zvenfit/static-images/trainer-list/05-oleg.jpeg',
   },
 ];
