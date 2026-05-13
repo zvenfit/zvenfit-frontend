@@ -4264,3 +4264,75 @@ body {
   font-style: normal;
   font-display: swap;
 }
+
+/* Inline styles moved from HTML */
+.grain-overlay {
+  pointer-events: none;
+}
+
+.reviews-wrapper {
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.reviews-wrapper::-webkit-scrollbar {
+  display: none;
+}
+
+.custom-select {
+  position: relative;
+}
+
+.select-selected {
+  background: #1a1a1a;
+  border: 2px solid white;
+  border-radius: 10px;
+  padding: 12px;
+  cursor: pointer;
+  min-height: 48px;
+  display: flex;
+  align-items: left;
+  box-sizing: border-box;
+}
+
+.select-options {
+  display: none;
+  position: absolute;
+  width: 100%;
+  background: #1a1a1a;
+  border: 2px solid white;
+  border-radius: 10px;
+  margin-top: 5px;
+  overflow: hidden;
+  z-index: 10;
+}
+
+.select-options div {
+  padding: 10px;
+  font-size: 20px;
+  cursor: pointer;
+}
+
+.select-options div:hover {
+  background: #2a2a2a;
+}
+
+.select-options div:first-child:hover {
+  border-top-left-radius: 10px;
+  border-top-right-radius: 10px;
+}
+
+.select-options div:last-child:hover {
+  border-bottom-left-radius: 10px;
+  border-bottom-right-radius: 10px;
+}
+
+@media (max-width: 767px) {
+  .select-options div {
+    font-size: 15px;
+  }
+}
+
+.select-options div.active {
+  background: #2a2a2a;
+}
