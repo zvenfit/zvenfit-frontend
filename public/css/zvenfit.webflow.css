@@ -1,0 +1,4338 @@
+@font-face {
+  font-family: Roadrage;
+  src: url('https://storage.yandexcloud.net/zvenfit/v2/fonts/roadrage.ttf') format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  --bg: #020202;
+  --transparent: transparent;
+  --accent: #00d10e;
+  --white: #fff;
+  --purple: #b949ff;
+  --bg-light: #1a1a1a;
+  --gray: #757575;
+}
+
+body {
+  color: #333;
+  font-family: Arial, Helvetica Neue, Helvetica, sans-serif;
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.body {
+  background-color: var(--bg);
+  pointer-events: auto;
+  padding-top: 20px;
+  padding-left: 60px;
+  padding-right: 60px;
+}
+
+.grain-overlay {
+  z-index: 1;
+  opacity: .05;
+  pointer-events: auto;
+  mix-blend-mode: normal;
+  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/grain.gif');
+  background-position: 0 0;
+  background-size: auto;
+  display: block;
+  position: fixed;
+  inset: 0;
+}
+
+.menu-txt {
+  color: #777;
+  text-transform: uppercase;
+  justify-content: flex-start;
+  align-items: center;
+  font-family: Roboto Condensed, sans-serif;
+  font-size: 18px;
+  text-decoration: none;
+  display: flex;
+}
+
+.menu1 {
+  z-index: 100;
+  background-image: linear-gradient(180deg, black, #0000003b 77%, var(--transparent));
+  flex-flow: wrap;
+  justify-content: flex-start;
+  align-items: center;
+  padding: 20px 60px 30px;
+  display: block;
+  position: fixed;
+  inset: 0% 0% auto;
+}
+
+.menu_grid {
+  grid-column-gap: 16px;
+  grid-row-gap: 16px;
+  flex-flow: row;
+  grid-template-rows: auto;
+  grid-template-columns: 1fr 1fr 1fr;
+  grid-auto-columns: 1fr;
+  grid-auto-flow: row;
+  place-content: center space-between;
+  place-items: center stretch;
+  display: grid;
+}
+
+.menu_grid._1 {
+  justify-content: space-between;
+  justify-items: stretch;
+  display: flex;
+}
+
+.h1-main {
+  color: var(--accent);
+  text-align: center;
+  text-transform: uppercase;
+  margin-top: 70px;
+  margin-bottom: 10px;
+  font-family: Roadrage, Impact, sans-serif;
+  font-size: 200px;
+  font-weight: 400;
+  line-height: 100%;
+}
+
+.p1 {
+  grid-column-gap: 0px;
+  grid-row-gap: 0px;
+  color: var(--white);
+  text-align: center;
+  text-transform: uppercase;
+  margin-bottom: 20px;
+  font-family: Roboto Condensed, sans-serif;
+  font-size: 30px;
+  font-weight: 500;
+  line-height: 130%;
+}
+
+.p1.categ {
+  text-align: left;
+  max-width: 80vh;
+  margin-bottom: 10px;
+}
+
+.p1.left {
+  text-align: left;
+  align-self: flex-start;
+}
+
+.p1.policy {
+  margin-bottom: 40px;
+  font-size: 50px;
+  line-height: 110%;
+}
+
+.cover_text {
+  grid-column-gap: 20px;
+  grid-row-gap: 20px;
+  flex-flow: column;
+  justify-content: flex-start;
+  align-items: center;
+  display: flex;
+}
+
+.button {
+  border: 2px solid var(--purple);
+  color: var(--purple);
+  text-align: center;
+  text-transform: uppercase;
+  cursor: pointer;
+  background-color: #fff0;
+  border-radius: 15px;
+  flex-flow: row;
+  justify-content: center;
+  align-items: center;
+  padding: 15px 30px;
+  font-family: Roboto Condensed, sans-serif;
+  font-size: 20px;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.button:hover {
+  background-color: var(--purple);
+  color: var(--bg);
+}
+
+.button.categ {
+  position: static;
+}
+
+.button.page {
+  align-self: flex-start;
+  max-width: 235px;
+}
+
+.button.areas {
+  border-color: var(--accent);
+  color: var(--accent);
+  position: static;
+}
+
+.button.areas:hover {
+  background-color: var(--accent);
+  color: var(--bg);
+}
+
+.button.coach {
+  align-self: flex-start;
+  max-width: 270px;
+}
+
+.button.coach:hover {
+  background-color: var(--purple);
+  color: var(--bg);
+  text-decoration: none;
+}
+
+.card_l {
+  background-image: linear-gradient(180deg, var(--transparent) 50%, black), url('https://storage.yandexcloud.net/zvenfit/v2/images/coaches/olga-4.jpeg');
+  filter: grayscale();
+  background-position: 0 0, 50%;
+  background-size: auto, cover;
+  border-radius: 20px;
+  flex-flow: row;
+  justify-content: flex-start;
+  align-items: flex-end;
+  height: 500px;
+  padding-bottom: 10px;
+  padding-left: 20px;
+  display: flex;
+}
+
+.card_grid {
+  grid-column-gap: 40px;
+  grid-row-gap: 40px;
+  flex-flow: row;
+  grid-template-rows: auto;
+  grid-template-columns: 1fr 1fr 1fr;
+  grid-auto-columns: 1fr;
+  grid-auto-flow: row;
+  place-content: center space-between;
+  place-items: start stretch;
+  margin-top: 0;
+  display: grid;
+}
+
+.card_grid.main {
+  place-items: end stretch;
+}
+
+.text-block {
+  color: var(--white);
+  text-transform: uppercase;
+  flex-flow: row;
+  justify-content: flex-start;
+  align-items: center;
+  width: auto;
+  margin-top: 0;
+  margin-bottom: 0;
+  font-family: Roboto Condensed, sans-serif;
+  font-size: 30px;
+  font-weight: 400;
+  line-height: 120%;
+  display: flex;
+}
+
+.card_middle {
+  background-image: linear-gradient(180deg, var(--transparent) 50%, black), url('https://storage.yandexcloud.net/zvenfit/v2/images/coaches/oksana-4.jpeg');
+  filter: grayscale();
+  background-position: 0 0, 50%;
+  background-size: auto, cover;
+  border-radius: 20px;
+  flex: 0 auto;
+  justify-content: flex-start;
+  align-items: flex-end;
+  height: 350px;
+  padding-bottom: 10px;
+  padding-left: 20px;
+  display: flex;
+}
+
+.card_r {
+  background-image: linear-gradient(180deg, var(--transparent) 50%, black), url('https://storage.yandexcloud.net/zvenfit/v2/images/coaches/ella-4.jpeg');
+  filter: grayscale();
+  background-position: 0 0, 50%;
+  background-size: auto, cover;
+  border-radius: 20px;
+  flex: 0 auto;
+  justify-content: flex-start;
+  align-items: flex-end;
+  height: 500px;
+  padding-bottom: 10px;
+  padding-left: 20px;
+  display: flex;
+}
+
+.link-block {
+  justify-content: flex-start;
+  align-items: center;
+  text-decoration: none;
+  display: flex;
+}
+
+.divider {
+  height: 200px;
+}
+
+.divider.footer {
+  height: 40px;
+}
+
+.slider-main {
+  grid-column-gap: 40px;
+  grid-row-gap: 40px;
+  grid-template-rows: auto;
+  grid-template-columns: 1fr 1fr 1fr;
+  grid-auto-columns: 1fr;
+  justify-content: center;
+  place-items: start stretch;
+  display: grid;
+}
+
+.slider_content {
+  flex-flow: column;
+  flex: 0 auto;
+  justify-content: space-between;
+  align-items: flex-start;
+  height: 400px;
+  display: flex;
+}
+
+.slider_photo {
+  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/club-zones/main-hall-3.png');
+  background-position: 50%;
+  background-size: cover;
+  border-radius: 20px;
+  flex: 0 auto;
+  height: 500px;
+}
+
+.slider_photo._2 {
+  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/club-zones/cardio-zone-2.jpg');
+}
+
+.slider_photo._3 {
+  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/club-zones/dressing-room-2.jpeg');
+}
+
+.slider_photo._4 {
+  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/coaches/efim-1.jpeg');
+}
+
+.slider_photo._5 {
+  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/club-zones/group-reformer-2.JPG');
+}
+
+.grid_main {
+  grid-column-gap: 0px;
+  grid-row-gap: 0px;
+  grid-template-rows: auto auto auto auto auto;
+  grid-template-columns: 1fr 1fr 1fr;
+  grid-auto-columns: 1fr;
+  grid-auto-flow: column;
+  place-items: center;
+  max-width: 1440px;
+  display: grid;
+}
+
+.heading {
+  color: var(--white);
+  margin-top: 0;
+  margin-bottom: 20px;
+  font-family: Roadrage, Impact, sans-serif;
+  font-size: 60px;
+  font-weight: 400;
+  line-height: 110%;
+}
+
+.heading._1 {
+  color: var(--purple);
+  font-size: 50px;
+}
+
+.heading.categ {
+  color: var(--accent);
+  margin-bottom: 40px;
+}
+
+.bold-text {
+  font-weight: 400;
+}
+
+.text-span {
+  color: var(--purple);
+}
+
+.body_txt {
+  color: var(--white);
+  font-family: Roboto, sans-serif;
+  font-size: 20px;
+  font-weight: 400;
+  line-height: 130%;
+}
+
+.body_txt.cont {
+  text-transform: lowercase;
+  font-size: 20px;
+}
+
+.body_txt.faq {
+  margin-top: 10px;
+  margin-bottom: 0;
+}
+
+.bold-text-2 {
+  text-transform: none;
+  font-family: Roboto, sans-serif;
+  font-weight: 400;
+}
+
+.slider_arrows {
+  grid-column-gap: 15px;
+  grid-row-gap: 15px;
+  display: flex;
+}
+
+.left_arrow {
+  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/arrow-left.svg');
+  background-position: 50%;
+  background-size: cover;
+  width: 70px;
+  height: 30px;
+}
+
+.right_arrow {
+  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/arrow-right.svg');
+  background-position: 50%;
+  background-size: cover;
+  width: 70px;
+  height: 30px;
+}
+
+.link-block-2, .link-block-3 {
+  text-decoration: none;
+}
+
+.slider {
+  background-color: #0000;
+  height: 500px;
+}
+
+.left-arrow {
+  border: 2px solid var(--accent);
+  border-radius: 10px;
+  width: 70px;
+  height: 30px;
+  font-size: 20px;
+  display: block;
+  position: absolute;
+  top: 93%;
+  left: auto;
+  right: 85px;
+}
+
+.right-arrow {
+  border: 2px solid var(--accent);
+  border-radius: 10px;
+  width: 70px;
+  height: 30px;
+  font-size: 20px;
+  display: block;
+  top: 93%;
+}
+
+.icon, .code-embed, .icon-2 {
+  color: var(--accent);
+}
+
+.image {
+  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/club-zones/main-hall-3.png');
+  background-size: cover;
+  display: inline-block;
+}
+
+.div-block {
+  grid-column-gap: 16px;
+  grid-row-gap: 16px;
+  grid-template-rows: auto auto;
+  grid-template-columns: 1fr 1fr;
+  grid-auto-columns: 1fr;
+  display: grid;
+}
+
+.cat_card {
+  border: 2px solid var(--white);
+  border-radius: 20px;
+  flex-flow: column;
+  height: 400px;
+  padding: 40px;
+  display: block;
+}
+
+.cat_card.categ {
+  grid-column-gap: 30px;
+  grid-row-gap: 30px;
+  justify-content: space-between;
+  align-items: flex-start;
+  height: auto;
+  min-height: 500px;
+  padding: 30px;
+  display: flex;
+}
+
+.cat_card.facts {
+  height: auto;
+  min-height: 500px;
+}
+
+.cat_card.areas {
+  background-color: var(--bg-light);
+  border-width: 0;
+  justify-content: space-between;
+  align-items: flex-start;
+  height: 450px;
+  display: flex;
+}
+
+.cat_card.coach {
+  background-color: var(--bg-light);
+  border-width: 0;
+  justify-content: space-between;
+  align-items: flex-start;
+  height: 300px;
+  display: flex;
+}
+
+.cat_card.facts-inside-page {
+  width: 100%;
+  height: 450px;
+}
+
+.cat_card.areas_black {
+  justify-content: space-between;
+  align-items: flex-start;
+  height: 450px;
+  display: flex;
+}
+
+.cat_card.areas_page {
+  background-color: var(--bg-light);
+  border-width: 0;
+  justify-content: space-between;
+  align-items: flex-start;
+  height: auto;
+  min-height: 500px;
+  display: flex;
+}
+
+.cat_card.categ-page {
+  grid-column-gap: 50px;
+  grid-row-gap: 50px;
+  justify-content: space-between;
+  align-items: flex-start;
+  height: auto;
+  min-height: 500px;
+  display: flex;
+}
+
+.text_categ {
+  grid-column-gap: 15px;
+  grid-row-gap: 15px;
+  flex-flow: column;
+  align-self: flex-start;
+  display: flex;
+}
+
+.footer {
+  color: var(--white);
+  text-transform: uppercase;
+  flex-flow: row;
+  margin-bottom: 20px;
+  font-family: Roboto Condensed, sans-serif;
+  font-size: 60px;
+  font-weight: 700;
+  line-height: 115%;
+  display: flex;
+}
+
+.txt_cont {
+  grid-row-gap: 10px;
+  flex-flow: row;
+  justify-content: space-between;
+  align-items: flex-start;
+  display: flex;
+}
+
+.link {
+  color: #727272;
+  margin-bottom: 10px;
+  margin-left: auto;
+  margin-right: auto;
+  font-family: Roboto, sans-serif;
+  font-size: 20px;
+  display: flex;
+}
+
+.link._1 {
+  color: var(--white);
+  text-align: right;
+  justify-content: flex-end;
+  align-self: flex-end;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.link._2 {
+  text-align: right;
+  justify-content: flex-end;
+  align-items: center;
+  text-decoration: none;
+}
+
+.link.text-span-2._2 {
+  text-decoration: underline;
+}
+
+.left_cont {
+  width: 60%;
+}
+
+.right_cont {
+  text-align: right;
+  flex-flow: column;
+  flex: 0 auto;
+  order: 0;
+  justify-content: space-between;
+  align-self: stretch;
+  align-items: flex-end;
+  display: block;
+}
+
+.text-span-2 {
+  text-decoration: underline;
+}
+
+.menu2 {
+  z-index: 100;
+  background-image: linear-gradient(180deg, black 31%, #00000059 83%, var(--transparent));
+  flex-flow: wrap;
+  justify-content: flex-start;
+  align-items: center;
+  padding: 20px 60px 30px;
+  display: block;
+  position: fixed;
+  inset: 0% 0% auto;
+}
+
+.menu_grid-2 {
+  grid-column-gap: 16px;
+  grid-row-gap: 16px;
+  flex-flow: row;
+  grid-template-rows: auto;
+  grid-template-columns: 1fr 1fr 1fr 1fr 1fr;
+  grid-auto-columns: 1fr;
+  grid-auto-flow: row;
+  place-content: center space-between;
+  place-items: center stretch;
+  display: grid;
+}
+
+.link-block-page1 {
+  justify-content: flex-start;
+  align-items: center;
+  text-decoration: none;
+  display: flex;
+}
+
+.link-block-page2, .link-block-page3, .link-block-page4 {
+  text-decoration: none;
+}
+
+.link-block-4 {
+  text-align: center;
+}
+
+.h1-page {
+  color: var(--white);
+  text-align: left;
+  text-transform: uppercase;
+  align-self: flex-start;
+  margin-top: 120px;
+  margin-bottom: 10px;
+  font-family: Roadrage, Impact, sans-serif;
+  font-size: 90px;
+  font-weight: 400;
+  line-height: 100%;
+}
+
+.text-span-3 {
+  color: var(--accent);
+}
+
+.photo_page {
+  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/coaches/efim-6.png');
+  background-position: 50%;
+  background-size: cover;
+  border-radius: 20px;
+  height: 50vh;
+  margin-top: 50px;
+}
+
+.photo_page.pilates {
+  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/coaches/pilates-1.jpeg');
+  background-position: 50%;
+}
+
+.heading-page {
+  color: var(--white);
+  text-align: left;
+  margin-top: 0;
+  margin-bottom: 20px;
+  font-family: Roadrage, Impact, sans-serif;
+  font-size: 50px;
+  font-weight: 400;
+  line-height: 110%;
+}
+
+.heading-page._1 {
+  color: var(--purple);
+}
+
+.heading-page.categ {
+  color: var(--accent);
+  margin-bottom: 40px;
+}
+
+.slider-2 {
+  background-color: var(--bg-light);
+  border-radius: 20px;
+  height: auto;
+  margin-top: 40px;
+  padding: 40px;
+}
+
+.heading-2 {
+  color: var(--white);
+  text-transform: uppercase;
+  max-width: 80vw;
+  margin-top: 0;
+  margin-bottom: 30px;
+  font-family: Roboto Condensed, sans-serif;
+  font-size: 40px;
+  font-weight: 600;
+  line-height: 100%;
+}
+
+.image-2, .lightbox-link {
+  width: 100%;
+  height: 600px;
+}
+
+.image-3 {
+  width: 100%;
+  height: 100%;
+}
+
+.slider-3 {
+  background-color: #0000;
+  height: 600px;
+  margin-bottom: 30px;
+}
+
+.slide-nav, .slide-nav-2 {
+  display: none;
+}
+
+.left-arrow-copy {
+  border: 2px solid var(--accent);
+  border-radius: 10px;
+  width: 70px;
+  height: 30px;
+  font-size: 20px;
+  display: block;
+  position: absolute;
+  top: -86%;
+  left: auto;
+  right: 125px;
+  overflow: hidden;
+}
+
+.left-arrow-copy:hover {
+  background-color: #00d10e40;
+}
+
+.left-arrow-copy:focus {
+  border-color: var(--gray);
+}
+
+.icon-3 {
+  color: var(--accent);
+}
+
+.right-arrow-copy {
+  border: 2px solid var(--accent);
+  border-radius: 10px;
+  width: 70px;
+  height: 30px;
+  font-size: 20px;
+  display: block;
+  top: -86%;
+  right: 40px;
+}
+
+.right-arrow-copy:hover {
+  background-color: #00d10e40;
+}
+
+.right-arrow-copy:focus {
+  border-color: var(--gray);
+}
+
+.icon-4 {
+  color: var(--accent);
+}
+
+.left-arrow-2, .right-arrow-2 {
+  color: #ffffff80;
+  font-size: 30px;
+}
+
+.h2-facts {
+  color: var(--accent);
+  text-align: left;
+  max-width: 720px;
+  margin-top: 0;
+  margin-bottom: 20px;
+  font-family: Roadrage, Impact, sans-serif;
+  font-size: 80px;
+  font-weight: 400;
+  line-height: 110%;
+}
+
+.h2-facts._1 {
+  font-size: 70px;
+}
+
+.h2-facts.categ {
+  color: var(--accent);
+  margin-bottom: 40px;
+}
+
+.text-span-4 {
+  font-family: Roboto Condensed, sans-serif;
+}
+
+.bold-text-2-copy {
+  color: var(--purple);
+  text-transform: none;
+  font-family: Roboto, sans-serif;
+  font-weight: 400;
+}
+
+.coach_photo {
+  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/coaches/efim-2.jpeg');
+  background-position: 50% 20%;
+  background-size: cover;
+  border-radius: 20px;
+  height: 400px;
+}
+
+.coach_photo._1 {
+  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/coaches/efim-5.jpeg');
+  background-position: 50%;
+}
+
+.coach_photo._2 {
+  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/coaches/oleg-3.jpeg');
+  background-position: 50%;
+  background-size: cover;
+}
+
+.coach_photo._3 {
+  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/coaches/anna-3.jpeg');
+  background-position: 50%;
+  background-size: cover;
+}
+
+.coach_photo._4 {
+  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/coaches/elena-kim-3.jpeg');
+  background-position: 50%;
+  background-size: cover;
+}
+
+.coach_photo._5 {
+  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/coaches/olga-3.jpeg');
+}
+
+.coach_photo.pilates {
+  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/coaches/oksana-5.jpeg');
+  background-position: 50% 60%;
+}
+
+.coach_photo.pilates2 {
+  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/coaches/ella-3.jpeg');
+  background-position: 50%;
+}
+
+.coach_card {
+  flex-flow: column;
+  display: flex;
+}
+
+.reviews-wrapper {
+  overflow: scroll;
+}
+
+.button-2 {
+  border: 2px solid var(--accent);
+  background-color: #0000;
+  border-radius: 10px;
+  width: 70px;
+  height: 30px;
+}
+
+.btn-prev {
+  border: 2px solid var(--accent);
+  color: var(--accent);
+  cursor: pointer;
+  border-radius: 10px;
+  justify-content: center;
+  align-items: center;
+  width: 70px;
+  height: 30px;
+  display: flex;
+}
+
+.btn-prev:hover {
+  background-color: #00d10e40;
+}
+
+.btn-prev:focus {
+  border-color: var(--gray);
+}
+
+.code-embed-2 {
+  justify-content: center;
+  align-self: center;
+  align-items: center;
+  display: flex;
+}
+
+.div-block-4 {
+  grid-column-gap: 15px;
+  grid-row-gap: 15px;
+  display: flex;
+  position: relative;
+  bottom: 20px;
+}
+
+.btn-next {
+  border: 2px solid var(--accent);
+  color: var(--accent);
+  cursor: pointer;
+  border-radius: 10px;
+  justify-content: center;
+  align-items: center;
+  width: 70px;
+  height: 30px;
+  display: flex;
+}
+
+.btn-next:hover {
+  background-color: #00d10e40;
+}
+
+.btn-next:focus {
+  border-color: var(--gray);
+}
+
+.reviews-track {
+  grid-column-gap: 40px;
+  grid-row-gap: 40px;
+  display: flex;
+}
+
+.review {
+  flex: none;
+  width: 33%;
+  height: 100%;
+}
+
+.reviews-section {
+  grid-column-gap: 40px;
+  grid-row-gap: 40px;
+  flex-flow: row;
+  grid-template-rows: auto;
+  grid-template-columns: 1fr 1fr 1fr;
+  grid-auto-columns: 1fr;
+  grid-auto-flow: row;
+  place-content: center space-between;
+  place-items: end stretch;
+  margin-top: 0;
+  display: grid;
+}
+
+.div-block-5 {
+  grid-column-gap: 10px;
+  grid-row-gap: 10px;
+  border: 2px solid var(--white);
+  border-radius: 20px;
+  flex-flow: column;
+  height: auto;
+  padding: 40px;
+  display: flex;
+}
+
+.div-block-5.bot {
+  margin-top: -2px;
+}
+
+.heading-3 {
+  color: var(--white);
+  text-transform: uppercase;
+  margin-top: 0;
+  margin-bottom: 0;
+  font-family: Roboto Condensed, sans-serif;
+  font-size: 30px;
+  font-weight: 600;
+  line-height: 110%;
+  list-style-type: none;
+}
+
+.heading-3._1 {
+  margin-top: 40px;
+}
+
+.text-span-5, .text-span-6, .text-span-7 {
+  font-weight: 700;
+}
+
+.h1-page-inside {
+  color: var(--accent);
+  text-align: center;
+  text-transform: uppercase;
+  align-self: center;
+  margin-top: 120px;
+  margin-bottom: 10px;
+  font-family: Roadrage, Impact, sans-serif;
+  font-size: 100px;
+  font-weight: 400;
+  line-height: 100%;
+}
+
+.photo_page-inside {
+  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/coaches/olga-5.png');
+  background-position: 50%;
+  background-size: cover;
+  border-radius: 20px;
+  height: 50vh;
+  margin-top: 50px;
+}
+
+.photo_page-inside.pilates {
+  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/coaches/pilates-2.jpeg');
+}
+
+.header-wrap {
+  margin-bottom: 40px;
+}
+
+.header-wrap.cards {
+  margin-bottom: 0;
+}
+
+.tab-wrap {
+  flex-flow: column;
+  width: 100%;
+  display: flex;
+}
+
+.accordions_horizontal {
+  flex: none;
+  justify-content: space-between;
+  width: 100%;
+  height: 550px;
+  display: flex;
+}
+
+.accordion_horizontal-component {
+  border: 2px solid var(--white);
+  border-radius: 20px;
+  flex-flow: row;
+  flex: none;
+  justify-content: center;
+  width: 8%;
+  display: flex;
+}
+
+.accordion_horizontal-component.active {
+  width: 76%;
+  transition: all .5s ease-in-out;
+}
+
+.accordion_horizontal-top {
+  cursor: pointer;
+  flex-flow: column;
+  justify-content: space-between;
+  align-items: center;
+  max-width: 100px;
+  height: 100%;
+  padding: 30px 40px 40px;
+  display: flex;
+}
+
+.text-number {
+  color: var(--accent);
+  font-family: Roadrage, Impact, sans-serif;
+  font-size: 50px;
+  line-height: 100%;
+}
+
+.text-vertical {
+  color: var(--white);
+  text-transform: uppercase;
+  writing-mode: vertical-rl;
+  align-self: center;
+  font-family: Roboto Condensed, sans-serif;
+  font-size: 30px;
+  font-weight: 400;
+  line-height: 115%;
+  display: flex;
+  transform: rotate(180deg);
+}
+
+.accordion_horizontal-bottom {
+  flex: 0 auto;
+  width: 0%;
+  overflow: hidden;
+}
+
+.accordion_horizontal-bottom.active {
+  width: 100%;
+}
+
+.mask {
+  grid-column-gap: 30px;
+  grid-row-gap: 30px;
+  flex-flow: column;
+  justify-content: flex-start;
+  align-items: flex-start;
+  width: 100%;
+  height: 100%;
+  padding-top: 30px;
+  padding-bottom: 30px;
+  padding-right: 40px;
+  display: flex;
+}
+
+.horizontal-img {
+  border: 2px solid var(--white);
+  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/healthy-goals/back-pain-g.png');
+  background-position: 50%;
+  background-size: cover;
+  border-radius: 20px;
+  width: 100%;
+  height: 400px;
+}
+
+.horizontal-img._3 {
+  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/healthy-goals/heart-g.png');
+}
+
+.horizontal-img._4 {
+  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/healthy-goals/back-pain-g.png');
+}
+
+.horizontal-img._1 {
+  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/healthy-goals/weight-loss-g.png');
+}
+
+.horizontal-img._2 {
+  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/healthy-goals/strength-g.png');
+}
+
+.horizontal-img.pilates1 {
+  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/healthy-goals/waist-v.png');
+  background-position: 50%;
+}
+
+.horizontal-img.pilates2 {
+  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/healthy-goals/weight-loss-v.png');
+}
+
+.horizontal-img.pilates3 {
+  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/healthy-goals/heart-v.png');
+}
+
+.horizontal-img.pilates4 {
+  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/healthy-goals/back-pain-v.png');
+}
+
+.lead_photo {
+  border-radius: 20px;
+  height: 50vh;
+}
+
+.section {
+  background-image: linear-gradient(#0000004d, #0000004d), url('https://storage.yandexcloud.net/zvenfit/v2/images/coaches/oksana-3.png');
+  background-position: 0 0, 50%;
+  background-size: auto, cover;
+  flex-flow: column;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 40px;
+  display: flex;
+}
+
+.text-span-8 {
+  color: var(--purple);
+}
+
+.tab-link-tab-1 {
+  border: 2px solid var(--white);
+  background-color: var(--transparent);
+  color: var(--white);
+  border-radius: 15px;
+  margin-top: 20px;
+  margin-bottom: 30px;
+  margin-right: 15px;
+  padding-top: 10px;
+  padding-bottom: 10px;
+  font-family: Roboto, sans-serif;
+  font-size: 20px;
+  font-weight: 400;
+}
+
+.tab-link-tab-1.w--current {
+  background-color: var(--white);
+  color: var(--bg);
+}
+
+.tab-link-tab-2 {
+  border: 2px solid var(--accent);
+  background-color: var(--transparent);
+  color: var(--accent);
+  border-radius: 15px;
+  margin-top: 20px;
+  margin-bottom: 30px;
+  padding-top: 10px;
+  padding-bottom: 10px;
+  font-family: Roboto, sans-serif;
+  font-size: 20px;
+  font-weight: 400;
+}
+
+.tab-link-tab-2.w--current {
+  background-color: var(--accent);
+  color: var(--bg);
+}
+
+.div-block-6 {
+  border: 2px solid var(--white);
+  border-radius: 20px;
+  flex-flow: column;
+  justify-content: space-between;
+  align-items: flex-start;
+  height: 500px;
+  padding: 40px;
+  display: flex;
+}
+
+.text-price {
+  color: var(--white);
+  margin-bottom: 15px;
+  font-family: Roboto Condensed, sans-serif;
+  font-size: 50px;
+  font-weight: 700;
+  line-height: 100%;
+}
+
+.mini_txt {
+  color: var(--gray);
+  margin-bottom: 0;
+  font-family: Roboto, sans-serif;
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 145%;
+}
+
+.mini_txt.cont {
+  text-transform: lowercase;
+  font-size: 20px;
+}
+
+.text-span-9 {
+  color: var(--purple);
+}
+
+.div-block-7 {
+  grid-column-gap: 40px;
+  grid-row-gap: 40px;
+  flex-flow: column;
+  height: auto;
+  display: flex;
+  overflow: visible;
+}
+
+.text-span-10, .text-span-11 {
+  font-weight: 600;
+}
+
+.photo_coach {
+  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/coaches/efim-4.jpeg');
+  background-position: 50%;
+  background-size: cover;
+  border-radius: 20px;
+  height: 40vh;
+  margin-top: 50px;
+  margin-bottom: 40px;
+}
+
+.photo_coach.anna {
+  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/coaches/anna-1.jpeg');
+  background-position: 50% 30%;
+  background-size: cover;
+}
+
+.photo_coach.elena {
+  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/coaches/elena-kim-1.jpeg');
+  background-position: 50% 35%;
+}
+
+.photo_coach.oleg {
+  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/coaches/oleg-2.jpeg');
+  background-position: 50% 25%;
+}
+
+.photo_coach.olga {
+  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/coaches/olga-2.jpeg');
+}
+
+.photo_coach.oksana {
+  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/coaches/oksana-2.jpeg');
+  background-position: 50% 40%;
+}
+
+.photo_coach.ella {
+  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/coaches/ella-2.jpeg');
+  background-position: 50% 35%;
+}
+
+.photo_coach_mini {
+  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/coaches/efim-3.jpeg');
+  background-position: 50%;
+  background-size: cover;
+  border-radius: 20px;
+  height: 70vh;
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
+.photo_coach_mini.anna {
+  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/coaches/anna-2.jpeg');
+}
+
+.photo_coach_mini.elena {
+  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/coaches/elena-kim-2.jpeg');
+}
+
+.photo_coach_mini.oleg {
+  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/coaches/oleg-1.jpeg');
+}
+
+.photo_coach_mini.olga {
+  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/coaches/olga-1.jpeg');
+}
+
+.photo_coach_mini.oksana {
+  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/coaches/oksana-1.jpeg');
+}
+
+.photo_coach_mini.ella {
+  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/coaches/ella-1.jpeg');
+}
+
+.list {
+  grid-column-gap: 10px;
+  grid-row-gap: 10px;
+  flex-flow: column;
+  display: flex;
+}
+
+.section-2 {
+  grid-column-gap: 40px;
+  grid-row-gap: 40px;
+  flex-flow: column;
+  display: flex;
+}
+
+.link-block-5 {
+  text-decoration: none;
+}
+
+.form-overlay {
+  z-index: 400;
+  grid-column-gap: 0px;
+  grid-row-gap: 0px;
+  opacity: 1;
+  pointer-events: auto;
+  object-fit: fill;
+  flex-flow: column;
+  justify-content: center;
+  align-items: center;
+  margin-top: 20px;
+  display: flex;
+  position: static;
+  inset: 0%;
+}
+
+.form-overlay.is-open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.sign-up-form {
+  z-index: 40;
+  border: 0px solid var(--white);
+  color: var(--white);
+  text-transform: uppercase;
+  border-radius: 20px;
+  flex-flow: column;
+  font-family: Roboto Condensed, sans-serif;
+  font-size: 30px;
+  font-weight: 300;
+  display: flex;
+}
+
+.form {
+  grid-column-gap: 10px;
+  grid-row-gap: 10px;
+  background-color: var(--bg-light);
+  border: 2px solid #000;
+  border-radius: 20px;
+  flex-flow: column;
+  width: 40vw;
+  padding: 40px;
+  font-weight: 300;
+  display: flex;
+}
+
+.telegram-label {
+  font-size: 20px;
+  font-weight: 500;
+}
+
+.field-label-2 {
+  font-size: 20px;
+  font-weight: 400;
+}
+
+.submit-button {
+  background-color: var(--purple);
+  text-transform: uppercase;
+  border-radius: 10px;
+  margin-top: 10px;
+  padding: 10px 30px;
+  font-size: 20px;
+  font-weight: 500;
+}
+
+.text-field, .text-field-2 {
+  border: 2px solid var(--white);
+  background-color: var(--transparent);
+  color: var(--white);
+  text-transform: none;
+  border-radius: 10px;
+  height: 48px;
+  margin-bottom: 20px;
+  font-family: Roboto, sans-serif;
+  font-size: 20px;
+  font-weight: 400;
+}
+
+.select-field {
+  background-color: var(--bg);
+  color: var(--white);
+  border-radius: 10px;
+  margin-bottom: 20px;
+  font-family: Roboto, sans-serif;
+  display: none;
+}
+
+.success-message {
+  background-color: var(--accent);
+  text-transform: none;
+  border-radius: 20px;
+  padding-left: 40px;
+  padding-right: 40px;
+  font-family: Roboto, sans-serif;
+  font-size: 20px;
+  font-weight: 400;
+}
+
+.error {
+  text-transform: none;
+  font-family: Roboto, sans-serif;
+  font-size: 20px;
+  font-weight: 400;
+}
+
+.error-message {
+  background-color: #7a1212;
+  border-radius: 20px;
+  padding: 20px 40px;
+}
+
+.popup-head {
+  grid-column-gap: 20px;
+  grid-row-gap: 20px;
+  background-color: var(--bg-light);
+  border: 2px solid #000;
+  border-radius: 20px;
+  flex-flow: column;
+  width: 40vw;
+  padding: 40px;
+  display: flex;
+}
+
+.popup-head.close {
+  justify-content: flex-end;
+  align-items: flex-start;
+  padding-top: 20px;
+  padding-bottom: 20px;
+  display: flex;
+}
+
+.p1-form {
+  grid-column-gap: 0px;
+  grid-row-gap: 0px;
+  color: var(--white);
+  text-align: left;
+  text-transform: uppercase;
+  margin-bottom: 0;
+  font-family: Roboto Condensed, sans-serif;
+  font-size: 30px;
+  font-weight: 500;
+  line-height: 130%;
+}
+
+.p1-form.categ {
+  text-align: left;
+  max-width: 80vh;
+  margin-bottom: 10px;
+}
+
+.p1-form.left {
+  text-align: left;
+  align-self: flex-start;
+}
+
+.close-btn {
+  text-align: right;
+  cursor: pointer;
+  align-self: flex-end;
+  width: 50px;
+  height: auto;
+}
+
+.div-block-9 {
+  z-index: 1;
+  background-color: #000000a8;
+  width: 100vw;
+  height: 100vh;
+  position: absolute;
+  inset: 0%;
+}
+
+.div-block-10 {
+  z-index: 2;
+  position: absolute;
+}
+
+.slide-nav-3 {
+  display: none;
+}
+
+.mask-2 {
+  height: 500px;
+}
+
+.dropdown {
+  vertical-align: baseline;
+  display: none;
+  position: relative;
+}
+
+.text-block-2 {
+  color: var(--gray);
+  text-transform: uppercase;
+  font-family: Roboto Condensed, sans-serif;
+  font-size: 18px;
+}
+
+.icon-5 {
+  color: var(--gray);
+}
+
+.dropdown-toggle {
+  border: 2px solid var(--gray);
+  border-radius: 15px;
+  display: block;
+}
+
+.dropdown-list {
+  background-color: #ddd;
+}
+
+.dropdown-list.w--open {
+  border: 2px solid var(--gray);
+  background-color: var(--transparent);
+  color: var(--gray);
+  border-radius: 15px;
+  margin-top: 5px;
+}
+
+.dropdown-link {
+  color: var(--gray);
+  text-transform: uppercase;
+  font-family: Roboto Condensed, sans-serif;
+  font-size: 18px;
+}
+
+.section-3 {
+  display: none;
+}
+
+.dropdown2 {
+  vertical-align: baseline;
+  display: none;
+  position: relative;
+}
+
+.mobile {
+  display: none;
+}
+
+.accordions_vertical {
+  flex: none;
+  justify-content: space-between;
+  width: 100%;
+  height: 550px;
+  display: flex;
+}
+
+.accordion_horizontal-component-copy {
+  border: 2px solid var(--white);
+  border-radius: 20px;
+  flex-flow: row;
+  flex: none;
+  justify-content: center;
+  width: 8%;
+  display: flex;
+}
+
+.accordion_horizontal-component-copy.active {
+  width: 76%;
+  transition: all .5s ease-in-out;
+}
+
+.accordions_vertical-component {
+  border: 2px solid var(--white);
+  border-radius: 20px;
+  flex-flow: row;
+  flex: none;
+  justify-content: center;
+  width: 8%;
+  display: flex;
+}
+
+.accordions_vertical-component.active {
+  width: 76%;
+  transition: all .5s ease-in-out;
+}
+
+.accordions_vertical-top {
+  cursor: pointer;
+  flex-flow: column;
+  justify-content: space-between;
+  align-items: center;
+  max-width: 100px;
+  height: 100%;
+  padding: 30px 40px 40px;
+  display: flex;
+}
+
+.text-horizontal {
+  color: var(--white);
+  text-transform: uppercase;
+  align-self: center;
+  font-family: Roboto Condensed, sans-serif;
+  font-size: 30px;
+  font-weight: 400;
+  line-height: 115%;
+  display: flex;
+}
+
+.accordions_vertical-bottom {
+  flex: 0 auto;
+  width: 0%;
+  overflow: hidden;
+}
+
+.accordions_vertical-bottom.active {
+  width: 100%;
+}
+
+.photo_zone {
+  height: 520px;
+  margin-bottom: 20px;
+}
+
+.menu2-coach {
+  z-index: 100;
+  background-image: linear-gradient(180deg, black, #0003 80%, var(--transparent));
+  flex-flow: wrap;
+  justify-content: flex-start;
+  align-items: center;
+  padding-top: 20px;
+  padding-bottom: 30px;
+  display: block;
+  position: fixed;
+  inset: 0% 60px auto;
+}
+
+.photo-zone {
+  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/club-zones/main-hall-1.jpeg');
+  background-position: 50%;
+  background-size: cover;
+  border-radius: 15px;
+  height: 500px;
+  margin-bottom: 40px;
+}
+
+.photo-zone._2 {
+  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/club-zones/main-hall-2.jpeg'), url('https://storage.yandexcloud.net/zvenfit/v2/images/club-zones/main-hall-1.jpeg');
+  background-position: 50%, 50%;
+  background-size: cover, cover;
+}
+
+.photo-zone._3 {
+  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/club-zones/cardio-zone-1.jpeg'), url('https://storage.yandexcloud.net/zvenfit/v2/images/club-zones/main-hall-1.jpeg');
+  background-position: 50%, 50%;
+  background-size: cover, cover;
+}
+
+.photo-zone._4 {
+  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/club-zones/reception-1.jpeg'), url('https://storage.yandexcloud.net/zvenfit/v2/images/club-zones/main-hall-1.jpeg');
+  background-position: 50%, 50%;
+  background-size: cover, cover;
+}
+
+.photo-zone._5 {
+  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/club-zones/dressing-room-1.jpeg'), url('https://storage.yandexcloud.net/zvenfit/v2/images/club-zones/main-hall-1.jpeg');
+  background-position: 50% 70%, 50%;
+  background-size: cover, cover;
+}
+
+.photo-zone._6 {
+  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/club-zones/solyariy-1.jpeg'), url('https://storage.yandexcloud.net/zvenfit/v2/images/club-zones/main-hall-1.jpeg');
+  background-position: 50% 20%, 50%;
+  background-size: cover, cover;
+}
+
+.photo-zone.pilates {
+  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/club-zones/individual-reformer-1.jpeg');
+  background-position: 50% 60%;
+}
+
+.photo-zone.pilates2 {
+  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/club-zones/group-reformer-1.jpeg');
+  background-position: 50% 60%;
+}
+
+.pilates {
+  grid-column-gap: 20px;
+  grid-row-gap: 20px;
+  flex-flow: column;
+  display: flex;
+}
+
+.div-block-13 {
+  border-radius: 20px;
+  height: 400px;
+  overflow: hidden;
+}
+
+.code-embed-4 {
+  width: 100%;
+  height: 100%;
+}
+
+.link-block-6 {
+  text-decoration: none;
+}
+
+.menu_grid-4 {
+  grid-column-gap: 16px;
+  grid-row-gap: 16px;
+  flex-flow: row;
+  grid-template-rows: auto;
+  grid-template-columns: 1fr 1fr 1fr 1fr 1fr;
+  grid-auto-columns: 1fr;
+  grid-auto-flow: row;
+  place-content: center space-between;
+  place-items: center stretch;
+  display: flex;
+}
+
+.menu3 {
+  z-index: 100;
+  background-image: linear-gradient(180deg, black, #0000003b 71%, var(--transparent));
+  flex-flow: wrap;
+  justify-content: flex-start;
+  align-items: center;
+  padding: 20px 60px 30px;
+  display: block;
+  position: fixed;
+  inset: 0% 0% auto;
+}
+
+.code-embed-5 {
+  display: none;
+}
+
+.link-2 {
+  color: var(--accent);
+}
+
+.h3-policy {
+  color: var(--white);
+  text-transform: none;
+  flex-flow: row;
+  justify-content: flex-start;
+  align-items: center;
+  width: auto;
+  margin-top: 40px;
+  margin-bottom: 10px;
+  font-family: Roboto Condensed, sans-serif;
+  font-size: 30px;
+  font-weight: 400;
+  line-height: 120%;
+  display: flex;
+}
+
+.code-embed-7 {
+  text-transform: none;
+  margin-bottom: 20px;
+  font-family: Roboto, sans-serif;
+  font-size: 20px;
+  font-weight: 400;
+}
+
+.telegram-field {
+  border: 2px solid var(--white);
+  background-color: var(--transparent);
+  color: var(--white);
+  text-transform: none;
+  border-radius: 10px;
+  height: 48px;
+  margin-top: 10px;
+  margin-bottom: 0;
+  font-family: Roboto, sans-serif;
+  font-size: 20px;
+  font-weight: 400;
+  display: block;
+}
+
+.smalltxt {
+  color: var(--gray);
+  margin-top: 20px;
+  margin-bottom: 0;
+  font-family: Roboto, sans-serif;
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 130%;
+}
+
+.smalltxt.cont {
+  text-transform: lowercase;
+  font-size: 20px;
+}
+
+.smalltxt.faq {
+  margin-top: 10px;
+  margin-bottom: 0;
+}
+
+.link-3 {
+  color: var(--gray);
+}
+
+.text-field-3 {
+  opacity: 0;
+  pointer-events: none;
+  width: 0;
+  height: 0;
+  position: absolute;
+  top: 700px;
+}
+
+.telegram-wrapper {
+  display: none;
+}
+
+@media screen and (max-width: 991px) {
+  .menu-txt {
+    font-size: 16px;
+  }
+
+  .h1-main {
+    font-size: 150px;
+  }
+
+  .p1 {
+    margin-bottom: 0;
+    font-size: 25px;
+  }
+
+  .p1.categ {
+    font-size: 20px;
+  }
+
+  .p1.policy {
+    font-size: 40px;
+  }
+
+  .button, .button.categ, .button.open-form {
+    font-size: 18px;
+  }
+
+  .card_l {
+    height: 370px;
+    padding-left: 10px;
+  }
+
+  .card_grid {
+    grid-column-gap: 25px;
+    grid-row-gap: 25px;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .card_grid.main {
+    grid-template-columns: 1fr 1fr 1fr;
+  }
+
+  .text-block {
+    font-size: 25px;
+  }
+
+  .card_middle {
+    height: 270px;
+    padding-left: 10px;
+  }
+
+  .card_r {
+    height: 370px;
+    padding-left: 10px;
+  }
+
+  .divider {
+    height: 150px;
+  }
+
+  .slider-main {
+    grid-column-gap: 25px;
+    grid-row-gap: 25px;
+  }
+
+  .slider_photo._1 {
+    height: 400px;
+  }
+
+  .slider_photo._2 {
+    background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/club-zones/cardio-zone-2.jpg');
+  }
+
+  .slider_photo._3 {
+    background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/club-zones/dressing-room-2.jpeg');
+  }
+
+  .heading {
+    font-size: 40px;
+  }
+
+  .heading._1 {
+    margin-bottom: 0;
+    font-size: 40px;
+  }
+
+  .heading.categ {
+    margin-bottom: 25px;
+  }
+
+  .body_txt, .bold-text-2 {
+    font-size: 16px;
+    line-height: 130%;
+  }
+
+  .slider {
+    flex-flow: row;
+    height: 400px;
+  }
+
+  .left-arrow {
+    bottom: 0;
+  }
+
+  .cat_card.categ {
+    height: 450px;
+    padding: 20px;
+  }
+
+  .cat_card.facts {
+    height: auto;
+    min-height: 370px;
+    padding: 20px;
+  }
+
+  .cat_card.areas {
+    height: 300px;
+    padding: 20px;
+  }
+
+  .cat_card.coach, .cat_card.facts-inside-page {
+    height: 250px;
+    padding: 20px;
+  }
+
+  .cat_card.areas_black {
+    height: 300px;
+    padding: 20px;
+  }
+
+  .cat_card.areas_page, .cat_card.categ-page {
+    height: auto;
+    min-height: 350px;
+    padding: 20px;
+  }
+
+  .text_categ {
+    grid-column-gap: 5px;
+    grid-row-gap: 5px;
+  }
+
+  .footer {
+    max-width: 300px;
+    margin-bottom: 10px;
+    font-size: 32px;
+  }
+
+  .txt_cont {
+    justify-content: space-between;
+    align-items: flex-end;
+  }
+
+  .link, .link._1 {
+    font-size: 16px;
+  }
+
+  .link._2 {
+    text-align: right;
+    margin-bottom: 0;
+  }
+
+  .link.text-span-2._2 {
+    margin-bottom: 10px;
+  }
+
+  .right_cont {
+    flex-flow: column;
+    justify-content: flex-end;
+    align-self: flex-end;
+    align-items: flex-end;
+    display: block;
+  }
+
+  .h1-page {
+    text-align: left;
+    font-size: 60px;
+  }
+
+  .photo_page {
+    height: 350px;
+  }
+
+  .heading-page {
+    margin-bottom: 0;
+    font-size: 40px;
+  }
+
+  .slider-2 {
+    margin-top: 25px;
+    padding: 25px 20px 20px;
+  }
+
+  .heading-2 {
+    margin-bottom: 20px;
+    font-size: 25px;
+  }
+
+  .slider-3 {
+    height: 300px;
+    margin-bottom: 20px;
+  }
+
+  .slide-nav {
+    display: none;
+  }
+
+  .left-arrow-copy {
+    margin-top: 20px;
+    margin-left: 0;
+    position: relative;
+    top: auto;
+    right: auto;
+  }
+
+  .right-arrow-copy {
+    margin-top: -30px;
+    margin-right: 0;
+    position: relative;
+    top: auto;
+    right: auto;
+  }
+
+  .h2-facts {
+    margin-bottom: 20px;
+    padding-left: 10px;
+    font-size: 60px;
+  }
+
+  .h2-facts._1 {
+    margin-bottom: 20px;
+  }
+
+  .coach_photo {
+    height: 300px;
+  }
+
+  .reviews-track {
+    grid-column-gap: 25px;
+    grid-row-gap: 25px;
+  }
+
+  .review {
+    width: 70%;
+  }
+
+  .div-block-5 {
+    grid-column-gap: 0px;
+    grid-row-gap: 0px;
+    padding: 20px;
+  }
+
+  .heading-3 {
+    font-size: 25px;
+  }
+
+  .heading-3._1, .heading-3.space {
+    margin-bottom: 10px;
+  }
+
+  .h1-page-inside {
+    text-align: left;
+    margin-bottom: 0;
+    font-size: 80px;
+  }
+
+  .photo_page-inside {
+    height: 30vh;
+    margin-top: 40px;
+  }
+
+  .photo_page-inside.pilates {
+    background-position: 50% 30%;
+  }
+
+  .header-wrap {
+    margin-bottom: 25px;
+  }
+
+  .accordions_horizontal {
+    height: 350px;
+  }
+
+  .accordion_horizontal-component {
+    width: 10%;
+  }
+
+  .accordion_horizontal-component.active {
+    width: 70%;
+  }
+
+  .accordion_horizontal-top {
+    padding: 10px 20px 20px;
+  }
+
+  .text-number {
+    font-size: 40px;
+  }
+
+  .text-vertical {
+    flex-flow: row;
+    font-size: 20px;
+  }
+
+  .mask {
+    padding-top: 20px;
+    padding-bottom: 20px;
+    padding-right: 20px;
+  }
+
+  .lead_photo {
+    height: 350px;
+  }
+
+  .section {
+    padding: 20px;
+  }
+
+  .div-block-6 {
+    height: 400px;
+    padding: 20px;
+  }
+
+  .text-price {
+    font-size: 40px;
+  }
+
+  .div-block-7 {
+    grid-column-gap: 25px;
+    grid-row-gap: 25px;
+  }
+
+  .photo_coach {
+    height: 300px;
+  }
+
+  .photo_coach.anna {
+    background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/coaches/anna-1.jpeg');
+  }
+
+  .photo_coach_mini {
+    height: 600px;
+  }
+
+  .list {
+    padding-left: 25px;
+  }
+
+  .section-2 {
+    grid-column-gap: 25px;
+    grid-row-gap: 25px;
+  }
+
+  .form, .popup-head {
+    width: 80vw;
+  }
+
+  .slide-nav-3 {
+    position: relative;
+  }
+
+  .mask-2 {
+    height: 400px;
+  }
+
+  .code-embed-3 {
+    flex-flow: row;
+    justify-content: space-between;
+    align-items: center;
+    display: flex;
+  }
+
+  .text-block-3, .text-block-4 {
+    font-size: 16px;
+  }
+
+  .div-block-11 {
+    grid-column-gap: 10px;
+    grid-row-gap: 10px;
+    flex-flow: column;
+    display: flex;
+  }
+
+  .accordions_vertical {
+    height: 350px;
+  }
+
+  .accordion_horizontal-component-copy {
+    width: 10%;
+  }
+
+  .accordion_horizontal-component-copy.active {
+    width: 70%;
+  }
+
+  .accordions_vertical-component {
+    width: 10%;
+  }
+
+  .accordions_vertical-component.active {
+    width: 70%;
+  }
+
+  .accordions_vertical-top {
+    padding: 10px 20px 20px;
+  }
+
+  .text-horizontal {
+    flex-flow: row;
+    font-size: 20px;
+  }
+
+  .photo_zone {
+    height: 230px;
+  }
+
+  .mask-3 {
+    height: auto;
+  }
+
+  .div-block-12 {
+    grid-column-gap: 15px;
+    grid-row-gap: 15px;
+    flex-flow: column;
+    display: flex;
+  }
+
+  .photo-zone {
+    height: 350px;
+    margin-bottom: 20px;
+  }
+
+  .div-block-13 {
+    height: 350px;
+  }
+
+  .h3-policy {
+    font-size: 25px;
+  }
+
+  .smalltxt {
+    font-size: 15px;
+    line-height: 130%;
+  }
+}
+
+@media screen and (max-width: 767px) {
+  .body {
+    padding-left: 25px;
+    padding-right: 25px;
+  }
+
+  .menu-txt {
+    text-align: right;
+  }
+
+  .menu1 {
+    display: none;
+  }
+
+  .h1-main {
+    margin-top: 80px;
+    font-size: 100px;
+  }
+
+  .p1 {
+    margin-bottom: 10px;
+    font-size: 20px;
+  }
+
+  .p1.categ {
+    margin-bottom: 5px;
+  }
+
+  .p1.policy {
+    margin-bottom: 10px;
+    font-size: 30px;
+  }
+
+  .cover_text {
+    grid-column-gap: 10px;
+    grid-row-gap: 10px;
+  }
+
+  .button {
+    padding: 10px 20px;
+    font-size: 15px;
+  }
+
+  .button.categ {
+    flex-flow: row;
+    align-self: flex-start;
+    padding: 10px 20px;
+  }
+
+  .button.open-form {
+    margin-bottom: 40px;
+    padding: 10px 20px;
+    font-size: 15px;
+  }
+
+  .card_l {
+    background-position: 50% 20%;
+    background-repeat: repeat;
+    height: 200px;
+  }
+
+  .card_grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .card_grid.main {
+    grid-template-columns: 1fr;
+  }
+
+  .text-block {
+    font-size: 22px;
+  }
+
+  .card_middle {
+    height: 200px;
+    display: flex;
+  }
+
+  .card_r {
+    background-position: 50% 20%;
+    height: 200px;
+  }
+
+  .divider {
+    height: 120px;
+  }
+
+  .slider-main {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .slider_content {
+    height: auto;
+  }
+
+  .slider_photo, .slider_photo._1 {
+    height: 200px;
+  }
+
+  .heading {
+    margin-bottom: 10px;
+    font-size: 30px;
+  }
+
+  .heading._1 {
+    font-size: 30px;
+  }
+
+  .body_txt {
+    font-size: 13px;
+    line-height: 135%;
+  }
+
+  .body_txt.cont {
+    margin-bottom: 0;
+  }
+
+  .bold-text-2 {
+    font-size: 13px;
+    line-height: 135%;
+  }
+
+  .link-block-3 {
+    text-align: right;
+  }
+
+  .slider {
+    height: 410px;
+  }
+
+  .left-arrow {
+    margin-top: 380px;
+    margin-bottom: 0;
+    top: 0%;
+    right: auto;
+  }
+
+  .right-arrow {
+    margin-top: 380px;
+    margin-bottom: 0;
+    top: 0%;
+  }
+
+  .cat_card.categ {
+    height: auto;
+    min-height: auto;
+  }
+
+  .cat_card.categ.group {
+    display: none;
+  }
+
+  .cat_card.facts {
+    max-width: 50%;
+    height: 370px;
+    min-height: auto;
+  }
+
+  .cat_card.areas, .cat_card.facts-inside-page {
+    height: 300px;
+  }
+
+  .cat_card.areas_black {
+    height: 200px;
+  }
+
+  .cat_card.areas_page, .cat_card.categ-page {
+    height: auto;
+  }
+
+  .text_categ {
+    grid-column-gap: 10px;
+    grid-row-gap: 10px;
+  }
+
+  .footer {
+    flex-flow: row;
+    justify-content: space-between;
+    align-items: flex-start;
+    max-width: 500px;
+    margin-bottom: 10px;
+    font-size: 30px;
+  }
+
+  .txt_cont {
+    flex-flow: row;
+    justify-content: space-between;
+    align-items: flex-start;
+  }
+
+  .link._1 {
+    margin-bottom: 10px;
+  }
+
+  .link._2 {
+    display: block;
+  }
+
+  .left_cont {
+    max-width: 50%;
+  }
+
+  .right_cont {
+    align-self: flex-start;
+    max-width: 50%;
+  }
+
+  .menu2 {
+    display: none;
+  }
+
+  .h1-page, .text-span-3 {
+    font-size: 50px;
+  }
+
+  .photo_page {
+    height: 250px;
+    margin-top: 40px;
+  }
+
+  .heading-page {
+    font-size: 30px;
+    line-height: 130%;
+  }
+
+  .slider-3 {
+    height: 250px;
+  }
+
+  .h2-facts {
+    font-size: 40px;
+    display: none;
+  }
+
+  .h2-facts._1 {
+    font-size: 40px;
+  }
+
+  .coach_photo {
+    height: 230px;
+  }
+
+  .div-block-5.bot {
+    height: 350px;
+    overflow: scroll;
+  }
+
+  .heading-3 {
+    font-size: 22px;
+  }
+
+  .heading-3.space {
+    margin-top: 25px;
+  }
+
+  .h1-page-inside {
+    color: var(--accent);
+    -webkit-text-stroke-color: var(--accent);
+    margin-top: 80px;
+  }
+
+  .photo_page-inside {
+    height: 25vh;
+  }
+
+  .photo_page-inside.pilates {
+    background-position: 50% 35%;
+  }
+
+  .accordions_horizontal {
+    height: 300px;
+  }
+
+  .accordion_horizontal-component {
+    width: 12%;
+  }
+
+  .accordion_horizontal-component.active {
+    width: 64%;
+  }
+
+  .text-number {
+    font-size: 30px;
+  }
+
+  .mask {
+    grid-column-gap: 15px;
+    grid-row-gap: 15px;
+  }
+
+  .lead_photo {
+    height: 250px;
+  }
+
+  .text-price {
+    font-size: 30px;
+  }
+
+  .photo_coach_mini {
+    background-position: 50% 0;
+    height: 500px;
+  }
+
+  .link-block-5.group {
+    display: none;
+  }
+
+  .form {
+    grid-column-gap: 5px;
+    grid-row-gap: 5px;
+    width: 100%;
+    padding: 20px;
+  }
+
+  .telegram-label, .submit-button {
+    font-size: 18px;
+  }
+
+  .popup-head {
+    padding: 20px;
+  }
+
+  .p1-form {
+    font-size: 25px;
+  }
+
+  .mask-2 {
+    height: auto;
+  }
+
+  .dropdown {
+    display: inline-block;
+    position: fixed;
+  }
+
+  .text-block-2 {
+    font-size: 15px;
+  }
+
+  .icon-5 {
+    margin-right: 10px;
+  }
+
+  .dropdown-toggle {
+    background-color: var(--bg-light);
+    padding: 10px 30px 10px 10px;
+    display: block;
+  }
+
+  .dropdown-toggle.w--open {
+    background-color: var(--bg-light);
+  }
+
+  .dropdown-list.w--open {
+    background-color: var(--bg-light);
+    padding-top: 5px;
+    padding-bottom: 5px;
+  }
+
+  .dropdown-link {
+    padding: 5px 10px;
+    font-size: 15px;
+  }
+
+  .section-3 {
+    display: none;
+  }
+
+  .section-4 {
+    flex-flow: column;
+    justify-content: space-between;
+    align-items: center;
+    display: block;
+  }
+
+  .dropdown2 {
+    display: block;
+    position: fixed;
+  }
+
+  .accordions_vertical {
+    height: 300px;
+  }
+
+  .accordion_horizontal-component-copy {
+    width: 12%;
+  }
+
+  .accordion_horizontal-component-copy.active {
+    width: 64%;
+  }
+
+  .accordions_vertical-component {
+    width: 12%;
+  }
+
+  .accordions_vertical-component.active {
+    width: 64%;
+  }
+
+  .photo_zone {
+    height: 150px;
+  }
+
+  .menu2-coach {
+    display: block;
+    left: 20px;
+    right: 20px;
+  }
+
+  .photo-zone._2 {
+    height: 300px;
+  }
+
+  .link-block-7 {
+    box-sizing: border-box;
+    aspect-ratio: auto;
+    text-align: left;
+    flex: 0 auto;
+    justify-content: center;
+    align-items: flex-start;
+    height: 50px;
+    display: block;
+  }
+
+  .menu_grid-4 {
+    width: 100%;
+  }
+
+  .menu3 {
+    justify-content: center;
+    align-items: center;
+    padding-left: 20px;
+    padding-right: 20px;
+    display: flex;
+  }
+
+  .code-embed-5 {
+    display: block;
+  }
+
+  .code-embed-6 {
+    display: none;
+  }
+
+  .h3-policy {
+    font-size: 22px;
+  }
+
+  .code-embed-7 {
+    font-size: 20px;
+  }
+
+  .smalltxt {
+    font-size: 12px;
+    line-height: 135%;
+  }
+
+  .smalltxt.cont {
+    margin-bottom: 0;
+  }
+
+  .link-3 {
+    font-size: 13px;
+  }
+}
+
+@media screen and (max-width: 479px) {
+  .menu-txt {
+    font-size: 14px;
+  }
+
+  .h1-main {
+    margin-bottom: 0;
+    font-size: 60px;
+  }
+
+  .p1 {
+    margin-bottom: 5px;
+    font-size: 18px;
+  }
+
+  .p1.categ {
+    font-size: 18px;
+  }
+
+  .p1.left {
+    line-height: 135%;
+  }
+
+  .p1.policy {
+    font-size: 25px;
+  }
+
+  .button.categ {
+    text-align: center;
+    padding: 10px 20px;
+    font-size: 16px;
+  }
+
+  .button.page {
+    max-width: 180px;
+  }
+
+  .button.open-form {
+    margin-bottom: 30px;
+  }
+
+  .card_l {
+    max-width: 100%;
+  }
+
+  .card_grid {
+    grid-column-gap: 20px;
+    grid-row-gap: 20px;
+    grid-template-columns: 1fr;
+  }
+
+  .text-block {
+    font-size: 20px;
+  }
+
+  .card_middle {
+    max-width: 100%;
+  }
+
+  .divider {
+    height: 100px;
+  }
+
+  .heading {
+    padding-left: 5px;
+  }
+
+  .heading.categ {
+    margin-bottom: 20px;
+  }
+
+  .body_txt {
+    font-size: 12px;
+  }
+
+  .bold-text-2 {
+    font-size: 12px;
+    display: block;
+  }
+
+  .bold-text-2.foot {
+    margin-bottom: 5px;
+  }
+
+  .slider {
+    height: 500px;
+  }
+
+  .left-arrow, .right-arrow {
+    margin-top: 470px;
+  }
+
+  .cat_card.categ {
+    grid-column-gap: 50px;
+    grid-row-gap: 50px;
+    height: auto;
+    min-height: auto;
+  }
+
+  .cat_card.facts {
+    max-width: 100%;
+    height: auto;
+  }
+
+  .cat_card.areas {
+    grid-column-gap: 50px;
+    grid-row-gap: 50px;
+    height: auto;
+  }
+
+  .cat_card.coach {
+    height: 200px;
+  }
+
+  .cat_card.facts-inside-page {
+    height: 250px;
+  }
+
+  .cat_card.areas_black {
+    grid-column-gap: 50px;
+    grid-row-gap: 50px;
+    height: auto;
+  }
+
+  .cat_card.areas_page, .cat_card.categ-page {
+    grid-column-gap: 50px;
+    grid-row-gap: 50px;
+    height: auto;
+    min-height: auto;
+  }
+
+  .text_categ {
+    grid-column-gap: 5px;
+    grid-row-gap: 5px;
+  }
+
+  .footer {
+    margin-top: 0;
+    margin-bottom: 10px;
+  }
+
+  .txt_cont {
+    grid-row-gap: 5px;
+    flex-flow: column;
+    flex: 0 auto;
+    justify-content: flex-start;
+    align-self: flex-start;
+    align-items: flex-start;
+    margin-top: 20px;
+    display: block;
+  }
+
+  .link, .link._1 {
+    justify-content: flex-start;
+    align-self: flex-start;
+    align-items: center;
+    margin-bottom: 5px;
+    font-size: 15px;
+  }
+
+  .link._2 {
+    text-align: left;
+    align-self: flex-start;
+  }
+
+  .link-block-page4 {
+    text-align: right;
+  }
+
+  .h1-page {
+    margin-top: 80px;
+    font-size: 35px;
+    line-height: 135%;
+  }
+
+  .text-span-3 {
+    font-size: 35px;
+  }
+
+  .photo_page {
+    height: 200px;
+    margin-top: 30px;
+  }
+
+  .slider-3 {
+    height: 300px;
+  }
+
+  .slide-nav {
+    height: 30px;
+    font-size: 10px;
+    line-height: 10px;
+    top: -32px;
+  }
+
+  .left-arrow-2, .right-arrow-2 {
+    width: 40px;
+    font-size: 20px;
+    display: none;
+  }
+
+  .coach_photo {
+    height: 200px;
+  }
+
+  .reviews-wrapper {
+    height: auto;
+    margin-top: -30px;
+  }
+
+  .div-block-4 {
+    grid-column-gap: 10px;
+    grid-row-gap: 10px;
+  }
+
+  .review {
+    width: 80%;
+  }
+
+  .reviews-section {
+    grid-template-columns: 1fr;
+  }
+
+  .heading-3 {
+    font-size: 18px;
+  }
+
+  .heading-3._1 {
+    align-self: flex-start;
+  }
+
+  .photo_page-inside {
+    height: 200px;
+    margin-top: 30px;
+  }
+
+  .photo_page-inside.pilates {
+    background-position: 50% 40%;
+  }
+
+  .header-wrap {
+    margin-bottom: 20px;
+  }
+
+  .tab-wrap.mobile {
+    grid-column-gap: 15px;
+    grid-row-gap: 15px;
+    flex-flow: column;
+    flex: 0 auto;
+    justify-content: flex-start;
+    align-items: stretch;
+    height: 600px;
+  }
+
+  .mask {
+    padding-top: 0;
+    padding-left: 20px;
+  }
+
+  .horizontal-img {
+    height: 100px;
+    min-height: 100px;
+  }
+
+  .horizontal-img._2 {
+    background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/healthy-goals/strength-g.png');
+  }
+
+  .horizontal-img._1 {
+    min-height: 100px;
+  }
+
+  .horizontal-img._2 {
+    background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/healthy-goals/strength-g.png');
+    min-height: 100px;
+  }
+
+  .horizontal-img.pilates2 {
+    background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/healthy-goals/weight-loss-v.png');
+  }
+
+  .section {
+    background-image: linear-gradient(#000c, #000c), url('https://storage.yandexcloud.net/zvenfit/v2/images/coaches/oksana-3.png');
+    background-position: 0 0, 50%;
+    background-size: auto, cover;
+  }
+
+  .tab-link-tab-1 {
+    margin-top: 10px;
+    margin-bottom: 10px;
+    margin-right: 0;
+    padding: 5px 20px;
+  }
+
+  .tab-link-tab-2 {
+    margin-top: 10px;
+    margin-bottom: 20px;
+    padding: 5px 20px;
+  }
+
+  .tab-link-tab-2.w--current {
+    margin-top: 0;
+    margin-bottom: 20px;
+    padding: 5px 20px;
+  }
+
+  .div-block-6 {
+    grid-column-gap: 60px;
+    grid-row-gap: 60px;
+    height: auto;
+  }
+
+  .photo_coach {
+    height: 200px;
+    margin-bottom: 25px;
+  }
+
+  .photo_coach_mini {
+    height: 200px;
+  }
+
+  .photo_coach_mini.anna {
+    background-position: 50% 15%;
+  }
+
+  .photo_coach_mini.oleg {
+    background-position: 50% 30%;
+  }
+
+  .photo_coach_mini.olga {
+    background-position: 50% 20%;
+  }
+
+  .photo_coach_mini.oksana, .photo_coach_mini.ella {
+    background-position: 50% 15%;
+  }
+
+  .form-overlay {
+    display: flex;
+  }
+
+  .form {
+    width: 100%;
+    display: flex;
+  }
+
+  .telegram-label {
+    font-size: 15px;
+  }
+
+  .submit-button {
+    font-size: 16px;
+  }
+
+  .text-field, .text-field-2, .select-field {
+    font-size: 15px;
+  }
+
+  .p1-form {
+    font-size: 22px;
+  }
+
+  .dropdown-toggle {
+    background-color: var(--bg-light);
+  }
+
+  .dropdown-list.w--open {
+    background-color: var(--bg-light);
+    padding-top: 5px;
+    padding-bottom: 5px;
+  }
+
+  .dropdown-link.w--current {
+    color: var(--accent);
+  }
+
+  .map {
+    height: 200px;
+  }
+
+  .section-3 {
+    flex-flow: column;
+    display: flex;
+  }
+
+  .section-4 {
+    display: none;
+  }
+
+  .text-block-3, .text-block-4 {
+    font-size: 15px;
+  }
+
+  .text-span-12 {
+    font-size: 50px;
+  }
+
+  .mobile {
+    flex-flow: column;
+    height: auto;
+    display: flex;
+  }
+
+  .accordions_vertical {
+    grid-column-gap: 20px;
+    grid-row-gap: 20px;
+    flex-flow: column;
+    height: auto;
+  }
+
+  .accordions_vertical-component {
+    flex-flow: column;
+    width: 100%;
+    height: 90px;
+  }
+
+  .accordions_vertical-component.active {
+    flex-flow: column;
+    width: 100%;
+    height: auto;
+  }
+
+  .accordions_vertical-top {
+    grid-column-gap: 20px;
+    grid-row-gap: 20px;
+    flex-flow: row;
+    width: 100%;
+    max-width: none;
+    height: auto;
+    padding-top: 20px;
+    display: flex;
+  }
+
+  .text-horizontal {
+    flex: 0 auto;
+    justify-content: flex-start;
+    align-self: center;
+    align-items: center;
+    width: 100%;
+  }
+
+  .accordions_vertical-bottom {
+    width: 100%;
+  }
+
+  .section-5 {
+    display: none;
+  }
+
+  .photo_zone {
+    height: 150px;
+    margin-bottom: 20px;
+  }
+
+  .mask-3 {
+    height: auto;
+  }
+
+  .section-6 {
+    display: none;
+  }
+
+  .photo-zone, .photo-zone._2 {
+    height: 150px;
+  }
+
+  .div-block-13 {
+    height: 250px;
+  }
+
+  .link-block-7 {
+    text-decoration: none;
+  }
+
+  .menu_grid-4 {
+    flex: 1;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .menu3 {
+    justify-content: center;
+    align-items: center;
+    padding-left: 0;
+    padding-right: 0;
+    left: 20px;
+    right: 25px;
+  }
+
+  .h3-policy {
+    font-size: 20px;
+  }
+
+  .code-embed-7, .telegram-field {
+    font-size: 15px;
+  }
+
+  .smalltxt {
+    margin-top: 15px;
+    font-size: 12px;
+  }
+}
+
+#w-node-cb5099cb-a39d-b6a2-9dbf-597fb5bf5ba9-9716bd19 {
+  place-self: center start;
+}
+
+#w-node-_7d41401a-7067-c94a-50a0-91074370b2db-9716bd19 {
+  place-self: center;
+}
+
+#w-node-_3e4ebd6f-68d9-b921-883a-eec3495ae707-9716bd19 {
+  place-self: center end;
+}
+
+#w-node-_19875391-9c51-8795-2044-bc5716b8ba7d-9716bd19 {
+  grid-area: span 1 / span 2 / span 1 / span 2;
+}
+
+#w-node-b8c4977c-4f08-8a91-6a58-479a1614dd45-9716bd19 {
+  grid-area: span 1 / span 1 / span 1 / span 1;
+}
+
+#w-node-_28ad36b5-8d85-431c-70d3-95c96c374d63-9716bd19 {
+  grid-area: span 1 / span 2 / span 1 / span 2;
+}
+
+#w-node-_28ad36b5-8d85-431c-70d3-95c96c374d65-9716bd19 {
+  grid-area: span 1 / span 1 / span 1 / span 1;
+}
+
+#w-node-_4918e816-5e86-c6f8-f669-87ad0f877b60-9716bd19 {
+  grid-area: span 1 / span 2 / span 1 / span 2;
+}
+
+#w-node-_4918e816-5e86-c6f8-f669-87ad0f877b61-9716bd19 {
+  grid-area: span 1 / span 1 / span 1 / span 1;
+}
+
+#w-node-d74bb614-6e76-37e5-c2c3-0ebe1e866635-9716bd19 {
+  grid-area: span 1 / span 2 / span 1 / span 2;
+}
+
+#w-node-d74bb614-6e76-37e5-c2c3-0ebe1e866636-9716bd19 {
+  grid-area: span 1 / span 1 / span 1 / span 1;
+}
+
+#w-node-_841637b5-49ed-1cc2-ec64-8c59dd12ce7c-9716bd19 {
+  grid-area: span 1 / span 2 / span 1 / span 2;
+}
+
+#w-node-_841637b5-49ed-1cc2-ec64-8c59dd12ce7d-9716bd19 {
+  grid-area: span 1 / span 1 / span 1 / span 1;
+}
+
+#w-node-e11a7337-bde2-19aa-1b4b-c032af4154f2-cbc69cf8 {
+  place-self: center start;
+}
+
+#w-node-e11a7337-bde2-19aa-1b4b-c032af4154f5-cbc69cf8, #w-node-_52a1a7f0-d63a-29f2-54ec-da6b47c8c582-cbc69cf8 {
+  place-self: center;
+}
+
+#w-node-e11a7337-bde2-19aa-1b4b-c032af4154f8-cbc69cf8 {
+  place-self: center end;
+}
+
+#w-node-_71a14719-eca7-48a6-e7aa-9e478f7f4357-cbc69cf8 {
+  align-self: start;
+}
+
+#w-node-_80a19154-9ce4-5a52-e07f-2da72cb6cc92-cbc69cf8 {
+  align-self: end;
+}
+
+#w-node-_2ca4adfb-76a1-8db6-a790-2258cfa13838-cbc69cf8 {
+  grid-area: span 1 / span 3 / span 1 / span 3;
+}
+
+#w-node-c890d00d-1c26-3472-e1a2-a0f3782c4c7b-cbc69cf8 {
+  grid-area: span 1 / span 2 / span 1 / span 2;
+}
+
+#w-node-c890d00d-1c26-3472-e1a2-a0f3782c4c7f-cbc69cf8 {
+  justify-self: end;
+}
+
+#w-node-c890d00d-1c26-3472-e1a2-a0f3782c4c84-cbc69cf8, #w-node-_32a9cb07-b18b-668e-db2f-1c5c3081817a-cbc69cf8 {
+  grid-area: span 1 / span 3 / span 1 / span 3;
+}
+
+#w-node-e11a7337-bde2-19aa-1b4b-c032af4154f2-4601c0c5 {
+  place-self: center start;
+}
+
+#w-node-e11a7337-bde2-19aa-1b4b-c032af4154f5-4601c0c5, #w-node-_52a1a7f0-d63a-29f2-54ec-da6b47c8c582-4601c0c5 {
+  place-self: center;
+}
+
+#w-node-e11a7337-bde2-19aa-1b4b-c032af4154f8-4601c0c5 {
+  place-self: center end;
+}
+
+#w-node-_71a14719-eca7-48a6-e7aa-9e478f7f4357-4601c0c5 {
+  align-self: start;
+}
+
+#w-node-_80a19154-9ce4-5a52-e07f-2da72cb6cc92-4601c0c5 {
+  align-self: end;
+}
+
+#w-node-_0f6baac4-9d6e-828a-8ad6-cc283c662f06-4601c0c5, #w-node-_7ed8eca3-34fd-f665-b190-7fb5b2b2c512-4601c0c5 {
+  grid-area: span 1 / span 3 / span 1 / span 3;
+}
+
+#w-node-_67a9c1bb-139e-2afc-dbf9-9712d1a823da-4601c0c5, #w-node-dd418ee4-1695-6881-99f1-c692138884a4-4601c0c5, #w-node-bf4b00b2-04b7-55e8-8e3a-5aa96c437ff7-4601c0c5, #w-node-_5d44c99a-737c-492c-1c10-a36970f1c49d-4601c0c5, #w-node-_9a512646-32bb-30d4-8f7e-cfca7823ff53-4601c0c5 {
+  grid-area: span 1 / span 1 / span 1 / span 1;
+}
+
+#w-node-_07f72020-043b-b817-78ac-721713bb277f-4601c0c5 {
+  grid-area: span 1 / span 2 / span 1 / span 2;
+}
+
+#w-node-_431d2691-68e0-460e-92ed-b4d1017453f2-4601c0c5 {
+  justify-self: end;
+}
+
+#w-node-_5bd0b956-70ff-ad1e-a3f5-00f75caf3ba5-4601c0c5 {
+  grid-area: span 1 / span 3 / span 1 / span 3;
+}
+
+#w-node-_7ef4d626-50d1-d49b-e0e5-28a90f1d6922-4601c0c5, #w-node-a83fef70-d70c-0cae-f46b-179614d55263-4601c0c5, #w-node-b7d210dd-e6b0-eb15-be79-ffe6e9caae84-4601c0c5 {
+  grid-area: span 1 / span 2 / span 1 / span 2;
+}
+
+#w-node-e11a7337-bde2-19aa-1b4b-c032af4154f2-2008aa7b {
+  place-self: center start;
+}
+
+#w-node-e11a7337-bde2-19aa-1b4b-c032af4154f5-2008aa7b {
+  place-self: center end;
+}
+
+#w-node-_3a3877c5-6cff-fbf8-e343-fd2c16920b2f-2008aa7b {
+  grid-area: span 1 / span 2 / span 1 / span 2;
+}
+
+#w-node-_980bac73-2f9d-6ef2-62fc-7ca3af7945ed-2008aa7b {
+  justify-self: end;
+}
+
+#w-node-_56762e99-7fb7-f4e5-d9ce-ad52ba56dcbf-2008aa7b {
+  grid-area: span 1 / span 2 / span 1 / span 2;
+}
+
+#w-node-e11a7337-bde2-19aa-1b4b-c032af4154f2-7e3ff1ff {
+  place-self: center start;
+}
+
+#w-node-e11a7337-bde2-19aa-1b4b-c032af4154f5-7e3ff1ff {
+  place-self: center end;
+}
+
+#w-node-_3a3877c5-6cff-fbf8-e343-fd2c16920b2f-7e3ff1ff {
+  grid-area: span 1 / span 2 / span 1 / span 2;
+}
+
+#w-node-_980bac73-2f9d-6ef2-62fc-7ca3af7945ed-7e3ff1ff {
+  justify-self: end;
+}
+
+#w-node-_56762e99-7fb7-f4e5-d9ce-ad52ba56dcbf-7e3ff1ff {
+  grid-area: span 1 / span 2 / span 1 / span 2;
+}
+
+#w-node-e11a7337-bde2-19aa-1b4b-c032af4154f2-a989a844 {
+  place-self: center start;
+}
+
+#w-node-e11a7337-bde2-19aa-1b4b-c032af4154f5-a989a844 {
+  place-self: center end;
+}
+
+#w-node-_3a3877c5-6cff-fbf8-e343-fd2c16920b2f-a989a844 {
+  grid-area: span 1 / span 2 / span 1 / span 2;
+}
+
+#w-node-_980bac73-2f9d-6ef2-62fc-7ca3af7945ed-a989a844 {
+  justify-self: end;
+}
+
+#w-node-_56762e99-7fb7-f4e5-d9ce-ad52ba56dcbf-a989a844 {
+  grid-area: span 1 / span 2 / span 1 / span 2;
+}
+
+#w-node-e11a7337-bde2-19aa-1b4b-c032af4154f2-70db865a {
+  place-self: center start;
+}
+
+#w-node-e11a7337-bde2-19aa-1b4b-c032af4154f5-70db865a {
+  place-self: center end;
+}
+
+#w-node-_3a3877c5-6cff-fbf8-e343-fd2c16920b2f-70db865a {
+  grid-area: span 1 / span 2 / span 1 / span 2;
+}
+
+#w-node-_980bac73-2f9d-6ef2-62fc-7ca3af7945ed-70db865a {
+  justify-self: end;
+}
+
+#w-node-_56762e99-7fb7-f4e5-d9ce-ad52ba56dcbf-70db865a {
+  grid-area: span 1 / span 2 / span 1 / span 2;
+}
+
+#w-node-e11a7337-bde2-19aa-1b4b-c032af4154f2-cfc99f78 {
+  place-self: center start;
+}
+
+#w-node-e11a7337-bde2-19aa-1b4b-c032af4154f5-cfc99f78 {
+  place-self: center end;
+}
+
+#w-node-_3a3877c5-6cff-fbf8-e343-fd2c16920b2f-cfc99f78 {
+  grid-area: span 1 / span 2 / span 1 / span 2;
+}
+
+#w-node-_980bac73-2f9d-6ef2-62fc-7ca3af7945ed-cfc99f78 {
+  justify-self: end;
+}
+
+#w-node-_56762e99-7fb7-f4e5-d9ce-ad52ba56dcbf-cfc99f78 {
+  grid-area: span 1 / span 2 / span 1 / span 2;
+}
+
+#w-node-e11a7337-bde2-19aa-1b4b-c032af4154f2-a949358d {
+  place-self: center start;
+}
+
+#w-node-e11a7337-bde2-19aa-1b4b-c032af4154f5-a949358d {
+  place-self: center end;
+}
+
+#w-node-_3a3877c5-6cff-fbf8-e343-fd2c16920b2f-a949358d {
+  grid-area: span 1 / span 2 / span 1 / span 2;
+}
+
+#w-node-_980bac73-2f9d-6ef2-62fc-7ca3af7945ed-a949358d {
+  justify-self: end;
+}
+
+#w-node-_56762e99-7fb7-f4e5-d9ce-ad52ba56dcbf-a949358d {
+  grid-area: span 1 / span 2 / span 1 / span 2;
+}
+
+#w-node-e11a7337-bde2-19aa-1b4b-c032af4154f2-bb4a2ca1 {
+  place-self: center start;
+}
+
+#w-node-e11a7337-bde2-19aa-1b4b-c032af4154f5-bb4a2ca1 {
+  place-self: center end;
+}
+
+#w-node-_3a3877c5-6cff-fbf8-e343-fd2c16920b2f-bb4a2ca1 {
+  grid-area: span 1 / span 2 / span 1 / span 2;
+}
+
+#w-node-_980bac73-2f9d-6ef2-62fc-7ca3af7945ed-bb4a2ca1 {
+  justify-self: end;
+}
+
+#w-node-_56762e99-7fb7-f4e5-d9ce-ad52ba56dcbf-bb4a2ca1 {
+  grid-area: span 1 / span 2 / span 1 / span 2;
+}
+
+#w-node-e11a7337-bde2-19aa-1b4b-c032af4154f2-ad0e8501 {
+  place-self: center start;
+}
+
+#w-node-e11a7337-bde2-19aa-1b4b-c032af4154f5-ad0e8501, #w-node-_52a1a7f0-d63a-29f2-54ec-da6b47c8c582-ad0e8501 {
+  place-self: center;
+}
+
+#w-node-e11a7337-bde2-19aa-1b4b-c032af4154f8-ad0e8501 {
+  place-self: center end;
+}
+
+#w-node-_71a14719-eca7-48a6-e7aa-9e478f7f4357-ad0e8501 {
+  align-self: start;
+}
+
+#w-node-_80a19154-9ce4-5a52-e07f-2da72cb6cc92-ad0e8501 {
+  align-self: end;
+}
+
+#w-node-aa5fbf94-dfee-86d7-726f-cb0d349bc3c4-ad0e8501 {
+  grid-area: span 1 / span 1 / span 1 / span 1;
+}
+
+#w-node-_2ca4adfb-76a1-8db6-a790-2258cfa13838-ad0e8501 {
+  grid-area: span 1 / span 3 / span 1 / span 3;
+}
+
+#w-node-c890d00d-1c26-3472-e1a2-a0f3782c4c7b-ad0e8501 {
+  grid-area: span 1 / span 2 / span 1 / span 2;
+}
+
+#w-node-c890d00d-1c26-3472-e1a2-a0f3782c4c7f-ad0e8501 {
+  justify-self: end;
+}
+
+#w-node-c890d00d-1c26-3472-e1a2-a0f3782c4c84-ad0e8501, #w-node-_32a9cb07-b18b-668e-db2f-1c5c3081817a-ad0e8501 {
+  grid-area: span 1 / span 3 / span 1 / span 3;
+}
+
+#w-node-e11a7337-bde2-19aa-1b4b-c032af4154f2-ca0ea90e {
+  place-self: center start;
+}
+
+#w-node-e11a7337-bde2-19aa-1b4b-c032af4154f5-ca0ea90e, #w-node-_52a1a7f0-d63a-29f2-54ec-da6b47c8c582-ca0ea90e {
+  place-self: center;
+}
+
+#w-node-e11a7337-bde2-19aa-1b4b-c032af4154f8-ca0ea90e {
+  place-self: center end;
+}
+
+#w-node-_71a14719-eca7-48a6-e7aa-9e478f7f4357-ca0ea90e {
+  align-self: start;
+}
+
+#w-node-_80a19154-9ce4-5a52-e07f-2da72cb6cc92-ca0ea90e {
+  align-self: end;
+}
+
+#w-node-_0f6baac4-9d6e-828a-8ad6-cc283c662f06-ca0ea90e, #w-node-_131c4e70-838a-f02d-a8fe-3be7b82e9e34-ca0ea90e {
+  grid-area: span 1 / span 3 / span 1 / span 3;
+}
+
+#w-node-dd418ee4-1695-6881-99f1-c692138884a4-ca0ea90e, #w-node-bf4b00b2-04b7-55e8-8e3a-5aa96c437ff7-ca0ea90e, #w-node-_5d44c99a-737c-492c-1c10-a36970f1c49d-ca0ea90e, #w-node-_9a512646-32bb-30d4-8f7e-cfca7823ff53-ca0ea90e {
+  grid-area: span 1 / span 1 / span 1 / span 1;
+}
+
+#w-node-_412fed81-b84e-3c76-8411-3afae715f8a3-ca0ea90e {
+  grid-area: span 1 / span 2 / span 1 / span 2;
+}
+
+#w-node-_412fed81-b84e-3c76-8411-3afae715f8a7-ca0ea90e {
+  justify-self: end;
+}
+
+#w-node-_412fed81-b84e-3c76-8411-3afae715f8ac-ca0ea90e {
+  grid-area: span 1 / span 3 / span 1 / span 3;
+}
+
+#w-node-_7ef4d626-50d1-d49b-e0e5-28a90f1d6922-ca0ea90e, #w-node-a83fef70-d70c-0cae-f46b-179614d55263-ca0ea90e, #w-node-b7d210dd-e6b0-eb15-be79-ffe6e9caae84-ca0ea90e {
+  grid-area: span 1 / span 2 / span 1 / span 2;
+}
+
+#w-node-e11a7337-bde2-19aa-1b4b-c032af4154f2-7f08667c {
+  place-self: center start;
+}
+
+#w-node-e11a7337-bde2-19aa-1b4b-c032af4154f5-7f08667c, #w-node-_52a1a7f0-d63a-29f2-54ec-da6b47c8c582-7f08667c {
+  place-self: center;
+}
+
+#w-node-e11a7337-bde2-19aa-1b4b-c032af4154f8-7f08667c {
+  place-self: center end;
+}
+
+#w-node-_71a14719-eca7-48a6-e7aa-9e478f7f4357-7f08667c {
+  align-self: start;
+}
+
+#w-node-_80a19154-9ce4-5a52-e07f-2da72cb6cc92-7f08667c {
+  align-self: end;
+}
+
+#w-node-_0f6baac4-9d6e-828a-8ad6-cc283c662f06-7f08667c, #w-node-_131c4e70-838a-f02d-a8fe-3be7b82e9e34-7f08667c {
+  grid-area: span 1 / span 3 / span 1 / span 3;
+}
+
+#w-node-_6a08ba26-fa95-5203-bb3e-8381ae1a1ef2-7f08667c, #w-node-_6a08ba26-fa95-5203-bb3e-8381ae1a1f0a-7f08667c, #w-node-_6a08ba26-fa95-5203-bb3e-8381ae1a1f17-7f08667c {
+  grid-area: span 1 / span 1 / span 1 / span 1;
+}
+
+#w-node-_412fed81-b84e-3c76-8411-3afae715f8a3-7f08667c {
+  grid-area: span 1 / span 2 / span 1 / span 2;
+}
+
+#w-node-_412fed81-b84e-3c76-8411-3afae715f8a7-7f08667c {
+  justify-self: end;
+}
+
+#w-node-_412fed81-b84e-3c76-8411-3afae715f8ac-7f08667c {
+  grid-area: span 1 / span 3 / span 1 / span 3;
+}
+
+#w-node-_7ef4d626-50d1-d49b-e0e5-28a90f1d6922-7f08667c, #w-node-a83fef70-d70c-0cae-f46b-179614d55263-7f08667c, #w-node-b7d210dd-e6b0-eb15-be79-ffe6e9caae84-7f08667c {
+  grid-area: span 1 / span 2 / span 1 / span 2;
+}
+
+#w-node-e11a7337-bde2-19aa-1b4b-c032af4154f2-955f5dc0 {
+  place-self: center start;
+}
+
+#w-node-e11a7337-bde2-19aa-1b4b-c032af4154f5-955f5dc0, #w-node-_52a1a7f0-d63a-29f2-54ec-da6b47c8c582-955f5dc0 {
+  place-self: center;
+}
+
+#w-node-e11a7337-bde2-19aa-1b4b-c032af4154f8-955f5dc0 {
+  place-self: center end;
+}
+
+#w-node-_71a14719-eca7-48a6-e7aa-9e478f7f4357-955f5dc0 {
+  align-self: start;
+}
+
+#w-node-e91b4d3f-c735-4491-681c-07cc54445555-955f5dc0 {
+  justify-self: stretch;
+}
+
+#w-node-_80a19154-9ce4-5a52-e07f-2da72cb6cc92-955f5dc0 {
+  align-self: end;
+}
+
+#w-node-_0f6baac4-9d6e-828a-8ad6-cc283c662f06-955f5dc0, #w-node-_7ed8eca3-34fd-f665-b190-7fb5b2b2c512-955f5dc0 {
+  grid-area: span 1 / span 3 / span 1 / span 3;
+}
+
+#w-node-_67a9c1bb-139e-2afc-dbf9-9712d1a823da-955f5dc0, #w-node-_9abcdfb4-fafe-a9de-9fd4-13f98f4db151-955f5dc0, #w-node-_3fa2ec3e-3822-dbc9-0709-6586d812d8ff-955f5dc0, #w-node-dd418ee4-1695-6881-99f1-c692138884a4-955f5dc0, #w-node-bf4b00b2-04b7-55e8-8e3a-5aa96c437ff7-955f5dc0, #w-node-_5d44c99a-737c-492c-1c10-a36970f1c49d-955f5dc0 {
+  grid-area: span 1 / span 1 / span 1 / span 1;
+}
+
+#w-node-_07f72020-043b-b817-78ac-721713bb277f-955f5dc0 {
+  grid-area: span 1 / span 2 / span 1 / span 2;
+}
+
+#w-node-_431d2691-68e0-460e-92ed-b4d1017453f2-955f5dc0 {
+  justify-self: end;
+}
+
+#w-node-_5bd0b956-70ff-ad1e-a3f5-00f75caf3ba5-955f5dc0 {
+  grid-area: span 1 / span 3 / span 1 / span 3;
+}
+
+#w-node-_7ef4d626-50d1-d49b-e0e5-28a90f1d6922-955f5dc0, #w-node-a83fef70-d70c-0cae-f46b-179614d55263-955f5dc0, #w-node-b7d210dd-e6b0-eb15-be79-ffe6e9caae84-955f5dc0 {
+  grid-area: span 1 / span 2 / span 1 / span 2;
+}
+
+#w-node-e11a7337-bde2-19aa-1b4b-c032af4154f2-03eb2c0e {
+  place-self: center start;
+}
+
+#w-node-e11a7337-bde2-19aa-1b4b-c032af4154f5-03eb2c0e, #w-node-_52a1a7f0-d63a-29f2-54ec-da6b47c8c582-03eb2c0e {
+  place-self: center;
+}
+
+#w-node-e11a7337-bde2-19aa-1b4b-c032af4154f8-03eb2c0e {
+  place-self: center end;
+}
+
+#w-node-_71a14719-eca7-48a6-e7aa-9e478f7f4357-03eb2c0e {
+  align-self: start;
+}
+
+#w-node-_80a19154-9ce4-5a52-e07f-2da72cb6cc92-03eb2c0e {
+  align-self: end;
+}
+
+#w-node-_0f6baac4-9d6e-828a-8ad6-cc283c662f06-03eb2c0e, #w-node-_7ed8eca3-34fd-f665-b190-7fb5b2b2c512-03eb2c0e {
+  grid-area: span 1 / span 3 / span 1 / span 3;
+}
+
+#w-node-_67a9c1bb-139e-2afc-dbf9-9712d1a823da-03eb2c0e, #w-node-_9abcdfb4-fafe-a9de-9fd4-13f98f4db151-03eb2c0e, #w-node-_3fa2ec3e-3822-dbc9-0709-6586d812d8ff-03eb2c0e, #w-node-dd418ee4-1695-6881-99f1-c692138884a4-03eb2c0e, #w-node-bf4b00b2-04b7-55e8-8e3a-5aa96c437ff7-03eb2c0e, #w-node-_5d44c99a-737c-492c-1c10-a36970f1c49d-03eb2c0e {
+  grid-area: span 1 / span 1 / span 1 / span 1;
+}
+
+#w-node-_07f72020-043b-b817-78ac-721713bb277f-03eb2c0e {
+  grid-area: span 1 / span 2 / span 1 / span 2;
+}
+
+#w-node-_431d2691-68e0-460e-92ed-b4d1017453f2-03eb2c0e {
+  justify-self: end;
+}
+
+#w-node-_5bd0b956-70ff-ad1e-a3f5-00f75caf3ba5-03eb2c0e {
+  grid-area: span 1 / span 3 / span 1 / span 3;
+}
+
+#w-node-_7ef4d626-50d1-d49b-e0e5-28a90f1d6922-03eb2c0e, #w-node-a83fef70-d70c-0cae-f46b-179614d55263-03eb2c0e, #w-node-b7d210dd-e6b0-eb15-be79-ffe6e9caae84-03eb2c0e {
+  grid-area: span 1 / span 2 / span 1 / span 2;
+}
+
+@media screen and (max-width: 991px) {
+  #w-node-_71a14719-eca7-48a6-e7aa-9e478f7f4357-cbc69cf8 {
+    grid-area: span 1 / span 2 / span 1 / span 2;
+  }
+
+  #w-node-_80a19154-9ce4-5a52-e07f-2da72cb6cc92-cbc69cf8 {
+    order: 9999;
+  }
+
+  #w-node-_2ca4adfb-76a1-8db6-a790-2258cfa13838-cbc69cf8 {
+    grid-column: span 2 / span 2;
+  }
+
+  #w-node-c890d00d-1c26-3472-e1a2-a0f3782c4c7f-cbc69cf8 {
+    align-self: end;
+  }
+
+  #w-node-_32a9cb07-b18b-668e-db2f-1c5c3081817a-cbc69cf8 {
+    grid-column: span 2 / span 2;
+  }
+
+  #w-node-_80a19154-9ce4-5a52-e07f-2da72cb6cc92-4601c0c5 {
+    order: 9999;
+    justify-self: end;
+  }
+
+  #w-node-_0f6baac4-9d6e-828a-8ad6-cc283c662f06-4601c0c5 {
+    grid-area: span 1 / span 2 / span 1 / span 2;
+  }
+
+  #w-node-_7ed8eca3-34fd-f665-b190-7fb5b2b2c512-4601c0c5 {
+    grid-column: span 2 / span 2;
+  }
+
+  #w-node-_431d2691-68e0-460e-92ed-b4d1017453f2-4601c0c5 {
+    align-self: end;
+  }
+
+  #w-node-_54f66c52-e001-d212-122c-66427bdb932a-4601c0c5 {
+    grid-area: span 1 / span 2 / span 1 / span 2;
+  }
+
+  #w-node-_3a3877c5-6cff-fbf8-e343-fd2c16920b2f-2008aa7b, #w-node-_980bac73-2f9d-6ef2-62fc-7ca3af7945ed-2008aa7b {
+    justify-self: start;
+  }
+
+  #w-node-_56762e99-7fb7-f4e5-d9ce-ad52ba56dcbf-2008aa7b {
+    grid-column: span 1 / span 1;
+    justify-self: start;
+  }
+
+  #w-node-_3a3877c5-6cff-fbf8-e343-fd2c16920b2f-7e3ff1ff, #w-node-_980bac73-2f9d-6ef2-62fc-7ca3af7945ed-7e3ff1ff {
+    justify-self: start;
+  }
+
+  #w-node-_56762e99-7fb7-f4e5-d9ce-ad52ba56dcbf-7e3ff1ff {
+    grid-column: span 1 / span 1;
+    justify-self: start;
+  }
+
+  #w-node-_3a3877c5-6cff-fbf8-e343-fd2c16920b2f-a989a844, #w-node-_980bac73-2f9d-6ef2-62fc-7ca3af7945ed-a989a844 {
+    justify-self: start;
+  }
+
+  #w-node-_56762e99-7fb7-f4e5-d9ce-ad52ba56dcbf-a989a844 {
+    grid-column: span 1 / span 1;
+    justify-self: start;
+  }
+
+  #w-node-_3a3877c5-6cff-fbf8-e343-fd2c16920b2f-70db865a, #w-node-_980bac73-2f9d-6ef2-62fc-7ca3af7945ed-70db865a {
+    justify-self: start;
+  }
+
+  #w-node-_56762e99-7fb7-f4e5-d9ce-ad52ba56dcbf-70db865a {
+    grid-column: span 1 / span 1;
+    justify-self: start;
+  }
+
+  #w-node-_3a3877c5-6cff-fbf8-e343-fd2c16920b2f-cfc99f78, #w-node-_980bac73-2f9d-6ef2-62fc-7ca3af7945ed-cfc99f78 {
+    justify-self: start;
+  }
+
+  #w-node-_56762e99-7fb7-f4e5-d9ce-ad52ba56dcbf-cfc99f78 {
+    grid-column: span 1 / span 1;
+    justify-self: start;
+  }
+
+  #w-node-_3a3877c5-6cff-fbf8-e343-fd2c16920b2f-a949358d, #w-node-_980bac73-2f9d-6ef2-62fc-7ca3af7945ed-a949358d {
+    justify-self: start;
+  }
+
+  #w-node-_56762e99-7fb7-f4e5-d9ce-ad52ba56dcbf-a949358d {
+    grid-column: span 1 / span 1;
+    justify-self: start;
+  }
+
+  #w-node-_3a3877c5-6cff-fbf8-e343-fd2c16920b2f-bb4a2ca1, #w-node-_980bac73-2f9d-6ef2-62fc-7ca3af7945ed-bb4a2ca1 {
+    justify-self: start;
+  }
+
+  #w-node-_56762e99-7fb7-f4e5-d9ce-ad52ba56dcbf-bb4a2ca1 {
+    grid-column: span 1 / span 1;
+    justify-self: start;
+  }
+
+  #w-node-_71a14719-eca7-48a6-e7aa-9e478f7f4357-ad0e8501 {
+    grid-area: span 1 / span 2 / span 1 / span 2;
+  }
+
+  #w-node-_80a19154-9ce4-5a52-e07f-2da72cb6cc92-ad0e8501 {
+    order: 9999;
+  }
+
+  #w-node-_2ca4adfb-76a1-8db6-a790-2258cfa13838-ad0e8501 {
+    grid-column: span 2 / span 2;
+  }
+
+  #w-node-c890d00d-1c26-3472-e1a2-a0f3782c4c7f-ad0e8501 {
+    align-self: end;
+  }
+
+  #w-node-_32a9cb07-b18b-668e-db2f-1c5c3081817a-ad0e8501 {
+    grid-column: span 2 / span 2;
+  }
+
+  #w-node-_80a19154-9ce4-5a52-e07f-2da72cb6cc92-ca0ea90e {
+    order: 9999;
+    justify-self: end;
+  }
+
+  #w-node-_0f6baac4-9d6e-828a-8ad6-cc283c662f06-ca0ea90e {
+    grid-area: span 1 / span 2 / span 1 / span 2;
+  }
+
+  #w-node-_131c4e70-838a-f02d-a8fe-3be7b82e9e34-ca0ea90e {
+    grid-column: span 2 / span 2;
+  }
+
+  #w-node-_412fed81-b84e-3c76-8411-3afae715f8a7-ca0ea90e {
+    align-self: end;
+  }
+
+  #w-node-_54f66c52-e001-d212-122c-66427bdb932a-ca0ea90e {
+    grid-area: span 1 / span 2 / span 1 / span 2;
+  }
+
+  #w-node-_80a19154-9ce4-5a52-e07f-2da72cb6cc92-7f08667c {
+    order: 9999;
+    justify-self: end;
+  }
+
+  #w-node-_0f6baac4-9d6e-828a-8ad6-cc283c662f06-7f08667c {
+    grid-area: span 1 / span 2 / span 1 / span 2;
+  }
+
+  #w-node-_131c4e70-838a-f02d-a8fe-3be7b82e9e34-7f08667c {
+    grid-column: span 2 / span 2;
+  }
+
+  #w-node-_412fed81-b84e-3c76-8411-3afae715f8a7-7f08667c {
+    align-self: end;
+  }
+
+  #w-node-_54f66c52-e001-d212-122c-66427bdb932a-7f08667c {
+    grid-area: span 1 / span 2 / span 1 / span 2;
+  }
+
+  #w-node-_80a19154-9ce4-5a52-e07f-2da72cb6cc92-955f5dc0 {
+    order: 9999;
+    justify-self: end;
+  }
+
+  #w-node-_0f6baac4-9d6e-828a-8ad6-cc283c662f06-955f5dc0 {
+    grid-area: span 1 / span 2 / span 1 / span 2;
+  }
+
+  #w-node-_7ed8eca3-34fd-f665-b190-7fb5b2b2c512-955f5dc0 {
+    grid-column: span 2 / span 2;
+  }
+
+  #w-node-_431d2691-68e0-460e-92ed-b4d1017453f2-955f5dc0 {
+    align-self: end;
+  }
+
+  #w-node-_54f66c52-e001-d212-122c-66427bdb932a-955f5dc0 {
+    grid-area: span 1 / span 2 / span 1 / span 2;
+  }
+
+  #w-node-_80a19154-9ce4-5a52-e07f-2da72cb6cc92-03eb2c0e {
+    order: 9999;
+    justify-self: end;
+  }
+
+  #w-node-_0f6baac4-9d6e-828a-8ad6-cc283c662f06-03eb2c0e {
+    grid-area: span 1 / span 2 / span 1 / span 2;
+  }
+
+  #w-node-_7ed8eca3-34fd-f665-b190-7fb5b2b2c512-03eb2c0e {
+    grid-column: span 2 / span 2;
+  }
+
+  #w-node-_431d2691-68e0-460e-92ed-b4d1017453f2-03eb2c0e {
+    align-self: end;
+  }
+
+  #w-node-_54f66c52-e001-d212-122c-66427bdb932a-03eb2c0e {
+    grid-area: span 1 / span 2 / span 1 / span 2;
+  }
+}
+
+@media screen and (max-width: 767px) {
+  #w-node-_3e4ebd6f-68d9-b921-883a-eec3495ae707-9716bd19 {
+    justify-self: end;
+  }
+
+  #w-node-_19875391-9c51-8795-2044-bc5716b8ba7d-9716bd19, #w-node-b8c4977c-4f08-8a91-6a58-479a1614dd45-9716bd19, #w-node-_28ad36b5-8d85-431c-70d3-95c96c374d65-9716bd19, #w-node-_4918e816-5e86-c6f8-f669-87ad0f877b61-9716bd19, #w-node-d74bb614-6e76-37e5-c2c3-0ebe1e866636-9716bd19, #w-node-_841637b5-49ed-1cc2-ec64-8c59dd12ce7d-9716bd19, #w-node-_71a14719-eca7-48a6-e7aa-9e478f7f4357-cbc69cf8 {
+    grid-column: span 2 / span 2;
+  }
+
+  #w-node-df126ad7-1c18-6ade-3abe-5b21a21e4db3-cbc69cf8, #w-node-a5e764ef-7dbf-b7cc-a3a2-9cfcb8203f30-cbc69cf8 {
+    grid-area: span 1 / span 1 / span 1 / span 1;
+  }
+
+  #w-node-_0f6baac4-9d6e-828a-8ad6-cc283c662f06-4601c0c5 {
+    grid-column: span 2 / span 2;
+  }
+
+  #w-node-ccf932e8-246b-e015-2067-219870761f5c-4601c0c5, #w-node-_1ae77509-59a6-8839-3f22-b9802f2b5649-4601c0c5, #w-node-f4debeb3-68e5-9254-f681-85c23e0ad1cf-4601c0c5, #w-node-_8a782de1-6a1f-595d-d6b5-360cada6ca13-4601c0c5, #w-node-_47d36a1c-88c4-ebbf-893e-88541157ce4c-4601c0c5, #w-node-_5a4be6a1-9b01-6fd3-fa38-03055e253f1d-4601c0c5, #w-node-ef656b17-654a-462b-e243-174727480d7f-2008aa7b {
+    grid-area: span 1 / span 2 / span 1 / span 2;
+  }
+
+  #w-node-_56762e99-7fb7-f4e5-d9ce-ad52ba56dcbf-2008aa7b {
+    grid-column: span 2 / span 2;
+  }
+
+  #w-node-ef656b17-654a-462b-e243-174727480d7f-7e3ff1ff {
+    grid-area: span 1 / span 2 / span 1 / span 2;
+  }
+
+  #w-node-_56762e99-7fb7-f4e5-d9ce-ad52ba56dcbf-7e3ff1ff {
+    grid-column: span 2 / span 2;
+  }
+
+  #w-node-ef656b17-654a-462b-e243-174727480d7f-a989a844 {
+    grid-area: span 1 / span 2 / span 1 / span 2;
+  }
+
+  #w-node-_56762e99-7fb7-f4e5-d9ce-ad52ba56dcbf-a989a844 {
+    grid-column: span 2 / span 2;
+  }
+
+  #w-node-ef656b17-654a-462b-e243-174727480d7f-70db865a {
+    grid-area: span 1 / span 2 / span 1 / span 2;
+  }
+
+  #w-node-_56762e99-7fb7-f4e5-d9ce-ad52ba56dcbf-70db865a {
+    grid-column: span 2 / span 2;
+  }
+
+  #w-node-ef656b17-654a-462b-e243-174727480d7f-cfc99f78 {
+    grid-area: span 1 / span 2 / span 1 / span 2;
+  }
+
+  #w-node-_56762e99-7fb7-f4e5-d9ce-ad52ba56dcbf-cfc99f78 {
+    grid-column: span 2 / span 2;
+  }
+
+  #w-node-ef656b17-654a-462b-e243-174727480d7f-a949358d {
+    grid-area: span 1 / span 2 / span 1 / span 2;
+  }
+
+  #w-node-_56762e99-7fb7-f4e5-d9ce-ad52ba56dcbf-a949358d {
+    grid-column: span 2 / span 2;
+  }
+
+  #w-node-ef656b17-654a-462b-e243-174727480d7f-bb4a2ca1 {
+    grid-area: span 1 / span 2 / span 1 / span 2;
+  }
+
+  #w-node-_56762e99-7fb7-f4e5-d9ce-ad52ba56dcbf-bb4a2ca1, #w-node-_71a14719-eca7-48a6-e7aa-9e478f7f4357-ad0e8501 {
+    grid-column: span 2 / span 2;
+  }
+
+  #w-node-df126ad7-1c18-6ade-3abe-5b21a21e4db3-ad0e8501 {
+    grid-area: span 1 / span 1 / span 1 / span 1;
+  }
+
+  #w-node-_0f6baac4-9d6e-828a-8ad6-cc283c662f06-ca0ea90e {
+    grid-column: span 2 / span 2;
+  }
+
+  #w-node-ccf932e8-246b-e015-2067-219870761f5c-ca0ea90e, #w-node-_1ae77509-59a6-8839-3f22-b9802f2b5649-ca0ea90e, #w-node-f4debeb3-68e5-9254-f681-85c23e0ad1cf-ca0ea90e, #w-node-_8a782de1-6a1f-595d-d6b5-360cada6ca13-ca0ea90e, #w-node-_47d36a1c-88c4-ebbf-893e-88541157ce4c-ca0ea90e, #w-node-_5a4be6a1-9b01-6fd3-fa38-03055e253f1d-ca0ea90e {
+    grid-area: span 1 / span 2 / span 1 / span 2;
+  }
+
+  #w-node-_0f6baac4-9d6e-828a-8ad6-cc283c662f06-7f08667c {
+    grid-column: span 2 / span 2;
+  }
+
+  #w-node-ccf932e8-246b-e015-2067-219870761f5c-7f08667c, #w-node-_1ae77509-59a6-8839-3f22-b9802f2b5649-7f08667c, #w-node-f4debeb3-68e5-9254-f681-85c23e0ad1cf-7f08667c, #w-node-_8a782de1-6a1f-595d-d6b5-360cada6ca13-7f08667c, #w-node-_47d36a1c-88c4-ebbf-893e-88541157ce4c-7f08667c, #w-node-_5a4be6a1-9b01-6fd3-fa38-03055e253f1d-7f08667c {
+    grid-area: span 1 / span 2 / span 1 / span 2;
+  }
+
+  #w-node-_0f6baac4-9d6e-828a-8ad6-cc283c662f06-955f5dc0 {
+    grid-column: span 2 / span 2;
+  }
+
+  #w-node-ccf932e8-246b-e015-2067-219870761f5c-955f5dc0, #w-node-_1ae77509-59a6-8839-3f22-b9802f2b5649-955f5dc0, #w-node-f4debeb3-68e5-9254-f681-85c23e0ad1cf-955f5dc0, #w-node-_8a782de1-6a1f-595d-d6b5-360cada6ca13-955f5dc0, #w-node-_47d36a1c-88c4-ebbf-893e-88541157ce4c-955f5dc0, #w-node-_5a4be6a1-9b01-6fd3-fa38-03055e253f1d-955f5dc0 {
+    grid-area: span 1 / span 2 / span 1 / span 2;
+  }
+
+  #w-node-_0f6baac4-9d6e-828a-8ad6-cc283c662f06-03eb2c0e {
+    grid-column: span 2 / span 2;
+  }
+
+  #w-node-ccf932e8-246b-e015-2067-219870761f5c-03eb2c0e, #w-node-_1ae77509-59a6-8839-3f22-b9802f2b5649-03eb2c0e, #w-node-f4debeb3-68e5-9254-f681-85c23e0ad1cf-03eb2c0e, #w-node-_8a782de1-6a1f-595d-d6b5-360cada6ca13-03eb2c0e, #w-node-_47d36a1c-88c4-ebbf-893e-88541157ce4c-03eb2c0e, #w-node-_00c7c292-8ec7-0ce6-534d-08aef541bc6e-03eb2c0e {
+    grid-area: span 1 / span 2 / span 1 / span 2;
+  }
+}
+
+@media screen and (max-width: 479px) {
+  #w-node-_71a14719-eca7-48a6-e7aa-9e478f7f4357-cbc69cf8, #w-node-df126ad7-1c18-6ade-3abe-5b21a21e4db3-cbc69cf8 {
+    grid-column: span 1 / span 1;
+  }
+
+  #w-node-_80a19154-9ce4-5a52-e07f-2da72cb6cc92-cbc69cf8 {
+    grid-area: span 1 / span 1 / span 1 / span 1;
+  }
+
+  #w-node-_2ca4adfb-76a1-8db6-a790-2258cfa13838-cbc69cf8 {
+    grid-column: span 1 / span 1;
+  }
+
+  #w-node-c890d00d-1c26-3472-e1a2-a0f3782c4c7b-cbc69cf8 {
+    grid-column: span 3 / span 3;
+  }
+
+  #w-node-c890d00d-1c26-3472-e1a2-a0f3782c4c7f-cbc69cf8 {
+    grid-area: span 1 / span 2 / span 1 / span 2;
+    place-self: center start;
+  }
+
+  #w-node-c890d00d-1c26-3472-e1a2-a0f3782c4c84-cbc69cf8 {
+    grid-area: span 1 / span 3 / span 1 / span 3;
+  }
+
+  #w-node-_32a9cb07-b18b-668e-db2f-1c5c3081817e-cbc69cf8, #w-node-_32a9cb07-b18b-668e-db2f-1c5c30818189-cbc69cf8, #w-node-_32a9cb07-b18b-668e-db2f-1c5c30818194-cbc69cf8, #w-node-_32a9cb07-b18b-668e-db2f-1c5c3081819f-cbc69cf8, #w-node-_32a9cb07-b18b-668e-db2f-1c5c308181aa-cbc69cf8, #w-node-c40fb245-2be4-d7ba-851e-1922394613ea-4601c0c5, #w-node-_63f8bc78-d980-8ebc-1105-77e361a2e8ff-4601c0c5, #w-node-_01e780df-adef-93ec-85a2-5fc230167197-4601c0c5, #w-node-b1b58923-6cbd-15b0-d81e-0719dd2f3ffe-4601c0c5, #w-node-_96579a0c-31d3-870d-8a28-67cb1782a53c-4601c0c5 {
+    grid-area: span 1 / span 2 / span 1 / span 2;
+  }
+
+  #w-node-_07f72020-043b-b817-78ac-721713bb277f-4601c0c5 {
+    grid-column: span 2 / span 2;
+  }
+
+  #w-node-_431d2691-68e0-460e-92ed-b4d1017453f2-4601c0c5 {
+    grid-area: span 1 / span 2 / span 1 / span 2;
+    place-self: center start;
+  }
+
+  #w-node-_5bd0b956-70ff-ad1e-a3f5-00f75caf3ba5-4601c0c5 {
+    grid-area: span 1 / span 3 / span 1 / span 3;
+  }
+
+  #w-node-_980bac73-2f9d-6ef2-62fc-7ca3af7945ed-2008aa7b, #w-node-_980bac73-2f9d-6ef2-62fc-7ca3af7945ed-7e3ff1ff, #w-node-_980bac73-2f9d-6ef2-62fc-7ca3af7945ed-a989a844, #w-node-_980bac73-2f9d-6ef2-62fc-7ca3af7945ed-70db865a, #w-node-_980bac73-2f9d-6ef2-62fc-7ca3af7945ed-cfc99f78, #w-node-_980bac73-2f9d-6ef2-62fc-7ca3af7945ed-a949358d, #w-node-_980bac73-2f9d-6ef2-62fc-7ca3af7945ed-bb4a2ca1 {
+    grid-area: span 1 / span 2 / span 1 / span 2;
+    justify-self: start;
+  }
+
+  #w-node-_71a14719-eca7-48a6-e7aa-9e478f7f4357-ad0e8501, #w-node-df126ad7-1c18-6ade-3abe-5b21a21e4db3-ad0e8501 {
+    grid-column: span 1 / span 1;
+  }
+
+  #w-node-_80a19154-9ce4-5a52-e07f-2da72cb6cc92-ad0e8501 {
+    grid-area: span 1 / span 1 / span 1 / span 1;
+  }
+
+  #w-node-_2ca4adfb-76a1-8db6-a790-2258cfa13838-ad0e8501 {
+    grid-column: span 1 / span 1;
+  }
+
+  #w-node-c890d00d-1c26-3472-e1a2-a0f3782c4c7b-ad0e8501 {
+    grid-column: span 2 / span 2;
+  }
+
+  #w-node-c890d00d-1c26-3472-e1a2-a0f3782c4c7f-ad0e8501 {
+    grid-area: span 1 / span 2 / span 1 / span 2;
+    place-self: center start;
+  }
+
+  #w-node-c890d00d-1c26-3472-e1a2-a0f3782c4c84-ad0e8501 {
+    grid-area: span 1 / span 3 / span 1 / span 3;
+  }
+
+  #w-node-_32a9cb07-b18b-668e-db2f-1c5c3081817e-ad0e8501, #w-node-_32a9cb07-b18b-668e-db2f-1c5c30818189-ad0e8501, #w-node-_131c4e70-838a-f02d-a8fe-3be7b82e9e38-ca0ea90e, #w-node-_131c4e70-838a-f02d-a8fe-3be7b82e9e43-ca0ea90e {
+    grid-area: span 1 / span 2 / span 1 / span 2;
+  }
+
+  #w-node-_412fed81-b84e-3c76-8411-3afae715f8a3-ca0ea90e {
+    grid-column: span 2 / span 2;
+  }
+
+  #w-node-_412fed81-b84e-3c76-8411-3afae715f8a7-ca0ea90e {
+    grid-area: span 1 / span 2 / span 1 / span 2;
+    place-self: center start;
+  }
+
+  #w-node-_412fed81-b84e-3c76-8411-3afae715f8ac-ca0ea90e {
+    grid-area: span 1 / span 3 / span 1 / span 3;
+  }
+
+  #w-node-_131c4e70-838a-f02d-a8fe-3be7b82e9e38-7f08667c, #w-node-_131c4e70-838a-f02d-a8fe-3be7b82e9e43-7f08667c {
+    grid-area: span 1 / span 2 / span 1 / span 2;
+  }
+
+  #w-node-_412fed81-b84e-3c76-8411-3afae715f8a3-7f08667c {
+    grid-column: span 2 / span 2;
+  }
+
+  #w-node-_412fed81-b84e-3c76-8411-3afae715f8a7-7f08667c {
+    grid-area: span 1 / span 2 / span 1 / span 2;
+    place-self: center start;
+  }
+
+  #w-node-_412fed81-b84e-3c76-8411-3afae715f8ac-7f08667c {
+    grid-area: span 1 / span 3 / span 1 / span 3;
+  }
+
+  #w-node-c40fb245-2be4-d7ba-851e-1922394613ea-955f5dc0, #w-node-_63f8bc78-d980-8ebc-1105-77e361a2e8ff-955f5dc0, #w-node-_01e780df-adef-93ec-85a2-5fc230167197-955f5dc0, #w-node-b1b58923-6cbd-15b0-d81e-0719dd2f3ffe-955f5dc0, #w-node-_96579a0c-31d3-870d-8a28-67cb1782a53c-955f5dc0 {
+    grid-area: span 1 / span 2 / span 1 / span 2;
+  }
+
+  #w-node-_07f72020-043b-b817-78ac-721713bb277f-955f5dc0 {
+    grid-column: span 2 / span 2;
+  }
+
+  #w-node-_431d2691-68e0-460e-92ed-b4d1017453f2-955f5dc0 {
+    grid-area: span 1 / span 2 / span 1 / span 2;
+    place-self: center start;
+  }
+
+  #w-node-_5bd0b956-70ff-ad1e-a3f5-00f75caf3ba5-955f5dc0 {
+    grid-area: span 1 / span 3 / span 1 / span 3;
+  }
+
+  #w-node-c40fb245-2be4-d7ba-851e-1922394613ea-03eb2c0e, #w-node-_63f8bc78-d980-8ebc-1105-77e361a2e8ff-03eb2c0e, #w-node-_01e780df-adef-93ec-85a2-5fc230167197-03eb2c0e, #w-node-b1b58923-6cbd-15b0-d81e-0719dd2f3ffe-03eb2c0e, #w-node-_96579a0c-31d3-870d-8a28-67cb1782a53c-03eb2c0e {
+    grid-area: span 1 / span 2 / span 1 / span 2;
+  }
+
+  #w-node-_07f72020-043b-b817-78ac-721713bb277f-03eb2c0e {
+    grid-column: span 2 / span 2;
+  }
+
+  #w-node-_431d2691-68e0-460e-92ed-b4d1017453f2-03eb2c0e {
+    grid-area: span 1 / span 2 / span 1 / span 2;
+    place-self: center start;
+  }
+
+  #w-node-_5bd0b956-70ff-ad1e-a3f5-00f75caf3ba5-03eb2c0e {
+    grid-area: span 1 / span 3 / span 1 / span 3;
+  }
+}
+
+
+@font-face {
+  font-family: 'Roadrage';
+  src: url('https://storage.yandexcloud.net/zvenfit/v2/fonts/roadrage.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Inline styles moved from HTML */
+.grain-overlay {
+  pointer-events: none;
+}
+
+.reviews-wrapper {
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.reviews-wrapper::-webkit-scrollbar {
+  display: none;
+}
+
+.custom-select {
+  position: relative;
+}
+
+.select-selected {
+  background: #1a1a1a;
+  border: 2px solid white;
+  border-radius: 10px;
+  padding: 12px;
+  cursor: pointer;
+  min-height: 48px;
+  display: flex;
+  align-items: left;
+  box-sizing: border-box;
+}
+
+.select-options {
+  display: none;
+  position: absolute;
+  width: 100%;
+  background: #1a1a1a;
+  border: 2px solid white;
+  border-radius: 10px;
+  margin-top: 5px;
+  overflow: hidden;
+  z-index: 10;
+}
+
+.select-options div {
+  padding: 10px;
+  font-size: 20px;
+  cursor: pointer;
+}
+
+.select-options div:hover {
+  background: #2a2a2a;
+}
+
+.select-options div:first-child:hover {
+  border-top-left-radius: 10px;
+  border-top-right-radius: 10px;
+}
+
+.select-options div:last-child:hover {
+  border-bottom-left-radius: 10px;
+  border-bottom-right-radius: 10px;
+}
+
+@media (max-width: 767px) {
+  .select-options div {
+    font-size: 15px;
+  }
+}
+
+.select-options div.active {
+  background: #2a2a2a;
+}

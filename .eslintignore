@@ -4,3 +4,4 @@
 *.config.js
 *.json
 /browser
+/scripts

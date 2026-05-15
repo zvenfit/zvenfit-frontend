@@ -1,0 +1,21 @@
+# robots.txt для zvenfit.ru
+
+User-agent: *
+Allow: /
+
+# Запрещаем индексацию служебных файлов
+Disallow: /js/
+Disallow: /css/
+
+# Yandex-специфичные директивы
+User-agent: Yandex
+Allow: /
+Host: zvenfit.ru
+Crawl-delay: 1
+
+# Google
+User-agent: Googlebot
+Allow: /
+
+# Ссылка на sitemap
+Sitemap: https://zvenfit.ru/sitemap.xml
