@@ -3,13 +3,24 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "start": "webpack serve --config webpack.config.ts --mode development",
-    "build": "cross-env TS_NODE_PROJECT=\"tsconfig-webpack.json\" webpack --config webpack.config.ts --mode production",
-    "lint": "eslint  \"src/**/*.{ts,tsx,js,jsx}\"",
+    "build": "node scripts/build-static.cjs",
+    "lint": "eslint \"src/**/*.{ts,tsx,js,jsx}\" --no-error-on-unmatched-pattern",
     "lint:fix": "npm run lint -- --fix",
-    "test": "TZ=Europe/Moscow jest --ci",
-    "test:dev": "TZ=Europe/Moscow jest --watchAll --verbose"
+    "deploy:yc": "aws s3 sync ./dist \"s3://${YC_S3_BUCKET:-zvenfit-frontend}\" --delete --endpoint-url https://storage.yandexcloud.net --region ru-1"
   },
-  "dependencies": {},
-  "devDependencies": {}
+  "devDependencies": {
+    "@babel/core": "^7.26.0",
+    "@babel/eslint-parser": "^7.26.0",
+    "@typescript-eslint/eslint-plugin": "^7.18.0",
+    "@typescript-eslint/parser": "^7.18.0",
+    "eslint": "^8.57.1",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-import-resolver-typescript": "^3.10.1",
+    "eslint-plugin-import": "^2.31.0",
+    "eslint-plugin-prettier": "^5.2.1",
+    "eslint-plugin-react": "^7.37.2",
+    "eslint-plugin-react-hooks": "^4.6.2",
+    "prettier": "^3.4.2",
+    "typescript": "^5.7.2"
+  }
 }

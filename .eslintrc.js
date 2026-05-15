@@ -26,6 +26,12 @@ module.exports = {
     'plugin:prettier/recommended',
   ],
   plugins: [],
+  settings: {
+    react: {
+      // No react dependency in this static-only repo; pin version for eslint-plugin-react rules.
+      version: '18.3',
+    },
+  },
   // https://eslint.org/docs/rules/
   rules: {
     curly: 'error',
@@ -127,7 +133,7 @@ module.exports = {
           },
         },
         'react': {
-          version: 'detect',
+          version: '18.3',
         },
       },
       extends: ['plugin:@typescript-eslint/recommended'],
