@@ -11,7 +11,7 @@
   
   <!-- Основные разделы -->
   <url>
-    <loc>https://zvenfit.ru/fitnes-club/</loc>
+    <loc>https://zvenfit.ru/trenazhernyj-zal/</loc>
     <lastmod>2026-05-13</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
@@ -40,49 +40,56 @@
   
   <!-- Тренеры -->
   <url>
-    <loc>https://zvenfit.ru/coaches/trenery/</loc>
+    <loc>https://zvenfit.ru/trenery/</loc>
     <lastmod>2026-05-13</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   
   <url>
-    <loc>https://zvenfit.ru/coaches/trener-elena/</loc>
+    <loc>https://zvenfit.ru/trenery/trener-efim/</loc>
+    <lastmod>2026-05-13</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.65</priority>
+  </url>
+
+  <url>
+    <loc>https://zvenfit.ru/trenery/trener-elena/</loc>
     <lastmod>2026-05-13</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   
   <url>
-    <loc>https://zvenfit.ru/coaches/trener-anna/</loc>
+    <loc>https://zvenfit.ru/trenery/trener-anna/</loc>
     <lastmod>2026-05-13</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   
   <url>
-    <loc>https://zvenfit.ru/coaches/trener-oleg/</loc>
+    <loc>https://zvenfit.ru/trenery/trener-oleg/</loc>
     <lastmod>2026-05-13</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   
   <url>
-    <loc>https://zvenfit.ru/coaches/trener-olga/</loc>
+    <loc>https://zvenfit.ru/trenery/trener-olga/</loc>
     <lastmod>2026-05-13</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   
   <url>
-    <loc>https://zvenfit.ru/coaches/trener-oksana/</loc>
+    <loc>https://zvenfit.ru/trenery/trener-oksana/</loc>
     <lastmod>2026-05-13</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   
   <url>
-    <loc>https://zvenfit.ru/coaches/trener-ella/</loc>
+    <loc>https://zvenfit.ru/trenery/trener-ella/</loc>
     <lastmod>2026-05-13</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
@@ -90,14 +97,14 @@
   
   <!-- Пилатес -->
   <url>
-    <loc>https://zvenfit.ru/pilates/pilates-individual/</loc>
+    <loc>https://zvenfit.ru/pilates-na-reformere/individualnyy/</loc>
     <lastmod>2026-05-13</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   
   <url>
-    <loc>https://zvenfit.ru/pilates/pilates-gruppa/</loc>
+    <loc>https://zvenfit.ru/pilates-na-reformere/gruppovye/</loc>
     <lastmod>2026-05-13</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
@@ -105,21 +112,21 @@
   
   <!-- Фитнес -->
   <url>
-    <loc>https://zvenfit.ru/fitnes/fitnes-individual/</loc>
+    <loc>https://zvenfit.ru/personalnye-trenirovki/</loc>
     <lastmod>2026-05-13</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   
   <url>
-    <loc>https://zvenfit.ru/fitnes/fitnes-split/</loc>
+    <loc>https://zvenfit.ru/split-trenirovki/</loc>
     <lastmod>2026-05-13</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   
   <url>
-    <loc>https://zvenfit.ru/fitnes/fitnes-split-copy/</loc>
+    <loc>https://zvenfit.ru/parnye-trenirovki/</loc>
     <lastmod>2026-05-13</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
