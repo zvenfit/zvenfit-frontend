@@ -9,9 +9,44 @@ document.addEventListener('DOMContentLoaded', function () {
   const errorBlock = formRoot.querySelector('.error-message');
   const submitButton = form.querySelector('[type="submit"]');
   const defaultSubmitLabel = submitButton ? submitButton.value : 'Отправить';
+  const defaultServiceLabel = 'Выберите удобный для вас вариант...';
+  const successMessageMs = 5000;
+  let successTimer;
+
+  function clearSuccessTimer() {
+    if (!successTimer) {
+      return;
+    }
+    clearTimeout(successTimer);
+    successTimer = null;
+  }
+
+  function resetCustomFields() {
+    const selected = document.querySelector('.select-selected');
+    const hidden = document.querySelector('input[name="service"]');
+    const telegramField = document.querySelector('.telegram-wrapper');
+    const telegramInput = document.querySelector('[name="telegram_username"]');
+
+    if (selected) {
+      selected.innerText = defaultServiceLabel;
+    }
+    if (hidden) {
+      hidden.value = '';
+    }
+    if (telegramField) {
+      telegramField.style.display = 'none';
+    }
+    if (telegramInput) {
+      telegramInput.required = false;
+      telegramInput.value = '';
+    }
+  }
 
   function setFormState(state) {
+    clearSuccessTimer();
+
     if (!state) {
+      form.style.display = '';
       if (successBlock) {
         successBlock.style.display = 'none';
       }
@@ -23,6 +58,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     if (state === 'success') {
+      form.style.display = 'none';
       if (successBlock) {
         successBlock.style.display = 'block';
       }
@@ -30,6 +66,7 @@ document.addEventListener('DOMContentLoaded', function () {
         errorBlock.style.display = 'none';
       }
     } else if (state === 'error') {
+      form.style.display = '';
       if (successBlock) {
         successBlock.style.display = 'none';
       }
@@ -88,7 +125,11 @@ document.addEventListener('DOMContentLoaded', function () {
       }
 
       form.reset();
+      resetCustomFields();
       setFormState('success');
+      successTimer = setTimeout(function () {
+        setFormState(null);
+      }, successMessageMs);
     } catch {
       setFormState('error');
     } finally {
