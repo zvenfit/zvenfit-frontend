@@ -227,32 +227,10 @@ IMask(phoneInput, {
 mask: '+{7} (000) 000-00-00'
 });
 }
-const form = document.querySelector('form');
-if(!form) return;
-form.addEventListener("submit", function(){
-let name = document.querySelector('[name="name"]')?.value || "";
-let phone = document.querySelector('[name="phone"]')?.value || "";
-let service = document.querySelector('[name="service"]')?.value || "";
-let telegram_username = document.querySelector('[name="telegram_username"]')?.value || "";
-let text =
-`Новая заявка
-Имя: ${name}
-Телефон: ${phone}
-Способ связи: ${service}
-Телеграм: ${telegram_username}`;
-fetch("https://api.telegram.org/bot8553800779:AAHl3x58D7wZYwfr5vRg0IOisbqicLCmJqA/sendMessage",{
-method:"POST",
-headers:{
-"Content-Type":"application/json"
-},
-body:JSON.stringify({
-chat_id:"-5161525132",
-text:text
-})
-});
-});
 });
 </script>
+  <script src="/js/lead-config.js"></script>
+  <script src="/js/lead-form.js" defer></script>
   <script>
 document.addEventListener("DOMContentLoaded", function() {
   document.querySelectorAll('[data-back]').forEach(function(btn) {
