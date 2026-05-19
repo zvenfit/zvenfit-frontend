@@ -1473,6 +1473,7 @@ body {
 }
 
 .success-message {
+  display: none;
   background-color: var(--accent);
   text-transform: none;
   border-radius: 20px;
@@ -1491,6 +1492,7 @@ body {
 }
 
 .error-message {
+  display: none;
   background-color: #7a1212;
   border-radius: 20px;
   padding: 20px 40px;

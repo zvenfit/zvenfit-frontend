@@ -15,10 +15,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
     if (!state) {
       if (successBlock) {
-        successBlock.style.display = '';
+        successBlock.style.display = 'none';
       }
       if (errorBlock) {
-        errorBlock.style.display = '';
+        errorBlock.style.display = 'none';
       }
 
       return;
@@ -31,10 +31,10 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     if (successBlock) {
-      successBlock.style.display = state === 'success' ? 'block' : '';
+      successBlock.style.display = state === 'success' ? 'block' : 'none';
     }
     if (errorBlock) {
-      errorBlock.style.display = state === 'error' ? 'block' : '';
+      errorBlock.style.display = state === 'error' ? 'block' : 'none';
     }
   }
 
