@@ -38,8 +38,7 @@ yc serverless function version create \
   --source-path="${ROOT_DIR}/functions/telegram-lead" \
   --environment TELEGRAM_BOT_TOKEN="${TELEGRAM_BOT_TOKEN}" \
   --environment TELEGRAM_CHAT_ID="${TELEGRAM_CHAT_ID}" \
-  --environment ALLOWED_ORIGINS="${ALLOWED_ORIGINS}" \
-  --http-invoke
+  --environment ALLOWED_ORIGINS="${ALLOWED_ORIGINS}"
 
 yc serverless function allow-unauthenticated-invoke "${FUNCTION_NAME}"
 
