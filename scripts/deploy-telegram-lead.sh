@@ -6,7 +6,7 @@ FUNCTION_NAME="${YC_LEAD_FUNCTION_NAME:-zvenfit-telegram-lead}"
 RUNTIME="${YC_LEAD_RUNTIME:-nodejs22}"
 MEMORY="${YC_LEAD_MEMORY:-128m}"
 TIMEOUT="${YC_LEAD_TIMEOUT:-10s}"
-ALLOWED_ORIGINS="${ALLOWED_ORIGINS:-https://zvenfit.ru,https://www.zvenfit.ru}"
+ALLOWED_ORIGINS="${ALLOWED_ORIGINS:-https://zvenfit.ru,https://www.zvenfit.ru,https://zvenigorod.zvenfit.ru}"
 
 if [[ -z "${TELEGRAM_BOT_TOKEN:-}" || -z "${TELEGRAM_CHAT_ID:-}" ]]; then
   echo "deploy-telegram-lead: set TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID" >&2
@@ -36,7 +36,9 @@ yc serverless function version create \
   --memory="${MEMORY}" \
   --execution-timeout="${TIMEOUT}" \
   --source-path="${ROOT_DIR}/functions/telegram-lead" \
-  --environment="TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN},TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID},ALLOWED_ORIGINS=${ALLOWED_ORIGINS}" \
+  --environment TELEGRAM_BOT_TOKEN="${TELEGRAM_BOT_TOKEN}" \
+  --environment TELEGRAM_CHAT_ID="${TELEGRAM_CHAT_ID}" \
+  --environment ALLOWED_ORIGINS="${ALLOWED_ORIGINS}" \
   --http-invoke
 
 yc serverless function allow-unauthenticated-invoke "${FUNCTION_NAME}"
