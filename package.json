@@ -3,7 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "serve public -l 4173",
+    "dev": "NODE_ENV=development node scripts/build-static.cjs && serve dist -l 4173",
+    "dev:mock": "node mock-server.js",
+    "dev:full": "concurrently \"npm run dev:mock\" \"npm run dev\" --names \"API,WEB\" --prefix-colors \"cyan,green\"",
     "build": "node scripts/build-static.cjs",
     "lint": "eslint \"src/**/*.{ts,tsx,js,jsx}\" --no-error-on-unmatched-pattern",
     "lint:fix": "npm run lint -- --fix",
@@ -15,6 +17,7 @@
     "@babel/eslint-parser": "^7.26.0",
     "@typescript-eslint/eslint-plugin": "^7.18.0",
     "@typescript-eslint/parser": "^7.18.0",
+    "concurrently": "^9.2.1",
     "eslint": "^8.57.1",
     "eslint-config-prettier": "^9.1.0",
     "eslint-import-resolver-typescript": "^3.10.1",
