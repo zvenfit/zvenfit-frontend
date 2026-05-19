@@ -11,8 +11,6 @@ document.addEventListener('DOMContentLoaded', function () {
   const defaultSubmitLabel = submitButton ? submitButton.value : 'Отправить';
 
   function setFormState(state) {
-    formRoot.classList.remove('w-form-done', 'w-form-fail');
-
     if (!state) {
       if (successBlock) {
         successBlock.style.display = 'none';
@@ -25,16 +23,19 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     if (state === 'success') {
-      formRoot.classList.add('w-form-done');
+      if (successBlock) {
+        successBlock.style.display = 'block';
+      }
+      if (errorBlock) {
+        errorBlock.style.display = 'none';
+      }
     } else if (state === 'error') {
-      formRoot.classList.add('w-form-fail');
-    }
-
-    if (successBlock) {
-      successBlock.style.display = state === 'success' ? 'block' : 'none';
-    }
-    if (errorBlock) {
-      errorBlock.style.display = state === 'error' ? 'block' : 'none';
+      if (successBlock) {
+        successBlock.style.display = 'none';
+      }
+      if (errorBlock) {
+        errorBlock.style.display = 'block';
+      }
     }
   }
 
