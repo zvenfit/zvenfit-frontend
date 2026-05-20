@@ -54,8 +54,46 @@ const isDev = nodeEnv === 'development';
 const leadApiUrl =
   process.env.LEAD_API_URL || (isDev ? 'http://localhost:3000' : '');
 
+const analyticsMarker = '<!-- ZvenFit: VK + Yandex Metrika -->';
+const analyticsSnippetPath = path.join(__dirname, 'snippets', 'analytics-head.html');
+
+function walkHtmlFiles(dir, files = []) {
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const fullPath = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      walkHtmlFiles(fullPath, files);
+    } else if (entry.isFile() && entry.name.endsWith('.html')) {
+      files.push(fullPath);
+    }
+  }
+  return files;
+}
+
+function injectAnalyticsHead(html) {
+  if (html.includes(analyticsMarker) || !html.includes('</head>')) {
+    return html;
+  }
+
+  const snippet = fs.readFileSync(analyticsSnippetPath, 'utf8');
+  return html.replace('</head>', `${snippet}</head>`);
+}
+
 fs.rmSync(distDir, { recursive: true, force: true });
 fs.cpSync(publicDir, distDir, { recursive: true });
+
+let analyticsInjected = 0;
+for (const htmlPath of walkHtmlFiles(distDir)) {
+  const html = fs.readFileSync(htmlPath, 'utf8');
+  const nextHtml = injectAnalyticsHead(html);
+  if (nextHtml !== html) {
+    fs.writeFileSync(htmlPath, nextHtml, 'utf8');
+    analyticsInjected += 1;
+  }
+}
+
+if (analyticsInjected > 0) {
+  console.log(`build-static: injected VK + Yandex Metrika into ${analyticsInjected} HTML file(s)`);
+}
 
 const leadConfigPath = path.join(distDir, 'js', 'lead-config.js');
 
