@@ -9,7 +9,8 @@ document.addEventListener('DOMContentLoaded', function () {
   const errorBlock = formRoot.querySelector('.error-message');
   const submitButton = form.querySelector('[type="submit"]');
   const defaultSubmitLabel = submitButton ? submitButton.value : 'Отправить';
-  const defaultServiceLabel = 'Выберите удобный для вас вариант...';
+  const defaultServiceValue = 'Позвонить';
+  const defaultServiceLabel = 'Позвонить';
   const successMessageMs = 5000;
   let successTimer;
 
@@ -31,7 +32,7 @@ document.addEventListener('DOMContentLoaded', function () {
       selected.innerText = defaultServiceLabel;
     }
     if (hidden) {
-      hidden.value = '';
+      hidden.value = defaultServiceValue;
     }
     if (telegramField) {
       telegramField.style.display = 'none';
