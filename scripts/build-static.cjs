@@ -54,6 +54,9 @@ const isDev = nodeEnv === 'development';
 const leadApiUrl =
   process.env.LEAD_API_URL || (isDev ? 'http://localhost:3000' : '');
 
+const assetVersion = process.env.ASSET_VERSION || '2';
+const CACHE_BUST_SCRIPTS = ['utm-attribution.js', 'lead-form.js', 'lead-config.js'];
+
 const analyticsMarker = '<!-- ZvenFit: VK + Yandex Metrika -->';
 const analyticsSnippetPath = path.join(__dirname, 'snippets', 'analytics-head.html');
 const utmMarker = '<!-- ZvenFit: UTM attribution -->';
@@ -71,12 +74,24 @@ function walkHtmlFiles(dir, files = []) {
   return files;
 }
 
+
+function bustAssetUrls(html) {
+  let nextHtml = html;
+  for (const scriptName of CACHE_BUST_SCRIPTS) {
+    const pattern = new RegExp(`(/js/${scriptName})(?:\\?v=[^"']*)?`, 'g');
+    nextHtml = nextHtml.replace(pattern, `$1?v=${assetVersion}`);
+  }
+  return nextHtml;
+}
+
 function injectUtmHead(html) {
   if (html.includes(utmMarker) || !html.includes('</head>')) {
     return html;
   }
 
-  const snippet = fs.readFileSync(utmSnippetPath, 'utf8');
+  const snippet = fs
+    .readFileSync(utmSnippetPath, 'utf8')
+    .replaceAll('__ASSET_VERSION__', assetVersion);
   return html.replace('</head>', `${snippet}</head>`);
 }
 
@@ -99,7 +114,7 @@ fs.cpSync(publicDir, distDir, { recursive: true });
 let snippetsInjected = 0;
 for (const htmlPath of walkHtmlFiles(distDir)) {
   const html = fs.readFileSync(htmlPath, 'utf8');
-  const nextHtml = injectHeadSnippets(html);
+  const nextHtml = bustAssetUrls(injectHeadSnippets(html));
   if (nextHtml !== html) {
     fs.writeFileSync(htmlPath, nextHtml, 'utf8');
     snippetsInjected += 1;
@@ -127,4 +142,5 @@ if (!leadApiUrl) {
   console.log(`build-static: LEAD_API_URL=${leadApiUrl} (NODE_ENV=${nodeEnv})`);
 }
 
+console.log(`build-static: ASSET_VERSION=${assetVersion}`);
 console.log('build-static: copied public/ -> dist/');
