@@ -56,6 +56,8 @@ const leadApiUrl =
 
 const analyticsMarker = '<!-- ZvenFit: VK + Yandex Metrika -->';
 const analyticsSnippetPath = path.join(__dirname, 'snippets', 'analytics-head.html');
+const utmMarker = '<!-- ZvenFit: UTM attribution -->';
+const utmSnippetPath = path.join(__dirname, 'snippets', 'utm-head.html');
 
 function walkHtmlFiles(dir, files = []) {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -67,6 +69,19 @@ function walkHtmlFiles(dir, files = []) {
     }
   }
   return files;
+}
+
+function injectUtmHead(html) {
+  if (html.includes(utmMarker) || !html.includes('</head>')) {
+    return html;
+  }
+
+  const snippet = fs.readFileSync(utmSnippetPath, 'utf8');
+  return html.replace('</head>', `${snippet}</head>`);
+}
+
+function injectHeadSnippets(html) {
+  return injectUtmHead(injectAnalyticsHead(html));
 }
 
 function injectAnalyticsHead(html) {
@@ -81,18 +96,18 @@ function injectAnalyticsHead(html) {
 fs.rmSync(distDir, { recursive: true, force: true });
 fs.cpSync(publicDir, distDir, { recursive: true });
 
-let analyticsInjected = 0;
+let snippetsInjected = 0;
 for (const htmlPath of walkHtmlFiles(distDir)) {
   const html = fs.readFileSync(htmlPath, 'utf8');
-  const nextHtml = injectAnalyticsHead(html);
+  const nextHtml = injectHeadSnippets(html);
   if (nextHtml !== html) {
     fs.writeFileSync(htmlPath, nextHtml, 'utf8');
-    analyticsInjected += 1;
+    snippetsInjected += 1;
   }
 }
 
-if (analyticsInjected > 0) {
-  console.log(`build-static: injected VK + Yandex Metrika into ${analyticsInjected} HTML file(s)`);
+if (snippetsInjected > 0) {
+  console.log(`build-static: injected analytics + UTM attribution into ${snippetsInjected} HTML file(s)`);
 }
 
 const leadConfigPath = path.join(distDir, 'js', 'lead-config.js');

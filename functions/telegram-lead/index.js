@@ -1,12 +1,36 @@
 'use strict';
 
 const MAX_FIELD_LEN = 256;
+const UTM_MAX_LEN = 128;
+
+const TRACKED_UTM_PARAMS = [
+  'utm_source',
+  'utm_medium',
+  'utm_campaign',
+  'utm_term',
+  'utm_content',
+  'yclid',
+  'gclid',
+  'fbclid',
+];
+
+const UTM_LABELS = {
+  utm_source: 'source',
+  utm_medium: 'medium',
+  utm_campaign: 'campaign',
+  utm_term: 'term',
+  utm_content: 'content',
+  yclid: 'yclid',
+  gclid: 'gclid',
+  fbclid: 'fbclid',
+};
 
 function parseAllowedOrigins() {
   const raw = process.env.ALLOWED_ORIGINS || 'https://zvenfit.ru,https://www.zvenfit.ru';
+
   return raw
     .split(',')
-    .map((item) => item.trim())
+    .map(item => item.trim())
     .filter(Boolean);
 }
 
@@ -14,6 +38,7 @@ function resolveOrigin(requestOrigin, allowedOrigins) {
   if (requestOrigin && allowedOrigins.includes(requestOrigin)) {
     return requestOrigin;
   }
+
   return allowedOrigins[0] || 'https://zvenfit.ru';
 }
 
@@ -42,9 +67,7 @@ function readBody(event) {
     return {};
   }
 
-  const raw = event.isBase64Encoded
-    ? Buffer.from(event.body, 'base64').toString('utf8')
-    : event.body;
+  const raw = event.isBase64Encoded ? Buffer.from(event.body, 'base64').toString('utf8') : event.body;
 
   return JSON.parse(raw);
 }
@@ -53,7 +76,24 @@ function sanitize(value, maxLen = MAX_FIELD_LEN) {
   if (typeof value !== 'string') {
     return '';
   }
+
   return value.trim().slice(0, maxLen);
+}
+
+function parseUtm(raw) {
+  if (!raw || typeof raw !== 'object') {
+    return {};
+  }
+
+  const utm = {};
+  for (const key of TRACKED_UTM_PARAMS) {
+    const value = sanitize(raw[key], UTM_MAX_LEN);
+    if (value) {
+      utm[key] = value;
+    }
+  }
+
+  return utm;
 }
 
 function buildMessage(payload) {
@@ -68,10 +108,20 @@ function buildMessage(payload) {
     lines.push(`Телеграм: ${payload.telegram_username}`);
   }
 
+  if (Object.keys(payload.utm || {}).length > 0) {
+    lines.push('---', 'Маркировка:');
+    for (const key of TRACKED_UTM_PARAMS) {
+      const value = payload.utm[key];
+      if (value) {
+        lines.push(`${UTM_LABELS[key]}: ${value}`);
+      }
+    }
+  }
+
   return lines.join('\n');
 }
 
-module.exports.handler = async (event) => {
+module.exports.handler = async event => {
   const allowedOrigins = parseAllowedOrigins();
   const origin = event.headers?.Origin || event.headers?.origin || '';
   const headers = corsHeaders(origin, allowedOrigins);
@@ -108,6 +158,7 @@ module.exports.handler = async (event) => {
     phone: sanitize(body.phone, 32),
     service: sanitize(body.service, 64),
     telegram_username: sanitize(body.telegram_username),
+    utm: parseUtm(body.utm),
   };
 
   if (!payload.name || !payload.phone || !payload.service) {

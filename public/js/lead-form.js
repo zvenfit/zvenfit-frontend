@@ -95,12 +95,25 @@ document.addEventListener('DOMContentLoaded', function () {
       return;
     }
 
+    if (window.__ZVENFIT_ATTRIBUTION && typeof window.__ZVENFIT_ATTRIBUTION.sync === 'function') {
+      window.__ZVENFIT_ATTRIBUTION.sync();
+    }
+
+    const utm =
+      window.__ZVENFIT_ATTRIBUTION && typeof window.__ZVENFIT_ATTRIBUTION.get === 'function'
+        ? window.__ZVENFIT_ATTRIBUTION.get()
+        : {};
+
     const payload = {
       name: form.querySelector('[name="name"]')?.value || '',
       phone: form.querySelector('[name="phone"]')?.value || '',
       service: form.querySelector('[name="service"]')?.value || '',
       telegram_username: form.querySelector('[name="telegram_username"]')?.value || '',
     };
+
+    if (utm && Object.keys(utm).length > 0) {
+      payload.utm = utm;
+    }
 
     setSubmitting(true);
 
