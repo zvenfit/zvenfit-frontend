@@ -2,6 +2,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const CleanCSS = require('clean-css');
 
 const rootDir = path.join(__dirname, '..');
 const publicDir = path.join(rootDir, 'public');
@@ -58,6 +59,8 @@ const appDownloadPlatformsSnippetPath = path.join(
   'app-download-platforms-section.html',
 );
 const appLinksConfigPath = path.join(__dirname, 'app-links.config.json');
+const SITE_CSS_SOURCE = 'zvenfit.webflow.css';
+const SITE_CSS_MIN = 'zvenfit.webflow.min.css';
 const CACHE_BUST_SCRIPTS = [
   'utm-attribution.js',
   'lead-form.js',
@@ -87,7 +90,42 @@ function bustAssetUrls(html, assetVersion) {
     const pattern = new RegExp(`(/js/${scriptName})(?:\\?v=[^"']*)?`, 'g');
     nextHtml = nextHtml.replace(pattern, `$1?v=${assetVersion}`);
   }
+
+  nextHtml = nextHtml.replace(
+    new RegExp(`(/css/${SITE_CSS_SOURCE.replace('.', '\\.')})(?:\\?v=[^"']*)?`, 'g'),
+    `/css/${SITE_CSS_MIN}?v=${assetVersion}`,
+  );
+
   return nextHtml;
+}
+
+function minifySiteCss() {
+  const sourcePath = path.join(publicDir, 'css', SITE_CSS_SOURCE);
+  const distMinPath = path.join(distDir, 'css', SITE_CSS_MIN);
+  const distSourcePath = path.join(distDir, 'css', SITE_CSS_SOURCE);
+
+  if (!fs.existsSync(sourcePath)) {
+    console.warn(`build-static: missing public/css/${SITE_CSS_SOURCE}`);
+    return;
+  }
+
+  const source = fs.readFileSync(sourcePath, 'utf8');
+  const result = new CleanCSS({ level: 2 }).minify(source);
+
+  if (result.errors.length > 0) {
+    throw new Error(`CSS minify failed: ${result.errors.join(', ')}`);
+  }
+
+  fs.mkdirSync(path.dirname(distMinPath), { recursive: true });
+  fs.writeFileSync(distMinPath, result.styles, 'utf8');
+
+  if (fs.existsSync(distSourcePath)) {
+    fs.unlinkSync(distSourcePath);
+  }
+
+  console.log(
+    `build-static: css/${SITE_CSS_SOURCE} -> css/${SITE_CSS_MIN} (${source.length} -> ${result.styles.length} bytes)`,
+  );
 }
 
 function injectUtmHead(html, assetVersion) {
@@ -193,6 +231,7 @@ function runBuild() {
 
   fs.rmSync(distDir, { recursive: true, force: true });
   fs.cpSync(publicDir, distDir, { recursive: true });
+  minifySiteCss();
 
   let headSnippetsInjected = 0;
   let appDownloadLinksInjected = 0;
