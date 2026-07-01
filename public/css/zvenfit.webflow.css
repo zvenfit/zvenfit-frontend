@@ -690,10 +690,22 @@ body {
 
 .app-download-block--page {
   border-color: var(--white);
+  width: 100%;
   min-height: auto;
   height: auto;
   margin-top: 0;
   padding: 40px;
+}
+
+#mobile-app.card_grid {
+  grid-template-columns: 1fr;
+  display: flex;
+  flex-flow: column;
+  grid-row-gap: 24px;
+}
+
+#mobile-app.card_grid .heading-page {
+  margin-bottom: 0;
 }
 
 .app-download-block--page .app-download-block__content {
@@ -799,8 +811,7 @@ body {
 }
 
 @media screen and (min-width: 1024px) {
-  .app-download-block--footer .app-download-block__content,
-  .app-download-block--page .app-download-block__content {
+  .app-download-block--footer .app-download-block__content {
     display: grid;
     grid-template-columns: minmax(280px, 520px) auto;
     column-gap: 40px;
@@ -808,31 +819,66 @@ body {
     align-items: start;
   }
 
-  .app-download-block--footer .app-badges,
-  .app-download-block--page .app-badges {
+  .app-download-block--footer .app-badges {
     display: contents;
   }
 
-  .app-download-block--footer .app-download-block__copy,
-  .app-download-block--page .app-download-block__copy {
+  .app-download-block--footer .app-download-block__copy {
     grid-column: 1;
     grid-row: 1;
     max-width: none;
   }
 
-  .app-download-block--footer .app-badges__stores,
-  .app-download-block--page .app-badges__stores {
+  .app-download-block--footer .app-badges__stores {
     grid-column: 2;
     grid-row: 1;
     align-self: center;
     justify-content: flex-end;
   }
 
-  .app-download-block--footer .app-download-block__note,
-  .app-download-block--page .app-download-block__note {
+  .app-download-block--footer .app-download-block__note {
     grid-column: 1;
     grid-row: 2;
     max-width: none;
+    margin-top: 0;
+  }
+
+  .app-download-block--page .app-download-block__content {
+    display: grid;
+    grid-template-columns: minmax(320px, 1fr) auto;
+    column-gap: 48px;
+    row-gap: 12px;
+    align-items: center;
+  }
+
+  .app-download-block--page .app-badges {
+    display: contents;
+  }
+
+  .app-download-block--page .app-download-block__copy {
+    grid-column: 1;
+    grid-row: 1;
+    max-width: none;
+  }
+
+  .app-download-block--page .app-download-block__desc {
+    max-width: 36em;
+    font-size: 20px;
+    line-height: 155%;
+  }
+
+  .app-download-block--page .app-badges__stores {
+    grid-column: 2;
+    grid-row: 1;
+    align-self: center;
+    justify-content: flex-end;
+    gap: 14px;
+  }
+
+  .app-download-block--page .app-download-block__note {
+    grid-column: 1;
+    grid-row: 2;
+    max-width: 36em;
     margin-top: 0;
   }
 }
