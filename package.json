@@ -4,8 +4,9 @@
   "private": true,
   "scripts": {
     "dev": "NODE_ENV=development node scripts/build-static.cjs && serve dist -l 4173",
+    "dev:watch": "NODE_ENV=development concurrently -k \"node scripts/watch-static.cjs\" \"serve dist -l 4173\" --names \"BUILD,WEB\" --prefix-colors \"yellow,green\"",
     "dev:mock": "node mock-server.js",
-    "dev:full": "concurrently \"npm run dev:mock\" \"npm run dev\" --names \"API,WEB\" --prefix-colors \"cyan,green\"",
+    "dev:full": "concurrently \"npm run dev:mock\" \"npm run dev:watch\" --names \"API,WEB\" --prefix-colors \"cyan,green\"",
     "build": "node scripts/build-static.cjs",
     "lint": "eslint \"src/**/*.{ts,tsx,js,jsx}\" --no-error-on-unmatched-pattern",
     "lint:fix": "npm run lint -- --fix",

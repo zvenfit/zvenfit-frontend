@@ -1,0 +1,8 @@
+{
+  "appStore": "https://apps.apple.com/ru/app/id6748636800",
+  "ruStore": "https://www.rustore.ru/catalog/app/io.fitbase.zvenfit",
+  "apk": "https://mobile.fitbase.io/public/android-build/zvenfit/app-release.apk",
+  "appStoreBadge": "https://storage.yandexcloud.net/zvenfit/v2/images/apps/app-store-badge.svg",
+  "ruStoreBadge": "https://storage.yandexcloud.net/zvenfit/v2/images/apps/rustore-badge.svg",
+  "apkBadge": "https://storage.yandexcloud.net/zvenfit/v2/images/apps/apk-badge.svg"
+}
