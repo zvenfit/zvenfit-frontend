@@ -153,3 +153,5 @@ sftp-config.json
 *.key
 *.pem
 *-key.json
+
+.agents
