@@ -48,6 +48,7 @@ const utmSnippetPath = path.join(__dirname, 'snippets', 'utm-head.html');
 const appDownloadDesktopMarker = '<!-- ZvenFit: app-download-links-desktop -->';
 const appDownloadMobileMarker = '<!-- ZvenFit: app-download-links-mobile -->';
 const appDownloadPlatformsMarker = '<!-- ZvenFit: app-download-platforms-section -->';
+const appDownloadPromoMarker = '<!-- ZvenFit: app-download-promo-section -->';
 const appDownloadBadgesSnippetPath = path.join(
   __dirname,
   'snippets',
@@ -57,6 +58,11 @@ const appDownloadPlatformsSnippetPath = path.join(
   __dirname,
   'snippets',
   'app-download-platforms-section.html',
+);
+const appDownloadPromoSnippetPath = path.join(
+  __dirname,
+  'snippets',
+  'app-download-promo-section.html',
 );
 const appLinksConfigPath = path.join(__dirname, 'app-links.config.json');
 const SITE_CSS_SOURCE = 'zvenfit.webflow.css';
@@ -209,6 +215,13 @@ function injectAppDownloadLinks(html, appLinksConfig, { skipFooterAppBlock = fal
     );
   }
 
+  if (nextHtml.includes(appDownloadPromoMarker)) {
+    nextHtml = nextHtml.replace(
+      appDownloadPromoMarker,
+      loadAppLinksSnippet(appDownloadPromoSnippetPath, appLinksConfig),
+    );
+  }
+
   return nextHtml;
 }
 
@@ -237,9 +250,9 @@ function runBuild() {
   let appDownloadLinksInjected = 0;
   for (const htmlPath of walkHtmlFiles(distDir)) {
     const html = fs.readFileSync(htmlPath, 'utf8');
-    const skipFooterAppBlock = htmlPath.includes(
-      `${path.sep}contacts${path.sep}platforms${path.sep}`,
-    );
+    const skipFooterAppBlock =
+      htmlPath.includes(`${path.sep}contacts${path.sep}platforms${path.sep}`) ||
+      htmlPath.includes(`${path.sep}promos${path.sep}apps${path.sep}`);
     const withHeadSnippets = injectHeadSnippets(html, assetVersion);
     const nextHtml = bustAssetUrls(
       applySlashPrefix(

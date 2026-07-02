@@ -4758,3 +4758,314 @@ body {
 .select-options div.active {
   background: #2a2a2a;
 }
+
+/* Promo apps landing (/promos/apps/) */
+.promo-apps-benefits.card_grid {
+  grid-template-columns: 1fr;
+  grid-row-gap: 28px;
+  margin-top: 40px;
+  padding-bottom: 48px;
+}
+
+.promo-apps-benefits__grid {
+  grid-column-gap: 16px;
+  grid-row-gap: 16px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  width: 100%;
+  display: grid;
+}
+
+.promo-apps-benefits__card {
+  grid-row-gap: 12px;
+  background-color: var(--bg-light);
+  border: 2px solid #ffffff26;
+  border-radius: 20px;
+  flex-flow: column;
+  min-height: 220px;
+  padding: 28px 24px 32px;
+  transition: border-color 0.2s ease, transform 0.2s ease;
+  display: flex;
+}
+
+.promo-apps-benefits__card:hover {
+  border-color: var(--accent);
+  transform: translateY(-3px);
+}
+
+.promo-apps-benefits__index {
+  color: var(--accent);
+  text-transform: uppercase;
+  font-family: Roboto Condensed, sans-serif;
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 130%;
+}
+
+.promo-apps-benefits__title {
+  color: var(--white);
+  text-transform: uppercase;
+  margin-top: 0;
+  margin-bottom: 0;
+  font-family: Roadrage, Impact, sans-serif;
+  font-size: 32px;
+  line-height: 100%;
+}
+
+.promo-apps-benefits__text {
+  color: #d0d0d0;
+  margin-top: auto;
+  margin-bottom: 0;
+  font-family: Roboto, sans-serif;
+  font-size: 17px;
+  line-height: 150%;
+}
+
+.promo-apps-cta {
+  width: 100%;
+  padding: 120px 40px 0;
+}
+
+.promo-apps-cta__shell {
+  width: 100%;
+  max-width: 1200px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.promo-apps-cta__card {
+  grid-column-gap: 40px;
+  grid-row-gap: 32px;
+  background-color: var(--bg-light);
+  border: 2px solid var(--accent);
+  border-radius: 24px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  padding: 40px 44px;
+  display: grid;
+  position: relative;
+  overflow: hidden;
+}
+
+.promo-apps-cta__card::before {
+  content: "";
+  pointer-events: none;
+  background: radial-gradient(circle at 100% 0%, #00d10e2e 0%, transparent 55%);
+  width: 60%;
+  height: 100%;
+  position: absolute;
+  top: 0;
+  right: 0;
+}
+
+.promo-apps-cta__body {
+  z-index: 1;
+  grid-row-gap: 16px;
+  flex-flow: column;
+  display: flex;
+  position: relative;
+}
+
+.promo-apps-cta__eyebrow {
+  color: var(--accent);
+  text-transform: uppercase;
+  margin-bottom: 0;
+  font-family: Roboto Condensed, sans-serif;
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 130%;
+}
+
+.promo-apps-cta__headline {
+  grid-column-gap: 20px;
+  grid-row-gap: 12px;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  display: grid;
+}
+
+.promo-apps-cta__discount {
+  color: var(--accent);
+  white-space: nowrap;
+  font-family: Roadrage, Impact, sans-serif;
+  font-size: clamp(72px, 10vw, 120px);
+  line-height: 85%;
+}
+
+.promo-apps-cta__title {
+  color: var(--white);
+  text-transform: uppercase;
+  margin-top: 0;
+  margin-bottom: 0;
+  font-family: Roadrage, Impact, sans-serif;
+  font-size: clamp(28px, 3.2vw, 44px);
+  line-height: 105%;
+}
+
+.promo-apps-cta__desc {
+  color: #d0d0d0;
+  max-width: 36em;
+  margin-top: 0;
+  margin-bottom: 4px;
+  font-family: Roboto, sans-serif;
+  font-size: 18px;
+  line-height: 150%;
+}
+
+.app-badges--promo {
+  width: 100%;
+}
+
+.app-badges--promo .app-badges__stores {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.promo-apps-cta__note {
+  color: #8a8a8a;
+  max-width: 36em;
+  margin: 8px 0 0;
+  font-family: Roboto, sans-serif;
+  font-size: 13px;
+  line-height: 145%;
+}
+
+.promo-apps-cta__note a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.promo-apps-cta__aside {
+  z-index: 1;
+  justify-content: center;
+  align-items: center;
+  display: flex;
+  position: relative;
+}
+
+.promo-apps-cta__mockup {
+  border: 2px solid #ffffff33;
+  border-radius: 28px;
+  width: 100%;
+  max-width: 200px;
+  height: auto;
+  box-shadow: 0 20px 48px #00000066;
+}
+
+@media screen and (max-width: 991px) {
+  .promo-apps-benefits__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .promo-apps-benefits__card {
+    min-height: 0;
+  }
+
+  .promo-apps-cta {
+    padding: 100px 24px 0;
+  }
+
+  .promo-apps-cta__card {
+    grid-template-columns: 1fr;
+    padding: 32px 28px;
+  }
+
+  .promo-apps-cta__headline {
+    grid-template-columns: 1fr;
+  }
+
+  .promo-apps-cta__discount {
+    font-size: 80px;
+  }
+
+  .promo-apps-cta__aside {
+    order: -1;
+  }
+
+  .promo-apps-cta__mockup {
+    max-width: 160px;
+  }
+}
+
+@media screen and (max-width: 767px) {
+  .promo-apps-benefits.card_grid {
+    margin-top: 32px;
+  }
+
+  .promo-apps-cta {
+    padding: 80px 0 0;
+  }
+
+  .promo-apps-cta__card {
+    padding: 20px 16px 24px;
+    border-radius: 20px;
+  }
+
+  .promo-apps-cta__card::before {
+    width: 100%;
+    background: radial-gradient(circle at 50% 0%, #00d10e24 0%, transparent 65%);
+  }
+
+  .promo-apps-cta__aside {
+    display: none;
+  }
+
+  .promo-apps-cta__headline {
+    grid-template-columns: none;
+    grid-row-gap: 0;
+    flex-flow: row;
+    align-items: center;
+    gap: 12px;
+    display: flex;
+  }
+
+  .promo-apps-cta__discount {
+    flex: 0 0 auto;
+    font-size: 52px;
+    line-height: 90%;
+  }
+
+  .promo-apps-cta__title {
+    flex: 1;
+    min-width: 0;
+    font-size: 22px;
+    line-height: 110%;
+  }
+
+  .promo-apps-cta__desc {
+    display: none;
+  }
+
+  .app-badges--promo .app-badges__stores {
+    flex-flow: row wrap;
+    align-items: flex-start;
+    gap: 10px;
+    margin-top: 16px;
+    margin-bottom: 12px;
+  }
+
+  .app-badges--promo .app-badges__link {
+    width: auto;
+    flex: 0 0 auto;
+    justify-content: center;
+  }
+
+  .promo-apps-cta__note {
+    font-size: 12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .promo-apps-cta__discount {
+    text-shadow: none;
+  }
+
+  .promo-apps-benefits__card {
+    transition: none;
+  }
+
+  .promo-apps-benefits__card:hover {
+    transform: none;
+  }
+}
