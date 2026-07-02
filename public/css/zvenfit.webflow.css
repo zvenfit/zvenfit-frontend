@@ -4969,10 +4969,10 @@ body {
   font-weight: bold;
 }
 
-@media screen and (min-width: 768px) {
+@media screen and (min-width: 1081px) {
   .promo-apps-cta__title {
     font-size: 36px;
-    line-height: 130%;
+    line-height: 40px;
   }
 }
 
@@ -5110,6 +5110,7 @@ body {
   .promo-apps-cta__title {
     flex: 1;
     min-width: 0;
+    line-height: 22px;
   }
 
   .promo-apps-cta__desc {
