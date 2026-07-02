@@ -4964,13 +4964,22 @@ body {
 }
 
 .promo-apps-cta__title {
-  color: var(--white);
-  text-transform: uppercase;
   margin-top: 0;
   margin-bottom: 0;
-  font-family: Roadrage, Impact, sans-serif;
-  font-size: clamp(28px, 3.2vw, 44px);
-  line-height: 105%;
+  font-weight: bold;
+}
+
+@media screen and (min-width: 768px) {
+  .promo-apps-cta__title {
+    font-size: 36px;
+    line-height: 130%;
+  }
+}
+
+@media screen and (max-width: 1080px) and (min-width: 768px) {
+  .promo-apps-cta__title {
+    font-size: 32px;
+  }
 }
 
 .promo-apps-cta__desc {
@@ -5101,8 +5110,6 @@ body {
   .promo-apps-cta__title {
     flex: 1;
     min-width: 0;
-    font-size: 22px;
-    line-height: 110%;
   }
 
   .promo-apps-cta__desc {
