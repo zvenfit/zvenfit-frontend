@@ -83,8 +83,14 @@ jobs:
       - name: Build app
         env:
           LEAD_API_URL: ${{ needs.deploy-function.outputs.function_url }}
+          ASSET_VERSION: ${{ vars.ASSET_VERSION || github.run_number }}
         run: |
+          if [ -z "$LEAD_API_URL" ]; then
+            echo "ERROR: LEAD_API_URL is empty — deploy-function job output was not passed" >&2
+            exit 1
+          fi
           echo "Building with LEAD_API_URL: $LEAD_API_URL"
+          echo "Building with ASSET_VERSION: $ASSET_VERSION"
           npm run build || exit 1
 
       - name: Upload assets to Yandex Object Storage
@@ -99,6 +105,7 @@ jobs:
             s3 sync ./dist s3://${{ env.S3_BUCKET }}
             --delete
             --exclude "*.html"
+            --cache-control "public, max-age=31536000, immutable"
 
       - name: Upload HTML (no-cache)
         uses: docker://amazon/aws-cli:2.25.1
