@@ -1,0 +1,216 @@
+{
+  "siteUrl": "https://zvenfit.ru",
+  "organization": {
+    "name": "ZvenFit",
+    "logo": "https://storage.yandexcloud.net/zvenfit/v2/images/webclip.png",
+    "sameAs": [
+      "https://vk.com/zvenfit",
+      "https://t.me/zvenfit",
+      "https://wa.me/79253082323"
+    ]
+  },
+  "trialOffer": {
+    "name": "Пробная тренировка",
+    "price": 1000,
+    "priceCurrency": "RUB"
+  },
+  "breadcrumbSkipSegments": ["contacts"],
+  "breadcrumbLabels": {
+    "home": "Главная",
+    "trenazhernyj-zal": "Тренажёрный зал",
+    "mini-gruppy": "Мини-группы",
+    "pilates-na-reformere": "Пилатес на реформере",
+    "individualnyy": "Индивидуальный",
+    "gruppovye": "Групповые",
+    "personalnye-trenirovki": "Персональные тренировки",
+    "parnye-trenirovki": "Парные тренировки",
+    "gruppovye-trenirovki": "Групповые тренировки",
+    "trenery": "Тренеры",
+    "contacts": "Контакты",
+    "platforms": "Где нас найти",
+    "forma-dlya-zayavki": "Оставить заявку",
+    "privacy": "Политика конфиденциальности",
+    "offer": "Публичная оферта",
+    "payment-policy": "Политика оплаты",
+    "promos": "Акции",
+    "apps": "Мобильное приложение"
+  },
+  "locations": {
+    "chekhova": {
+      "id": "club-chekhova",
+      "name": "ZvenFit — фитнес-клуб",
+      "description": "Тренажёрный зал, пилатес на реформере, персональные тренировки",
+      "url": "/",
+      "telephone": "+7-925-308-23-23",
+      "email": "zvenfit-reception@yandex.ru",
+      "streetAddress": "ул. Чехова, 13А",
+      "addressLocality": "Звенигород",
+      "addressRegion": "Московская область",
+      "addressCountry": "RU",
+      "latitude": 55.733648,
+      "longitude": 36.850643,
+      "openingHours": [
+        {
+          "dayOfWeek": [
+            "Monday",
+            "Tuesday",
+            "Wednesday",
+            "Thursday",
+            "Friday",
+            "Saturday",
+            "Sunday"
+          ],
+          "opens": "08:00",
+          "closes": "22:00"
+        }
+      ],
+      "sameAs": [
+        "https://yandex.ru/maps/-/CDXxMBp-",
+        "https://go.2gis.com/avjzt",
+        "https://maps.app.goo.gl/A9Y2pihRDUKALhN96"
+      ]
+    },
+    "nahabino": {
+      "id": "club-nahabino",
+      "name": "ZvenFit — женская студия",
+      "alternateName": "ZvenFit — клуб групповых тренировок",
+      "description": "Женская студия групповых тренировок в Звенигороде",
+      "url": "/gruppovye-trenirovki/",
+      "telephone": "+7-968-844-00-88",
+      "email": "zvenfit-reception@yandex.ru",
+      "streetAddress": "Нахабинское шоссе, 7А",
+      "addressLocality": "Звенигород",
+      "addressRegion": "Московская область",
+      "addressCountry": "RU",
+      "latitude": 55.742863,
+      "longitude": 36.856367,
+      "openingHours": [
+        {
+          "dayOfWeek": [
+            "Monday",
+            "Tuesday",
+            "Wednesday",
+            "Thursday",
+            "Friday",
+            "Saturday",
+            "Sunday"
+          ],
+          "opens": "08:00",
+          "closes": "22:00"
+        }
+      ],
+      "sameAs": ["https://yandex.ru/maps/-/CTetMMlI"]
+    }
+  },
+  "pages": {
+    "/trenazhernyj-zal/": {
+      "primaryLocation": "chekhova",
+      "services": [
+        {
+          "name": "Тренажёрный зал",
+          "description": "Фитнес-зал 500 м² в Звенигороде"
+        }
+      ]
+    },
+    "/trenazhernyj-zal/mini-gruppy/": {
+      "primaryLocation": "chekhova",
+      "services": [
+        {
+          "name": "Мини-группы в зале",
+          "description": "Тренировки в группах от 3 до 6 человек"
+        }
+      ]
+    },
+    "/pilates-na-reformere/": {
+      "primaryLocation": "chekhova",
+      "services": [
+        {
+          "name": "Пилатес на реформере",
+          "description": "Студия пилатеса на реформере в Звенигороде"
+        }
+      ]
+    },
+    "/pilates-na-reformere/individualnyy/": {
+      "primaryLocation": "chekhova",
+      "services": [
+        {
+          "name": "Индивидуальный пилатес на реформере",
+          "description": "Персональные занятия пилатесом на реформере"
+        }
+      ]
+    },
+    "/pilates-na-reformere/gruppovye/": {
+      "primaryLocation": "chekhova",
+      "services": [
+        {
+          "name": "Групповой пилатес на реформере",
+          "description": "Групповые занятия пилатесом на реформере"
+        }
+      ]
+    },
+    "/personalnye-trenirovki/": {
+      "primaryLocation": "chekhova",
+      "services": [
+        {
+          "name": "Персональные тренировки",
+          "description": "Индивидуальные тренировки с персональным тренером"
+        }
+      ]
+    },
+    "/parnye-trenirovki/": {
+      "primaryLocation": "chekhova",
+      "services": [
+        {
+          "name": "Парные тренировки",
+          "description": "Тренировки вдвоём с персональным тренером"
+        }
+      ]
+    },
+    "/gruppovye-trenirovki/": {
+      "primaryLocation": "nahabino",
+      "services": [
+        {
+          "name": "Групповые тренировки",
+          "description": "Групповые тренировки в женской студии ZvenFit"
+        }
+      ]
+    }
+  },
+  "trainers": {
+    "trener-anna": {
+      "name": "Королева Анна",
+      "jobTitle": "Персональный тренер",
+      "location": "chekhova"
+    },
+    "trener-efim": {
+      "name": "Даньшин Ефим Сергеевич",
+      "jobTitle": "Персональный тренер",
+      "location": "chekhova"
+    },
+    "trener-elena": {
+      "name": "Ким Елена Алексеевна",
+      "jobTitle": "Персональный тренер",
+      "location": "chekhova"
+    },
+    "trener-oleg": {
+      "name": "Иванов Олег Владимирович",
+      "jobTitle": "Персональный тренер",
+      "location": "chekhova"
+    },
+    "trener-olga": {
+      "name": "Артюх Ольга",
+      "jobTitle": "Персональный тренер",
+      "location": "chekhova"
+    },
+    "trener-oksana": {
+      "name": "Биктимирова Оксана",
+      "jobTitle": "Инструктор Pilates Reformer",
+      "location": "chekhova"
+    },
+    "trener-ella": {
+      "name": "Горовая Элла Алексеевна",
+      "jobTitle": "Инструктор пилатеса",
+      "location": "chekhova"
+    }
+  }
+}
