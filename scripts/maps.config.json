@@ -1,0 +1,52 @@
+{
+  "pinIcon": "https://storage.yandexcloud.net/zvenfit/v2/images/map-pin-chekhova.svg",
+  "pinIconSize": [52, 64],
+  "pinIconOffset": [-26, -64],
+  "locationPins": {
+    "chekhova": {
+      "pinIcon": "https://storage.yandexcloud.net/zvenfit/v2/images/map-pin-chekhova.svg"
+    },
+    "nahabino": {
+      "pinIcon": "https://storage.yandexcloud.net/zvenfit/v2/images/map-pin-nahabino.svg"
+    }
+  },
+  "locationOrganizations": {
+    "chekhova": "237087577037",
+    "nahabino": "46426452607"
+  },
+  "locationPhotos": {
+    "chekhova": [
+      "https://storage.yandexcloud.net/zvenfit/v2/images/club-zones/main-hall-3.png",
+      "https://storage.yandexcloud.net/zvenfit/v2/images/club-zones/main-hall-1.jpeg",
+      "https://storage.yandexcloud.net/zvenfit/v2/images/club-zones/cardio-zone-2.jpg",
+      "https://storage.yandexcloud.net/zvenfit/v2/images/club-zones/dressing-room-2.jpeg"
+    ],
+    "nahabino": [
+      "https://storage.yandexcloud.net/zvenfit/v2/images/club-zones/group-reformer-1.jpeg",
+      "https://storage.yandexcloud.net/zvenfit/v2/images/club-zones/group-reformer-2.JPG",
+      "https://storage.yandexcloud.net/zvenfit/v2/images/coaches/oksana-4.jpeg",
+      "https://storage.yandexcloud.net/zvenfit/v2/images/coaches/ella-4.jpeg"
+    ]
+  },
+  "defaultSet": "chekhova",
+  "sets": {
+    "home": {
+      "locationKeys": ["chekhova", "nahabino"],
+      "zoomMargin": 48
+    },
+    "chekhova": {
+      "locationKeys": ["chekhova"],
+      "zoom": 16
+    },
+    "nahabino": {
+      "locationKeys": ["nahabino"],
+      "zoom": 16
+    }
+  },
+  "pageSets": {
+    "/": "home",
+    "/404.html": "home",
+    "/contacts/platforms/": "home",
+    "/gruppovye-trenirovki/": "nahabino"
+  }
+}

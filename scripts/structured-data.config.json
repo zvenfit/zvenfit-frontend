@@ -14,6 +14,67 @@
     "price": 1000,
     "priceCurrency": "RUB"
   },
+  "openGraph": {
+    "image": "https://storage.yandexcloud.net/zvenfit/v2/images/webclip.png",
+    "siteName": "ZvenFit"
+  },
+  "promosPages": {
+    "/promos/": {
+      "itemListName": "Акции ZvenFit",
+      "offers": [
+        {
+          "id": "app-15",
+          "name": "Скидка 15% на первый абонемент",
+          "description": "Скидка при установленном мобильном приложении ZvenFit — один раз на первый абонемент",
+          "url": "/promos/apps/"
+        },
+        {
+          "id": "trial-1000",
+          "name": "Пробная тренировка 1000 ₽",
+          "description": "Первое занятие в зале, с тренером или в мини-группе для новых клиентов",
+          "url": "/forma-dlya-zayavki/",
+          "price": 1000,
+          "priceCurrency": "RUB"
+        },
+        {
+          "id": "pilates-trial-2000",
+          "name": "Пробное занятие пилатесом 2000 ₽",
+          "description": "Первое занятие пилатесом на реформере по специальной цене",
+          "url": "/pilates-na-reformere/",
+          "price": 2000,
+          "priceCurrency": "RUB"
+        },
+        {
+          "id": "gym-duo-20",
+          "name": "Скидка 20% на две карты в тренажёрный зал",
+          "description": "При покупке двух абонементов в тренажёрный зал — скидка 20%",
+          "url": "/trenazhernyj-zal/"
+        },
+        {
+          "id": "installment-0",
+          "name": "Беспроцентная рассрочка 0%",
+          "description": "Рассрочка напрямую от клуба без банков и переплат",
+          "url": "/trenazhernyj-zal/"
+        },
+        {
+          "id": "nutrition-bonus",
+          "name": "План питания в подарок",
+          "description": "Индивидуальный план питания при покупке пакета персональных тренировок",
+          "url": "/personalnye-trenirovki/"
+        }
+      ]
+    },
+    "/promos/apps/": {
+      "offers": [
+        {
+          "id": "app-15",
+          "name": "Скидка 15% на первый абонемент",
+          "description": "Скидка при установленном мобильном приложении ZvenFit — один раз на первый абонемент",
+          "url": "/promos/apps/"
+        }
+      ]
+    }
+  },
   "breadcrumbSkipSegments": ["contacts"],
   "breadcrumbLabels": {
     "home": "Главная",

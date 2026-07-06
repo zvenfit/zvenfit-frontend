@@ -2,6 +2,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { spawnSync } = require('child_process');
 const CleanCSS = require('clean-css');
 
 const rootDir = path.join(__dirname, '..');
@@ -66,7 +67,9 @@ const appDownloadPromoSnippetPath = path.join(
 );
 const appLinksConfigPath = path.join(__dirname, 'app-links.config.json');
 const structuredDataConfigPath = path.join(__dirname, 'structured-data.config.json');
+const mapsConfigPath = path.join(__dirname, 'maps.config.json');
 const structuredDataMarker = '<!-- ZvenFit: structured-data -->';
+const openGraphMarker = '<!-- ZvenFit: open-graph -->';
 const SITE_CSS_SOURCE = 'zvenfit.webflow.css';
 const SITE_CSS_MIN = 'zvenfit.webflow.min.css';
 const CACHE_BUST_SCRIPTS = [
@@ -74,7 +77,12 @@ const CACHE_BUST_SCRIPTS = [
   'lead-form.js',
   'lead-config.js',
   'accordion-horizontal.js',
+  'maps-config.js',
+  'yandex-map.js',
 ];
+
+const MAP_IFRAME_RE =
+  /<div class="code-embed-4 w-embed w-iframe"><iframe[^>]*map-widget[^>]*>\s*<\/iframe><\/div>/g;
 
 function walkHtmlFiles(dir, files = []) {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -90,6 +98,150 @@ function walkHtmlFiles(dir, files = []) {
 
 function getAppLinksConfig() {
   return JSON.parse(fs.readFileSync(appLinksConfigPath, 'utf8'));
+}
+
+function getMapsConfig() {
+  return JSON.parse(fs.readFileSync(mapsConfigPath, 'utf8'));
+}
+
+function getYandexMapUrl(location) {
+  return (
+    location.sameAs?.find((url) => url.includes('yandex.ru/maps')) ||
+    `https://yandex.ru/maps/?ll=${location.longitude}%2C${location.latitude}&z=16&pt=${location.longitude},${location.latitude},pm2rdm`
+  );
+}
+
+const ALTAY_URL_RE = /https:\/\/avatars\.mds\.yandex\.net\/get-altay\/[^"'\\)\s]+/g;
+const MAX_YANDEX_ORG_PHOTOS = 12;
+
+function normalizeAltayPhotoUrl(url) {
+  return String(url || '')
+    .replace(/\)$/, '')
+    .replace(/\{size\}/gi, 'L')
+    .replace(/\/%s$/i, '/L')
+    .replace(/\/(S|M|L[^/]*|XXL[^/]*|h\d+|orig)\)?$/i, '/L');
+}
+
+function fetchYandexOrgPhotosFromPage(orgId) {
+  if (!orgId) {
+    return [];
+  }
+
+  try {
+    const pageUrl = `https://yandex.ru/maps/org/zvenfit/${orgId}/`;
+    const result = spawnSync(
+      'curl',
+      ['-sSL', '-L', pageUrl, '-A', 'Mozilla/5.0', '-m', '25'],
+      { encoding: 'utf8', maxBuffer: 15 * 1024 * 1024 },
+    );
+
+    if (result.status !== 0 || !result.stdout) {
+      return [];
+    }
+
+    const seen = new Set();
+    const photos = [];
+
+    for (const match of result.stdout.matchAll(ALTAY_URL_RE)) {
+      const normalized = normalizeAltayPhotoUrl(match[0]);
+      if (seen.has(normalized)) {
+        continue;
+      }
+
+      seen.add(normalized);
+      photos.push(normalized);
+
+      if (photos.length >= MAX_YANDEX_ORG_PHOTOS) {
+        break;
+      }
+    }
+
+    return photos;
+  } catch {
+    return [];
+  }
+}
+
+function buildMapsRuntimeConfig(structuredDataConfig, mapsConfig) {
+  const locations = {};
+
+  for (const [key, location] of Object.entries(structuredDataConfig.locations)) {
+    const pinOverride = mapsConfig.locationPins?.[key];
+    const orgId = mapsConfig.locationOrganizations?.[key] || '';
+    const yandexPhotos = fetchYandexOrgPhotosFromPage(orgId);
+    const photos = yandexPhotos.length
+      ? yandexPhotos
+      : mapsConfig.locationPhotos?.[key] || [];
+    locations[key] = {
+      name: location.name,
+      streetAddress: location.streetAddress,
+      addressLocality: location.addressLocality,
+      telephone: location.telephone,
+      latitude: location.latitude,
+      longitude: location.longitude,
+      mapUrl: getYandexMapUrl(location),
+      yandexOrganizationId: orgId,
+      pinIcon: pinOverride?.pinIcon || mapsConfig.pinIcon,
+      pinIconSize: pinOverride?.pinIconSize || mapsConfig.pinIconSize,
+      pinIconOffset: pinOverride?.pinIconOffset || mapsConfig.pinIconOffset,
+      photos,
+    };
+  }
+
+  return {
+    apiKey: process.env.Y_MAPS_API_KEY || '',
+    pinIcon: mapsConfig.pinIcon,
+    pinIconSize: mapsConfig.pinIconSize,
+    pinIconOffset: mapsConfig.pinIconOffset,
+    locationPins: mapsConfig.locationPins || {},
+    locationOrganizations: mapsConfig.locationOrganizations || {},
+    locationPhotos: mapsConfig.locationPhotos || {},
+    defaultSet: mapsConfig.defaultSet,
+    sets: mapsConfig.sets,
+    locations,
+  };
+}
+
+function getMapSet(pagePath, mapsConfig) {
+  return mapsConfig.pageSets[pagePath] || mapsConfig.defaultSet;
+}
+
+function replaceMapEmbeds(html, pagePath, mapsConfig) {
+  if (!html.includes('map-widget')) {
+    return html;
+  }
+
+  const mapSet = getMapSet(pagePath, mapsConfig);
+
+  return html.replace(
+    MAP_IFRAME_RE,
+    `<div class="zvenfit-map code-embed-4" data-map-set="${mapSet}" role="region" aria-label="Карта — ZvenFit"></div>`,
+  );
+}
+
+function injectMapScripts(html, assetVersion) {
+  if (!html.includes('zvenfit-map') || html.includes('/js/yandex-map.js')) {
+    return html;
+  }
+
+  const scripts = `<script src="/js/maps-config.js?v=${assetVersion}" defer></script>\n  <script src="/js/yandex-map.js?v=${assetVersion}" defer></script>\n  `;
+
+  return html.replace('</body>', `${scripts}</body>`);
+}
+
+function writeMapsConfig(distDir, structuredDataConfig, mapsConfig) {
+  const mapsConfigPathDist = path.join(distDir, 'js', 'maps-config.js');
+  if (!fs.existsSync(mapsConfigPathDist)) {
+    return;
+  }
+
+  const runtimeConfig = buildMapsRuntimeConfig(structuredDataConfig, mapsConfig);
+  const template = fs.readFileSync(mapsConfigPathDist, 'utf8');
+  fs.writeFileSync(
+    mapsConfigPathDist,
+    template.replace('__ZVENFIT_MAPS_JSON__', JSON.stringify(runtimeConfig, null, 2)),
+    'utf8',
+  );
 }
 
 function bustAssetUrls(html, assetVersion) {
@@ -158,6 +310,100 @@ function injectAnalyticsHead(html) {
 
 function injectHeadSnippets(html, assetVersion) {
   return injectUtmHead(injectAnalyticsHead(html), assetVersion);
+}
+
+function escapeHtmlAttr(value) {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;');
+}
+
+function extractCanonicalUrl(html, siteUrl, pagePath) {
+  const match = html.match(/<link\s+rel="canonical"\s+href="([^"]+)"/i);
+  if (match?.[1]) {
+    return match[1];
+  }
+
+  const base = siteUrl.replace(/\/$/, '');
+  if (pagePath === '/') {
+    return `${base}/`;
+  }
+
+  return `${base}${pagePath}`;
+}
+
+function injectOpenGraphHead(html, pagePath, config) {
+  if (html.includes(openGraphMarker) || !html.includes('</head>')) {
+    return html;
+  }
+
+  const siteUrl = config.siteUrl.replace(/\/$/, '');
+  const meta = extractPageMeta(html);
+  const pageUrl = extractCanonicalUrl(html, siteUrl, pagePath);
+  const ogImage = resolveStructuredDataUrl(
+    siteUrl,
+    config.openGraph?.image || config.organization.logo,
+  );
+  const ogSiteName = config.openGraph?.siteName || config.organization.name;
+  const tags = [];
+
+  if (!html.includes('property="og:title"') && meta.title) {
+    tags.push(
+      `<meta property="og:title" content="${escapeHtmlAttr(meta.title)}">`,
+    );
+  }
+
+  if (!html.includes('property="og:description"') && meta.description) {
+    tags.push(
+      `<meta property="og:description" content="${escapeHtmlAttr(meta.description)}">`,
+    );
+  }
+
+  if (!html.includes('property="og:url"')) {
+    tags.push(`<meta property="og:url" content="${escapeHtmlAttr(pageUrl)}">`);
+  }
+
+  if (!html.includes('property="og:type"')) {
+    tags.push('<meta property="og:type" content="website">');
+  }
+
+  if (!html.includes('property="og:locale"')) {
+    tags.push('<meta property="og:locale" content="ru_RU">');
+  }
+
+  if (!html.includes('property="og:site_name"') && ogSiteName) {
+    tags.push(
+      `<meta property="og:site_name" content="${escapeHtmlAttr(ogSiteName)}">`,
+    );
+  }
+
+  if (!html.includes('property="og:image"') && ogImage) {
+    tags.push(`<meta property="og:image" content="${escapeHtmlAttr(ogImage)}">`);
+  }
+
+  if (!html.includes('property="twitter:card"')) {
+    tags.push('<meta property="twitter:card" content="summary">');
+  }
+
+  if (!html.includes('property="twitter:title"') && meta.title) {
+    tags.push(
+      `<meta property="twitter:title" content="${escapeHtmlAttr(meta.title)}">`,
+    );
+  }
+
+  if (!html.includes('property="twitter:description"') && meta.description) {
+    tags.push(
+      `<meta property="twitter:description" content="${escapeHtmlAttr(meta.description)}">`,
+    );
+  }
+
+  if (!tags.length) {
+    return html;
+  }
+
+  const snippet = `${tags.join('\n  ')}\n  ${openGraphMarker}`;
+  return html.replace('</head>', `${snippet}\n</head>`);
 }
 
 function getPagePath(htmlPath, baseDir) {
@@ -312,6 +558,73 @@ function buildBreadcrumbList(pagePath, siteUrl, config) {
   };
 }
 
+function buildWebSiteNode(config, siteUrl) {
+  return {
+    '@type': 'WebSite',
+    '@id': `${siteUrl}/#website`,
+    url: `${siteUrl}/`,
+    name: config.organization.name,
+    publisher: { '@id': `${siteUrl}/#organization` },
+  };
+}
+
+function buildPromoOfferNode(offer, siteUrl, pagePath, index) {
+  const offerId = `${siteUrl}${pagePath}#offer-${offer.id || index}`;
+  const node = {
+    '@type': 'Offer',
+    '@id': offerId,
+    name: offer.name,
+    ...(offer.description ? { description: offer.description } : {}),
+    url: resolveStructuredDataUrl(siteUrl, offer.url || pagePath),
+    availability: 'https://schema.org/InStock',
+    seller: { '@id': `${siteUrl}/#organization` },
+  };
+
+  if (offer.price != null) {
+    node.price = String(offer.price);
+    node.priceCurrency = offer.priceCurrency || 'RUB';
+  }
+
+  return node;
+}
+
+function appendPromosStructuredData(pagePath, siteUrl, config, graph) {
+  const promosPage = config.promosPages?.[pagePath];
+  if (!promosPage?.offers?.length) {
+    return null;
+  }
+
+  const offerNodes = promosPage.offers.map((offer, index) =>
+    buildPromoOfferNode(offer, siteUrl, pagePath, index),
+  );
+
+  if (pagePath === '/promos/') {
+    for (const offerNode of offerNodes) {
+      graph.push(offerNode);
+    }
+
+    const itemList = {
+      '@type': 'ItemList',
+      '@id': `${siteUrl}${pagePath}#offers`,
+      name: promosPage.itemListName || 'Акции ZvenFit',
+      itemListElement: offerNodes.map((offerNode, index) => ({
+        '@type': 'ListItem',
+        position: index + 1,
+        item: { '@id': offerNode['@id'] },
+      })),
+    };
+    graph.push(itemList);
+    return { '@id': itemList['@id'] };
+  }
+
+  if (pagePath === '/promos/apps/') {
+    graph.push(offerNodes[0]);
+    return { '@id': offerNodes[0]['@id'] };
+  }
+
+  return null;
+}
+
 function buildTrialOffer(siteUrl, pagePath, config, locationKey) {
   const offer = config.trialOffer;
   if (!offer || locationKey !== 'chekhova') {
@@ -357,6 +670,7 @@ function buildStructuredData(pagePath, config, html) {
   let mainEntity;
 
   graph.push(buildOrganizationNode(config, siteUrl, { full: useFullGraph }));
+  graph.push(buildWebSiteNode(config, siteUrl));
 
   if (useFullGraph) {
     for (const location of Object.values(config.locations)) {
@@ -365,13 +679,6 @@ function buildStructuredData(pagePath, config, html) {
   }
 
   if (pagePath === '/') {
-    graph.push({
-      '@type': 'WebSite',
-      '@id': `${siteUrl}/#website`,
-      url: `${siteUrl}/`,
-      name: config.organization.name,
-      publisher: { '@id': `${siteUrl}/#organization` },
-    });
     mainEntity = { '@id': `${siteUrl}/#organization` };
   }
 
@@ -422,6 +729,16 @@ function buildStructuredData(pagePath, config, html) {
       worksFor: { '@id': `${siteUrl}/#${location.id}` },
     });
     mainEntity = { '@id': personId };
+  }
+
+  const promosMainEntity = appendPromosStructuredData(
+    pagePath,
+    siteUrl,
+    config,
+    graph,
+  );
+  if (promosMainEntity) {
+    mainEntity = promosMainEntity;
   }
 
   graph.push(
@@ -544,6 +861,7 @@ function runBuild() {
     process.env.LEAD_API_URL || (isDev ? 'http://localhost:3000' : '');
   const assetVersion = process.env.ASSET_VERSION || '2';
   const appLinksConfig = getAppLinksConfig();
+  const mapsConfig = getMapsConfig();
   const structuredDataConfig = JSON.parse(
     fs.readFileSync(structuredDataConfigPath, 'utf8'),
   );
@@ -553,36 +871,51 @@ function runBuild() {
   minifySiteCss();
 
   let headSnippetsInjected = 0;
+  let openGraphInjected = 0;
   let structuredDataInjected = 0;
   let appDownloadLinksInjected = 0;
+  let mapEmbedsReplaced = 0;
   for (const htmlPath of walkHtmlFiles(distDir)) {
     const html = fs.readFileSync(htmlPath, 'utf8');
     const pagePath = getPagePath(htmlPath, distDir);
     const skipFooterAppBlock =
       htmlPath.includes(`${path.sep}contacts${path.sep}platforms${path.sep}`) ||
       htmlPath.includes(`${path.sep}promos${path.sep}apps${path.sep}`);
-    const withHeadSnippets = injectHeadSnippets(html, assetVersion);
-    const withStructuredData = injectStructuredData(
+    const withMapEmbeds = replaceMapEmbeds(html, pagePath, mapsConfig);
+    const withHeadSnippets = injectHeadSnippets(withMapEmbeds, assetVersion);
+    const withOpenGraph = injectOpenGraphHead(
       withHeadSnippets,
       pagePath,
       structuredDataConfig,
     );
-    const nextHtml = bustAssetUrls(
-      applySlashPrefix(
-        injectAppDownloadLinks(withStructuredData, appLinksConfig, { skipFooterAppBlock }),
-      ),
+    const withStructuredData = injectStructuredData(
+      withOpenGraph,
+      pagePath,
+      structuredDataConfig,
+    );
+    const withMapScripts = injectMapScripts(
+      injectAppDownloadLinks(withStructuredData, appLinksConfig, { skipFooterAppBlock }),
       assetVersion,
     );
+    const nextHtml = bustAssetUrls(applySlashPrefix(withMapScripts), assetVersion);
 
     if (nextHtml !== html) {
       fs.writeFileSync(htmlPath, nextHtml, 'utf8');
     }
 
-    if (withHeadSnippets !== html) {
+    if (withMapEmbeds !== html) {
+      mapEmbedsReplaced += 1;
+    }
+
+    if (withHeadSnippets !== withMapEmbeds) {
       headSnippetsInjected += 1;
     }
 
-    if (withStructuredData !== withHeadSnippets) {
+    if (withOpenGraph !== withHeadSnippets) {
+      openGraphInjected += 1;
+    }
+
+    if (withStructuredData !== withOpenGraph) {
       structuredDataInjected += 1;
     }
 
@@ -597,6 +930,12 @@ function runBuild() {
   if (headSnippetsInjected > 0) {
     console.log(
       `build-static: injected analytics + UTM attribution into ${headSnippetsInjected} HTML file(s)`,
+    );
+  }
+
+  if (openGraphInjected > 0) {
+    console.log(
+      `build-static: injected Open Graph meta into ${openGraphInjected} HTML file(s)`,
     );
   }
 
@@ -621,6 +960,21 @@ function runBuild() {
       leadConfig.replaceAll('__LEAD_API_URL__', leadApiUrl),
       'utf8',
     );
+  }
+
+  writeMapsConfig(distDir, structuredDataConfig, mapsConfig);
+
+  if (mapEmbedsReplaced > 0) {
+    console.log(`build-static: replaced map iframes in ${mapEmbedsReplaced} HTML file(s)`);
+  }
+
+  const yandexMapsApiKey = process.env.Y_MAPS_API_KEY || '';
+  if (!yandexMapsApiKey) {
+    console.warn(
+      'build-static: Y_MAPS_API_KEY is empty — maps will show fallback links until it is set',
+    );
+  } else {
+    console.log('build-static: Y_MAPS_API_KEY is set');
   }
 
   if (!leadApiUrl) {

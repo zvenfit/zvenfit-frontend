@@ -7,10 +7,15 @@ const { runBuild } = require('./build-static.cjs');
 
 const rootDir = path.join(__dirname, '..');
 const appLinksConfigPath = path.join(__dirname, 'app-links.config.json');
+const mapsConfigPath = path.join(__dirname, 'maps.config.json');
+const structuredDataConfigPath = path.join(__dirname, 'structured-data.config.json');
 const watchTargets = [
   path.join(rootDir, 'public'),
   path.join(__dirname, 'snippets'),
   appLinksConfigPath,
+  mapsConfigPath,
+  structuredDataConfigPath,
+  path.join(__dirname, 'build-static.cjs'),
 ];
 
 const DEBOUNCE_MS = 200;
@@ -82,4 +87,6 @@ for (const targetPath of watchTargets) {
   watchPath(targetPath);
 }
 
-console.log('[watch-static] watching public/, scripts/snippets/, app-links.config.json');
+console.log(
+  '[watch-static] watching public/, scripts/snippets/, app-links.config.json, maps.config.json',
+);
