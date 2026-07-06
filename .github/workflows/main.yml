@@ -84,7 +84,7 @@ jobs:
       - name: Build app
         env:
           LEAD_API_URL: ${{ needs.deploy-function.outputs.function_url }}
-          Y_MAPS_API_KEY: ${{ secrets.Y_MAPS_API_KEY }}
+          Y_MAPS_API_KEY: ${{ vars.Y_MAPS_API_KEY }}
           ASSET_VERSION: ${{ vars.ASSET_VERSION || github.run_number }}
         run: |
           if [ -z "$LEAD_API_URL" ]; then
