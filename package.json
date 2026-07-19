@@ -3,15 +3,16 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "NODE_ENV=development node scripts/build-static.cjs && serve dist -l 4173",
-    "dev:watch": "NODE_ENV=development concurrently -k \"node scripts/watch-static.cjs\" \"serve dist -l 4173\" --names \"BUILD,WEB\" --prefix-colors \"yellow,green\"",
+    "dev": "NODE_ENV=development node scripts/build-static.cjs && concurrently -k \"node mock-server.js\" \"serve dist -l 4173\" --names \"API,WEB\" --prefix-colors \"cyan,green\"",
+    "dev:watch": "NODE_ENV=development concurrently -k \"node mock-server.js\" \"node scripts/watch-static.cjs\" \"serve dist -l 4173\" --names \"API,BUILD,WEB\" --prefix-colors \"cyan,yellow,green\"",
     "dev:mock": "node mock-server.js",
-    "dev:full": "concurrently \"npm run dev:mock\" \"npm run dev:watch\" --names \"API,WEB\" --prefix-colors \"cyan,green\"",
+    "dev:full": "npm run dev:watch",
     "build": "node scripts/build-static.cjs",
     "lint": "eslint \"src/**/*.{ts,tsx,js,jsx}\" --no-error-on-unmatched-pattern",
     "lint:fix": "npm run lint -- --fix",
     "deploy:yc": "aws s3 sync ./dist \"s3://${YC_S3_BUCKET:-zvenfit-frontend}\" --delete --endpoint-url https://storage.yandexcloud.net --region ru-1",
-    "deploy:lead-fn": "bash scripts/deploy-telegram-lead.sh"
+    "deploy:lead-fn": "bash scripts/deploy-telegram-lead.sh",
+    "deploy:schedule-fn": "bash scripts/deploy-fitbase-schedule.sh"
   },
   "devDependencies": {
     "@babel/core": "^7.26.0",
