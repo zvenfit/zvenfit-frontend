@@ -148,6 +148,7 @@ sftp-config.json
 
 .env.development
 .env.*
+!.env.example
 
 # Security: service account keys and secrets
 *.key
