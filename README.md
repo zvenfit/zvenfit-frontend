@@ -1,6 +1,9 @@
 # ZvenFit Frontend
 
-Static website с формой заявок → Telegram bot через Yandex Cloud Functions.
+Static website (Webflow HTML) + build pipeline + 2 Yandex Cloud Functions.
+
+**Agent / contributor guide:** [`AGENTS.md`](AGENTS.md)  
+**Backlog:** [`TODO.md`](TODO.md)
 
 ## Архитектура
 
@@ -9,40 +12,31 @@ Static website с формой заявок → Telegram bot через Yandex C
 │   Browser   │
 │ zvenfit.ru  │
 └──────┬──────┘
-       │ POST /forma-dlya-zayavki/
-       │ (lead-form.js)
-       ↓
-┌──────────────────────────────┐
-│  YC Cloud Function           │
-│  https://functions.yc.net/.. │
-│  (functions/telegram-lead/)  │
-│  - TELEGRAM_BOT_TOKEN в env  │
-│  - TELEGRAM_CHAT_ID в env    │
-└──────┬───────────────────────┘
-       │ api.telegram.org/bot.../sendMessage
-       ↓
-┌─────────────────┐
-│ Telegram группа │
-│ chat_id: -51... │
-└─────────────────┘
+       │
+       ├─ POST lead form (lead-form.js)
+       │      ↓
+       │  functions/telegram-lead → Telegram
+       │
+       └─ GET /raspisanie/ (schedule.js)
+              ↓
+          functions/fitbase-schedule → Fitbase API
 ```
 
-**До:** токен бота светился в HTML → любой мог спамить.  
-**После:** токен только в Cloud Function env, на фронте только URL функции.
+Build (`scripts/build-static.cjs`) копирует `public/` → `dist/`, инжектит snippets, API URLs, OG/JSON-LD.
+
+**Lead:** токен бота только в Cloud Function env, на фронте — URL функции.
 
 ## Файлы и зоны ответственности
 
-### Cloud Function (бэкенд)
+### Cloud Functions (бэкенд)
 
 | Файл | Что делает |
 |------|------------|
-| `functions/telegram-lead/index.js` | Принимает POST с данными формы, валидирует, шлёт в Telegram |
-| `functions/telegram-lead/package.json` | Метаданные функции (без зависимостей) |
+| `functions/telegram-lead/index.js` | POST формы → Telegram |
+| `functions/fitbase-schedule/index.js` | GET расписания → Fitbase API v2 |
 
-**Env переменные функции:**
-- `TELEGRAM_BOT_TOKEN` — секретный токен бота
-- `TELEGRAM_CHAT_ID` — ID группы/лички для заявок
-- `ALLOWED_ORIGINS` — CORS (откуда можно слать запросы)
+**telegram-lead env:** `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `ALLOWED_ORIGINS`  
+**fitbase-schedule env:** `FITBASE_API_TOKEN`, `FITBASE_DOMAIN`, `FITBASE_CLUB_ID`, `ALLOWED_ORIGINS`
 
 ### Frontend (статика)
 
@@ -50,21 +44,28 @@ Static website с формой заявок → Telegram bot через Yandex C
 |------|------------|
 | `public/forma-dlya-zayavki/index.html` | Форма заявки (имя, телефон, способ связи, username Telegram) |
 | `public/js/lead-form.js` | Отправка формы на Cloud Function, показ success/error |
-| `public/js/lead-config.js` | Одна строка: `window.ZVENFIT_LEAD_API = '...'` (подставляется при билде) |
+| `public/js/lead-config.js` | `window.ZVENFIT_LEAD_API` (подставляется при билде) |
+| `public/raspisanie/index.html` | Страница расписания |
+| `public/js/schedule.js` | UI расписания, запросы к schedule API |
+| `public/js/schedule-config.js` | `window.ZVENFIT_SCHEDULE_API` (подставляется при билде) |
 
 ### Билд и деплой
 
 | Файл | Что делает |
 |------|------------|
 | `scripts/build-static.cjs` | Копирует `public/` → `dist/`, подставляет `LEAD_API_URL` в `lead-config.js` |
-| `scripts/deploy-telegram-lead.sh` | Заливает функцию в YC через `yc serverless function` |
-| `.github/workflows/main.yml` | CI: деплоит функцию → получает URL → собирает сайт → льёт в Object Storage |
+| `scripts/deploy-telegram-lead.sh` | Deploy lead function |
+| `scripts/deploy-fitbase-schedule.sh` | Deploy schedule function |
+| `mock-server.js` | Local API :3000 (lead POST + schedule GET) |
+| `.github/workflows/main.yml` | CI: deploy both functions → build → S3 |
 
 ### Документация
 
 | Файл | О чём |
 |------|-------|
+| `AGENTS.md` | Guide для AI-агента: архитектура, markers, task map |
 | `docs/setup.md` | Быстрый старт: @BotFather, `yc init`, SA, GitHub Actions |
+| `docs/utm-attribution-marketing.md` | UTM для маркетинга |
 
 ### Сообщения не приходят в Telegram
 
@@ -93,26 +94,17 @@ curl "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage" \
 
 ## Env variables
 
-`.env.example` (не коммитить реальный `.env`):
+Скопируй `.env.example` → `.env.development` (gitignored). См. комментарии в файле.
+
+## Local dev
 
 ```bash
-# Build
-LEAD_API_URL=https://functions.yandexcloud.net/...
-
-# Object Storage deploy (local)
-YC_S3_BUCKET=zvenfit-frontend
-YC_ACCESS_KEY_ID=
-YC_SECRET_ACCESS_KEY=
-
-# Cloud Function deploy (local)
-YC_FOLDER_ID=
-TELEGRAM_BOT_TOKEN=
-TELEGRAM_CHAT_ID=
+npm install
+npm run dev:watch   # mock API :3000 + rebuild + site :4173
+npm run lint:public
+npm run test:build
 ```
 
-## TODO
+## Backlog
 
-- [ ] Добавить Turnstile/reCAPTCHA для защиты от спама
-- [ ] Логирование заявок (Cloud Logging или отдельная таблица)
-- [ ] Webhook вместо polling для bot updates (если будет интерактив)
-- [ ] Metrics: количество заявок/день (YC Monitoring)
+См. [`TODO.md`](TODO.md) — UI/a11y, infra, pre-release checklist.

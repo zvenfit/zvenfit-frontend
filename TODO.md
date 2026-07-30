@@ -1,97 +1,102 @@
-# ZvenFit UI/UX TODO
+# ZvenFit — backlog
 
-Audit source: `ui-ux-pro-max` skill (2026-06-30).  
-Stack: static Webflow HTML + `zvenfit.webflow.css` + `scripts/build-static.cjs`.
+Приоритет: **Critical → High → Medium → Infra**. UI audit: `ui-ux-pro-max` (2026-06-30).
+
+Agent guide: [`AGENTS.md`](AGENTS.md)
 
 ---
 
-## Critical
+## Critical (a11y / mobile)
 
-- [ ] **App badges — touch targets (mobile)**  
-  On `<479px`, badge height is 32px and gap is 6px (`zvenfit.webflow.css`).  
-  Target: min 44×44px tap area, gap ≥8px, allow wrap on narrow screens.
+- [ ] **App badges — touch targets**  
+  `<479px`: badge 32px, gap 6px. Target: ≥44×44px, gap ≥8px, wrap on narrow screens.
 
-- [ ] **Global focus states**  
-  Add `:focus-visible` for links, buttons, dropdown, app badges (slider arrows already have focus styles).
+- [ ] **Global `:focus-visible`**  
+  Links, buttons, dropdown, app badges (slider arrows already OK).
 
 - [ ] **Footer link contrast**  
-  `.link` uses `#727272` on `#020202` (~3.4:1). Bump to ≥4.5:1 (e.g. `#9CA3AF` or lighter).
+  `.link` `#727272` on `#020202` (~3.4:1) → ≥4.5:1 (e.g. `#9CA3AF`).
 
 - [ ] **`prefers-reduced-motion`**  
-  Disable or reduce `grain.gif` overlay and non-essential slider/transition animations.
+  Disable/reduce `grain.gif` and non-essential slider transitions.
 
 ---
 
-## High
+## High (UX / maintainability)
 
 - [ ] **Run build-static before deploy**  
-  App badge markers exist in HTML but snippets are not injected until `node scripts/build-static.cjs`.
-
-- [ ] **Homepage social proof**  
-  Add a short testimonials block on `/` (reviews exist on service pages only).  
-  Pattern: Hero → proof → CTA (per landing guidelines).
+  Badges, OG, analytics, structured data inject only via `node scripts/build-static.cjs`.
 
 - [ ] **Footer duplication**  
-  `section-4` (desktop) and `section-3` (mobile) duplicate map + contacts + 2× Yandex iframe.  
-  Consider single footer source or shared snippet.
+  `section-4` (desktop) + `section-3` (mobile): duplicate map + contacts + 2× Yandex iframe.  
+  → single snippet/marker source.
+
+- [ ] **Homepage social proof**  
+  Testimonials block on `/` (reviews exist on service pages only).
 
 - [ ] **Navigation hierarchy**  
-  Service pages: clarify primary nav vs secondary (dropdown “связь с нами” only).
+  Service pages: primary nav vs secondary (dropdown «связь с нами»).
 
 - [ ] **Responsive body padding**  
-  `.body` uses 60px horizontal padding — verify on tablet/mobile; watch overflow with large `h1-main`.
+  `.body` 60px horizontal — verify tablet/mobile, watch `h1-main` overflow.
 
 ---
 
-## Medium
+## Medium (polish / SEO)
 
-- [ ] **Auto-generate sitemap from `public/**/*.html`**  
-  Script in build-static or standalone: walk indexable pages, emit `lastmod`, keep priorities configurable. Manual `sitemap.xml` drifts (e.g. `/promos/` was missing until 2026-07-06).
+- [ ] **Auto-generate sitemap** from `public/**/*.html` (manual `sitemap.xml` drifts).
 
-- [ ] **Structured data — proper Organization logo**  
-  `organization.logo` uses `webclip.png` (apple-touch-icon). Replace with a dedicated brand logo ≥112×112 for knowledge panel / schema.org.
+- [ ] **Structured data — Organization logo**  
+  Replace `webclip.png` with brand logo ≥112×112.
 
 - [ ] **Base typography**  
-  `body` is 14px / 1.43 line-height; prefer 16px / 1.5 on mobile. Arial still in `body` fallback.
+  `body` 14px/1.43 → prefer 16px/1.5 on mobile. Arial in fallback stack.
 
 - [ ] **Lead form (`forma-dlya-zayavki`)**  
-  - Fix duplicate `id="label-select"`  
-  - Improve custom select a11y (`aria-expanded`, keyboard, roles)  
-  - Review `method="get"` for lead submission  
-  - Clearer error copy + recovery hint
+  Duplicate `id="label-select"`; custom select a11y; review `method="get"`; clearer errors.
 
 - [ ] **App badges polish**  
-  - `cursor: pointer` on links  
-  - `:focus-visible` styles  
-  - Footer row: `flex-wrap` instead of `nowrap` on small widths
+  `cursor: pointer`, `:focus-visible`, footer `flex-wrap` on small widths.
 
-- [ ] **Map iframes**  
-  Add `title` attribute for screen readers.
+- [ ] **Map iframes** — add `title` for screen readers.
 
-- [ ] **Purple accent contrast**  
-  Check `#b949ff` on `#1a1a1a` for small text (WCAG AA).
+- [ ] **Purple accent contrast** — `#b949ff` on `#1a1a1a` for small text (WCAG AA).
 
 ---
 
-## Low / already OK
+## Infra / DX
+
+- [x] `AGENTS.md` + `.cursor/rules/` for agent context
+- [x] `.env.example` for local dev
+- [x] `npm run lint:public` — lint `public/js` + `functions`
+- [x] `npm run test:build` — build smoke check
+- [ ] Turnstile/reCAPTCHA on lead form (spam protection)
+- [ ] Lead logging (Cloud Logging or table)
+- [ ] Schedule/lead smoke tests in CI (optional)
+- [ ] Consolidate `README.md` / `docs/setup.md` overlap (setup stays detailed, README — index)
+
+---
+
+## Done
 
 - [x] Distinctive visual identity (not generic AI layout)
-- [x] SEO basics: meta, canonical, `lang="ru"`
-- [x] Open Graph + Twitter meta injected at build (`og:title`, `og:description`, `og:url`, …)
-- [x] JSON-LD: `WebSite` stub on all pages; `Offer` / `ItemList` on `/promos/` and `/promos/apps/`
-- [x] `/promos/` in sitemap; nav link «акции» on homepage dropdown
-- [x] CDN preconnect, lazy images on badges snippet
-- [x] Form visible labels, tel autocomplete, consent text
-- [x] Reviews sections on service pages
+- [x] SEO: meta, canonical, `lang="ru"`
+- [x] OG + Twitter meta at build
+- [x] JSON-LD: `WebSite`; `Offer`/`ItemList` on promos
+- [x] `/promos/` in sitemap; nav «акции»
+- [x] CDN preconnect, lazy images on badges
+- [x] Form labels, tel autocomplete, consent
+- [x] Reviews on service pages
+- [x] Telegram token moved to Cloud Function (not in HTML)
 
 ---
 
 ## Pre-release checklist
 
-- [ ] Touch targets ≥44px at 375px width
-- [ ] Focus visible on all interactive elements
-- [ ] Footer / muted text contrast AA
-- [ ] Test with `prefers-reduced-motion: reduce`
+- [ ] Touch targets ≥44px @ 375px
+- [ ] Focus visible on all interactives
+- [ ] Footer/muted text contrast AA
+- [ ] Test `prefers-reduced-motion: reduce`
 - [ ] App badges present after build-static
 - [ ] Form IDs and a11y validated
 - [ ] Map iframe titles set
@@ -100,10 +105,8 @@ Stack: static Webflow HTML + `zvenfit.webflow.css` + `scripts/build-static.cjs`.
 
 ## Out of scope (brand stays)
 
-Do **not** replace current brand tokens with skill defaults:
-
-| Skill suggestion | Keep |
-|------------------|------|
-| Orange primary `#F97316` | Green `#00d10e` |
+| Skill/default suggestion | Keep |
+|--------------------------|------|
+| Orange `#F97316` | Green `#00d10e` |
 | Barlow Condensed | Roadrage + Roboto |
 | Gamification patterns | — |

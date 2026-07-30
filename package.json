@@ -9,7 +9,9 @@
     "dev:full": "npm run dev:watch",
     "build": "node scripts/build-static.cjs",
     "lint": "eslint \"src/**/*.{ts,tsx,js,jsx}\" --no-error-on-unmatched-pattern",
+    "lint:public": "eslint \"public/js/**/*.js\" \"functions/**/*.js\" --no-error-on-unmatched-pattern",
     "lint:fix": "npm run lint -- --fix",
+    "test:build": "node scripts/build-static.cjs && test -f dist/index.html",
     "deploy:yc": "aws s3 sync ./dist \"s3://${YC_S3_BUCKET:-zvenfit-frontend}\" --delete --endpoint-url https://storage.yandexcloud.net --region ru-1",
     "deploy:lead-fn": "bash scripts/deploy-telegram-lead.sh",
     "deploy:schedule-fn": "bash scripts/deploy-fitbase-schedule.sh"

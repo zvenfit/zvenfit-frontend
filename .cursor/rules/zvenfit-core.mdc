@@ -1,0 +1,32 @@
+---
+description: ZvenFit core architecture and agent constraints
+alwaysApply: true
+---
+
+# ZvenFit — core rules
+
+Static Webflow site. Source: `public/`, `scripts/`, `functions/`. **Never edit `dist/`.**
+
+After changes: `npm run build` or `npm run dev:watch`.
+
+## APIs (injected at build)
+
+- Lead: `functions/telegram-lead/` → `window.ZVENFIT_LEAD_API`
+- Schedule: `functions/fitbase-schedule/` → `window.ZVENFIT_SCHEDULE_API`
+
+## Build markers
+
+HTML contains `<!-- ZvenFit: ... -->` comments replaced by `scripts/build-static.cjs`.
+Edit snippets in `scripts/snippets/` or configs — not 26 HTML copies.
+
+## Brand
+
+Keep green `#00d10e`, Roadrage + Roboto. See `TODO.md` "Out of scope".
+
+## Secrets
+
+No tokens in HTML/JS. Use env / GitHub Secrets only.
+
+## Verify
+
+`npm run lint:public` and `npm run test:build`. Full guide: `AGENTS.md`.
