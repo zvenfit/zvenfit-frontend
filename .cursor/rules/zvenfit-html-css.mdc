@@ -1,0 +1,28 @@
+---
+description: HTML/CSS/JS conventions for ZvenFit static site
+globs: public/**/*.{html,css,js}
+alwaysApply: false
+---
+
+# ZvenFit frontend files
+
+## HTML (Webflow export)
+
+- Class names are Webflow-generated — preserve them unless refactoring CSS too
+- Duplicated footer: `section-4` (desktop) + `section-3` (mobile) — prefer snippet/markers over N-file edits
+- Keep marker comments intact: `<!-- ZvenFit: ... -->`
+
+## CSS
+
+- Source: `public/css/zvenfit.webflow.css`
+- Build produces minified copy — edit source file only
+- a11y backlog in `TODO.md` Critical: focus states, contrast, touch targets, reduced motion
+
+## JS
+
+- No bundler — plain browser JS with `window.*` config globals
+- `lead-config.js` / `schedule-config.js` contain placeholders replaced at build — don't hardcode prod URLs
+
+## Scope
+
+Minimize diff. One page change ≠ refactor all 26 HTML files unless explicitly requested.

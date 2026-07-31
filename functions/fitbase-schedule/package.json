@@ -1,0 +1,6 @@
+{
+  "name": "zvenfit-fitbase-schedule",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Public schedule proxy for zvenfit.ru (Fitbase API v2)"
+}

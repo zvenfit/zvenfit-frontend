@@ -76,6 +76,8 @@ const CACHE_BUST_SCRIPTS = [
   'utm-attribution.js',
   'lead-form.js',
   'lead-config.js',
+  'schedule.js',
+  'schedule-config.js',
   'accordion-horizontal.js',
   'maps-config.js',
   'yandex-map.js',
@@ -859,6 +861,8 @@ function runBuild() {
   const isDev = nodeEnv === 'development';
   const leadApiUrl =
     process.env.LEAD_API_URL || (isDev ? 'http://localhost:3000' : '');
+  const scheduleApiUrl =
+    process.env.SCHEDULE_API_URL || (isDev ? 'http://localhost:3000/schedule' : '');
   const assetVersion = process.env.ASSET_VERSION || '2';
   const appLinksConfig = getAppLinksConfig();
   const mapsConfig = getMapsConfig();
@@ -962,6 +966,17 @@ function runBuild() {
     );
   }
 
+  const scheduleConfigPath = path.join(distDir, 'js', 'schedule-config.js');
+
+  if (fs.existsSync(scheduleConfigPath)) {
+    const scheduleConfig = fs.readFileSync(scheduleConfigPath, 'utf8');
+    fs.writeFileSync(
+      scheduleConfigPath,
+      scheduleConfig.replaceAll('__SCHEDULE_API_URL__', scheduleApiUrl),
+      'utf8',
+    );
+  }
+
   writeMapsConfig(distDir, structuredDataConfig, mapsConfig);
 
   if (mapEmbedsReplaced > 0) {
@@ -981,6 +996,14 @@ function runBuild() {
     console.warn('build-static: LEAD_API_URL is empty — lead form will fail until it is set');
   } else {
     console.log(`build-static: LEAD_API_URL=${leadApiUrl} (NODE_ENV=${nodeEnv})`);
+  }
+
+  if (!scheduleApiUrl) {
+    console.warn(
+      'build-static: SCHEDULE_API_URL is empty — schedule page will fail until it is set',
+    );
+  } else {
+    console.log(`build-static: SCHEDULE_API_URL=${scheduleApiUrl} (NODE_ENV=${nodeEnv})`);
   }
 
   console.log(`build-static: ASSET_VERSION=${assetVersion}`);
