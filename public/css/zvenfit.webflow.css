@@ -6857,3 +6857,521 @@ html.schedule-dialog-open body {
     font-size: 10px;
   }
 }
+
+
+/* ZvenFit: webflow import — group + coaches (2026-07-26) */
+.photo_page.group {
+  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/group/hero.webp');
+  background-position: 50%;
+  background-size: cover;
+}
+
+.coach_photo.group {
+  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/coaches/kseniya-dubrovskaya-mini.webp');
+  background-position: 50% 20%;
+  background-size: cover;
+}
+
+.coach_photo.group._6 {
+  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/coaches/evgeniya-bashlakova.webp');
+  background-position: 100% 30%;
+  background-size: cover;
+}
+
+.coach_photo.group._7 {
+  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/coaches/anastasiya-panova.webp');
+  background-position: 50% 40%;
+  background-size: cover;
+}
+
+.coach_photo.group._8 {
+  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/coaches/anastasiya-izvekova.webp');
+  background-position: 50% 10%;
+  background-size: cover;
+}
+
+.coach_photo.group._9 {
+  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/coaches/shorena-dzhakhaya.webp');
+  background-position: 50% 10%;
+  background-size: cover;
+}
+
+.coach_photo.group._10 {
+  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/coaches/elena-isaeva.webp');
+  background-position: 50% 30%;
+  background-size: cover;
+}
+
+.coach_photo.group._11 {
+  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/coaches/margarita-gribinichenko.webp');
+  background-position: 50% 30%;
+  background-size: cover;
+}
+
+.coach_photo.group._12 {
+  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/coaches/natalya-illarionova.webp');
+  background-position: 50% 30%;
+  background-size: cover;
+}
+
+.coach_photo.group._13 {
+  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/coaches/natalya-didenko.webp');
+  background-position: 50% 30%;
+  background-size: cover;
+}
+
+.coach_photo.group._14 {
+  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/coaches/anastasiya-dachevskaya.webp');
+  background-position: 50% 40%;
+  background-size: cover;
+}
+
+.coach_photo.group._15 {
+  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/coaches/kseniya-oschepkova.webp');
+  background-position: 50% 20%;
+  background-size: cover;
+}
+
+.coach_photo._2.group {
+  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/coaches/veronika-voznaya.webp');
+  background-position: 50% 10%;
+  background-size: cover;
+}
+
+.coach_photo._4.group {
+  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/coaches/natalya-shulepova-mini.webp');
+  background-position: 50% 20%;
+  background-size: cover;
+}
+
+.coach_photo._5.group {
+  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/coaches/nadezhda-alekseeva.webp');
+  background-position: 50% 30%;
+  background-size: cover;
+}
+
+.coaches-card-grid {
+  grid-column-gap: 40px;
+  grid-row-gap: 40px;
+  flex-flow: row;
+  grid-template-rows: auto;
+  grid-template-columns: 1fr 1fr 1fr;
+  grid-auto-columns: 1fr;
+  grid-auto-flow: row;
+  place-content: center space-between;
+  place-items: start stretch;
+  margin-top: 0;
+  margin-bottom: 40px;
+  display: grid;
+}
+
+.coaches-card-grid.main {
+  place-items: end stretch;
+}
+
+.coaches-card-grid.group {
+  grid-column-gap: 20px;
+  grid-row-gap: 20px;
+  flex-flow: column;
+  display: flex;
+}
+
+.coaches-card-grid-bot {
+  grid-column-gap: 40px;
+  grid-row-gap: 40px;
+  flex-flow: row;
+  grid-template-rows: auto;
+  grid-template-columns: 1fr 1fr 1fr;
+  grid-auto-columns: 1fr;
+  grid-auto-flow: row;
+  place-content: center space-between;
+  place-items: start stretch;
+  margin-top: 0;
+  margin-bottom: 40px;
+  display: grid;
+}
+
+.coaches-card-grid-bot.main {
+  place-items: end stretch;
+}
+
+.coaches-card-grid-bot.group {
+  grid-column-gap: 20px;
+  grid-row-gap: 20px;
+  flex-flow: column;
+  display: flex;
+}
+
+.coaches-card-grid {
+    grid-column-gap: 25px;
+    grid-row-gap: 25px;
+    grid-template-columns: 1fr 1fr 1fr;
+    margin-top: 20px;
+    margin-bottom: 25px;
+  }
+
+.coaches-card-grid.main {
+    grid-template-columns: 1fr 1fr 1fr;
+  }
+
+.coaches-card-grid-bot {
+    grid-column-gap: 25px;
+    grid-row-gap: 25px;
+    grid-template-columns: 1fr 1fr 1fr;
+    margin-bottom: 25px;
+  }
+
+.coaches-card-grid-bot.main {
+    grid-template-columns: 1fr 1fr 1fr;
+  }
+
+.coaches-card-grid {
+    grid-template-columns: 1fr 1fr 1fr;
+  }
+
+.coaches-card-grid.main {
+    grid-template-columns: 1fr;
+  }
+
+.coaches-card-grid-bot {
+    grid-template-columns: 1fr 1fr 1fr;
+  }
+
+.coaches-card-grid-bot.main {
+    grid-template-columns: 1fr;
+  }
+
+.coaches-card-grid {
+    grid-column-gap: 20px;
+    grid-row-gap: 20px;
+    grid-template-columns: 1fr;
+    margin-top: 10px;
+    margin-bottom: 20px;
+  }
+
+.coaches-card-grid-bot {
+    grid-column-gap: 20px;
+    grid-row-gap: 20px;
+    grid-template-columns: 1fr;
+    margin-bottom: 20px;
+  }
+
+.coaches-card-grid.main {
+  place-items: end stretch;
+}
+
+.coaches-card-grid.main {
+    grid-template-columns: 1fr 1fr 1fr;
+  }
+
+.coaches-card-grid.main {
+    grid-template-columns: 1fr;
+  }
+
+.coaches-card-grid.group {
+  grid-column-gap: 20px;
+  grid-row-gap: 20px;
+  flex-flow: column;
+  display: flex;
+}
+
+.coaches-card-grid-bot {
+  grid-column-gap: 40px;
+  grid-row-gap: 40px;
+  flex-flow: row;
+  grid-template-rows: auto;
+  grid-template-columns: 1fr 1fr 1fr;
+  grid-auto-columns: 1fr;
+  grid-auto-flow: row;
+  place-content: center space-between;
+  place-items: start stretch;
+  margin-top: 0;
+  margin-bottom: 40px;
+  display: grid;
+}
+
+.coaches-card-grid-bot.main {
+  place-items: end stretch;
+}
+
+.coaches-card-grid-bot.group {
+  grid-column-gap: 20px;
+  grid-row-gap: 20px;
+  flex-flow: column;
+  display: flex;
+}
+
+.coaches-card-grid-bot {
+    grid-column-gap: 25px;
+    grid-row-gap: 25px;
+    grid-template-columns: 1fr 1fr 1fr;
+    margin-bottom: 25px;
+  }
+
+.coaches-card-grid-bot.main {
+    grid-template-columns: 1fr 1fr 1fr;
+  }
+
+.coaches-card-grid-bot {
+    grid-template-columns: 1fr 1fr 1fr;
+  }
+
+.coaches-card-grid-bot.main {
+    grid-template-columns: 1fr;
+  }
+
+.coaches-card-grid-bot {
+    grid-column-gap: 20px;
+    grid-row-gap: 20px;
+    grid-template-columns: 1fr;
+    margin-bottom: 20px;
+  }
+
+.coaches-card-grid-bot.main {
+  place-items: end stretch;
+}
+
+.coaches-card-grid-bot.main {
+    grid-template-columns: 1fr 1fr 1fr;
+  }
+
+.coaches-card-grid-bot.main {
+    grid-template-columns: 1fr;
+  }
+
+.coaches-card-grid-bot.group {
+  grid-column-gap: 20px;
+  grid-row-gap: 20px;
+  flex-flow: column;
+  display: flex;
+}
+
+.card_grid.group {
+  grid-column-gap: 20px;
+  grid-row-gap: 20px;
+  flex-flow: column;
+  display: flex;
+}
+
+.section.group {
+  background-image: linear-gradient(45deg, #000c 21%, #fff0), url('https://storage.yandexcloud.net/zvenfit/v2/images/group/promo-bg.webp');
+  background-position: 0 0, 50%;
+  background-size: auto, cover;
+  border-radius: 20px;
+}
+
+.photo_coach.kseniya {
+  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/coaches/kseniya-dubrovskaya.webp');
+  background-position: 50% 30%;
+  background-size: cover;
+}
+
+.photo_coach_mini.kseniya {
+  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/coaches/kseniya-dubrovskaya-mini.webp');
+  background-position: 50%;
+  background-size: cover;
+}
+
+.photo_coach.nata {
+  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/coaches/natalya-shulepova.webp');
+  background-position: 50% 30%;
+  background-size: cover;
+}
+
+.photo_coach.nataly {
+  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/coaches/natalya-didenko.webp');
+  background-position: 50% 35%;
+  background-size: cover;
+}
+
+.photo_coach_mini.nata {
+  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/coaches/natalya-shulepova-mini.webp');
+  background-position: 50%;
+  background-size: cover;
+}
+
+.photo_coach_mini.nataly {
+  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/coaches/natalya-didenko.webp');
+  background-position: 50%;
+  background-size: cover;
+}
+
+.photo_coach.veron {
+  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/coaches/veronika-voznaya.webp');
+  background-position: 50% 30%;
+  background-size: cover;
+}
+
+.photo_coach_mini.veron {
+  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/coaches/veronika-voznaya.webp');
+  background-position: 50%;
+  background-size: cover;
+}
+
+.photo_coach.nadya {
+  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/coaches/nadezhda-alekseeva.webp');
+  background-position: 50% 30%;
+  background-size: cover;
+}
+
+.photo_coach_mini.nadya {
+  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/coaches/nadezhda-alekseeva.webp');
+  background-position: 50%;
+  background-size: cover;
+}
+
+.photo_coach.evg {
+  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/coaches/evgeniya-bashlakova.webp');
+  background-position: 50% 30%;
+  background-size: cover;
+}
+
+.photo_coach_mini.evg {
+  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/coaches/evgeniya-bashlakova.webp');
+  background-position: 50%;
+  background-size: cover;
+}
+
+.photo_coach.nastya {
+  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/coaches/anastasiya-panova.webp');
+  background-position: 50% 40%;
+  background-size: cover;
+}
+
+.photo_coach_mini.nastya {
+  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/coaches/anastasiya-panova.webp');
+  background-position: 50%;
+  background-size: cover;
+}
+
+.photo_coach.anast {
+  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/coaches/anastasiya-izvekova.webp');
+  background-position: 50% 30%;
+  background-size: cover;
+}
+
+.photo_coach_mini.anast {
+  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/coaches/anastasiya-izvekova.webp');
+  background-position: 50%;
+  background-size: cover;
+}
+
+.photo_coach.shore {
+  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/coaches/shorena-dzhakhaya.webp');
+  background-position: 50% 20%;
+  background-size: cover;
+}
+
+.photo_coach_mini.shore {
+  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/coaches/shorena-dzhakhaya.webp');
+  background-position: 50%;
+  background-size: cover;
+}
+
+.photo_coach.lena {
+  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/coaches/elena-isaeva.webp');
+  background-position: 50% 30%;
+  background-size: cover;
+}
+
+.photo_coach_mini.lena {
+  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/coaches/elena-isaeva.webp');
+  background-position: 50%;
+  background-size: cover;
+}
+
+.photo_coach.margo {
+  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/coaches/margarita-gribinichenko.webp');
+  background-position: 50% 35%;
+  background-size: cover;
+}
+
+.photo_coach_mini.margo {
+  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/coaches/margarita-gribinichenko.webp');
+  background-position: 50%;
+  background-size: cover;
+}
+
+.photo_coach.nata {
+  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/coaches/natalya-shulepova.webp');
+  background-position: 50% 30%;
+  background-size: cover;
+}
+
+.photo_coach.nat {
+  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/coaches/natalya-illarionova.webp');
+  background-position: 50% 30%;
+  background-size: cover;
+}
+
+.photo_coach.nataly {
+  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/coaches/natalya-didenko.webp');
+  background-position: 50% 35%;
+  background-size: cover;
+}
+
+.photo_coach_mini.nata {
+  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/coaches/natalya-shulepova-mini.webp');
+  background-position: 50%;
+  background-size: cover;
+}
+
+.photo_coach_mini.nat {
+  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/coaches/natalya-illarionova.webp');
+  background-position: 50%;
+  background-size: cover;
+}
+
+.photo_coach_mini.nataly {
+  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/coaches/natalya-didenko.webp');
+  background-position: 50%;
+  background-size: cover;
+}
+
+.photo_coach.nataly {
+  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/coaches/natalya-didenko.webp');
+  background-position: 50% 35%;
+  background-size: cover;
+}
+
+.photo_coach_mini.nataly {
+  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/coaches/natalya-didenko.webp');
+  background-position: 50%;
+  background-size: cover;
+}
+
+.photo_coach.ksenya {
+  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/coaches/kseniya-oschepkova.webp');
+  background-position: 50% 20%;
+  background-size: cover;
+}
+
+.photo_coach_mini.ksenya {
+  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/coaches/kseniya-oschepkova.webp');
+  background-position: 50%;
+  background-size: cover;
+}
+
+.photo_coach.anast {
+  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/coaches/anastasiya-izvekova.webp');
+  background-position: 50% 30%;
+  background-size: cover;
+}
+
+.photo_coach.anas {
+  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/coaches/anastasiya-dachevskaya.webp');
+  background-position: 50% 30%;
+  background-size: cover;
+}
+
+.photo_coach_mini.anast {
+  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/coaches/anastasiya-izvekova.webp');
+  background-position: 50%;
+  background-size: cover;
+}
+
+.photo_coach_mini.anas {
+  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/coaches/anastasiya-dachevskaya.webp');
+  background-position: 50%;
+  background-size: cover;
+}

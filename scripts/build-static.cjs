@@ -79,6 +79,7 @@ const CACHE_BUST_SCRIPTS = [
   'schedule.js',
   'schedule-config.js',
   'accordion-horizontal.js',
+  'coaches-show-more.js',
   'maps-config.js',
   'yandex-map.js',
 ];

@@ -273,6 +273,76 @@
       "name": "Горовая Элла Алексеевна",
       "jobTitle": "Инструктор пилатеса",
       "location": "chekhova"
+    },
+    "trener-anastasiya-panova": {
+      "name": "Анастасия Панова",
+      "jobTitle": "Тренер групповых программ",
+      "location": "nahabino"
+    },
+    "trener-anastasiya-izvekova": {
+      "name": "Анастасия Извекова",
+      "jobTitle": "Тренер групповых программ",
+      "location": "nahabino"
+    },
+    "trener-anastasiya-dachevskaya": {
+      "name": "Анастасия Дачевская",
+      "jobTitle": "Тренер групповых программ",
+      "location": "nahabino"
+    },
+    "trener-elena-isaeva": {
+      "name": "Елена Исаева",
+      "jobTitle": "Тренер групповых программ",
+      "location": "nahabino"
+    },
+    "trener-evgeniya-bashlakova": {
+      "name": "Евгения Башлакова",
+      "jobTitle": "Тренер групповых программ",
+      "location": "nahabino"
+    },
+    "trener-kseniya-dubrovskaya": {
+      "name": "Ксения Дубровская",
+      "jobTitle": "Тренер групповых программ",
+      "location": "nahabino"
+    },
+    "trener-kseniya-oschepkova": {
+      "name": "Ксения Ощепкова",
+      "jobTitle": "Тренер групповых программ",
+      "location": "nahabino"
+    },
+    "trener-margarita-gribinichenko": {
+      "name": "Маргарита Грибиниченко",
+      "jobTitle": "Тренер групповых программ",
+      "location": "nahabino"
+    },
+    "trener-nadezhda-alekseeva": {
+      "name": "Надежда Алексеева",
+      "jobTitle": "Тренер групповых программ",
+      "location": "nahabino"
+    },
+    "trener-natalya-shulepova": {
+      "name": "Наталья Шулепова",
+      "jobTitle": "Тренер групповых программ",
+      "location": "nahabino"
+    },
+    "trener-natalya-didenko": {
+      "name": "Наталья Диденко",
+      "jobTitle": "Тренер групповых программ",
+      "location": "nahabino"
+    },
+    "trener-natalya-illarionova": {
+      "name": "Наталья Илларионова",
+      "jobTitle": "Тренер групповых программ",
+      "location": "nahabino"
+    },
+    "trener-shorena-dzhakhaya": {
+      "name": "Шорэна Джахая",
+      "jobTitle": "Тренер групповых программ",
+      "location": "nahabino"
+    },
+    "trener-veronika-voznaya": {
+      "name": "Вероника Возная",
+      "jobTitle": "Тренер групповых программ",
+      "location": "nahabino"
     }
   }
 }
