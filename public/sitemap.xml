@@ -33,11 +33,11 @@
   
   <url>
     <loc>https://zvenfit.ru/gruppovye-trenirovki/</loc>
-    <lastmod>2026-05-13</lastmod>
+    <lastmod>2026-08-01</lastmod>
     <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
+    <priority>0.85</priority>
   </url>
-  
+
   <url>
     <loc>https://zvenfit.ru/forma-dlya-zayavki/</loc>
     <lastmod>2026-05-13</lastmod>
@@ -126,6 +126,91 @@
   <url>
     <loc>https://zvenfit.ru/trenery/trener-ella/</loc>
     <lastmod>2026-05-13</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+
+  <url>
+    <loc>https://zvenfit.ru/trenery/trener-anastasiya-panova/</loc>
+    <lastmod>2026-08-01</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://zvenfit.ru/trenery/trener-anastasiya-izvekova/</loc>
+    <lastmod>2026-08-01</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://zvenfit.ru/trenery/trener-anastasiya-dachevskaya/</loc>
+    <lastmod>2026-08-01</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://zvenfit.ru/trenery/trener-elena-isaeva/</loc>
+    <lastmod>2026-08-01</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://zvenfit.ru/trenery/trener-evgeniya-bashlakova/</loc>
+    <lastmod>2026-08-01</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://zvenfit.ru/trenery/trener-kseniya-dubrovskaya/</loc>
+    <lastmod>2026-08-01</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://zvenfit.ru/trenery/trener-kseniya-oschepkova/</loc>
+    <lastmod>2026-08-01</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://zvenfit.ru/trenery/trener-margarita-gribinichenko/</loc>
+    <lastmod>2026-08-01</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://zvenfit.ru/trenery/trener-nadezhda-alekseeva/</loc>
+    <lastmod>2026-08-01</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://zvenfit.ru/trenery/trener-natalya-shulepova/</loc>
+    <lastmod>2026-08-01</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://zvenfit.ru/trenery/trener-natalya-didenko/</loc>
+    <lastmod>2026-08-01</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://zvenfit.ru/trenery/trener-natalya-illarionova/</loc>
+    <lastmod>2026-08-01</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://zvenfit.ru/trenery/trener-shorena-dzhakhaya/</loc>
+    <lastmod>2026-08-01</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://zvenfit.ru/trenery/trener-veronika-voznaya/</loc>
+    <lastmod>2026-08-01</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>

@@ -132,8 +132,8 @@
         "https://maps.app.goo.gl/A9Y2pihRDUKALhN96"
       ]
     },
-    "nahabino": {
-      "id": "club-nahabino",
+    "nahabinskoe-shosse": {
+      "id": "club-nahabinskoe-shosse",
       "name": "ZvenFit — женская студия",
       "alternateName": "ZvenFit — клуб групповых тренировок",
       "description": "Женская студия групповых тренировок в Звенигороде",
@@ -229,7 +229,7 @@
       ]
     },
     "/gruppovye-trenirovki/": {
-      "primaryLocation": "nahabino",
+      "primaryLocation": "nahabinskoe-shosse",
       "services": [
         {
           "name": "Групповые тренировки",
@@ -273,6 +273,76 @@
       "name": "Горовая Элла Алексеевна",
       "jobTitle": "Инструктор пилатеса",
       "location": "chekhova"
+    },
+    "trener-anastasiya-panova": {
+      "name": "Анастасия Панова",
+      "jobTitle": "Тренер групповых программ",
+      "location": "nahabinskoe-shosse"
+    },
+    "trener-anastasiya-izvekova": {
+      "name": "Анастасия Извекова",
+      "jobTitle": "Тренер групповых программ",
+      "location": "nahabinskoe-shosse"
+    },
+    "trener-anastasiya-dachevskaya": {
+      "name": "Анастасия Дачевская",
+      "jobTitle": "Тренер групповых программ",
+      "location": "nahabinskoe-shosse"
+    },
+    "trener-elena-isaeva": {
+      "name": "Елена Исаева",
+      "jobTitle": "Тренер групповых программ",
+      "location": "nahabinskoe-shosse"
+    },
+    "trener-evgeniya-bashlakova": {
+      "name": "Евгения Башлакова",
+      "jobTitle": "Тренер групповых программ",
+      "location": "nahabinskoe-shosse"
+    },
+    "trener-kseniya-dubrovskaya": {
+      "name": "Ксения Дубровская",
+      "jobTitle": "Тренер групповых программ",
+      "location": "nahabinskoe-shosse"
+    },
+    "trener-kseniya-oschepkova": {
+      "name": "Ксения Ощепкова",
+      "jobTitle": "Тренер групповых программ",
+      "location": "nahabinskoe-shosse"
+    },
+    "trener-margarita-gribinichenko": {
+      "name": "Маргарита Грибиниченко",
+      "jobTitle": "Тренер групповых программ",
+      "location": "nahabinskoe-shosse"
+    },
+    "trener-nadezhda-alekseeva": {
+      "name": "Надежда Алексеева",
+      "jobTitle": "Тренер групповых программ",
+      "location": "nahabinskoe-shosse"
+    },
+    "trener-natalya-shulepova": {
+      "name": "Наталья Шулепова",
+      "jobTitle": "Тренер групповых программ",
+      "location": "nahabinskoe-shosse"
+    },
+    "trener-natalya-didenko": {
+      "name": "Наталья Диденко",
+      "jobTitle": "Тренер групповых программ",
+      "location": "nahabinskoe-shosse"
+    },
+    "trener-natalya-illarionova": {
+      "name": "Наталья Илларионова",
+      "jobTitle": "Тренер групповых программ",
+      "location": "nahabinskoe-shosse"
+    },
+    "trener-shorena-dzhakhaya": {
+      "name": "Шорэна Джахая",
+      "jobTitle": "Тренер групповых программ",
+      "location": "nahabinskoe-shosse"
+    },
+    "trener-veronika-voznaya": {
+      "name": "Вероника Возная",
+      "jobTitle": "Тренер групповых программ",
+      "location": "nahabinskoe-shosse"
     }
   }
 }
