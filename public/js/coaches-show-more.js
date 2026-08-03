@@ -6,9 +6,14 @@ document.addEventListener('DOMContentLoaded', () => {
     return;
   }
 
+  const setExpanded = (expanded) => {
+    hidden.style.display = expanded ? 'grid' : 'none';
+    label.textContent = expanded ? 'СКРЫТЬ' : 'ПОКАЗАТЬ ЕЩЕ';
+    toggle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+  };
+
   toggle.addEventListener('click', () => {
     const expanded = hidden.style.display !== 'none' && hidden.style.display !== '';
-    hidden.style.display = expanded ? 'none' : 'grid';
-    label.textContent = expanded ? 'ПОКАЗАТЬ ЕЩЕ' : 'СКРЫТЬ';
+    setExpanded(!expanded);
   });
 });

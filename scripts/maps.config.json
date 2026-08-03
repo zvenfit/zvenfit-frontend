@@ -6,13 +6,13 @@
     "chekhova": {
       "pinIcon": "https://storage.yandexcloud.net/zvenfit/v2/images/map-pin-chekhova.svg"
     },
-    "nahabino": {
+    "nahabinskoe-shosse": {
       "pinIcon": "https://storage.yandexcloud.net/zvenfit/v2/images/map-pin-nahabino.svg"
     }
   },
   "locationOrganizations": {
     "chekhova": "237087577037",
-    "nahabino": "46426452607"
+    "nahabinskoe-shosse": "46426452607"
   },
   "locationPhotos": {
     "chekhova": [
@@ -21,7 +21,7 @@
       "https://storage.yandexcloud.net/zvenfit/v2/images/club-zones/cardio-zone-2.jpg",
       "https://storage.yandexcloud.net/zvenfit/v2/images/club-zones/dressing-room-2.jpeg"
     ],
-    "nahabino": [
+    "nahabinskoe-shosse": [
       "https://storage.yandexcloud.net/zvenfit/v2/images/club-zones/group-reformer-1.jpeg",
       "https://storage.yandexcloud.net/zvenfit/v2/images/club-zones/group-reformer-2.JPG",
       "https://storage.yandexcloud.net/zvenfit/v2/images/coaches/oksana-4.jpeg",
@@ -31,15 +31,15 @@
   "defaultSet": "chekhova",
   "sets": {
     "home": {
-      "locationKeys": ["chekhova", "nahabino"],
+      "locationKeys": ["chekhova", "nahabinskoe-shosse"],
       "zoomMargin": 48
     },
     "chekhova": {
       "locationKeys": ["chekhova"],
       "zoom": 16
     },
-    "nahabino": {
-      "locationKeys": ["nahabino"],
+    "nahabinskoe-shosse": {
+      "locationKeys": ["nahabinskoe-shosse"],
       "zoom": 16
     }
   },
@@ -47,6 +47,6 @@
     "/": "home",
     "/404.html": "home",
     "/contacts/platforms/": "home",
-    "/gruppovye-trenirovki/": "nahabino"
+    "/gruppovye-trenirovki/": "nahabinskoe-shosse"
   }
 }
