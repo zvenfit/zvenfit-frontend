@@ -1746,6 +1746,12 @@ body {
   }
 }
 
+/* ZvenFit: group fitness — hide reviews until content is relevant */
+html[data-wf-page="69b540f958c9c44d220bcf1a"] #reviews,
+html[data-wf-page="69b540f958c9c44d220bcf1a"] a[href="#reviews"] {
+  display: none !important;
+}
+
 .heading-3 {
   color: var(--white);
   text-transform: uppercase;
@@ -7146,13 +7152,13 @@ html.schedule-dialog-open body {
 }
 
 .coach_photo.group._12 {
-  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/coaches/natalya-illarionova.webp');
+  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/coaches/natalya-didenko.webp');
   background-position: 50% 30%;
   background-size: cover;
 }
 
 .coach_photo.group._13 {
-  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/coaches/natalya-didenko.webp');
+  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/coaches/natalya-illarionova.webp');
   background-position: 50% 30%;
   background-size: cover;
 }
@@ -7430,7 +7436,7 @@ html.schedule-dialog-open body {
 }
 
 .photo_coach.nataly {
-  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/coaches/natalya-didenko.webp');
+  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/coaches/natalya-illarionova.webp');
   background-position: 50% 35%;
   background-size: cover;
 }
@@ -7442,7 +7448,7 @@ html.schedule-dialog-open body {
 }
 
 .photo_coach_mini.nataly {
-  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/coaches/natalya-didenko.webp');
+  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/coaches/natalya-illarionova.webp');
   background-position: 50%;
   background-size: cover;
 }
@@ -7544,13 +7550,13 @@ html.schedule-dialog-open body {
 }
 
 .photo_coach.nat {
-  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/coaches/natalya-illarionova.webp');
+  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/coaches/natalya-didenko.webp');
   background-position: 50% 30%;
   background-size: cover;
 }
 
 .photo_coach_mini.nat {
-  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/coaches/natalya-illarionova.webp');
+  background-image: url('https://storage.yandexcloud.net/zvenfit/v2/images/coaches/natalya-didenko.webp');
   background-position: 50%;
   background-size: cover;
 }

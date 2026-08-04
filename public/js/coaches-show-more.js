@@ -6,7 +6,7 @@ document.addEventListener('DOMContentLoaded', () => {
     return;
   }
 
-  const setExpanded = (expanded) => {
+  const setExpanded = expanded => {
     hidden.style.display = expanded ? 'grid' : 'none';
     label.textContent = expanded ? 'СКРЫТЬ' : 'ПОКАЗАТЬ ЕЩЕ';
     toggle.setAttribute('aria-expanded', expanded ? 'true' : 'false');

@@ -1652,9 +1652,11 @@
   },
   "8d61ff7801d04ae2a0d1f137f8b6462f": {
     "cdn_urls": [
-      "https://storage.yandexcloud.net/zvenfit/v2/images/coaches/natalya-illarionova.webp"
+      "https://storage.yandexcloud.net/zvenfit/v2/images/coaches/natalya-didenko.webp"
     ],
-    "local_files": [],
+    "local_files": [
+      "2Z8A3913о_resized.webp"
+    ],
     "size": 422436
   },
   "8d83955fc430bfedbbcbd73aede73140": {
@@ -2100,9 +2102,11 @@
   },
   "b394354594f2ccf3fa5527f9e3a71556": {
     "cdn_urls": [
-      "https://storage.yandexcloud.net/zvenfit/v2/images/coaches/natalya-didenko.webp"
+      "https://storage.yandexcloud.net/zvenfit/v2/images/coaches/natalya-illarionova.webp"
     ],
-    "local_files": [],
+    "local_files": [
+      "2Z8A4874_resized.webp"
+    ],
     "size": 142236
   },
   "b3da09949614a17fac0f05d708d9f26f": {
