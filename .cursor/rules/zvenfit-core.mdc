@@ -30,3 +30,12 @@ No tokens in HTML/JS. Use env / GitHub Secrets only.
 ## Verify
 
 `npm run lint:public` and `npm run test:build`. Full guide: `AGENTS.md`.
+
+## Deploy
+
+**Frontend (`zvenfit-frontend` bucket):** only via GitHub Actions (`.github/workflows/main.yml`).
+Do **not** manually upload to `zvenfit-frontend` (`yc storage s3api put-object`, `aws s3 cp/sync`, etc.) unless the user explicitly asks.
+
+After code changes: commit → push → CI runs `npm run build` and `s3 sync ./dist`.
+
+**Assets bucket (`zvenfit`):** coach images and static CDN assets — not deployed by CI; manual ops only when the user requests or approves.
