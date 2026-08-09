@@ -36,7 +36,7 @@ After any change that affects HTML/CSS/JS/config injection: run `npm run build` 
 
 ```
 Browser (zvenfit.ru)
-  ├─ POST lead form → functions/telegram-lead → YDB → Telegram
+  ├─ POST lead form → functions/lead-intake → YDB → Telegram
   │                                      ↑ retry timer
   └─ GET /raspisanie/ → functions/fitbase-schedule → Fitbase API
 
@@ -76,8 +76,8 @@ Also at build time:
 | Task                       | Files                                                               |
 | -------------------------- | ------------------------------------------------------------------- |
 | Lead form UI/validation    | `public/forma-dlya-zayavki/index.html`, `public/js/lead-form.js`    |
-| Lead API / Telegram        | `functions/telegram-lead/src/handler.ts`, `src/telegram/`           |
-| Lead storage / retry state | `functions/telegram-lead/src/ydb/`                                  |
+| Lead API / Telegram        | `functions/lead-intake/src/handler.ts`, `src/telegram/`           |
+| Lead storage / retry state | `functions/lead-intake/src/ydb/`                                  |
 | Schedule UI                | `public/raspisanie/index.html`, `public/js/schedule.js`             |
 | Schedule API / Fitbase     | `functions/fitbase-schedule/src/handler.ts`, `src/fitbase/`         |
 | UTM in leads               | `public/js/utm-attribution.js`, `docs/utm-attribution-marketing.md` |
@@ -92,7 +92,7 @@ Also at build time:
 ```bash
 cp .env.example .env.development   # fill values
 npm install
-npm ci --prefix functions/telegram-lead
+npm ci --prefix functions/lead-intake
 npm ci --prefix functions/fitbase-schedule
 npm run dev:watch                  # mock API + rebuild + serve :4173
 ```

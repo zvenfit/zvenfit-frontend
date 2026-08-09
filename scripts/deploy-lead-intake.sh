@@ -20,22 +20,22 @@ ALLOWED_ORIGINS="${ALLOWED_ORIGINS:-https://zvenfit.ru,https://www.zvenfit.ru,ht
 LOG_LEVEL="${LOG_LEVEL:-info}"
 
 if [[ -z "${TELEGRAM_BOT_TOKEN:-}" || -z "${TELEGRAM_CHAT_ID:-}" ]]; then
-  echo "deploy-telegram-lead: set TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID" >&2
+  echo "deploy-lead-intake: set TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID" >&2
   exit 1
 fi
 
 if ! command -v yc >/dev/null 2>&1; then
-  echo "deploy-telegram-lead: install Yandex Cloud CLI (yc)" >&2
+  echo "deploy-lead-intake: install Yandex Cloud CLI (yc)" >&2
   exit 1
 fi
 
 if [[ -z "${YC_FOLDER_ID:-}" ]]; then
-  echo "deploy-telegram-lead: set YC_FOLDER_ID" >&2
+  echo "deploy-lead-intake: set YC_FOLDER_ID" >&2
   exit 1
 fi
 
 if [[ -z "${YC_LEAD_SERVICE_ACCOUNT_ID:-}" ]]; then
-  echo "deploy-telegram-lead: set YC_LEAD_SERVICE_ACCOUNT_ID for YDB access and timer invocation" >&2
+  echo "deploy-lead-intake: set YC_LEAD_SERVICE_ACCOUNT_ID for YDB access and timer invocation" >&2
   exit 1
 fi
 
@@ -59,7 +59,7 @@ process.stdout.write(data.endpoint || '');
 fi
 
 if [[ -z "${YDB_CONNECTION_STRING}" ]]; then
-  echo "deploy-telegram-lead: YDB connection string is empty" >&2
+  echo "deploy-lead-intake: YDB connection string is empty" >&2
   exit 1
 fi
 
@@ -67,13 +67,13 @@ LEAD_YDB_IAM_TOKEN="$(yc iam create-token)"
 
 YDB_TEST_CONNECTION_STRING="${YDB_CONNECTION_STRING}" \
 YDB_ACCESS_TOKEN_CREDENTIALS="${LEAD_YDB_IAM_TOKEN}" \
-npm --prefix "${ROOT_DIR}/functions/telegram-lead" run test:integration
+npm --prefix "${ROOT_DIR}/functions/lead-intake" run test:integration
 
 YDB_ACCESS_TOKEN_CREDENTIALS="${LEAD_YDB_IAM_TOKEN}" \
 YDB_CONNECTION_STRING="${YDB_CONNECTION_STRING}" \
 YDB_LEADS_TABLE="${YDB_LEADS_TABLE}" \
 YDB_QUERY_TIMEOUT_MS="${YDB_QUERY_TIMEOUT_MS}" \
-npm --prefix "${ROOT_DIR}/functions/telegram-lead" run migrate
+npm --prefix "${ROOT_DIR}/functions/lead-intake" run migrate
 
 unset LEAD_YDB_IAM_TOKEN
 
@@ -81,10 +81,10 @@ if ! yc serverless function get --name="${FUNCTION_NAME}" >/dev/null 2>&1; then
   yc serverless function create --name="${FUNCTION_NAME}"
 fi
 
-cp -R "${ROOT_DIR}/functions/telegram-lead/build/." "${SOURCE_DIR}/"
+cp -R "${ROOT_DIR}/functions/lead-intake/build/." "${SOURCE_DIR}/"
 cp \
-  "${ROOT_DIR}/functions/telegram-lead/package.json" \
-  "${ROOT_DIR}/functions/telegram-lead/package-lock.json" \
+  "${ROOT_DIR}/functions/lead-intake/package.json" \
+  "${ROOT_DIR}/functions/lead-intake/package-lock.json" \
   "${SOURCE_DIR}/"
 
 npm pkg delete devDependencies --prefix "${SOURCE_DIR}"
@@ -140,12 +140,12 @@ process.stdout.write(url);
 ")"
 
 if [[ -z "${INVOKE_URL}" ]]; then
-  echo "deploy-telegram-lead: function deployed, but http_invoke_url is empty" >&2
-  echo "deploy-telegram-lead: check function HTTP invoke in YC console" >&2
+  echo "deploy-lead-intake: function deployed, but http_invoke_url is empty" >&2
+  echo "deploy-lead-intake: check function HTTP invoke in YC console" >&2
   exit 0
 fi
 
-echo "deploy-telegram-lead: OK"
+echo "deploy-lead-intake: OK"
 echo "YDB_DATABASE_NAME=${YDB_DATABASE_NAME}"
 echo "LEAD_RETRY_TRIGGER=${TRIGGER_NAME}"
 echo "LEAD_API_URL=${INVOKE_URL}"

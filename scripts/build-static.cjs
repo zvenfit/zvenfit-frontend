@@ -72,6 +72,8 @@ const structuredDataMarker = '<!-- ZvenFit: structured-data -->';
 const openGraphMarker = '<!-- ZvenFit: open-graph -->';
 const SITE_CSS_SOURCE = 'zvenfit.webflow.css';
 const SITE_CSS_MIN = 'zvenfit.webflow.min.css';
+const ASSETS_CDN_BASE = 'https://storage.yandexcloud.net/zvenfit/v2';
+const CDN_VENDOR_JS = ['webflow.js'];
 const CACHE_BUST_SCRIPTS = [
   'utm-attribution.js',
   'lead-form.js',
@@ -254,12 +256,35 @@ function bustAssetUrls(html, assetVersion) {
     nextHtml = nextHtml.replace(pattern, `$1?v=${assetVersion}`);
   }
 
+  for (const scriptName of CDN_VENDOR_JS) {
+    const localPath = `/js/${scriptName}`;
+    const cdnPath = `${ASSETS_CDN_BASE}${localPath}`;
+    const pattern = new RegExp(
+      `(?:${escapeRegExp(cdnPath)}|${escapeRegExp(localPath)})(?:\\?v=[^"']*)?`,
+      'g',
+    );
+    nextHtml = nextHtml.replace(pattern, `${cdnPath}?v=${assetVersion}`);
+  }
+
   nextHtml = nextHtml.replace(
     new RegExp(`(/css/${SITE_CSS_SOURCE.replace('.', '\\.')})(?:\\?v=[^"']*)?`, 'g'),
     `/css/${SITE_CSS_MIN}?v=${assetVersion}`,
   );
 
   return nextHtml;
+}
+
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function pruneCdnVendorAssets() {
+  for (const scriptName of CDN_VENDOR_JS) {
+    const scriptPath = path.join(distDir, 'js', scriptName);
+    if (fs.existsSync(scriptPath)) {
+      fs.unlinkSync(scriptPath);
+    }
+  }
 }
 
 function minifySiteCss() {
@@ -874,6 +899,7 @@ function runBuild() {
   fs.rmSync(distDir, { recursive: true, force: true });
   fs.cpSync(publicDir, distDir, { recursive: true });
   minifySiteCss();
+  pruneCdnVendorAssets();
 
   let headSnippetsInjected = 0;
   let openGraphInjected = 0;

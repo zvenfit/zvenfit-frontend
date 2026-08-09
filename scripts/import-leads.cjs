@@ -8,7 +8,7 @@ const path = require('node:path');
 
 const { safeErrorDetails } = require('./safe-import-error.cjs');
 
-const DEFAULT_SOURCE_KEY = 'zvenfit-telegram-leads';
+const DEFAULT_SOURCE_KEY = 'zvenfit-leads-import';
 const FIELD_LABELS = {
   Имя: 'name',
   Телефон: 'phone',
@@ -219,7 +219,7 @@ async function importLeads(leads) {
     throw new Error('ydb_access_token_credentials_missing');
   }
 
-  const store = require('../functions/telegram-lead/build/ydb/lead-store');
+  const store = require('../functions/lead-intake/build/ydb/lead-store');
   const result = { inserted: 0, existing: 0, existing_sent: 0, existing_other: 0 };
 
   try {

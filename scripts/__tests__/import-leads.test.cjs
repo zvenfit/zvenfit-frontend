@@ -5,7 +5,7 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 
-const { deterministicUuid, parseTelegramDate, parseTelegramExport } = require('../import-telegram-leads.cjs');
+const { deterministicUuid, parseTelegramDate, parseTelegramExport } = require('../import-leads.cjs');
 
 function message({ id, date, text, joined = false }) {
   return `

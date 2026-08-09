@@ -11,7 +11,7 @@ After changes: `npm run build` or `npm run dev:watch`.
 
 ## APIs (injected at build)
 
-- Lead: `functions/telegram-lead/` → `window.ZVENFIT_LEAD_API`
+- Lead: `functions/lead-intake/` → `window.ZVENFIT_LEAD_API`
 - Schedule: `functions/fitbase-schedule/` → `window.ZVENFIT_SCHEDULE_API`
 
 ## Build markers

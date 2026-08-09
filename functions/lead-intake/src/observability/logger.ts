@@ -2,7 +2,7 @@ import { destination, pino, stdTimeFunctions, type DestinationStream, type Logge
 
 import type { FunctionContext } from '../types';
 
-const SERVICE = 'zvenfit-telegram-lead';
+const SERVICE = 'zvenfit-lead-intake';
 const REDACT_PATHS = [
   'name',
   'phone',

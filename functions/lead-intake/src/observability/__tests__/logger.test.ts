@@ -38,7 +38,7 @@ test('writes Yandex Cloud structured JSON and redacts lead PII and secrets', () 
     },
     {
       level: 'ERROR',
-      service: 'zvenfit-telegram-lead',
+      service: 'zvenfit-lead-intake',
       request_id: 'lead-request-id',
       event: 'lead_storage_error',
       lead_id: 'safe-technical-id',

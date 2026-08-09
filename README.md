@@ -15,7 +15,7 @@ Static website (Webflow HTML) + build pipeline + 2 Yandex Cloud Functions + YDB 
        │
        ├─ POST lead form (lead-form.js)
        │      ↓
-       │  functions/telegram-lead → YDB (source of truth)
+       │  functions/lead-intake → YDB (source of truth)
        │                           └→ Telegram notification
        │                               ↑ retry timer
        │
@@ -35,11 +35,11 @@ Build (`scripts/build-static.cjs`) копирует `public/` → `dist/`, ин�
 
 | Файл                                    | Что делает                                            |
 | --------------------------------------- | ----------------------------------------------------- |
-| `functions/telegram-lead/src/index.ts` | Точка входа Cloud Function, только реэкспорт из `handler.ts` |
-| `functions/telegram-lead/src/handler.ts` | Оркестрация POST формы и retry timer |
-| `functions/telegram-lead/src/telegram/delivery.ts` | Telegram API, lease и retry policy |
-| `functions/telegram-lead/src/ydb/` | YDB client, migrations, сохранение лидов и очередь уведомлений |
-| `functions/telegram-lead/src/observability/` | Pino, YDB latency/retries и безопасные error codes |
+| `functions/lead-intake/src/index.ts` | Точка входа Cloud Function, только реэкспорт из `handler.ts` |
+| `functions/lead-intake/src/handler.ts` | Оркестрация POST формы и retry timer |
+| `functions/lead-intake/src/telegram/delivery.ts` | Telegram API, lease и retry policy |
+| `functions/lead-intake/src/ydb/` | YDB client, migrations, сохранение лидов и очередь уведомлений |
+| `functions/lead-intake/src/observability/` | Pino, YDB latency/retries и безопасные error codes |
 | `functions/fitbase-schedule/src/index.ts` | Точка входа Cloud Function, только реэкспорт из `handler.ts` |
 | `functions/fitbase-schedule/src/handler.ts` | Оркестрация GET расписания |
 | `functions/fitbase-schedule/src/fitbase/` | Fitbase API client и преобразование ответа |
@@ -50,7 +50,7 @@ Unit и integration-тесты лежат в `__tests__/` рядом с моду
 запускаются через `node --import tsx`. Собранный CommonJS проверяется отдельным deployment smoke-тестом;
 в Yandex Cloud упаковывается только runtime JavaScript без TypeScript/devDependencies.
 
-**telegram-lead env:** `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `ALLOWED_ORIGINS`,
+**lead-intake env:** `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `ALLOWED_ORIGINS`,
 `YDB_CONNECTION_STRING`, `YDB_LEADS_TABLE`, `LEAD_RETENTION_DAYS`, `MAX_TELEGRAM_ATTEMPTS`
 **fitbase-schedule env:** `FITBASE_API_TOKEN`, `FITBASE_DOMAIN`, `FITBASE_CLUB_ID`, `ALLOWED_ORIGINS`
 
@@ -70,8 +70,8 @@ Unit и integration-тесты лежат в `__tests__/` рядом с моду
 | Файл                                 | Что делает                                                                  |
 | ------------------------------------ | --------------------------------------------------------------------------- |
 | `scripts/build-static.cjs`           | Копирует `public/` → `dist/`, подставляет `LEAD_API_URL` в `lead-config.js` |
-| `scripts/deploy-telegram-lead.sh`    | Создаёт YDB при необходимости, деплоит функцию и retry timer                |
-| `scripts/import-telegram-leads.cjs`  | Dry-run и идемпотентный импорт старых Telegram-заявок в YDB                 |
+| `scripts/deploy-lead-intake.sh`      | Создаёт YDB при необходимости, деплоит функцию и retry timer                |
+| `scripts/import-leads.cjs`           | Dry-run и идемпотентный импорт заявок из HTML-экспорта в YDB               |
 | `scripts/deploy-fitbase-schedule.sh` | Deploy schedule function                                                    |
 | `mock-server.js`                     | Local API :3000 (lead POST + schedule GET)                                  |
 | `.github/workflows/main.yml`         | CI: deploy both functions → build → S3                                      |
@@ -129,7 +129,7 @@ Fitbase через Pino без персональных данных. Селек
 
 ```bash
 npm install
-npm ci --prefix functions/telegram-lead
+npm ci --prefix functions/lead-intake
 npm ci --prefix functions/fitbase-schedule
 npm run dev:watch   # mock API :3000 + rebuild + site :4173
 npm run test:lead-fn

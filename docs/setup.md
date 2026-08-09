@@ -133,7 +133,7 @@ git push origin main
 1. Workflow создаёт Serverless БД `zvenfit-leads`, если её ещё нет; включена защита от удаления.
 2. Создаёт временные таблицы и прогоняет YDB integration test; production-таблица не меняется.
 3. До переключения функции применяет версионированные восстанавливаемые YDB-миграции из
-   `functions/telegram-lead/src/ydb/migrations.ts`.
+   `functions/lead-intake/src/ydb/migrations.ts`.
 4. Деплоит Cloud Function без DDL в пользовательском запросе.
 5. Создаёт минутный timer trigger для повторной доставки в Telegram.
 6. Получает URL функции, собирает сайт и заливает его в Object Storage.
@@ -249,7 +249,7 @@ LIMIT 100;
 агрегаты и коды ошибок, без имён и телефонов:
 
 ```bash
-npm run import:telegram-leads -- --file "/absolute/path/to/messages.html"
+npm run import:leads -- --file "/absolute/path/to/messages.html"
 ```
 
 Если `rejected` равен нулю, импортируй записи в YDB:
@@ -260,7 +260,7 @@ ZVENFIT_YDB_ENDPOINT=$(yc ydb database get --name=zvenfit-leads --format=json \
 
 YDB_CONNECTION_STRING="$ZVENFIT_YDB_ENDPOINT" \
 YDB_ACCESS_TOKEN_CREDENTIALS=$(yc iam create-token) \
-npm run import:telegram-leads -- --file "/absolute/path/to/messages.html" --apply
+npm run import:leads -- --file "/absolute/path/to/messages.html" --apply
 ```
 
 Импорт идемпотентен: `lead_id` детерминирован из ID Telegram-сообщения. Исторические записи сразу

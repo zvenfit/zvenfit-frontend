@@ -117,6 +117,13 @@ module.exports = {
   },
   overrides: [
     {
+      // Existing browser runtime files stay as single scripts until they are modularized.
+      files: ['public/js/schedule.js', 'public/js/yandex-map.js'],
+      rules: {
+        'max-lines': 'off',
+      },
+    },
+    {
       // Settings for TS
       files: ['*.ts', '*.tsx'],
       excludedFiles: ['webpack.config.ts'],
@@ -124,7 +131,7 @@ module.exports = {
       parserOptions: {
         project: [
           './tsconfig.test.json',
-          './functions/telegram-lead/tsconfig.json',
+          './functions/lead-intake/tsconfig.json',
           './functions/fitbase-schedule/tsconfig.json',
         ],
         sourceType: 'module',

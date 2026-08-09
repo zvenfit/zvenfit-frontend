@@ -28,16 +28,10 @@
     var digits = String(telephone || '').replace(/\D/g, '');
     if (digits.length === 11 && digits.charAt(0) === '7') {
       return (
-        '+7 (' +
-        digits.slice(1, 4) +
-        ') ' +
-        digits.slice(4, 7) +
-        '-' +
-        digits.slice(7, 9) +
-        '-' +
-        digits.slice(9, 11)
+        '+7 (' + digits.slice(1, 4) + ') ' + digits.slice(4, 7) + '-' + digits.slice(7, 9) + '-' + digits.slice(9, 11)
       );
     }
+
     return telephone || '';
   }
 
@@ -98,9 +92,7 @@
 
   function getOrgId(locationKey, location) {
     return (
-      location.yandexOrganizationId ||
-      (config.locationOrganizations && config.locationOrganizations[locationKey]) ||
-      ''
+      location.yandexOrganizationId || (config.locationOrganizations && config.locationOrganizations[locationKey]) || ''
     );
   }
 
@@ -137,6 +129,7 @@
 
       seen.push(normalized);
       urls.push(normalized);
+
       return;
     }
 
@@ -144,6 +137,7 @@
       value.forEach(function (item) {
         extractAltayUrls(item, seen, urls);
       });
+
       return;
     }
 
@@ -185,6 +179,7 @@
         var urls = [];
         var seen = [];
         extractAltayUrls(content, seen, urls);
+
         return urls.slice(0, MAX_YANDEX_PHOTOS);
       })
       .catch(function () {
@@ -204,29 +199,29 @@
 
         if (urls.length) {
           yandexPhotoCache[orgId] = urls;
+
           return urls;
         }
 
         return loadBalloonPhotoUrls(geoObject).then(function (balloonUrls) {
           yandexPhotoCache[orgId] = balloonUrls;
+
           return balloonUrls;
         });
       })
       .catch(function () {
         yandexPhotoCache[orgId] = [];
+
         return [];
       });
   }
 
   function resolvePhotos(location, locationKey) {
     var orgId = getOrgId(locationKey, location);
-    var builtInPhotos =
-      (location.photos && location.photos.length && location.photos) || [];
+    var builtInPhotos = (location.photos && location.photos.length && location.photos) || [];
 
     if (!orgId || !window.ymaps || !window.ymaps.findOrganization) {
-      return Promise.resolve(
-        builtInPhotos.length ? builtInPhotos : getFallbackPhotos(location, locationKey),
-      );
+      return Promise.resolve(builtInPhotos.length ? builtInPhotos : getFallbackPhotos(location, locationKey));
     }
 
     return fetchYandexOrgPhotos(orgId).then(function (livePhotos) {
@@ -236,6 +231,7 @@
       if (builtInPhotos.length) {
         return builtInPhotos;
       }
+
       return getFallbackPhotos(location, locationKey);
     });
   }
@@ -261,6 +257,7 @@
     if (!photos.length) {
       removeCarouselPlaceholder(panel);
       panel.classList.remove('zvenfit-map-panel--with-carousel');
+
       return null;
     }
 
@@ -279,6 +276,7 @@
     }
 
     panel.classList.add('zvenfit-map-panel--with-carousel');
+
     return initCarousel(panel);
   }
 
@@ -289,18 +287,13 @@
     }
 
     var track = carousel.querySelector('[data-carousel-track]');
-    var slideNodes = Array.prototype.slice.call(
-      carousel.querySelectorAll('.zvenfit-map-panel__carousel-slide'),
-    );
-    var dots = Array.prototype.slice.call(
-      carousel.querySelectorAll('[data-carousel-dot]'),
-    );
+    var slideNodes = Array.prototype.slice.call(carousel.querySelectorAll('.zvenfit-map-panel__carousel-slide'));
+    var dots = Array.prototype.slice.call(carousel.querySelectorAll('[data-carousel-dot]'));
     var prev = carousel.querySelector('[data-carousel-prev]');
     var next = carousel.querySelector('[data-carousel-next]');
     var index = 0;
     var autoplayTimer = null;
-    var reduceMotion =
-      window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    var reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
     function applyTransform(animate) {
       if (!track) {
@@ -312,14 +305,14 @@
     }
 
     function showSlide(nextIndex, options) {
-      options = options || {};
+      var resolvedOptions = options || {};
 
       if (!slideNodes.length) {
         return;
       }
 
       index = (nextIndex + slideNodes.length) % slideNodes.length;
-      applyTransform(options.animate !== false);
+      applyTransform(resolvedOptions.animate !== false);
 
       dots.forEach(function (dot, dotIndex) {
         dot.classList.toggle('is-active', dotIndex === index);
@@ -431,6 +424,7 @@
       event.stopPropagation();
     });
     container.appendChild(panel);
+
     return panel;
   }
 
@@ -488,6 +482,7 @@
     button.className = className;
     button.setAttribute('aria-label', label);
     button.innerHTML = iconHtml;
+
     return button;
   }
 
@@ -499,11 +494,7 @@
     fullscreenWrap.setAttribute('role', 'group');
     fullscreenWrap.setAttribute('aria-label', 'Полноэкранный режим');
 
-    var fullscreen = createControlButton(
-      'zvenfit-map__control',
-      'Открыть карту на весь экран',
-      ICON_FULLSCREEN,
-    );
+    var fullscreen = createControlButton('zvenfit-map__control', 'Открыть карту на весь экран', ICON_FULLSCREEN);
 
     var zoomWrap = document.createElement('div');
     zoomWrap.className = 'zvenfit-map__controls zvenfit-map__controls--zoom';
@@ -531,12 +522,14 @@
 
       if (document.fullscreenElement === container) {
         document.exitFullscreen();
+
         return;
       }
 
       var request = container.requestFullscreen || container.webkitRequestFullscreen;
       if (request) {
         request.call(container);
+
         return;
       }
 
@@ -588,18 +581,17 @@
     ymapsLoadPromise = new Promise(function (resolve, reject) {
       if (window.ymaps) {
         window.ymaps.ready(resolve);
+
         return;
       }
 
       var script = document.createElement('script');
-      script.src =
-        'https://api-maps.yandex.ru/2.1/?apikey=' +
-        encodeURIComponent(config.apiKey) +
-        '&lang=ru_RU';
+      script.src = 'https://api-maps.yandex.ru/2.1/?apikey=' + encodeURIComponent(config.apiKey) + '&lang=ru_RU';
       script.async = true;
       script.onload = function () {
         if (!window.ymaps) {
           reject(new Error('Yandex Maps API failed to load'));
+
           return;
         }
         window.ymaps.ready(resolve);
@@ -625,7 +617,8 @@
         if (!location) {
           return null;
         }
-        return { key: key, location: location };
+
+        return { key, location };
       })
       .filter(Boolean);
   }
@@ -636,8 +629,7 @@
     return {
       iconImageHref: location.pinIcon || pinOverride.pinIcon || config.pinIcon,
       iconImageSize: location.pinIconSize || pinOverride.pinIconSize || config.pinIconSize,
-      iconImageOffset:
-        location.pinIconOffset || pinOverride.pinIconOffset || config.pinIconOffset,
+      iconImageOffset: location.pinIconOffset || pinOverride.pinIconOffset || config.pinIconOffset,
     };
   }
 
@@ -738,9 +730,7 @@
   }
 
   function observeMaps() {
-    var containers = Array.prototype.slice.call(
-      document.querySelectorAll('.zvenfit-map:not([data-map-ready])'),
-    );
+    var containers = Array.prototype.slice.call(document.querySelectorAll('.zvenfit-map:not([data-map-ready])'));
 
     if (!containers.length) {
       return;
@@ -748,6 +738,7 @@
 
     if (!('IntersectionObserver' in window)) {
       containers.forEach(initMap);
+
       return;
     }
 

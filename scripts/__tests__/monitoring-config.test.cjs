@@ -8,9 +8,9 @@ const test = require('node:test');
 const ROOT = path.resolve(__dirname, '../..');
 const config = JSON.parse(fs.readFileSync(path.join(ROOT, 'scripts/monitoring.config.json'), 'utf8'));
 const source = [
-  'functions/telegram-lead/src/handler.ts',
-  'functions/telegram-lead/src/telegram/delivery.ts',
-  'functions/telegram-lead/src/observability/ydb.ts',
+  'functions/lead-intake/src/handler.ts',
+  'functions/lead-intake/src/telegram/delivery.ts',
+  'functions/lead-intake/src/observability/ydb.ts',
   'functions/fitbase-schedule/src/handler.ts',
   'functions/fitbase-schedule/src/observability/logger.ts',
 ]

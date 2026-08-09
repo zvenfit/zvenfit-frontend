@@ -134,9 +134,7 @@
       return '';
     }
 
-    const url = base.startsWith('http')
-      ? new URL(base)
-      : new URL(base, window.location.origin);
+    const url = base.startsWith('http') ? new URL(base) : new URL(base, window.location.origin);
     url.searchParams.set('from', from);
     url.searchParams.set('to', to);
 
@@ -584,7 +582,11 @@
   }
 
   function createDialogBadge(text, modifierClass) {
-    const badge = createElement('span', modifierClass ? `schedule-dialog__status ${modifierClass}` : 'schedule-dialog__status', text);
+    const badge = createElement(
+      'span',
+      modifierClass ? `schedule-dialog__status ${modifierClass}` : 'schedule-dialog__status',
+      text,
+    );
 
     return badge;
   }
@@ -673,7 +675,10 @@
       return '';
     }
 
-    return item.trainers.map(trainer => trainer.name).filter(Boolean).join(', ');
+    return item.trainers
+      .map(trainer => trainer.name)
+      .filter(Boolean)
+      .join(', ');
   }
 
   function buildMetaLine(item) {
@@ -779,13 +784,44 @@
   }
 
   const SKELETON_DAY_BLOCKS = [
-    [{ top: 8, height: 11 }, { top: 24, height: 15 }, { top: 42, height: 9 }, { top: 58, height: 13 }],
-    [{ top: 10, height: 12 }, { top: 28, height: 10 }, { top: 44, height: 16 }, { top: 66, height: 8 }],
-    [{ top: 6, height: 14 }, { top: 26, height: 11 }, { top: 41, height: 12 }],
-    [{ top: 12, height: 10 }, { top: 30, height: 14 }, { top: 50, height: 9 }, { top: 64, height: 11 }],
-    [{ top: 9, height: 13 }, { top: 32, height: 10 }, { top: 48, height: 12 }],
-    [{ top: 14, height: 9 }, { top: 28, height: 12 }, { top: 46, height: 10 }],
-    [{ top: 7, height: 10 }, { top: 22, height: 13 }, { top: 40, height: 8 }],
+    [
+      { top: 8, height: 11 },
+      { top: 24, height: 15 },
+      { top: 42, height: 9 },
+      { top: 58, height: 13 },
+    ],
+    [
+      { top: 10, height: 12 },
+      { top: 28, height: 10 },
+      { top: 44, height: 16 },
+      { top: 66, height: 8 },
+    ],
+    [
+      { top: 6, height: 14 },
+      { top: 26, height: 11 },
+      { top: 41, height: 12 },
+    ],
+    [
+      { top: 12, height: 10 },
+      { top: 30, height: 14 },
+      { top: 50, height: 9 },
+      { top: 64, height: 11 },
+    ],
+    [
+      { top: 9, height: 13 },
+      { top: 32, height: 10 },
+      { top: 48, height: 12 },
+    ],
+    [
+      { top: 14, height: 9 },
+      { top: 28, height: 12 },
+      { top: 46, height: 10 },
+    ],
+    [
+      { top: 7, height: 10 },
+      { top: 22, height: 13 },
+      { top: 40, height: 8 },
+    ],
   ];
 
   function renderSkeletonGrid() {
@@ -1078,9 +1114,7 @@
 
     if (filtered) {
       empty.appendChild(createElement('p', 'schedule-state__title', 'Ничего не найдено'));
-      empty.appendChild(
-        createElement('p', 'schedule-state__text', 'Измените фильтры или выберите другую неделю.'),
-      );
+      empty.appendChild(createElement('p', 'schedule-state__text', 'Измените фильтры или выберите другую неделю.'));
 
       const resetButton = createElement('button', 'schedule-state__reset', 'Сбросить фильтры');
       resetButton.type = 'button';
@@ -1092,11 +1126,7 @@
 
     empty.appendChild(createElement('p', 'schedule-state__title', 'На этой неделе занятий нет'));
     empty.appendChild(
-      createElement(
-        'p',
-        'schedule-state__text',
-        'Попробуйте другую неделю или уточните расписание у администратора.',
-      ),
+      createElement('p', 'schedule-state__text', 'Попробуйте другую неделю или уточните расписание у администратора.'),
     );
 
     return empty;
@@ -1119,7 +1149,8 @@
     error.appendChild(createElement('p', 'schedule-state__title', 'Не удалось загрузить расписание'));
 
     const details = {
-      missing_api: 'Не настроен адрес API расписания. Пересоберите сайт с SCHEDULE_API_URL или запустите npm run dev:watch.',
+      missing_api:
+        'Не настроен адрес API расписания. Пересоберите сайт с SCHEDULE_API_URL или запустите npm run dev:watch.',
       network: 'Не удалось связаться с API. Локально нужны npm run dev:watch (mock-server на :3000).',
       http: 'API вернул ошибку. Проверьте FITBASE_API_TOKEN и логи fitbase-schedule.',
       invalid_response: 'API вернул некорректный ответ.',
@@ -1156,9 +1187,7 @@
     normalizeFilters(options);
     const filteredItems = applyFilters(state.items);
     const weekItems = filteredItems.filter(item => item.date >= state.weekStart && item.date <= weekEnd);
-    const hasUnfilteredWeekItems = state.items.some(
-      item => item.date >= state.weekStart && item.date <= weekEnd,
-    );
+    const hasUnfilteredWeekItems = state.items.some(item => item.date >= state.weekStart && item.date <= weekEnd);
 
     const shell = createElement('div', 'schedule-week');
     shell.appendChild(renderToolbar());

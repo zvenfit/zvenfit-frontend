@@ -84,7 +84,7 @@ LIMIT 20;
 Сначала обязательный dry-run — он ничего не записывает в YDB:
 
 ```bash
-npm run import:telegram-leads -- \
+npm run import:leads -- \
   --file "/Users/nelmad/Downloads/Telegram Lite/ChatExport_2026-08-08/messages.html"
 ```
 

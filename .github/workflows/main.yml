@@ -20,7 +20,49 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  quality-checks:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            functions/lead-intake/package-lock.json
+            functions/fitbase-schedule/package-lock.json
+
+      - name: Install dependencies
+        run: |
+          npm ci
+          npm ci --prefix functions/lead-intake
+          npm ci --prefix functions/fitbase-schedule
+
+      - name: Run linters
+        run: |
+          npm run lint
+          npm run lint:public
+
+      - name: Run tests
+        run: |
+          npm run test:lead-fn
+          npm run test:schedule-fn
+          npm run test:lead-import
+
+      - name: Verify static production build
+        env:
+          LEAD_API_URL: https://example.invalid/lead
+          SCHEDULE_API_URL: https://example.invalid/schedule
+          ASSET_VERSION: ci-${{ github.run_number }}
+        run: npm run test:build
+
   deploy-function:
+    needs: quality-checks
     runs-on: ubuntu-latest
     outputs:
       function_url: ${{ steps.get-url.outputs.url }}
@@ -34,10 +76,8 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
 
-      - name: Install and test lead function
-        run: |
-          npm ci --prefix functions/telegram-lead
-          npm run test:lead-fn
+      - name: Install lead function dependencies
+        run: npm ci --prefix functions/lead-intake
 
       - name: Install Yandex Cloud CLI
         run: |
@@ -68,7 +108,7 @@ jobs:
           YDB_SLOW_OPERATION_MS: ${{ vars.YDB_SLOW_OPERATION_MS || '1000' }}
           YDB_SESSION_POOL_SIZE: ${{ vars.YDB_SESSION_POOL_SIZE || '5' }}
           LOG_LEVEL: ${{ env.LOG_LEVEL }}
-        run: bash scripts/deploy-telegram-lead.sh
+        run: bash scripts/deploy-lead-intake.sh
 
       - name: Get function URL
         id: get-url
@@ -82,6 +122,7 @@ jobs:
           echo "Function URL: ${URL}"
 
   deploy-schedule-function:
+    needs: quality-checks
     runs-on: ubuntu-latest
     outputs:
       function_url: ${{ steps.get-schedule-url.outputs.url }}
@@ -95,10 +136,8 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
 
-      - name: Install and test schedule function
-        run: |
-          npm ci --prefix functions/fitbase-schedule
-          npm run test:schedule-fn
+      - name: Install schedule function dependencies
+        run: npm ci --prefix functions/fitbase-schedule
 
       - name: Install Yandex Cloud CLI
         run: |
@@ -152,12 +191,6 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
-
-      - name: Run linter
-        run: |
-          npm run test:monitoring
-          npm run lint
-          npm run lint:public
 
       - name: Build app
         env:
