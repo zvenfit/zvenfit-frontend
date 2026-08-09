@@ -17,7 +17,6 @@
     "strict": true,
     "module": "commonjs",
     "moduleResolution": "node",
-    "downlevelIteration": true,
     "esModuleInterop": true,
     "baseUrl": "./" /* Base directory to resolve non-absolute module names. */
   },
