@@ -1,18 +1,16 @@
-'use strict';
-
 const DEFAULT_TABLE_NAME = 'leads';
 const DEFAULT_RETENTION_DAYS = 1096;
 const DEFAULT_QUERY_TIMEOUT_MS = 5000;
 const DEFAULT_SLOW_OPERATION_MS = 1000;
 const DEFAULT_SESSION_POOL_SIZE = 5;
 
-function parsePositiveInt(value, fallback) {
-  const parsed = Number.parseInt(value, 10);
+export function parsePositiveInt(value: string | undefined, fallback: number): number {
+  const parsed = Number.parseInt(value ?? '', 10);
 
   return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
 }
 
-function validateIdentifier(value, errorCode) {
+export function validateIdentifier(value: string, errorCode: string): string {
   if (!/^[A-Za-z][A-Za-z0-9_-]{0,62}$/.test(value)) {
     throw new Error(errorCode);
   }
@@ -20,21 +18,21 @@ function validateIdentifier(value, errorCode) {
   return value;
 }
 
-function tableName() {
+export function tableName(): string {
   const value = (process.env.YDB_LEADS_TABLE || DEFAULT_TABLE_NAME).trim();
 
   return validateIdentifier(value, 'invalid_ydb_table_name');
 }
 
-function migrationTableName() {
+export function migrationTableName(): string {
   return validateIdentifier(`${tableName()}_migrations`, 'invalid_ydb_migration_table_name');
 }
 
-function dueIndexName() {
+export function dueIndexName(): string {
   return 'idx_telegram_due';
 }
 
-function normalizeConnectionString(value) {
+export function normalizeConnectionString(value: string | undefined): string {
   const connectionString = (value || '').trim();
 
   if (!connectionString) {
@@ -53,31 +51,18 @@ function normalizeConnectionString(value) {
   return `${parsed.protocol}//${parsed.host}${databasePath}`;
 }
 
-function retentionDays() {
+export function retentionDays(): number {
   return parsePositiveInt(process.env.LEAD_RETENTION_DAYS, DEFAULT_RETENTION_DAYS);
 }
 
-function queryTimeoutMs() {
+export function queryTimeoutMs(): number {
   return parsePositiveInt(process.env.YDB_QUERY_TIMEOUT_MS, DEFAULT_QUERY_TIMEOUT_MS);
 }
 
-function slowOperationMs() {
+export function slowOperationMs(): number {
   return parsePositiveInt(process.env.YDB_SLOW_OPERATION_MS, DEFAULT_SLOW_OPERATION_MS);
 }
 
-function sessionPoolSize() {
+export function sessionPoolSize(): number {
   return Math.min(parsePositiveInt(process.env.YDB_SESSION_POOL_SIZE, DEFAULT_SESSION_POOL_SIZE), 50);
 }
-
-module.exports = {
-  dueIndexName,
-  migrationTableName,
-  normalizeConnectionString,
-  parsePositiveInt,
-  queryTimeoutMs,
-  retentionDays,
-  sessionPoolSize,
-  slowOperationMs,
-  tableName,
-  validateIdentifier,
-};

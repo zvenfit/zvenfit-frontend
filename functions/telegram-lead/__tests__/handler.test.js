@@ -5,7 +5,7 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 
-const { _private } = require('../handler');
+const { _private } = require('../build/handler');
 
 const LEAD_ID = '1cc32f4f-8f06-4dc8-915f-92955c829523';
 const DELIVERY_ID = '927c6260-678d-42d1-9293-a0ed5061c184';

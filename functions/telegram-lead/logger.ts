@@ -1,10 +1,8 @@
-'use strict';
+import { destination, pino, stdTimeFunctions, type DestinationStream, type Logger } from 'pino';
 
-/* eslint-disable @typescript-eslint/no-var-requires */
+import type { FunctionContext } from './types';
 
-const pino = require('pino');
-
-const SERVICE = 'zvenfit-fitbase-schedule';
+const SERVICE = 'zvenfit-telegram-lead';
 const REDACT_PATHS = [
   'name',
   'phone',
@@ -24,10 +22,10 @@ const REDACT_PATHS = [
   'request.body',
   'request.headers.authorization',
   'context.token',
-];
+] as const;
 
-function createLogger(destination) {
-  const output = destination || pino.destination({ dest: 1, sync: true });
+export function createLogger(destination?: DestinationStream): Logger {
+  const output = destination ?? destinationStream();
 
   return pino(
     {
@@ -40,36 +38,23 @@ function createLogger(destination) {
         },
       },
       redact: {
-        paths: REDACT_PATHS,
+        paths: [...REDACT_PATHS],
         censor: '[REDACTED]',
       },
-      timestamp: pino.stdTimeFunctions.isoTime,
+      timestamp: stdTimeFunctions.isoTime,
     },
     output,
   );
 }
 
+function destinationStream(): DestinationStream {
+  return destination({ dest: 1, sync: true });
+}
+
 const logger = createLogger();
 
-function createInvocationLogger(context, destination) {
+export function createInvocationLogger(context?: FunctionContext, destination?: DestinationStream): Logger {
   const invocationLogger = destination ? createLogger(destination) : logger;
 
   return context?.requestId ? invocationLogger.child({ request_id: context.requestId }) : invocationLogger;
 }
-
-function logScheduleFailure(loggerInstance, event, error = null) {
-  loggerInstance.error(
-    {
-      event,
-      error_code: error?.message?.slice(0, 64) || event,
-      status: Number.isInteger(error?.status) ? error.status : null,
-    },
-    event,
-  );
-}
-
-module.exports = {
-  createInvocationLogger,
-  createLogger,
-  logScheduleFailure,
-};

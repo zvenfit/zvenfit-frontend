@@ -1,14 +1,27 @@
-'use strict';
+/* eslint-disable max-lines */
+
+import { createInvocationLogger, logScheduleFailure } from './logger';
+
+import type {
+  FitbaseError,
+  FitbaseItem,
+  FunctionContext,
+  HandlerOverrides,
+  Headers,
+  HttpEvent,
+  HttpResponse,
+  JsonObject,
+  ScheduleItem,
+  Trainer,
+} from './types';
 
 const FITBASE_API_BASE = 'https://api.fitbase.io/api/v2/schedule';
 const DEFAULT_RANGE_DAYS = 14;
 const PAGE_SIZE = 100;
 const CACHE_MAX_AGE_SECONDS = 300;
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const { createInvocationLogger, logScheduleFailure } = require('./logger');
 
-function parseAllowedOrigins() {
+function parseAllowedOrigins(): string[] {
   const raw = process.env.ALLOWED_ORIGINS || 'https://zvenfit.ru,https://www.zvenfit.ru,https://zvenigorod.zvenfit.ru';
 
   return raw
@@ -17,7 +30,7 @@ function parseAllowedOrigins() {
     .filter(Boolean);
 }
 
-function resolveOrigin(requestOrigin, allowedOrigins) {
+function resolveOrigin(requestOrigin: string, allowedOrigins: string[]): string {
   if (requestOrigin && allowedOrigins.includes(requestOrigin)) {
     return requestOrigin;
   }
@@ -25,7 +38,7 @@ function resolveOrigin(requestOrigin, allowedOrigins) {
   return allowedOrigins[0] || 'https://zvenfit.ru';
 }
 
-function corsHeaders(origin, allowedOrigins) {
+function corsHeaders(origin: string, allowedOrigins: string[]): Headers {
   return {
     'Access-Control-Allow-Origin': resolveOrigin(origin, allowedOrigins),
     'Access-Control-Allow-Methods': 'GET, OPTIONS',
@@ -34,8 +47,8 @@ function corsHeaders(origin, allowedOrigins) {
   };
 }
 
-function jsonResponse(statusCode, payload, headers, cache = true) {
-  const responseHeaders = {
+function jsonResponse(statusCode: number, payload: JsonObject, headers: Headers, cache = true): HttpResponse {
+  const responseHeaders: Headers = {
     'Content-Type': 'application/json; charset=utf-8',
     ...headers,
   };
@@ -51,18 +64,18 @@ function jsonResponse(statusCode, payload, headers, cache = true) {
   };
 }
 
-function getMoscowDateString(date = new Date()) {
+function getMoscowDateString(date = new Date()): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Moscow' }).format(date);
 }
 
-function addDaysToDateString(dateString, days) {
+function addDaysToDateString(dateString: string, days: number): string {
   const [year, month, day] = dateString.split('-').map(Number);
-  const utcDate = new Date(Date.UTC(year, month - 1, day + days));
+  const utcDate = new Date(Date.UTC(year ?? 0, (month ?? 1) - 1, (day ?? 1) + days));
 
   return utcDate.toISOString().slice(0, 10);
 }
 
-function parseDateParam(value) {
+function parseDateParam(value: unknown): string | null {
   if (typeof value !== 'string') {
     return null;
   }
@@ -75,10 +88,12 @@ function parseDateParam(value) {
   return trimmed;
 }
 
-function resolveDateRange(query) {
+type DateRange = { from: string; to: string; error?: never } | { error: 'invalid_range'; from?: never; to?: never };
+
+function resolveDateRange(query: Record<string, string | undefined>): DateRange {
   const today = getMoscowDateString();
-  const from = parseDateParam(query?.from) || today;
-  const to = parseDateParam(query?.to) || addDaysToDateString(from, DEFAULT_RANGE_DAYS - 1);
+  const from = parseDateParam(query.from) || today;
+  const to = parseDateParam(query.to) || addDaysToDateString(from, DEFAULT_RANGE_DAYS - 1);
 
   if (from > to) {
     return { error: 'invalid_range' };
@@ -87,26 +102,26 @@ function resolveDateRange(query) {
   return { from, to };
 }
 
-function trainerName(trainer) {
-  if (!trainer || typeof trainer !== 'object') {
-    return '';
-  }
+function stringValue(value: unknown): string {
+  return typeof value === 'string' ? value : '';
+}
 
+function trainerName(trainer: Trainer): string {
   if (trainer.full_name) {
     return String(trainer.full_name).trim();
   }
 
-  return [trainer.surname, trainer.name, trainer.patronymic].filter(Boolean).join(' ').trim();
+  return [trainer.surname, trainer.name, trainer.patronymic].filter(Boolean).map(String).join(' ').trim();
 }
 
-function mapScheduleItem(item) {
+function mapScheduleItem(item: FitbaseItem): ScheduleItem {
   const training = item.training || {};
   const place = item.place || {};
   const transfer = item.transfer_event || null;
 
   return {
     id: item.id,
-    date: item.date,
+    date: item.date || '',
     timeStart: item.time_start || '',
     timeEnd: item.time_end || '',
     duration: item.duration ?? null,
@@ -117,7 +132,7 @@ function mapScheduleItem(item) {
       ? item.trainers
           .map(trainer => ({
             name: trainerName(trainer),
-            photo: trainer.photo || '',
+            photo: stringValue(trainer.photo),
           }))
           .filter(trainer => trainer.name)
       : [],
@@ -139,23 +154,17 @@ function mapScheduleItem(item) {
   };
 }
 
-function shouldIncludeItem(item) {
+function shouldIncludeItem(item: unknown): item is FitbaseItem {
   if (!item || typeof item !== 'object') {
     return false;
   }
 
-  if (item.event_type === 'rent') {
-    return false;
-  }
+  const scheduleItem = item as FitbaseItem;
 
-  if (item.is_archive === 1) {
-    return false;
-  }
-
-  return true;
+  return scheduleItem.event_type !== 'rent' && scheduleItem.is_archive !== 1;
 }
 
-function sortItems(items) {
+function sortItems(items: ScheduleItem[]): ScheduleItem[] {
   return items.sort((left, right) => {
     if (left.date !== right.date) {
       return left.date.localeCompare(right.date);
@@ -165,7 +174,12 @@ function sortItems(items) {
   });
 }
 
-async function fetchSchedulePage(params, headers) {
+interface FitbasePage {
+  items?: unknown[];
+  total_count?: unknown;
+}
+
+async function fetchSchedulePage(params: URLSearchParams, headers: Headers): Promise<FitbasePage> {
   const url = new URL(FITBASE_API_BASE);
 
   for (const [key, value] of params.entries()) {
@@ -173,7 +187,7 @@ async function fetchSchedulePage(params, headers) {
   }
 
   const response = await fetch(url, { headers });
-  let payload = null;
+  let payload: unknown = null;
 
   try {
     payload = await response.json();
@@ -182,17 +196,22 @@ async function fetchSchedulePage(params, headers) {
   }
 
   if (!response.ok) {
-    const error = new Error('fitbase_request_failed');
+    const error = new Error('fitbase_request_failed') as FitbaseError;
     error.status = response.status;
     error.payload = payload;
     throw error;
   }
 
-  return payload;
+  return typeof payload === 'object' && payload !== null ? (payload as FitbasePage) : {};
 }
 
-async function fetchAllSchedule(from, to, fitbaseHeaders, clubId) {
-  const items = [];
+async function fetchAllSchedule(
+  from: string,
+  to: string,
+  fitbaseHeaders: Headers,
+  clubId: string,
+): Promise<ScheduleItem[]> {
+  const items: ScheduleItem[] = [];
   let page = 1;
   let totalCount = Infinity;
 
@@ -210,8 +229,8 @@ async function fetchAllSchedule(from, to, fitbaseHeaders, clubId) {
     }
 
     const payload = await fetchSchedulePage(params, fitbaseHeaders);
-    const batch = Array.isArray(payload?.items) ? payload.items : [];
-    totalCount = Number(payload?.total_count ?? batch.length);
+    const batch = Array.isArray(payload.items) ? payload.items : [];
+    totalCount = Number(payload.total_count ?? batch.length);
 
     for (const item of batch) {
       if (shouldIncludeItem(item)) {
@@ -229,7 +248,9 @@ async function fetchAllSchedule(from, to, fitbaseHeaders, clubId) {
   return sortItems(items);
 }
 
-function createHandler(overrides = {}) {
+type CloudHandler = (event: HttpEvent, context?: FunctionContext) => Promise<HttpResponse>;
+
+function createHandler(overrides: HandlerOverrides = {}): CloudHandler {
   const loggerFactory = overrides.loggerFactory || createInvocationLogger;
 
   return async (event, context) => {
@@ -240,11 +261,7 @@ function createHandler(overrides = {}) {
     const method = (event.httpMethod || 'GET').toUpperCase();
 
     if (method === 'OPTIONS') {
-      return {
-        statusCode: 204,
-        headers,
-        body: '',
-      };
+      return { statusCode: 204, headers, body: '' };
     }
 
     if (method !== 'GET') {
@@ -288,12 +305,12 @@ function createHandler(overrides = {}) {
       );
     } catch (error) {
       const eventName = 'fitbase_schedule_error';
-      logScheduleFailure(logger, eventName, error);
+      logScheduleFailure(logger, eventName, error instanceof Error ? (error as FitbaseError) : undefined);
 
       return jsonResponse(502, { ok: false, error: 'fitbase_unreachable' }, headers, false);
     }
   };
 }
 
-module.exports.handler = createHandler();
-module.exports._private = { createHandler };
+export const handler = createHandler();
+export const _private = { createHandler };

@@ -6,7 +6,7 @@ const assert = require('node:assert/strict');
 const { channel } = require('node:diagnostics_channel');
 const test = require('node:test');
 
-const { observeYdbOperation } = require('../ydb-observability');
+const { observeYdbOperation } = require('../build/ydb-observability');
 
 function memoryLogger() {
   const records = [];

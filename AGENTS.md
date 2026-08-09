@@ -12,10 +12,10 @@
 - **Frontend:** static HTML (Webflow export) in `public/`
 - **Build:** `scripts/build-static.cjs` → `dist/` (gitignored)
 - **Runtime JS:** vanilla JS in `public/js/`
-- **Backend:** 2 Yandex Cloud Functions in `functions/`
+- **Backend:** 2 TypeScript Yandex Cloud Functions in `functions/` (compiled to CommonJS)
 - **CI:** `.github/workflows/main.yml` — deploy functions → build → S3
 
-There is almost no TypeScript (`src/` holds types only). Do not assume React/Vite/Next.
+TypeScript is used for Cloud Functions and declarations in `src/`; the frontend remains static vanilla JS. Do not assume React/Vite/Next.
 
 ## Source of truth
 
@@ -29,7 +29,7 @@ After any change that affects HTML/CSS/JS/config injection: run `npm run build` 
 
 ## Module conventions
 
-- Keep `index.js` files as entrypoints with re-exports only; implementation belongs in named modules such as `handler.js`.
+- Keep Cloud Function `index.ts` files as entrypoints with re-exports only; implementation belongs in named modules such as `handler.ts`.
 - Keep tests in a sibling `__tests__/` directory and name them after the module they cover.
 
 ## Architecture
@@ -76,10 +76,10 @@ Also at build time:
 | Task                       | Files                                                               |
 | -------------------------- | ------------------------------------------------------------------- |
 | Lead form UI/validation    | `public/forma-dlya-zayavki/index.html`, `public/js/lead-form.js`    |
-| Lead API / Telegram        | `functions/telegram-lead/handler.js`                                |
-| Lead storage / retry state | `functions/telegram-lead/lead-store.js`                             |
+| Lead API / Telegram        | `functions/telegram-lead/handler.ts`                                |
+| Lead storage / retry state | `functions/telegram-lead/lead-store.ts`                             |
 | Schedule UI                | `public/raspisanie/index.html`, `public/js/schedule.js`             |
-| Schedule API / Fitbase     | `functions/fitbase-schedule/handler.js`                             |
+| Schedule API / Fitbase     | `functions/fitbase-schedule/handler.ts`                             |
 | UTM in leads               | `public/js/utm-attribution.js`, `docs/utm-attribution-marketing.md` |
 | App store badges/links     | `scripts/app-links.config.json`, snippets in `scripts/snippets/`    |
 | SEO / JSON-LD              | `scripts/structured-data.config.json`, page `<meta>`                |
@@ -92,6 +92,8 @@ Also at build time:
 ```bash
 cp .env.example .env.development   # fill values
 npm install
+npm ci --prefix functions/telegram-lead
+npm ci --prefix functions/fitbase-schedule
 npm run dev:watch                  # mock API + rebuild + serve :4173
 ```
 

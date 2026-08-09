@@ -5,7 +5,7 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 
-const { createInvocationLogger } = require('../logger');
+const { createInvocationLogger } = require('../build/logger');
 
 test('writes Yandex Cloud structured JSON and redacts lead PII and secrets', () => {
   const lines = [];

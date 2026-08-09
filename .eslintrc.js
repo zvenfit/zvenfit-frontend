@@ -122,7 +122,11 @@ module.exports = {
       excludedFiles: ['webpack.config.ts'],
       parser: '@typescript-eslint/parser',
       parserOptions: {
-        project: ['./tsconfig.test.json'],
+        project: [
+          './tsconfig.test.json',
+          './functions/telegram-lead/tsconfig.json',
+          './functions/fitbase-schedule/tsconfig.json',
+        ],
         sourceType: 'module',
         ecmaFeatures: { jsx: true },
       },

@@ -1,23 +1,19 @@
-'use strict';
+import { normalizeConnectionString, queryTimeoutMs, sessionPoolSize } from './ydb-config';
 
-/* eslint-disable @typescript-eslint/no-var-requires */
+import type { YdbClient, YdbSql, YdbValueConstructor } from './types';
+import type { CredentialsProvider } from '@ydbjs/auth' with { 'resolution-mode': 'import' };
 
-const { normalizeConnectionString, queryTimeoutMs, sessionPoolSize } = require('./ydb-config');
-
-async function createYdbClient() {
+export async function createYdbClient(): Promise<YdbClient> {
   const [{ Driver }, { query }, { MetadataCredentialsProvider }, { Timestamp, Uint32 }] = await Promise.all([
     import('@ydbjs/core'),
     import('@ydbjs/query'),
-    // eslint-disable-next-line import/no-unresolved -- package exports this runtime subpath
     import('@ydbjs/auth/metadata'),
-    // eslint-disable-next-line import/no-unresolved -- package exports this runtime subpath
     import('@ydbjs/value/primitive'),
   ]);
   const connectionString = normalizeConnectionString(process.env.YDB_CONNECTION_STRING);
-  let credentialsProvider = new MetadataCredentialsProvider();
+  let credentialsProvider: CredentialsProvider = new MetadataCredentialsProvider();
 
   if (process.env.YDB_ACCESS_TOKEN_CREDENTIALS) {
-    // eslint-disable-next-line import/no-unresolved -- package exports this runtime subpath
     const { EnvironCredentialsProvider } = await import('@ydbjs/auth/environ');
     credentialsProvider = new EnvironCredentialsProvider(connectionString);
   }
@@ -27,17 +23,18 @@ async function createYdbClient() {
 
   const sql = query(driver, {
     poolOptions: { maxSize: sessionPoolSize() },
-  });
+  }) as unknown as YdbSql;
 
   return {
     driver,
     sql,
-    types: { Timestamp, Uint32 },
+    types: {
+      Timestamp: Timestamp as unknown as YdbValueConstructor<Date>,
+      Uint32: Uint32 as unknown as YdbValueConstructor<number>,
+    },
     async close() {
       await sql[Symbol.asyncDispose]?.();
       driver.close();
     },
   };
 }
-
-module.exports = { createYdbClient };

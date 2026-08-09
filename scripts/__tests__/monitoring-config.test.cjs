@@ -8,10 +8,10 @@ const test = require('node:test');
 const ROOT = path.resolve(__dirname, '../..');
 const config = JSON.parse(fs.readFileSync(path.join(ROOT, 'scripts/monitoring.config.json'), 'utf8'));
 const source = [
-  'functions/telegram-lead/handler.js',
-  'functions/telegram-lead/ydb-observability.js',
-  'functions/fitbase-schedule/handler.js',
-  'functions/fitbase-schedule/logger.js',
+  'functions/telegram-lead/handler.ts',
+  'functions/telegram-lead/ydb-observability.ts',
+  'functions/fitbase-schedule/handler.ts',
+  'functions/fitbase-schedule/logger.ts',
 ]
   .map(file => fs.readFileSync(path.join(ROOT, file), 'utf8'))
   .join('\n');

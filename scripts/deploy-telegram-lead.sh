@@ -73,7 +73,7 @@ YDB_ACCESS_TOKEN_CREDENTIALS="${LEAD_YDB_IAM_TOKEN}" \
 YDB_CONNECTION_STRING="${YDB_CONNECTION_STRING}" \
 YDB_LEADS_TABLE="${YDB_LEADS_TABLE}" \
 YDB_QUERY_TIMEOUT_MS="${YDB_QUERY_TIMEOUT_MS}" \
-node "${ROOT_DIR}/functions/telegram-lead/migrate.js"
+npm --prefix "${ROOT_DIR}/functions/telegram-lead" run migrate
 
 unset LEAD_YDB_IAM_TOKEN
 
@@ -82,16 +82,18 @@ if ! yc serverless function get --name="${FUNCTION_NAME}" >/dev/null 2>&1; then
 fi
 
 cp \
-  "${ROOT_DIR}/functions/telegram-lead/index.js" \
-  "${ROOT_DIR}/functions/telegram-lead/handler.js" \
-  "${ROOT_DIR}/functions/telegram-lead/lead-store.js" \
-  "${ROOT_DIR}/functions/telegram-lead/logger.js" \
-  "${ROOT_DIR}/functions/telegram-lead/ydb-client.js" \
-  "${ROOT_DIR}/functions/telegram-lead/ydb-config.js" \
-  "${ROOT_DIR}/functions/telegram-lead/ydb-observability.js" \
+  "${ROOT_DIR}/functions/telegram-lead/build/index.js" \
+  "${ROOT_DIR}/functions/telegram-lead/build/handler.js" \
+  "${ROOT_DIR}/functions/telegram-lead/build/lead-store.js" \
+  "${ROOT_DIR}/functions/telegram-lead/build/logger.js" \
+  "${ROOT_DIR}/functions/telegram-lead/build/ydb-client.js" \
+  "${ROOT_DIR}/functions/telegram-lead/build/ydb-config.js" \
+  "${ROOT_DIR}/functions/telegram-lead/build/ydb-observability.js" \
   "${ROOT_DIR}/functions/telegram-lead/package.json" \
   "${ROOT_DIR}/functions/telegram-lead/package-lock.json" \
   "${SOURCE_DIR}/"
+
+npm pkg delete devDependencies --prefix "${SOURCE_DIR}"
 
 yc serverless function version create \
   --function-name="${FUNCTION_NAME}" \

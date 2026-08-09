@@ -2,6 +2,8 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+SOURCE_DIR="$(mktemp -d /tmp/zvenfit-schedule.XXXXXX)"
+trap 'rm -rf -- "${SOURCE_DIR}"' EXIT
 FUNCTION_NAME="${YC_SCHEDULE_FUNCTION_NAME:-zvenfit-fitbase-schedule}"
 RUNTIME="${YC_SCHEDULE_RUNTIME:-nodejs22}"
 MEMORY="${YC_SCHEDULE_MEMORY:-128m}"
@@ -27,6 +29,18 @@ fi
 
 yc config set folder-id "${YC_FOLDER_ID}" >/dev/null
 
+npm --prefix "${ROOT_DIR}/functions/fitbase-schedule" run build
+
+cp \
+  "${ROOT_DIR}/functions/fitbase-schedule/build/index.js" \
+  "${ROOT_DIR}/functions/fitbase-schedule/build/handler.js" \
+  "${ROOT_DIR}/functions/fitbase-schedule/build/logger.js" \
+  "${ROOT_DIR}/functions/fitbase-schedule/package.json" \
+  "${ROOT_DIR}/functions/fitbase-schedule/package-lock.json" \
+  "${SOURCE_DIR}/"
+
+npm pkg delete devDependencies --prefix "${SOURCE_DIR}"
+
 if ! yc serverless function get --name="${FUNCTION_NAME}" >/dev/null 2>&1; then
   yc serverless function create --name="${FUNCTION_NAME}"
 fi
@@ -48,7 +62,7 @@ yc serverless function version create \
   --entrypoint=index.handler \
   --memory="${MEMORY}" \
   --execution-timeout="${TIMEOUT}" \
-  --source-path="${ROOT_DIR}/functions/fitbase-schedule" \
+  --source-path="${SOURCE_DIR}" \
   "${ENV_ARGS[@]}"
 
 yc serverless function allow-unauthenticated-invoke "${FUNCTION_NAME}"

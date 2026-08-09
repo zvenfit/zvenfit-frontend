@@ -4,6 +4,7 @@ node_modules/
 # Build output
 dist/
 upload/
+functions/*/build/
 
 # Environment (keep .env.example tracked)
 .env

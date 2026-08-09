@@ -1,13 +1,22 @@
-'use strict';
+/* eslint-disable max-lines */
 
-/* eslint-disable @typescript-eslint/no-var-requires, max-lines */
+import { randomUUID } from 'node:crypto';
 
-// Cloud Function implementation; index.js is the public entrypoint only.
+import * as leadStore from './lead-store';
+import { createInvocationLogger } from './logger';
 
-const { randomUUID } = require('node:crypto');
-
-const leadStore = require('./lead-store');
-const { createInvocationLogger } = require('./logger');
+import type {
+  ClaimedLead,
+  FunctionContext,
+  HandlerDependencies,
+  Headers,
+  HttpEvent,
+  HttpResponse,
+  JsonObject,
+  LoggerLike,
+  Utm,
+  UtmKey,
+} from './types';
 
 const MAX_FIELD_LEN = 256;
 const UTM_MAX_LEN = 128;
@@ -17,7 +26,7 @@ const RETRY_BATCH_SIZE = 25;
 const DEFAULT_MAX_TELEGRAM_ATTEMPTS = 12;
 const TIMER_EVENT_TYPE = 'yandex.cloud.events.serverless.triggers.TimerMessage';
 
-const TRACKED_UTM_PARAMS = [
+const TRACKED_UTM_PARAMS: readonly UtmKey[] = [
   'utm_source',
   'utm_medium',
   'utm_campaign',
@@ -28,7 +37,7 @@ const TRACKED_UTM_PARAMS = [
   'fbclid',
 ];
 
-const UTM_LABELS = {
+const UTM_LABELS: Record<UtmKey, string> = {
   utm_source: 'source',
   utm_medium: 'medium',
   utm_campaign: 'campaign',
@@ -39,7 +48,7 @@ const UTM_LABELS = {
   fbclid: 'fbclid',
 };
 
-function parseAllowedOrigins() {
+function parseAllowedOrigins(): string[] {
   const raw = process.env.ALLOWED_ORIGINS || 'https://zvenfit.ru,https://www.zvenfit.ru';
 
   return raw
@@ -48,7 +57,7 @@ function parseAllowedOrigins() {
     .filter(Boolean);
 }
 
-function resolveOrigin(requestOrigin, allowedOrigins) {
+function resolveOrigin(requestOrigin: string, allowedOrigins: string[]): string {
   if (requestOrigin && allowedOrigins.includes(requestOrigin)) {
     return requestOrigin;
   }
@@ -56,7 +65,7 @@ function resolveOrigin(requestOrigin, allowedOrigins) {
   return allowedOrigins[0] || 'https://zvenfit.ru';
 }
 
-function corsHeaders(origin, allowedOrigins) {
+function corsHeaders(origin: string, allowedOrigins: string[]): Headers {
   return {
     'Access-Control-Allow-Origin': resolveOrigin(origin, allowedOrigins),
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
@@ -65,7 +74,7 @@ function corsHeaders(origin, allowedOrigins) {
   };
 }
 
-function jsonResponse(statusCode, payload, headers) {
+function jsonResponse(statusCode: number, payload: JsonObject, headers: Headers): HttpResponse {
   return {
     statusCode,
     headers: {
@@ -76,17 +85,18 @@ function jsonResponse(statusCode, payload, headers) {
   };
 }
 
-function readBody(event) {
+function readBody(event: HttpEvent): JsonObject {
   if (!event.body) {
     return {};
   }
 
   const raw = event.isBase64Encoded ? Buffer.from(event.body, 'base64').toString('utf8') : event.body;
+  const parsed: unknown = JSON.parse(raw);
 
-  return JSON.parse(raw);
+  return typeof parsed === 'object' && parsed !== null ? (parsed as JsonObject) : {};
 }
 
-function sanitize(value, maxLen = MAX_FIELD_LEN) {
+function sanitize(value: unknown, maxLen = MAX_FIELD_LEN): string {
   if (typeof value !== 'string') {
     return '';
   }
@@ -94,14 +104,15 @@ function sanitize(value, maxLen = MAX_FIELD_LEN) {
   return value.trim().slice(0, maxLen);
 }
 
-function parseUtm(raw) {
+function parseUtm(raw: unknown): Utm {
   if (!raw || typeof raw !== 'object') {
     return {};
   }
 
-  const utm = {};
+  const input = raw as JsonObject;
+  const utm: Utm = {};
   for (const key of TRACKED_UTM_PARAMS) {
-    const value = sanitize(raw[key], UTM_MAX_LEN);
+    const value = sanitize(input[key], UTM_MAX_LEN);
     if (value) {
       utm[key] = value;
     }
@@ -110,7 +121,7 @@ function parseUtm(raw) {
   return utm;
 }
 
-function buildMessage(payload) {
+function buildMessage(payload: ClaimedLead): string {
   const lines = [
     'Новая заявка',
     `ID: ${payload.leadId}`,
@@ -123,7 +134,7 @@ function buildMessage(payload) {
     lines.push(`Телеграм: ${payload.telegramUsername}`);
   }
 
-  if (Object.keys(payload.utm || {}).length > 0) {
+  if (Object.keys(payload.utm).length > 0) {
     lines.push('---', 'Маркировка:');
     for (const key of TRACKED_UTM_PARAMS) {
       const value = payload.utm[key];
@@ -136,15 +147,15 @@ function buildMessage(payload) {
   return lines.join('\n');
 }
 
-function errorCode(error, fallback = 'internal_error') {
-  if (error && typeof error.code === 'string') {
+function errorCode(error: unknown, fallback = 'internal_error'): string {
+  if (error && typeof error === 'object' && 'code' in error && typeof error.code === 'string') {
     return sanitize(error.code, 64) || fallback;
   }
 
   return fallback;
 }
 
-function logDeliveryFailure(logger, event, leadId, code, attempts) {
+function logDeliveryFailure(logger: LoggerLike, event: string, leadId: string, code: string, attempts: number): void {
   logger.error(
     {
       event,
@@ -156,35 +167,37 @@ function logDeliveryFailure(logger, event, leadId, code, attempts) {
   );
 }
 
-function maxTelegramAttempts() {
-  const value = Number.parseInt(process.env.MAX_TELEGRAM_ATTEMPTS, 10);
+function maxTelegramAttempts(): number {
+  const value = Number.parseInt(process.env.MAX_TELEGRAM_ATTEMPTS ?? '', 10);
 
   return Number.isInteger(value) && value > 0 ? value : DEFAULT_MAX_TELEGRAM_ATTEMPTS;
 }
 
-function nextRetryAt(now, attempts) {
-  const delayMinutes = [1, 5, 15, 60, 6 * 60][Math.min(Math.max(attempts - 1, 0), 4)];
+function nextRetryAt(now: Date, attempts: number): Date {
+  const delayMinutes = [1, 5, 15, 60, 6 * 60][Math.min(Math.max(attempts - 1, 0), 4)] ?? 1;
 
   return new Date(now.getTime() + delayMinutes * 60 * 1000);
 }
 
-function isTimerEvent(event) {
-  return Array.isArray(event?.messages)
-    ? event.messages.some(message => message?.event_metadata?.event_type === TIMER_EVENT_TYPE)
+function isTimerEvent(event: HttpEvent): boolean {
+  return Array.isArray(event.messages)
+    ? event.messages.some(message => message.event_metadata?.event_type === TIMER_EVENT_TYPE)
     : false;
 }
 
-async function sendTelegram(payload) {
+function telegramError(message: string, code: string): Error & { code: string } {
+  return Object.assign(new Error(message), { code });
+}
+
+async function sendTelegram(payload: ClaimedLead): Promise<void> {
   const token = process.env.TELEGRAM_BOT_TOKEN;
   const chatId = process.env.TELEGRAM_CHAT_ID;
 
   if (!token || !chatId) {
-    const error = new Error('Telegram is not configured');
-    error.code = 'telegram_misconfigured';
-    throw error;
+    throw telegramError('Telegram is not configured', 'telegram_misconfigured');
   }
 
-  let telegramResponse;
+  let telegramResponse: Response;
   try {
     telegramResponse = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
       method: 'POST',
@@ -196,26 +209,31 @@ async function sendTelegram(payload) {
       }),
     });
   } catch {
-    const error = new Error('Telegram is unreachable');
-    error.code = 'telegram_unreachable';
-    throw error;
+    throw telegramError('Telegram is unreachable', 'telegram_unreachable');
   }
 
-  let telegramPayload = null;
+  let telegramPayload: unknown = null;
   try {
     telegramPayload = await telegramResponse.json();
   } catch {
     telegramPayload = null;
   }
 
-  if (!telegramResponse.ok || !telegramPayload?.ok) {
-    const error = new Error('Telegram returned an error');
-    error.code = 'telegram_error';
-    throw error;
+  const telegramOk =
+    typeof telegramPayload === 'object' &&
+    telegramPayload !== null &&
+    'ok' in telegramPayload &&
+    telegramPayload.ok === true;
+  if (!telegramResponse.ok || !telegramOk) {
+    throw telegramError('Telegram returned an error', 'telegram_error');
   }
 }
 
-async function deliverLead(leadId, dependencies, logger) {
+async function deliverLead(
+  leadId: string,
+  dependencies: HandlerDependencies,
+  logger: LoggerLike,
+): Promise<'sent' | 'pending' | 'failed' | 'skipped'> {
   const now = dependencies.now();
   const deliveryToken = dependencies.uuid();
   const claimedLead = await dependencies.store.claimForTelegram({
@@ -264,13 +282,21 @@ async function deliverLead(leadId, dependencies, logger) {
   }
 }
 
-async function retryPendingLeads(dependencies, logger) {
+interface RetrySummary extends JsonObject {
+  processed: number;
+  sent: number;
+  pending: number;
+  failed: number;
+  skipped: number;
+}
+
+async function retryPendingLeads(dependencies: HandlerDependencies, logger: LoggerLike): Promise<RetrySummary> {
   const leadIds = await dependencies.store.listTelegramCandidates({
     now: dependencies.now(),
     limit: RETRY_BATCH_SIZE,
     logger,
   });
-  const summary = { processed: leadIds.length, sent: 0, pending: 0, failed: 0, skipped: 0 };
+  const summary: RetrySummary = { processed: leadIds.length, sent: 0, pending: 0, failed: 0, skipped: 0 };
 
   for (const leadId of leadIds) {
     try {
@@ -285,8 +311,11 @@ async function retryPendingLeads(dependencies, logger) {
   return summary;
 }
 
-function createHandler(overrides = {}) {
-  const dependencies = {
+type HandlerResult = HttpResponse | RetrySummary;
+type CloudHandler = (event: HttpEvent, context?: FunctionContext) => Promise<HandlerResult>;
+
+function createHandler(overrides: Partial<HandlerDependencies> = {}): CloudHandler {
+  const dependencies: HandlerDependencies = {
     loggerFactory: createInvocationLogger,
     maxAttempts: maxTelegramAttempts,
     now: () => new Date(),
@@ -309,18 +338,14 @@ function createHandler(overrides = {}) {
     const method = (event.httpMethod || 'GET').toUpperCase();
 
     if (method === 'OPTIONS') {
-      return {
-        statusCode: 204,
-        headers,
-        body: '',
-      };
+      return { statusCode: 204, headers, body: '' };
     }
 
     if (method !== 'POST') {
       return jsonResponse(405, { ok: false, error: 'method_not_allowed' }, headers);
     }
 
-    let body;
+    let body: JsonObject;
     try {
       body = readBody(event);
     } catch {
@@ -363,7 +388,7 @@ function createHandler(overrides = {}) {
       return jsonResponse(503, { ok: false, error: 'storage_unavailable' }, headers);
     }
 
-    let notification = 'pending';
+    let notification: 'sent' | 'pending' | 'failed' | 'skipped' = 'pending';
     try {
       notification = await deliverLead(payload.leadId, dependencies, logger);
       if (notification === 'skipped') {
@@ -377,8 +402,8 @@ function createHandler(overrides = {}) {
   };
 }
 
-module.exports.handler = createHandler();
-module.exports._private = {
+export const handler = createHandler();
+export const _private = {
   buildMessage,
   createHandler,
   deliverLead,

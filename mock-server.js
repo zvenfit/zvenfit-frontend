@@ -2,7 +2,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 
-const scheduleHandler = require('./functions/fitbase-schedule/index.js');
+const scheduleHandler = require('./functions/fitbase-schedule/build/index.js');
 
 const PORT = 3000;
 const rootDir = __dirname;

@@ -1,41 +1,57 @@
-'use strict';
+import { AsyncLocalStorage } from 'node:async_hooks';
+import { channel } from 'node:diagnostics_channel';
 
-/* eslint-disable @typescript-eslint/no-var-requires */
+import { slowOperationMs } from './ydb-config';
 
-const { AsyncLocalStorage } = require('node:async_hooks');
-const { channel } = require('node:diagnostics_channel');
+import type { JsonObject, LoggerLike } from './types';
 
-const { slowOperationMs } = require('./ydb-config');
+interface OperationState {
+  retries: number;
+}
 
-const operationStorage = new AsyncLocalStorage();
+const operationStorage = new AsyncLocalStorage<OperationState>();
 let subscribed = false;
 
-function subscribeToRetries() {
+function subscribeToRetries(): void {
   if (subscribed) {
     return;
   }
 
   channel('ydb:retry.attempt.completed').subscribe(message => {
     const operation = operationStorage.getStore();
+    const outcome =
+      typeof message === 'object' && message !== null && 'outcome' in message ? message.outcome : undefined;
 
-    if (operation && message?.outcome === 'retried') {
+    if (operation && outcome === 'retried') {
       operation.retries += 1;
     }
   });
   subscribed = true;
 }
 
-function errorCode(error) {
-  return String(error?.code || error?.cause?.code || error?.name || 'ydb_error').slice(0, 64);
+function errorCode(error: unknown): string {
+  if (!(error instanceof Error)) {
+    return 'ydb_error';
+  }
+
+  const codedError = error as Error & { code?: unknown; cause?: { code?: unknown } };
+
+  return String(codedError.code || codedError.cause?.code || error.name || 'ydb_error').slice(0, 64);
 }
 
-function writeLog(logger, level, fields) {
-  if (logger && typeof logger[level] === 'function') {
-    logger[level](fields, fields.event);
+function writeLog(logger: LoggerLike | undefined, level: 'info' | 'warn' | 'error', fields: JsonObject): void {
+  const write = logger?.[level];
+
+  if (write) {
+    write.call(logger, fields, String(fields.event));
   }
 }
 
-async function observeYdbOperation(operationName, logger, callback) {
+export async function observeYdbOperation<T>(
+  operationName: string,
+  logger: LoggerLike | undefined,
+  callback: () => Promise<T>,
+): Promise<T> {
   subscribeToRetries();
 
   const startedAt = Date.now();
@@ -81,11 +97,8 @@ async function observeYdbOperation(operationName, logger, callback) {
   }
 }
 
-module.exports = {
-  observeYdbOperation,
-  _private: {
-    errorCode,
-    subscribeToRetries,
-    writeLog,
-  },
+export const _private = {
+  errorCode,
+  subscribeToRetries,
+  writeLog,
 };

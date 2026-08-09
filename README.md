@@ -35,15 +35,18 @@ Build (`scripts/build-static.cjs`) копирует `public/` → `dist/`, ин�
 
 | Файл                                    | Что делает                                            |
 | --------------------------------------- | ----------------------------------------------------- |
-| `functions/telegram-lead/index.js`      | Точка входа Cloud Function, реэкспорт из `handler.js` |
-| `functions/telegram-lead/handler.js`    | POST формы, идемпотентность, Telegram и retry timer   |
-| `functions/telegram-lead/lead-store.js` | YDB: таблица лидов, TTL, lease и статусы доставки     |
-| `functions/telegram-lead/logger.js`     | Pino: structured logs, request ID и PII redaction     |
-| `functions/telegram-lead/lead-migrations.js` | Версионированная схема YDB и индекс очереди       |
-| `functions/telegram-lead/ydb-observability.js` | YDB latency, retries и безопасные error codes |
-| `functions/fitbase-schedule/index.js`   | Точка входа Cloud Function, реэкспорт из `handler.js` |
-| `functions/fitbase-schedule/handler.js` | GET расписания → Fitbase API v2                       |
-| `functions/fitbase-schedule/logger.js`  | Pino: structured logs, request ID и PII redaction     |
+| `functions/telegram-lead/index.ts`      | Точка входа Cloud Function, только реэкспорт из `handler.ts` |
+| `functions/telegram-lead/handler.ts`    | POST формы, идемпотентность, Telegram и retry timer   |
+| `functions/telegram-lead/lead-store.ts` | YDB: таблица лидов, TTL, lease и статусы доставки     |
+| `functions/telegram-lead/logger.ts`     | Pino: structured logs, request ID и PII redaction     |
+| `functions/telegram-lead/lead-migrations.ts` | Версионированная схема YDB и индекс очереди       |
+| `functions/telegram-lead/ydb-observability.ts` | YDB latency, retries и безопасные error codes |
+| `functions/fitbase-schedule/index.ts`   | Точка входа Cloud Function, только реэкспорт из `handler.ts` |
+| `functions/fitbase-schedule/handler.ts` | GET расписания → Fitbase API v2                       |
+| `functions/fitbase-schedule/logger.ts`  | Pino: structured logs, request ID и PII redaction     |
+
+Обе функции компилируются строгим TypeScript в локальный `build/`; тесты запускаются по собранному
+CommonJS, и в Yandex Cloud упаковывается только runtime JavaScript без TypeScript/devDependencies.
 
 **telegram-lead env:** `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `ALLOWED_ORIGINS`,
 `YDB_CONNECTION_STRING`, `YDB_LEADS_TABLE`, `LEAD_RETENTION_DAYS`, `MAX_TELEGRAM_ATTEMPTS`
@@ -122,6 +125,8 @@ Fitbase через Pino без персональных данных. Селек
 
 ```bash
 npm install
+npm ci --prefix functions/telegram-lead
+npm ci --prefix functions/fitbase-schedule
 npm run dev:watch   # mock API :3000 + rebuild + site :4173
 npm run test:lead-fn
 npm run test:schedule-fn
