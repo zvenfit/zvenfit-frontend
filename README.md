@@ -81,7 +81,9 @@ Unit и integration-тесты лежат в `__tests__/` рядом с моду
 | Файл                                | О чём                                                    |
 | ----------------------------------- | -------------------------------------------------------- |
 | `AGENTS.md`                         | Guide для AI-агента: архитектура, markers, task map      |
+| `docs/launch-checklist.md`          | Пошаговый чеклист первого production-запуска             |
 | `docs/setup.md`                     | Быстрый старт: @BotFather, `yc init`, SA, GitHub Actions |
+| `docs/monitoring.md`                | Логи, метрики, алерты и проверка доставки уведомлений    |
 | `docs/utm-attribution-marketing.md` | UTM для маркетинга                                       |
 
 ### Сообщения не приходят в Telegram
