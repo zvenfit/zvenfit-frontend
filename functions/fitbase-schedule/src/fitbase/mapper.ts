@@ -4,12 +4,24 @@ function stringValue(value: unknown): string {
   return typeof value === 'string' ? value : '';
 }
 
-function trainerName(trainer: Trainer): string {
-  if (trainer.full_name) {
-    return String(trainer.full_name).trim();
+function trainerValue(value: unknown): Trainer | null {
+  return value !== null && typeof value === 'object' ? (value as Trainer) : null;
+}
+
+function mapTrainer(value: unknown): { name: string; photo: string } | null {
+  const trainer = trainerValue(value);
+  if (!trainer) {
+    return null;
   }
 
-  return [trainer.surname, trainer.name, trainer.patronymic].filter(Boolean).map(String).join(' ').trim();
+  let name = '';
+  if (trainer.full_name) {
+    name = String(trainer.full_name).trim();
+  } else {
+    name = [trainer.surname, trainer.name, trainer.patronymic].filter(Boolean).map(String).join(' ').trim();
+  }
+
+  return name ? { name, photo: stringValue(trainer.photo) } : null;
 }
 
 export function mapScheduleItem(item: FitbaseItem): ScheduleItem {
@@ -27,9 +39,7 @@ export function mapScheduleItem(item: FitbaseItem): ScheduleItem {
     description: training.description || '',
     color: training.color || '',
     trainers: Array.isArray(item.trainers)
-      ? item.trainers
-          .map(trainer => ({ name: trainerName(trainer), photo: stringValue(trainer.photo) }))
-          .filter(trainer => trainer.name)
+      ? item.trainers.map(mapTrainer).filter((trainer): trainer is { name: string; photo: string } => trainer !== null)
       : [],
     place: place.name || '',
     club: item.club?.name || '',

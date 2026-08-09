@@ -5,6 +5,18 @@
     "service": "default",
     "retentionDays": 3
   },
+  "provisioning": {
+    "logMetrics": "manual-console",
+    "notificationChannels": "manual-console",
+    "alerts": "manual-console",
+    "reason": "Yandex Monitoring does not expose these resources in the public YC CLI or Terraform provider"
+  },
+  "notificationChannel": {
+    "name": "ZvenFit production alerts",
+    "methods": ["telegram", "email"],
+    "statuses": ["ALARM", "WARNING", "OK"],
+    "repeatMinutes": 30
+  },
   "logMetrics": [
     {
       "id": "zvenfit_lead_storage_errors_1m",

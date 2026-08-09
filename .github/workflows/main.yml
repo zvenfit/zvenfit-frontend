@@ -45,17 +45,10 @@ jobs:
           echo "$HOME/yandex-cloud/bin" >> $GITHUB_PATH
 
       - name: Authenticate with service account
-        id: authenticate
         env:
           YC_SA_KEY: ${{ secrets.YC_SA_JSON_KEY }}
         run: |
           echo "$YC_SA_KEY" > /tmp/sa-key.json
-          SERVICE_ACCOUNT_ID=$(jq -r '.service_account_id // empty' /tmp/sa-key.json)
-          if [ -z "$SERVICE_ACCOUNT_ID" ]; then
-            echo "ERROR: service_account_id is missing in YC_SA_JSON_KEY" >&2
-            exit 1
-          fi
-          echo "service_account_id=${SERVICE_ACCOUNT_ID}" >> "$GITHUB_OUTPUT"
           yc config profile create ci-profile
           yc config set service-account-key /tmp/sa-key.json
           yc config set folder-id ${{ env.YC_FOLDER_ID }}
@@ -66,7 +59,7 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           ALLOWED_ORIGINS: ${{ env.ALLOWED_ORIGINS }}
-          YC_LEAD_SERVICE_ACCOUNT_ID: ${{ vars.YC_LEAD_SERVICE_ACCOUNT_ID || steps.authenticate.outputs.service_account_id }}
+          YC_LEAD_SERVICE_ACCOUNT_ID: ${{ vars.YC_LEAD_SERVICE_ACCOUNT_ID }}
           YDB_DATABASE_NAME: ${{ vars.YDB_DATABASE_NAME || 'zvenfit-leads' }}
           YDB_LEADS_TABLE: ${{ vars.YDB_LEADS_TABLE || 'leads' }}
           LEAD_RETENTION_DAYS: ${{ vars.LEAD_RETENTION_DAYS || '1096' }}

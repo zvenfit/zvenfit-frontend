@@ -53,6 +53,20 @@ test(
       assert.deepEqual(await runMigrations({ log: { info() {} } }), [1, 2, 3, 4]);
       assert.deepEqual(await runMigrations({ log: { info() {} } }), []);
 
+      const migrationClient = await createYdbClient();
+      try {
+        const migrationsTable = migrationClient.sql.identifier(migrationTableName());
+        await migrationClient.sql`
+          DELETE FROM ${migrationsTable}
+          WHERE version = ${new migrationClient.types.Uint32(2)} OR version = ${new migrationClient.types.Uint32(4)};
+        `.timeout(queryTimeoutMs());
+      } finally {
+        await migrationClient.close();
+      }
+
+      assert.deepEqual(await runMigrations({ log: { info() {} } }), [2, 4]);
+      assert.deepEqual(await runMigrations({ log: { info() {} } }), []);
+
       const now = new Date();
       const leadId = randomUUID();
       const saved = await Promise.all([leadStore.saveLead(lead(leadId, now)), leadStore.saveLead(lead(leadId, now))]);

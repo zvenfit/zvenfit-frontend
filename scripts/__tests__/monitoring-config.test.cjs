@@ -17,6 +17,7 @@ const source = [
   .map(file => fs.readFileSync(path.join(ROOT, file), 'utf8'))
   .join('\n');
 const monitoringDocs = fs.readFileSync(path.join(ROOT, 'docs/monitoring.md'), 'utf8');
+const smokeScript = fs.readFileSync(path.join(ROOT, 'scripts/test-monitoring-alerts.sh'), 'utf8');
 
 test('every monitored event exists in application code and documentation', () => {
   for (const metric of config.logMetrics) {
@@ -67,4 +68,31 @@ test('production log source and retention are explicit', () => {
     service: 'default',
     retentionDays: 3,
   });
+});
+
+test('manual provisioning and notification channel requirements are explicit', () => {
+  assert.deepEqual(config.provisioning, {
+    logMetrics: 'manual-console',
+    notificationChannels: 'manual-console',
+    alerts: 'manual-console',
+    reason: 'Yandex Monitoring does not expose these resources in the public YC CLI or Terraform provider',
+  });
+  assert.deepEqual(config.notificationChannel, {
+    name: 'ZvenFit production alerts',
+    methods: ['telegram', 'email'],
+    statuses: ['ALARM', 'WARNING', 'OK'],
+    repeatMinutes: 30,
+  });
+});
+
+test('monitoring smoke script requires confirmation and covers every log metric', () => {
+  assert.match(smokeScript, /\$\{1:-\}.*--confirm/);
+
+  for (const metric of config.logMetrics) {
+    assert.equal(
+      metric.events.some(event => new RegExp(`\\b${event}\\b`).test(smokeScript)),
+      true,
+      `${metric.id} is missing from smoke test`,
+    );
+  }
 });

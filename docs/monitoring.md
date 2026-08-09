@@ -3,6 +3,12 @@
 Минимальный мониторинг production-функций без персональных данных в логах.
 Машиночитаемый источник конфигурации: `scripts/monitoring.config.json`.
 
+> [!IMPORTANT]
+> Обычные log metrics, notification channels и alerts Yandex Monitoring пока не представлены
+> как ресурсы публичного `yc` CLI или Terraform provider. Поэтому их создание — одноразовый шаг
+> в management console. `scripts/monitoring.config.json` фиксирует точный desired state, а
+> `scripts/test-monitoring-alerts.sh` проверяет готовую конфигурацию синтетическими событиями.
+
 ## Текущая инфраструктура
 
 | Ресурс                  | Значение                       |
@@ -142,6 +148,20 @@ Runtime alert использует бесплатную автоматическ
 
 Отсутствие точек считается `OK`: эти метрики появляются только при ошибках.
 Во все шесть алертов добавь канал **ZvenFit production alerts**.
+
+## Проверка доставки алертов
+
+После создания метрик, канала и алертов запусти smoke-тест. Он не вызывает функции,
+не пишет лиды и не содержит персональных данных, но намеренно переводит пять log-based
+алертов в `ALARM`:
+
+```bash
+bash scripts/test-monitoring-alerts.sh --confirm
+```
+
+Проверь, что уведомления пришли одновременно в Telegram и email, а затем дождись возврата
+алертов в `OK`. Runtime alert проверь встроенной кнопкой тестирования канала в Monitoring:
+намеренно ронять production-функцию для него не нужно.
 
 ## Dashboard
 

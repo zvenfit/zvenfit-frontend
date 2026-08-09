@@ -22,6 +22,18 @@ test('maps Fitbase transport fields into the public schedule contract', () => {
   assert.deepEqual(mapped.transfer, { date: '2026-08-10', timeStart: '11:00', timeEnd: '' });
 });
 
+test('drops malformed trainers without failing the whole schedule item', () => {
+  const mapped = mapScheduleItem({
+    id: 43,
+    date: '2026-08-09',
+    training: { name: 'Йога' },
+    trainers: [null, 42, 'unexpected', {}, { full_name: ' Анна Иванова ', photo: 123 }],
+  });
+
+  assert.equal(mapped.title, 'Йога');
+  assert.deepEqual(mapped.trainers, [{ name: 'Анна Иванова', photo: '' }]);
+});
+
 test('filters non-public entries and sorts the remaining schedule chronologically', () => {
   assert.equal(shouldIncludeItem({ event_type: 'rent' }), false);
   assert.equal(shouldIncludeItem({ is_archive: 1 }), false);

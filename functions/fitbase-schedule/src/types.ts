@@ -41,7 +41,7 @@ export interface FitbaseItem {
   time_end?: string;
   duration?: unknown;
   training?: { name?: string; description?: string; color?: string } | null;
-  trainers?: Trainer[];
+  trainers?: unknown[];
   place?: { name?: string } | null;
   club?: { name?: string } | null;
   event_type?: string;

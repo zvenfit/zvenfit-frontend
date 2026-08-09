@@ -13,6 +13,7 @@ interface Migration {
   version: number;
   name: string;
   apply(context: MigrationContext): Promise<void>;
+  verify?(context: MigrationContext): Promise<void>;
 }
 
 interface MigrationLogger {
@@ -51,11 +52,53 @@ async function createLeadsTable({ sql, leadsTable }: MigrationContext): Promise<
   );
 }
 
+async function verifyBaseLeadSchema({ sql, leadsTable }: MigrationContext): Promise<void> {
+  await timed(
+    sql`
+      SELECT
+        lead_id,
+        created_at,
+        expires_at,
+        name,
+        phone,
+        service,
+        telegram_username,
+        utm_json,
+        telegram_status,
+        telegram_attempts,
+        telegram_next_attempt_at,
+        telegram_lease_until,
+        telegram_delivery_token,
+        telegram_last_error,
+        telegram_notified_at
+      FROM ${leadsTable}
+      LIMIT ${0};
+    `
+      .idempotent(true)
+      .isolation('snapshotReadOnly'),
+  );
+}
+
 async function addTelegramDueAt({ sql, leadsTable }: MigrationContext): Promise<void> {
   await timed(sql`
     ALTER TABLE ${leadsTable}
     ADD COLUMN telegram_due_at Timestamp;
   `);
+}
+
+async function verifyTelegramDueAt({ sql, leadsTable, types }: MigrationContext): Promise<void> {
+  const now = new types.Timestamp(new Date());
+
+  await timed(
+    sql`
+      SELECT telegram_due_at
+      FROM ${leadsTable}
+      WHERE telegram_due_at <= ${now}
+      LIMIT ${0};
+    `
+      .idempotent(true)
+      .isolation('snapshotReadOnly'),
+  );
 }
 
 async function backfillTelegramDueAt({ sql, leadsTable }: MigrationContext): Promise<void> {
@@ -81,10 +124,10 @@ async function addTelegramDueIndex({ sql, leadsTable, dueIndex }: MigrationConte
 }
 
 export const MIGRATIONS: readonly Migration[] = [
-  { version: 1, name: 'create_leads_table', apply: createLeadsTable },
-  { version: 2, name: 'add_telegram_due_at', apply: addTelegramDueAt },
+  { version: 1, name: 'create_leads_table', apply: createLeadsTable, verify: verifyBaseLeadSchema },
+  { version: 2, name: 'add_telegram_due_at', apply: addTelegramDueAt, verify: verifyTelegramDueAt },
   { version: 3, name: 'backfill_telegram_due_at', apply: backfillTelegramDueAt },
-  { version: 4, name: 'add_telegram_due_index', apply: addTelegramDueIndex },
+  { version: 4, name: 'add_telegram_due_index', apply: addTelegramDueIndex, verify: validateLeadSchema },
 ];
 
 async function ensureMigrationTable(sql: YdbClient['sql'], migrationsTable: unknown): Promise<void> {
@@ -151,6 +194,26 @@ async function validateLeadSchema({ sql, leadsTable, dueIndex, types }: Migratio
   );
 }
 
+async function applyMigration(context: MigrationContext, migration: Migration): Promise<void> {
+  try {
+    await migration.apply(context);
+  } catch (applyError) {
+    if (!migration.verify) {
+      throw applyError;
+    }
+
+    try {
+      await migration.verify(context);
+    } catch {
+      throw applyError;
+    }
+
+    return;
+  }
+
+  await migration.verify?.(context);
+}
+
 function migrationContext(client: YdbClient): MigrationContext {
   return {
     ...client,
@@ -175,7 +238,7 @@ export async function runMigrations({ log = console }: { log?: MigrationLogger }
       }
 
       log.info?.(`YDB migration ${migration.version}: ${migration.name}`);
-      await migration.apply(context);
+      await applyMigration(context, migration);
       await recordMigration({ ...context, migration });
       completed.push(migration.version);
     }
@@ -191,6 +254,7 @@ export async function runMigrations({ log = console }: { log?: MigrationLogger }
 export const _private = {
   addTelegramDueAt,
   addTelegramDueIndex,
+  applyMigration,
   appliedVersions,
   backfillTelegramDueAt,
   createLeadsTable,
@@ -199,4 +263,6 @@ export const _private = {
   recordMigration,
   timed,
   validateLeadSchema,
+  verifyBaseLeadSchema,
+  verifyTelegramDueAt,
 };

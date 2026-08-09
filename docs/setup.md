@@ -98,22 +98,27 @@ rm sa-key.json
 | `YC_ACCESS_KEY_ID`     | Статический ключ SA для S3 | Уже есть                                   |
 | `YC_SECRET_ACCESS_KEY` | Пара к `ACCESS_KEY_ID`     | Уже есть                                   |
 
+Обязательная GitHub Variable:
+
+| Variable                     | Что содержит                               |
+| ---------------------------- | ------------------------------------------ |
+| `YC_LEAD_SERVICE_ACCOUNT_ID` | ID отдельного runtime SA функции и таймера |
+
 Опциональные GitHub Variables:
 
-| Variable                     | Default                | Что меняет                                                                |
-| ---------------------------- | ---------------------- | ------------------------------------------------------------------------- |
-| `YC_LEAD_SERVICE_ACCOUNT_ID` | SA из `YC_SA_JSON_KEY` | Отдельный runtime SA функции и таймера                                    |
-| `YDB_DATABASE_NAME`          | `zvenfit-leads`        | Имя Serverless БД                                                         |
-| `YDB_LEADS_TABLE`            | `leads`                | Таблица заявок                                                            |
-| `LEAD_RETENTION_DAYS`        | `1096`                 | Срок хранения персональных данных (не менее трёх лет по текущей политике) |
-| `MAX_TELEGRAM_ATTEMPTS`      | `12`                   | После скольких попыток поставить статус `failed`                          |
-| `YDB_QUERY_TIMEOUT_MS`       | `5000`                 | Клиентский таймаут операции/транзакции YDB                                |
-| `YDB_SLOW_OPERATION_MS`      | `1000`                 | Порог события `ydb_slow_operation`                                        |
-| `YDB_SESSION_POOL_SIZE`      | `5`                    | Максимум YDB-сессий на экземпляр функции                                  |
+| Variable                | Default         | Что меняет                                                                |
+| ----------------------- | --------------- | ------------------------------------------------------------------------- |
+| `YDB_DATABASE_NAME`     | `zvenfit-leads` | Имя Serverless БД                                                         |
+| `YDB_LEADS_TABLE`       | `leads`         | Таблица заявок                                                            |
+| `LEAD_RETENTION_DAYS`   | `1096`          | Срок хранения персональных данных (не менее трёх лет по текущей политике) |
+| `MAX_TELEGRAM_ATTEMPTS` | `12`            | После скольких попыток поставить статус `failed`                          |
+| `YDB_QUERY_TIMEOUT_MS`  | `5000`          | Клиентский таймаут операции/транзакции YDB                                |
+| `YDB_SLOW_OPERATION_MS` | `1000`          | Порог события `ydb_slow_operation`                                        |
+| `YDB_SESSION_POOL_SIZE` | `5`             | Максимум YDB-сессий на экземпляр функции                                  |
 
-Для production лучше создать отдельный runtime SA, выдать ему `ydb.editor` на базу и
-`functions.functionInvoker` на каталог, а его ID положить в `YC_LEAD_SERVICE_ACCOUNT_ID`.
-Без этой переменной workflow использует CI SA, чтобы первый деплой не требовал дополнительной настройки.
+Для production создай отдельный runtime SA, выдай ему `ydb.editor` на базу и
+`functions.functionInvoker` на каталог, а его ID положи в `YC_LEAD_SERVICE_ACCOUNT_ID`.
+Workflow остановит deploy, если переменная отсутствует; CI SA как runtime-аккаунт не используется.
 
 ### 5. Первый деплой
 
@@ -127,7 +132,8 @@ git push origin main
 
 1. Workflow создаёт Serverless БД `zvenfit-leads`, если её ещё нет; включена защита от удаления.
 2. Создаёт временные таблицы и прогоняет YDB integration test; production-таблица не меняется.
-3. До переключения функции применяет версионированные YDB-миграции из `lead-migrations.js`.
+3. До переключения функции применяет версионированные восстанавливаемые YDB-миграции из
+   `functions/telegram-lead/src/ydb/migrations.ts`.
 4. Деплоит Cloud Function без DDL в пользовательском запросе.
 5. Создаёт минутный timer trigger для повторной доставки в Telegram.
 6. Получает URL функции, собирает сайт и заливает его в Object Storage.
