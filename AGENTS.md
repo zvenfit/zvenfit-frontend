@@ -76,10 +76,10 @@ Also at build time:
 | Task                       | Files                                                               |
 | -------------------------- | ------------------------------------------------------------------- |
 | Lead form UI/validation    | `public/forma-dlya-zayavki/index.html`, `public/js/lead-form.js`    |
-| Lead API / Telegram        | `functions/telegram-lead/handler.ts`                                |
-| Lead storage / retry state | `functions/telegram-lead/lead-store.ts`                             |
+| Lead API / Telegram        | `functions/telegram-lead/src/handler.ts`, `src/telegram/`           |
+| Lead storage / retry state | `functions/telegram-lead/src/ydb/`                                  |
 | Schedule UI                | `public/raspisanie/index.html`, `public/js/schedule.js`             |
-| Schedule API / Fitbase     | `functions/fitbase-schedule/handler.ts`                             |
+| Schedule API / Fitbase     | `functions/fitbase-schedule/src/handler.ts`, `src/fitbase/`         |
 | UTM in leads               | `public/js/utm-attribution.js`, `docs/utm-attribution-marketing.md` |
 | App store badges/links     | `scripts/app-links.config.json`, snippets in `scripts/snippets/`    |
 | SEO / JSON-LD              | `scripts/structured-data.config.json`, page `<meta>`                |

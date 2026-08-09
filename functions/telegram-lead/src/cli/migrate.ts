@@ -1,4 +1,4 @@
-import { runMigrations } from './lead-migrations';
+import { runMigrations } from '../ydb/migrations';
 
 void runMigrations()
   .then(completed => {

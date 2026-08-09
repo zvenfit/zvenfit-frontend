@@ -1,6 +1,6 @@
-import { normalizeConnectionString, queryTimeoutMs, sessionPoolSize } from './ydb-config';
+import { normalizeConnectionString, queryTimeoutMs, sessionPoolSize } from './config';
 
-import type { YdbClient, YdbSql, YdbValueConstructor } from './types';
+import type { YdbClient, YdbSql, YdbValueConstructor } from '../types';
 import type { CredentialsProvider } from '@ydbjs/auth' with { 'resolution-mode': 'import' };
 
 export async function createYdbClient(): Promise<YdbClient> {

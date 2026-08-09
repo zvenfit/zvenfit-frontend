@@ -4,11 +4,11 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "build": "tsc --project tsconfig.json",
+    "build": "rm -rf build && tsc --project tsconfig.json",
     "typecheck": "tsc --project tsconfig.json --noEmit",
-    "test": "npm run build && node --test __tests__/*.test.js",
-    "test:integration": "npm run build && node --test __tests__/integration/*.test.js",
-    "migrate": "npm run build && node build/migrate.js"
+    "test": "npm run build && node --test src/__tests__/*.test.js src/telegram/__tests__/*.test.js src/ydb/__tests__/*.test.js src/observability/__tests__/*.test.js",
+    "test:integration": "npm run build && node --test src/ydb/__tests__/integration/*.test.js",
+    "migrate": "npm run build && node build/cli/migrate.js"
   },
   "dependencies": {
     "@ydbjs/auth": "6.3.1",

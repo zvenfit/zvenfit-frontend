@@ -81,14 +81,8 @@ if ! yc serverless function get --name="${FUNCTION_NAME}" >/dev/null 2>&1; then
   yc serverless function create --name="${FUNCTION_NAME}"
 fi
 
+cp -R "${ROOT_DIR}/functions/telegram-lead/build/." "${SOURCE_DIR}/"
 cp \
-  "${ROOT_DIR}/functions/telegram-lead/build/index.js" \
-  "${ROOT_DIR}/functions/telegram-lead/build/handler.js" \
-  "${ROOT_DIR}/functions/telegram-lead/build/lead-store.js" \
-  "${ROOT_DIR}/functions/telegram-lead/build/logger.js" \
-  "${ROOT_DIR}/functions/telegram-lead/build/ydb-client.js" \
-  "${ROOT_DIR}/functions/telegram-lead/build/ydb-config.js" \
-  "${ROOT_DIR}/functions/telegram-lead/build/ydb-observability.js" \
   "${ROOT_DIR}/functions/telegram-lead/package.json" \
   "${ROOT_DIR}/functions/telegram-lead/package-lock.json" \
   "${SOURCE_DIR}/"

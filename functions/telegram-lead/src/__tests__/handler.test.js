@@ -5,7 +5,7 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 
-const { _private } = require('../build/handler');
+const { _private } = require('../../build/handler');
 
 const LEAD_ID = '1cc32f4f-8f06-4dc8-915f-92955c829523';
 const DELIVERY_ID = '927c6260-678d-42d1-9293-a0ed5061c184';
@@ -277,11 +277,4 @@ test('timer retries persisted pending leads', async () => {
 
   assert.deepEqual(result, { processed: 1, sent: 1, pending: 0, failed: 0, skipped: 0 });
   assert.deepEqual(delivered, [LEAD_ID]);
-});
-
-test('message includes a stable lead id for recognizing rare duplicate notifications', () => {
-  const message = _private.buildMessage(claimedLead());
-
-  assert.match(message, new RegExp(`ID: ${LEAD_ID}`));
-  assert.match(message, /Телеграм: @anna/);
 });

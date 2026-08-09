@@ -219,7 +219,7 @@ async function importLeads(leads) {
     throw new Error('ydb_access_token_credentials_missing');
   }
 
-  const store = require('../functions/telegram-lead/lead-store');
+  const store = require('../functions/telegram-lead/build/ydb/lead-store');
   const result = { inserted: 0, existing: 0, existing_sent: 0, existing_other: 0 };
 
   try {

@@ -31,10 +31,8 @@ yc config set folder-id "${YC_FOLDER_ID}" >/dev/null
 
 npm --prefix "${ROOT_DIR}/functions/fitbase-schedule" run build
 
+cp -R "${ROOT_DIR}/functions/fitbase-schedule/build/." "${SOURCE_DIR}/"
 cp \
-  "${ROOT_DIR}/functions/fitbase-schedule/build/index.js" \
-  "${ROOT_DIR}/functions/fitbase-schedule/build/handler.js" \
-  "${ROOT_DIR}/functions/fitbase-schedule/build/logger.js" \
   "${ROOT_DIR}/functions/fitbase-schedule/package.json" \
   "${ROOT_DIR}/functions/fitbase-schedule/package-lock.json" \
   "${SOURCE_DIR}/"

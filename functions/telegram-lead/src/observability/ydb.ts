@@ -1,9 +1,9 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { channel } from 'node:diagnostics_channel';
 
-import { slowOperationMs } from './ydb-config';
+import { slowOperationMs } from '../ydb/config';
 
-import type { JsonObject, LoggerLike } from './types';
+import type { JsonObject, LoggerLike } from '../types';
 
 interface OperationState {
   retries: number;

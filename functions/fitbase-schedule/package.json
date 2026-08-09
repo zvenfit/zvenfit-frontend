@@ -4,9 +4,9 @@
   "private": true,
   "description": "Public schedule proxy for zvenfit.ru (Fitbase API v2)",
   "scripts": {
-    "build": "tsc --project tsconfig.json",
+    "build": "rm -rf build && tsc --project tsconfig.json",
     "typecheck": "tsc --project tsconfig.json --noEmit",
-    "test": "npm run build && node --test __tests__/*.test.js"
+    "test": "npm run build && node --test src/__tests__/*.test.js src/fitbase/__tests__/*.test.js src/observability/__tests__/*.test.js"
   },
   "dependencies": {
     "pino": "10.3.1"

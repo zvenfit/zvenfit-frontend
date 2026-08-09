@@ -6,10 +6,10 @@ const assert = require('node:assert/strict');
 const { randomUUID } = require('node:crypto');
 const test = require('node:test');
 
-const { runMigrations } = require('../../build/lead-migrations');
-const leadStore = require('../../build/lead-store');
-const { createYdbClient } = require('../../build/ydb-client');
-const { migrationTableName, queryTimeoutMs } = require('../../build/ydb-config');
+const { createYdbClient } = require('../../../../build/ydb/client');
+const { migrationTableName, queryTimeoutMs } = require('../../../../build/ydb/config');
+const leadStore = require('../../../../build/ydb/lead-store');
+const { runMigrations } = require('../../../../build/ydb/migrations');
 
 const TEST_CONNECTION_STRING = process.env.YDB_TEST_CONNECTION_STRING;
 

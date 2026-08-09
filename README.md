@@ -35,17 +35,18 @@ Build (`scripts/build-static.cjs`) копирует `public/` → `dist/`, ин�
 
 | Файл                                    | Что делает                                            |
 | --------------------------------------- | ----------------------------------------------------- |
-| `functions/telegram-lead/index.ts`      | Точка входа Cloud Function, только реэкспорт из `handler.ts` |
-| `functions/telegram-lead/handler.ts`    | POST формы, идемпотентность, Telegram и retry timer   |
-| `functions/telegram-lead/lead-store.ts` | YDB: таблица лидов, TTL, lease и статусы доставки     |
-| `functions/telegram-lead/logger.ts`     | Pino: structured logs, request ID и PII redaction     |
-| `functions/telegram-lead/lead-migrations.ts` | Версионированная схема YDB и индекс очереди       |
-| `functions/telegram-lead/ydb-observability.ts` | YDB latency, retries и безопасные error codes |
-| `functions/fitbase-schedule/index.ts`   | Точка входа Cloud Function, только реэкспорт из `handler.ts` |
-| `functions/fitbase-schedule/handler.ts` | GET расписания → Fitbase API v2                       |
-| `functions/fitbase-schedule/logger.ts`  | Pino: structured logs, request ID и PII redaction     |
+| `functions/telegram-lead/src/index.ts` | Точка входа Cloud Function, только реэкспорт из `handler.ts` |
+| `functions/telegram-lead/src/handler.ts` | Оркестрация POST формы и retry timer |
+| `functions/telegram-lead/src/telegram/delivery.ts` | Telegram API, lease и retry policy |
+| `functions/telegram-lead/src/ydb/` | YDB client, migrations, сохранение лидов и очередь уведомлений |
+| `functions/telegram-lead/src/observability/` | Pino, YDB latency/retries и безопасные error codes |
+| `functions/fitbase-schedule/src/index.ts` | Точка входа Cloud Function, только реэкспорт из `handler.ts` |
+| `functions/fitbase-schedule/src/handler.ts` | Оркестрация GET расписания |
+| `functions/fitbase-schedule/src/fitbase/` | Fitbase API client и преобразование ответа |
+| `functions/fitbase-schedule/src/observability/logger.ts` | Structured logs и PII redaction |
 
-Обе функции компилируются строгим TypeScript в локальный `build/`; тесты запускаются по собранному
+Исходники обеих функций находятся в `src/` и компилируются строгим TypeScript в локальный `build/`;
+тесты лежат в `__tests__/` рядом с соответствующими модулями и запускаются по собранному
 CommonJS, и в Yandex Cloud упаковывается только runtime JavaScript без TypeScript/devDependencies.
 
 **telegram-lead env:** `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `ALLOWED_ORIGINS`,

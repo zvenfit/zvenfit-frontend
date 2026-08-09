@@ -1,6 +1,6 @@
 import { destination, pino, stdTimeFunctions, type DestinationStream, type Logger } from 'pino';
 
-import type { FitbaseError, FunctionContext, LoggerLike } from './types';
+import type { FitbaseError, FunctionContext, LoggerLike } from '../types';
 
 const SERVICE = 'zvenfit-fitbase-schedule';
 const REDACT_PATHS = [

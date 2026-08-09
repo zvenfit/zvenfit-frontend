@@ -5,7 +5,7 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 
-const config = require('../build/ydb-config');
+const config = require('../../../build/ydb/config');
 
 function withEnv(name, value, callback) {
   const previous = process.env[name];

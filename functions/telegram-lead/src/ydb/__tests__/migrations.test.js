@@ -5,7 +5,7 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 
-const { MIGRATIONS } = require('../build/lead-migrations');
+const { MIGRATIONS } = require('../../../build/ydb/migrations');
 
 test('lead schema migrations are ordered, unique, and append-only', () => {
   assert.deepEqual(

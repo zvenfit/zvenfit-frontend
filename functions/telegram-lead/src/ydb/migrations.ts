@@ -1,7 +1,7 @@
-import { createYdbClient } from './ydb-client';
-import { dueIndexName, migrationTableName, queryTimeoutMs, tableName } from './ydb-config';
+import { createYdbClient } from './client';
+import { dueIndexName, migrationTableName, queryTimeoutMs, tableName } from './config';
 
-import type { YdbClient, YdbQuery } from './types';
+import type { YdbClient, YdbQuery } from '../types';
 
 interface MigrationContext extends YdbClient {
   leadsTable: unknown;

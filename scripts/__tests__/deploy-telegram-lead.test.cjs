@@ -19,7 +19,6 @@ test('lead deploy verifies YDB, migrates schema, and only then creates a functio
 });
 
 test('lead deployment package contains every runtime YDB module', () => {
-  for (const file of ['ydb-client.js', 'ydb-config.js', 'ydb-observability.js']) {
-    assert.match(deployScript, new RegExp(`telegram-lead/build/${file.replace('.', '\\.')}`));
-  }
+  assert.match(deployScript, /telegram-lead\/build\/\./);
+  assert.match(deployScript, /cp -R/);
 });

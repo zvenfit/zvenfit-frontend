@@ -1,6 +1,6 @@
 import { destination, pino, stdTimeFunctions, type DestinationStream, type Logger } from 'pino';
 
-import type { FunctionContext } from './types';
+import type { FunctionContext } from '../types';
 
 const SERVICE = 'zvenfit-telegram-lead';
 const REDACT_PATHS = [
