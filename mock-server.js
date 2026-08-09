@@ -147,11 +147,18 @@ http
       let body = '';
       req.on('data', chunk => (body += chunk));
       req.on('end', () => {
+        const payload = JSON.parse(body);
         console.log('\n📩 Получена заявка:');
-        console.log(JSON.parse(body));
+        console.log({
+          submission_id: payload.submission_id || 'missing',
+          service: payload.service || 'missing',
+          has_name: Boolean(payload.name),
+          has_phone: Boolean(payload.phone),
+          has_utm: Boolean(payload.utm && Object.keys(payload.utm).length > 0),
+        });
         console.log('---');
 
-        sendJson(res, 200, { ok: true });
+        sendJson(res, 200, { ok: true, lead_id: payload.submission_id || null, notification: 'mock' });
       });
 
       return;

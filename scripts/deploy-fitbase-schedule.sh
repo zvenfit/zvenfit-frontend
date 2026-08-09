@@ -8,6 +8,7 @@ MEMORY="${YC_SCHEDULE_MEMORY:-128m}"
 TIMEOUT="${YC_SCHEDULE_TIMEOUT:-15s}"
 ALLOWED_ORIGINS="${ALLOWED_ORIGINS:-https://zvenfit.ru,https://www.zvenfit.ru,https://zvenigorod.zvenfit.ru}"
 FITBASE_DOMAIN="${FITBASE_DOMAIN:-zvenfit}"
+LOG_LEVEL="${LOG_LEVEL:-info}"
 
 if [[ -z "${FITBASE_API_TOKEN:-}" ]]; then
   echo "deploy-fitbase-schedule: set FITBASE_API_TOKEN" >&2
@@ -34,6 +35,7 @@ ENV_ARGS=(
   --environment "FITBASE_API_TOKEN=${FITBASE_API_TOKEN}"
   --environment "FITBASE_DOMAIN=${FITBASE_DOMAIN}"
   --environment "ALLOWED_ORIGINS=${ALLOWED_ORIGINS}"
+  --environment "LOG_LEVEL=${LOG_LEVEL}"
 )
 
 if [[ -n "${FITBASE_CLUB_ID:-}" ]]; then

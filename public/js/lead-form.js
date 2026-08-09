@@ -13,6 +13,32 @@ document.addEventListener('DOMContentLoaded', function () {
   const defaultServiceLabel = 'Позвонить';
   const successMessageMs = 5000;
   let successTimer;
+  let submissionId = '';
+
+  function createSubmissionId() {
+    const cryptoObject = window.crypto;
+
+    if (cryptoObject && typeof cryptoObject.randomUUID === 'function') {
+      return cryptoObject.randomUUID();
+    }
+
+    if (!cryptoObject || typeof cryptoObject.getRandomValues !== 'function') {
+      return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, character => {
+        const random = Math.floor(Math.random() * 16);
+        const value = character === 'x' ? random : (random & 0x3) | 0x8;
+
+        return value.toString(16);
+      });
+    }
+
+    const bytes = new Uint8Array(16);
+    cryptoObject.getRandomValues(bytes);
+    bytes[6] = (bytes[6] & 0x0f) | 0x40;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+    const hex = Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('');
+
+    return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+  }
 
   function clearSuccessTimer() {
     if (!successTimer) {
@@ -106,6 +132,7 @@ document.addEventListener('DOMContentLoaded', function () {
         : {};
 
     const payload = {
+      submission_id: submissionId || (submissionId = createSubmissionId()),
       name: form.querySelector('[name="name"]')?.value || '',
       phone: form.querySelector('[name="phone"]')?.value || '',
       service: form.querySelector('[name="service"]')?.value || '',
@@ -139,6 +166,7 @@ document.addEventListener('DOMContentLoaded', function () {
       }
 
       form.reset();
+      submissionId = '';
       resetCustomFields();
       setFormState('success');
       successTimer = setTimeout(function () {

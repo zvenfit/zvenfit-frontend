@@ -74,8 +74,10 @@ Agent guide: [`AGENTS.md`](AGENTS.md)
 - [x] `npm run lint:public` — lint `public/js` + `functions`
 - [x] `npm run test:build` — build smoke check
 - [ ] Turnstile/reCAPTCHA on lead form (spam protection)
-- [ ] Lead logging (Cloud Logging or table)
-- [ ] Schedule/lead smoke tests in CI (optional)
+- [x] Durable lead storage in YDB + Telegram retry timer
+- [x] Lead function unit tests in CI
+- [ ] Production lead smoke test after deploy (without creating a real lead)
+- [ ] Legal review: актуализировать срок хранения лидов и текст `/privacy/` (сейчас политика требует не менее трёх лет)
 - [ ] Consolidate `README.md` / `docs/setup.md` overlap (setup stays detailed, README — index)
 
 ---

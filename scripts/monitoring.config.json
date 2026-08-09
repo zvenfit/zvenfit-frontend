@@ -1,0 +1,96 @@
+{
+  "project": "folder__b1ge1e4iopttj79hfdfm",
+  "source": {
+    "cluster": "default",
+    "service": "default",
+    "retentionDays": 3
+  },
+  "logMetrics": [
+    {
+      "id": "zvenfit_lead_storage_errors_1m",
+      "events": ["lead_storage_error", "telegram_delivery_state_error", "telegram_delivery_retry_error"],
+      "aggregation": "count",
+      "window": "1m"
+    },
+    {
+      "id": "zvenfit_telegram_delivery_failed_1m",
+      "events": ["telegram_delivery_failed_permanently"],
+      "aggregation": "count",
+      "window": "1m"
+    },
+    {
+      "id": "zvenfit_fitbase_errors_5m",
+      "events": ["fitbase_schedule_error", "fitbase_schedule_misconfigured"],
+      "aggregation": "count",
+      "window": "5m"
+    },
+    {
+      "id": "zvenfit_ydb_retries_5m",
+      "events": ["ydb_retry"],
+      "aggregation": "count",
+      "window": "5m"
+    },
+    {
+      "id": "zvenfit_ydb_slow_operations_5m",
+      "events": ["ydb_slow_operation"],
+      "aggregation": "count",
+      "window": "5m"
+    }
+  ],
+  "alerts": [
+    {
+      "id": "zvenfit-lead-storage",
+      "metricId": "zvenfit_lead_storage_errors_1m",
+      "aggregation": "max",
+      "operator": ">",
+      "alarm": 0,
+      "window": "5m",
+      "noData": "OK"
+    },
+    {
+      "id": "zvenfit-telegram-delivery",
+      "metricId": "zvenfit_telegram_delivery_failed_1m",
+      "aggregation": "max",
+      "operator": ">",
+      "alarm": 0,
+      "window": "5m",
+      "noData": "OK"
+    },
+    {
+      "id": "zvenfit-fitbase-schedule",
+      "metricId": "zvenfit_fitbase_errors_5m",
+      "aggregation": "max",
+      "operator": ">",
+      "alarm": 0,
+      "window": "10m",
+      "noData": "OK"
+    },
+    {
+      "id": "zvenfit-function-runtime-errors",
+      "metricSelector": "{project=\"folder__b1ge1e4iopttj79hfdfm\", service=\"serverless-functions\", name=\"functions_errors\", resource_id=\"d4ea7c6tcac97hu62rab|d4e80noc1hjn2g8u0beq\"}",
+      "aggregation": "sum",
+      "operator": ">",
+      "alarm": 0,
+      "window": "5m",
+      "noData": "OK"
+    },
+    {
+      "id": "zvenfit-ydb-retries",
+      "metricId": "zvenfit_ydb_retries_5m",
+      "aggregation": "sum",
+      "operator": ">",
+      "alarm": 5,
+      "window": "10m",
+      "noData": "OK"
+    },
+    {
+      "id": "zvenfit-ydb-latency",
+      "metricId": "zvenfit_ydb_slow_operations_5m",
+      "aggregation": "sum",
+      "operator": ">",
+      "alarm": 0,
+      "window": "10m",
+      "noData": "OK"
+    }
+  ]
+}

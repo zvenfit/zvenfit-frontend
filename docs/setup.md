@@ -1,11 +1,13 @@
-# Setup: Telegram Bot + Yandex Cloud
+# Setup: Telegram Bot + YDB + Yandex Cloud
 
-Автоматический деплой Cloud Function для приёма заявок с сайта.
+Автоматический деплой Cloud Function с надёжным хранением заявок в YDB.
 
 ## Архитектура
 
 ```
-Форма на сайте → Cloud Function (токен в env) → Telegram группа
+Форма → Cloud Function → YDB (источник истины) → Telegram
+                      ↑                         ↗
+                      └──── retry timer ───────┘
 ```
 
 **Один workflow** деплоит и функцию, и сайт последовательно.
@@ -53,12 +55,22 @@ SA_ID=$(yc iam service-account get --name $SA_NAME --format json | jq -r '.id')
 
 yc resource-manager folder add-access-binding \
   --id $YC_FOLDER_ID \
-  --role serverless.functions.admin \
+  --role functions.admin \
   --service-account-id $SA_ID
 
 yc resource-manager folder add-access-binding \
   --id $YC_FOLDER_ID \
   --role iam.serviceAccounts.user \
+  --service-account-id $SA_ID
+
+yc resource-manager folder add-access-binding \
+  --id $YC_FOLDER_ID \
+  --role functions.functionInvoker \
+  --service-account-id $SA_ID
+
+yc resource-manager folder add-access-binding \
+  --id $YC_FOLDER_ID \
+  --role ydb.editor \
   --service-account-id $SA_ID
 
 # Создать авторизованный ключ
@@ -77,14 +89,31 @@ rm sa-key.json
 
 **Settings → Secrets and variables → Actions:**
 
-| Secret | Откуда | Пример |
-|--------|--------|--------|
-| `YC_SA_JSON_KEY` | `sa-key.json` целиком | `{"id":"aje...","service_account_id":...}` |
-| `YC_FOLDER_ID` | `yc config get folder-id` | `b1g...` |
-| `TELEGRAM_BOT_TOKEN` | @BotFather | `123456:ABC...` |
-| `TELEGRAM_CHAT_ID` | getUpdates | `-5161525132` |
-| `YC_ACCESS_KEY_ID` | Статический ключ SA для S3 | Уже есть |
-| `YC_SECRET_ACCESS_KEY` | Пара к `ACCESS_KEY_ID` | Уже есть |
+| Secret                 | Откуда                     | Пример                                     |
+| ---------------------- | -------------------------- | ------------------------------------------ |
+| `YC_SA_JSON_KEY`       | `sa-key.json` целиком      | `{"id":"aje...","service_account_id":...}` |
+| `YC_FOLDER_ID`         | `yc config get folder-id`  | `b1g...`                                   |
+| `TELEGRAM_BOT_TOKEN`   | @BotFather                 | `123456:ABC...`                            |
+| `TELEGRAM_CHAT_ID`     | getUpdates                 | `-5161525132`                              |
+| `YC_ACCESS_KEY_ID`     | Статический ключ SA для S3 | Уже есть                                   |
+| `YC_SECRET_ACCESS_KEY` | Пара к `ACCESS_KEY_ID`     | Уже есть                                   |
+
+Опциональные GitHub Variables:
+
+| Variable                     | Default                | Что меняет                                                                |
+| ---------------------------- | ---------------------- | ------------------------------------------------------------------------- |
+| `YC_LEAD_SERVICE_ACCOUNT_ID` | SA из `YC_SA_JSON_KEY` | Отдельный runtime SA функции и таймера                                    |
+| `YDB_DATABASE_NAME`          | `zvenfit-leads`        | Имя Serverless БД                                                         |
+| `YDB_LEADS_TABLE`            | `leads`                | Таблица заявок                                                            |
+| `LEAD_RETENTION_DAYS`        | `1096`                 | Срок хранения персональных данных (не менее трёх лет по текущей политике) |
+| `MAX_TELEGRAM_ATTEMPTS`      | `12`                   | После скольких попыток поставить статус `failed`                          |
+| `YDB_QUERY_TIMEOUT_MS`       | `5000`                 | Клиентский таймаут операции/транзакции YDB                                |
+| `YDB_SLOW_OPERATION_MS`      | `1000`                 | Порог события `ydb_slow_operation`                                        |
+| `YDB_SESSION_POOL_SIZE`      | `5`                    | Максимум YDB-сессий на экземпляр функции                                  |
+
+Для production лучше создать отдельный runtime SA, выдать ему `ydb.editor` на базу и
+`functions.functionInvoker` на каталог, а его ID положить в `YC_LEAD_SERVICE_ACCOUNT_ID`.
+Без этой переменной workflow использует CI SA, чтобы первый деплой не требовал дополнительной настройки.
 
 ### 5. Первый деплой
 
@@ -95,10 +124,17 @@ git push origin main
 ```
 
 **Что произойдёт:**
-1. Workflow `main.yml` деплоит Cloud Function
-2. Получает URL функции
-3. Собирает сайт с этим URL
-4. Заливает в Object Storage
+
+1. Workflow создаёт Serverless БД `zvenfit-leads`, если её ещё нет; включена защита от удаления.
+2. Создаёт временные таблицы и прогоняет YDB integration test; production-таблица не меняется.
+3. До переключения функции применяет версионированные YDB-миграции из `lead-migrations.js`.
+4. Деплоит Cloud Function без DDL в пользовательском запросе.
+5. Создаёт минутный timer trigger для повторной доставки в Telegram.
+6. Получает URL функции, собирает сайт и заливает его в Object Storage.
+
+Очередь повторной отправки использует синхронный индекс `idx_telegram_due` по
+`telegram_due_at`; минутный timer не сканирует всю таблицу. Production workflow
+не отменяет уже начатый deploy, чтобы не прерывать DDL-миграцию посередине.
 
 **Готово.** Форма на сайте работает.
 
@@ -110,6 +146,7 @@ git push origin main
 
 ```bash
 export YC_FOLDER_ID=b1g...
+export YC_LEAD_SERVICE_ACCOUNT_ID=aje...
 export TELEGRAM_BOT_TOKEN=...
 export TELEGRAM_CHAT_ID=...
 
@@ -158,8 +195,72 @@ URL=$(yc serverless function get --name zvenfit-telegram-lead --format json | jq
 curl -X POST "$URL" \
   -H "Content-Type: application/json" \
   -d '{"name":"Test","phone":"+7 999","service":"Позвонить"}'
-# Ответ: {"ok":true}
+# Ответ: {"ok":true,"lead_id":"...","notification":"sent|pending|failed"}
 ```
+
+`ok: true` означает, что заявка уже сохранена в YDB. `notification: pending` означает,
+что Telegram был недоступен и таймер повторит отправку.
+
+### Интеграционная проверка YDB
+
+Тест создаёт две случайно именованные временные таблицы, проверяет миграции,
+конкурентную идемпотентность, индексированную очередь, lease и delivery token,
+затем удаляет только эти тестовые таблицы:
+
+```bash
+YDB_TEST_CONNECTION_STRING="$YDB_CONNECTION_STRING" \
+YDB_ACCESS_TOKEN_CREDENTIALS="$(yc iam create-token)" \
+npm run test:lead-ydb
+```
+
+### Посмотреть сохранённые заявки
+
+Открой YDB → `zvenfit-leads` → Query и выполни:
+
+```sql
+SELECT
+  lead_id,
+  created_at,
+  name,
+  phone,
+  service,
+  telegram_status,
+  telegram_attempts,
+  telegram_last_error
+FROM leads
+ORDER BY created_at DESC
+LIMIT 100;
+```
+
+Статусы уведомления: `pending`, `sending`, `sent`, `failed`. Доступ к таблице содержит
+персональные данные и должен быть только у тех, кто обрабатывает заявки. По умолчанию строки
+автоматически удаляются через 1096 дней, чтобы соответствовать опубликованной политике; изменение
+срока нужно синхронизировать с её текстом.
+
+### Импорт старых заявок из Telegram
+
+Экспортируй чат через Telegram Desktop в HTML и сначала запусти проверку. Dry-run выводит только
+агрегаты и коды ошибок, без имён и телефонов:
+
+```bash
+npm run import:telegram-leads -- --file "/absolute/path/to/messages.html"
+```
+
+Если `rejected` равен нулю, импортируй записи в YDB:
+
+```bash
+ZVENFIT_YDB_ENDPOINT=$(yc ydb database get --name=zvenfit-leads --format=json \
+  | node -e 'const fs=require("node:fs"); const d=JSON.parse(fs.readFileSync(0,"utf8")); process.stdout.write(d.endpoint||"")')
+
+YDB_CONNECTION_STRING="$ZVENFIT_YDB_ENDPOINT" \
+YDB_ACCESS_TOKEN_CREDENTIALS=$(yc iam create-token) \
+npm run import:telegram-leads -- --file "/absolute/path/to/messages.html" --apply
+```
+
+Импорт идемпотентен: `lead_id` детерминирован из ID Telegram-сообщения. Исторические записи сразу
+получают статус `sent` и не попадают в очередь повторной отправки. Не меняй `--source-key` между
+повторными запусками одного экспорта. Сам экспорт содержит персональные данные — не коммить его и
+не включай подробный shell tracing (`set -x`) при запуске команды с IAM-токеном.
 
 ### Сообщения не приходят
 
@@ -175,13 +276,31 @@ curl "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage" \
 ### GitHub Actions fail
 
 **deploy-function:**
+
 - `Authentication failed` → проверь `YC_SA_JSON_KEY` (валидный JSON?)
-- `Permission denied` → роль `serverless.functions.admin` на SA
+- ошибка создания YDB → роль `ydb.editor` на CI SA
+- ошибка создания timer trigger → `functions.admin` у CI SA и `functions.functionInvoker` у runtime SA
+- функция отвечает `storage_unavailable` → runtime SA не имеет `ydb.editor` или неверен endpoint БД
 - `Failed to get function URL` → функция создалась? Проверь в консоли YC
 
 **deploy-site:**
+
 - `Upload files failed` → проверь `YC_ACCESS_KEY_ID` / `YC_SECRET_ACCESS_KEY`
 - CORS error → `ALLOWED_ORIGINS` в workflow env
+
+---
+
+## Кеширование сайта
+
+Cloud CDN использует заголовки источника с fallback `86400` секунд, не подменяет browser TTL и учитывает query-параметр `v` в ключе кеша. Workflow загружает HTML, `robots.txt` и `sitemap.xml` с `Cache-Control: no-cache, must-revalidate`, а версионированные CSS/JS — с `Cache-Control: public, max-age=31536000, immutable`.
+
+Перед сборкой передавайте уникальный `ASSET_VERSION` через окружение или GitHub Variables. После изменения CSS/JS не используйте прежнее значение:
+
+```bash
+ASSET_VERSION=2026-08-08-1 npm run build
+```
+
+После первого деплоя с новыми метаданными очистите кеш CDN и проверьте заголовки HTML, реального 404 и CSS/JS.
 
 ---
 

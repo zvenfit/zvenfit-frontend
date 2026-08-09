@@ -2,5 +2,11 @@
   "name": "zvenfit-fitbase-schedule",
   "version": "1.0.0",
   "private": true,
-  "description": "Public schedule proxy for zvenfit.ru (Fitbase API v2)"
+  "description": "Public schedule proxy for zvenfit.ru (Fitbase API v2)",
+  "scripts": {
+    "test": "node --test __tests__/*.test.js"
+  },
+  "dependencies": {
+    "pino": "10.3.1"
+  }
 }
