@@ -1,11 +1,7 @@
-'use strict';
+import assert from 'node:assert/strict';
+import test from 'node:test';
 
-/* eslint-disable @typescript-eslint/no-var-requires */
-
-const assert = require('node:assert/strict');
-const test = require('node:test');
-
-const { MIGRATIONS } = require('../../../build/ydb/migrations');
+import { MIGRATIONS } from '../migrations';
 
 test('lead schema migrations are ordered, unique, and append-only', () => {
   assert.deepEqual(

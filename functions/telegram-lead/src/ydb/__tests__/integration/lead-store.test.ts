@@ -1,19 +1,17 @@
-'use strict';
+import assert from 'node:assert/strict';
+import { randomUUID } from 'node:crypto';
+import test from 'node:test';
 
-/* eslint-disable @typescript-eslint/no-var-requires */
+import { createYdbClient } from '../../client';
+import { migrationTableName, queryTimeoutMs } from '../../config';
+import * as leadStore from '../../lead-store';
+import { runMigrations } from '../../migrations';
 
-const assert = require('node:assert/strict');
-const { randomUUID } = require('node:crypto');
-const test = require('node:test');
-
-const { createYdbClient } = require('../../../../build/ydb/client');
-const { migrationTableName, queryTimeoutMs } = require('../../../../build/ydb/config');
-const leadStore = require('../../../../build/ydb/lead-store');
-const { runMigrations } = require('../../../../build/ydb/migrations');
+import type { ClaimedLead, Lead, YdbSql } from '../../../types';
 
 const TEST_CONNECTION_STRING = process.env.YDB_TEST_CONNECTION_STRING;
 
-function lead(leadId, createdAt) {
+function lead(leadId: string, createdAt: Date): Lead {
   return {
     leadId,
     createdAt,
@@ -25,11 +23,12 @@ function lead(leadId, createdAt) {
   };
 }
 
-async function dropTable(sql, name) {
+async function dropTable(sql: YdbSql, name: string): Promise<void> {
   try {
     await sql`DROP TABLE ${sql.identifier(name)};`.timeout(queryTimeoutMs());
   } catch (error) {
-    if (!String(error?.message || '').includes('NOT_FOUND')) {
+    const message = error instanceof Error ? error.message : '';
+    if (!message.includes('NOT_FOUND')) {
       throw error;
     }
   }
@@ -37,10 +36,12 @@ async function dropTable(sql, name) {
 
 test(
   'YDB migrations, idempotency, indexed queue, claim lease, and delivery token work together',
-  {
-    skip: !TEST_CONNECTION_STRING,
-  },
+  { skip: !TEST_CONNECTION_STRING },
   async () => {
+    if (!TEST_CONNECTION_STRING) {
+      return;
+    }
+
     const originalConnectionString = process.env.YDB_CONNECTION_STRING;
     const originalTable = process.env.YDB_LEADS_TABLE;
     const table = `leads_it_${randomUUID().replaceAll('-', '').slice(0, 12)}`;
@@ -64,17 +65,13 @@ test(
         leadStore.claimForTelegram({ leadId, now, leaseUntil, deliveryToken: randomUUID() }),
         leadStore.claimForTelegram({ leadId, now, leaseUntil, deliveryToken: randomUUID() }),
       ]);
-      const claimed = claims.filter(Boolean);
+      const claimed = claims.filter((claim): claim is ClaimedLead => claim !== null);
 
       assert.equal(claimed.length, 1);
-      assert.equal(claimed[0].telegramAttempts, 1);
+      assert.equal(claimed[0]?.telegramAttempts, 1);
       assert.deepEqual(await leadStore.listTelegramCandidates({ now, limit: 10 }), []);
 
-      await leadStore.markTelegramDelivered({
-        leadId,
-        deliveryToken: 'wrong-token',
-        notifiedAt: now,
-      });
+      await leadStore.markTelegramDelivered({ leadId, deliveryToken: 'wrong-token', notifiedAt: now });
 
       const afterLease = new Date(leaseUntil.getTime() + 1000);
       assert.deepEqual(await leadStore.listTelegramCandidates({ now: afterLease, limit: 10 }), [leadId]);
@@ -86,6 +83,7 @@ test(
         leaseUntil: new Date(afterLease.getTime() + 60_000),
         deliveryToken: secondToken,
       });
+      assert.ok(reclaimed);
       assert.equal(reclaimed.telegramAttempts, 2);
 
       await leadStore.markTelegramFailed({
@@ -102,12 +100,10 @@ test(
     } finally {
       await leadStore.close();
 
-      if (TEST_CONNECTION_STRING) {
-        const client = await createYdbClient();
-        await dropTable(client.sql, table);
-        await dropTable(client.sql, migrationTableName());
-        await client.close();
-      }
+      const client = await createYdbClient();
+      await dropTable(client.sql, table);
+      await dropTable(client.sql, migrationTableName());
+      await client.close();
 
       if (originalConnectionString === undefined) {
         delete process.env.YDB_CONNECTION_STRING;

@@ -45,9 +45,10 @@ Build (`scripts/build-static.cjs`) копирует `public/` → `dist/`, ин�
 | `functions/fitbase-schedule/src/fitbase/` | Fitbase API client и преобразование ответа |
 | `functions/fitbase-schedule/src/observability/logger.ts` | Structured logs и PII redaction |
 
-Исходники обеих функций находятся в `src/` и компилируются строгим TypeScript в локальный `build/`;
-тесты лежат в `__tests__/` рядом с соответствующими модулями и запускаются по собранному
-CommonJS, и в Yandex Cloud упаковывается только runtime JavaScript без TypeScript/devDependencies.
+Исходники обеих функций находятся в `src/` и компилируются строгим TypeScript в локальный `build/`.
+Unit и integration-тесты лежат в `__tests__/` рядом с модулями, импортируют исходный TypeScript и
+запускаются через `node --import tsx`. Собранный CommonJS проверяется отдельным deployment smoke-тестом;
+в Yandex Cloud упаковывается только runtime JavaScript без TypeScript/devDependencies.
 
 **telegram-lead env:** `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `ALLOWED_ORIGINS`,
 `YDB_CONNECTION_STRING`, `YDB_LEADS_TABLE`, `LEAD_RETENTION_DAYS`, `MAX_TELEGRAM_ATTEMPTS`

@@ -1,11 +1,9 @@
-'use strict';
+import assert from 'node:assert/strict';
+import test from 'node:test';
 
-/* eslint-disable @typescript-eslint/no-var-requires */
+import { mapScheduleItem, shouldIncludeItem, sortScheduleItems } from '../mapper';
 
-const assert = require('node:assert/strict');
-const test = require('node:test');
-
-const { mapScheduleItem, shouldIncludeItem, sortScheduleItems } = require('../../../build/fitbase/mapper');
+import type { ScheduleItem } from '../../types';
 
 test('maps Fitbase transport fields into the public schedule contract', () => {
   const mapped = mapScheduleItem({
@@ -33,7 +31,7 @@ test('filters non-public entries and sorts the remaining schedule chronologicall
     { date: '2026-08-10', timeStart: '09:00' },
     { date: '2026-08-09', timeStart: '12:00' },
     { date: '2026-08-09', timeStart: '10:00' },
-  ];
+  ] as ScheduleItem[];
 
   assert.deepEqual(
     sortScheduleItems(items).map(item => `${item.date} ${item.timeStart}`),

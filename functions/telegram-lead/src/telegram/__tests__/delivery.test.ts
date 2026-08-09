@@ -1,11 +1,7 @@
-'use strict';
+import assert from 'node:assert/strict';
+import test from 'node:test';
 
-/* eslint-disable @typescript-eslint/no-var-requires */
-
-const assert = require('node:assert/strict');
-const test = require('node:test');
-
-const { buildMessage } = require('../../../build/telegram/delivery');
+import { buildMessage } from '../delivery';
 
 const LEAD_ID = '1cc32f4f-8f06-4dc8-915f-92955c829523';
 

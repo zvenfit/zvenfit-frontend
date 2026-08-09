@@ -1,13 +1,9 @@
-'use strict';
+import assert from 'node:assert/strict';
+import test from 'node:test';
 
-/* eslint-disable @typescript-eslint/no-var-requires */
+import * as config from '../config';
 
-const assert = require('node:assert/strict');
-const test = require('node:test');
-
-const config = require('../../../build/ydb/config');
-
-function withEnv(name, value, callback) {
+function withEnv(name: string, value: string, callback: () => void): void {
   const previous = process.env[name];
   process.env[name] = value;
 

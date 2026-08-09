@@ -16,8 +16,9 @@
     "forceConsistentCasingInFileNames": true,
     "skipLibCheck": true,
     "sourceMap": false,
-    "declaration": false
+    "declaration": false,
+    "noEmit": true
   },
   "include": ["src/**/*.ts"],
-  "exclude": ["build", "node_modules", "__tests__"]
+  "exclude": ["build", "node_modules"]
 }

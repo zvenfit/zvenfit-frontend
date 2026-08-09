@@ -10,7 +10,7 @@
     "build": "node scripts/build-static.cjs",
     "build:functions": "npm --prefix functions/telegram-lead run build && npm --prefix functions/fitbase-schedule run build",
     "lint": "eslint \"src/**/*.{ts,tsx,js,jsx}\" --no-error-on-unmatched-pattern",
-    "lint:public": "eslint \"public/js/**/*.js\" \"functions/*/src/**/*.ts\" \"functions/*/src/**/__tests__/*.js\" \"functions/*/src/**/__tests__/integration/*.js\" --no-error-on-unmatched-pattern",
+    "lint:public": "eslint \"public/js/**/*.js\" \"functions/*/src/**/*.ts\" \"functions/*/src/__tests__/*.cjs\" --no-error-on-unmatched-pattern",
     "lint:fix": "npm run lint -- --fix",
     "import:telegram-leads": "npm --prefix functions/telegram-lead run build && node scripts/import-telegram-leads.cjs",
     "test:lead-fn": "npm --prefix functions/telegram-lead test",

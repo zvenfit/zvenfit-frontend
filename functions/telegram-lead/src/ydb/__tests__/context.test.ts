@@ -1,11 +1,7 @@
-'use strict';
+import assert from 'node:assert/strict';
+import test from 'node:test';
 
-/* eslint-disable @typescript-eslint/no-var-requires */
-
-const assert = require('node:assert/strict');
-const test = require('node:test');
-
-const { _private } = require('../../../build/ydb/context');
+import { _private } from '../context';
 
 test('unwraps the first YDB result set', () => {
   const rows = [{ lead_id: 'lead-1' }];
