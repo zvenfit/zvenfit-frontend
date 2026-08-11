@@ -1,0 +1,178 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+
+import { createInvocationMetrics, type InvocationMetrics } from '../metrics';
+
+import type { JsonObject, LoggerLike } from '../../types';
+
+interface TransportOptions {
+  endpoint: string;
+  headers: Record<string, string>;
+  timeoutMs: number;
+}
+
+class TestLogger implements LoggerLike {
+  public readonly errors: JsonObject[] = [];
+  public readonly warnings: JsonObject[] = [];
+
+  public error(fields: JsonObject): void {
+    this.errors.push(fields);
+  }
+
+  public warn(fields: JsonObject): void {
+    this.warnings.push(fields);
+  }
+}
+
+function enabledEnv(overrides: NodeJS.ProcessEnv = {}): NodeJS.ProcessEnv {
+  return {
+    MONIUM_METRICS_ENABLED: 'true',
+    MONIUM_PROJECT: 'folder__test',
+    ...overrides,
+  };
+}
+
+test('stays inert when metrics are disabled', async () => {
+  const logger = new TestLogger();
+  let factoryCalls = 0;
+  const metrics = createInvocationMetrics(undefined, logger, {
+    env: {},
+    transportFactory: () => {
+      factoryCalls += 1;
+      throw new Error('must not initialize');
+    },
+  });
+
+  metrics.addCounter('test_counter');
+  metrics.recordGauge('test_gauge', 1);
+  await metrics.flush();
+
+  assert.equal(factoryCalls, 0);
+  assert.deepEqual(logger.errors, []);
+  assert.deepEqual(logger.warnings, []);
+});
+
+test('requires an explicit project and the keyless function context token', () => {
+  const missingProjectLogger = new TestLogger();
+  createInvocationMetrics({ token: { access_token: 'iam-token' } }, missingProjectLogger, {
+    env: { MONIUM_METRICS_ENABLED: '1' },
+  });
+  assert.deepEqual(missingProjectLogger.warnings, [
+    { event: 'monium_metrics_misconfigured', reason: 'missing_project' },
+  ]);
+
+  const missingTokenLogger = new TestLogger();
+  createInvocationMetrics(undefined, missingTokenLogger, { env: enabledEnv() });
+  assert.deepEqual(missingTokenLogger.warnings, [
+    { event: 'monium_metrics_misconfigured', reason: 'missing_context_token' },
+  ]);
+});
+
+test('lazily records metrics with Monium headers and flushes only once', async () => {
+  const logger = new TestLogger();
+  const calls: Array<{ kind: string; name: string; value: number }> = [];
+  const transportOptions: TransportOptions[] = [];
+  let flushCalls = 0;
+  const metrics = createInvocationMetrics({ token: { access_token: 'iam-token' } }, logger, {
+    env: enabledEnv({
+      MONIUM_CLUSTER: 'production',
+      MONIUM_SERVICE: 'zvenfit-frontend',
+      MONIUM_METRICS_TIMEOUT_MS: '750',
+    }),
+    transportFactory: options => {
+      transportOptions.push(options);
+
+      return {
+        addCounter: (name, value) => calls.push({ kind: 'counter', name, value }),
+        recordGauge: (name, value) => calls.push({ kind: 'gauge', name, value }),
+        flush: async () => {
+          flushCalls += 1;
+        },
+      };
+    },
+  });
+
+  assert.equal(transportOptions.length, 0);
+  metrics.addCounter('lead_storage_errors', 2);
+  metrics.recordGauge('lead_pipeline_health', 1);
+  await metrics.flush();
+  await metrics.flush();
+
+  assert.deepEqual(calls, [
+    { kind: 'counter', name: 'lead_storage_errors', value: 2 },
+    { kind: 'gauge', name: 'lead_pipeline_health', value: 1 },
+  ]);
+  assert.equal(flushCalls, 1);
+  assert.deepEqual(transportOptions, [
+    {
+      endpoint: 'https://ingest.monium.yandex.cloud/otlp/v1/metrics',
+      headers: {
+        Authorization: 'Bearer iam-token',
+        'x-monium-project': 'folder__test',
+        'x-monium-cluster': 'production',
+        'x-monium-service': 'zvenfit-frontend',
+      },
+      timeoutMs: 750,
+    },
+  ]);
+  assert.deepEqual(logger.errors, []);
+});
+
+test('does not propagate initialization or export failures', async () => {
+  const initializationLogger = new TestLogger();
+  const initializationMetrics = createInvocationMetrics(
+    { token: { access_token: 'iam-token' } },
+    initializationLogger,
+    {
+      env: enabledEnv(),
+      transportFactory: () => {
+        throw Object.assign(new Error('unavailable'), { code: 'collector_unavailable' });
+      },
+    },
+  );
+
+  assert.doesNotThrow(() => initializationMetrics.addCounter('lead_storage_errors'));
+  assert.deepEqual(initializationLogger.errors, [
+    { event: 'monium_metrics_init_error', error_code: 'collector_unavailable' },
+  ]);
+
+  const exportLogger = new TestLogger();
+  const exportMetrics: InvocationMetrics = createInvocationMetrics(
+    { token: { access_token: 'iam-token' } },
+    exportLogger,
+    {
+      env: enabledEnv(),
+      transportFactory: () => ({
+        addCounter() {},
+        recordGauge() {},
+        flush: async () => {
+          throw Object.assign(new Error('timeout'), { code: 'export_timeout' });
+        },
+      }),
+    },
+  );
+
+  exportMetrics.addCounter('lead_storage_errors');
+  await assert.doesNotReject(exportMetrics.flush());
+  assert.deepEqual(exportLogger.errors, [{ event: 'monium_metrics_export_error', error_code: 'export_timeout' }]);
+  assert.equal(JSON.stringify(exportLogger.errors).includes('iam-token'), false);
+});
+
+test('bounds the exporter timeout', () => {
+  const observedTimeouts: number[] = [];
+  const logger = new TestLogger();
+
+  for (const configured of ['10', '9000']) {
+    const metrics = createInvocationMetrics({ token: { access_token: 'iam-token' } }, logger, {
+      env: enabledEnv({ MONIUM_METRICS_TIMEOUT_MS: configured }),
+      transportFactory: options => {
+        observedTimeouts.push(options.timeoutMs);
+
+        return { addCounter() {}, recordGauge() {}, async flush() {} };
+      },
+    });
+    metrics.addCounter('test_counter');
+  }
+
+  assert.deepEqual(observedTimeouts, [100, 5000]);
+});

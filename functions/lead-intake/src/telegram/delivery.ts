@@ -32,7 +32,7 @@ export function buildMessage(payload: ClaimedLead): string {
     `ID: ${payload.leadId}`,
     `Имя: ${payload.name}`,
     `Телефон: ${payload.phone}`,
-    `Способ связи: ${payload.service}`,
+    `Способ связи: ${payload.contactMethod}`,
   ];
 
   if (payload.telegramUsername) {

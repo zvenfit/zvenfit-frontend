@@ -16,6 +16,7 @@
 | Monium project          | `folder__b1ge1e4iopttj79hfdfm` |
 | Cloud Logging group     | `default`                      |
 | Log cluster / service   | `default` / `default`          |
+| Application / environment | `zvenfit-frontend` / `production` |
 | Lead function           | `zvenfit-telegram-lead`        |
 | Schedule function       | `zvenfit-fitbase-schedule`     |
 | Cloud Logging retention | 3 days                         |
@@ -27,7 +28,7 @@ Cloud Logging автоматически показывает свои запи�
 Базовый селектор:
 
 ```text
-{project="folder__b1ge1e4iopttj79hfdfm", cluster="default", service="default"}
+{project="folder__b1ge1e4iopttj79hfdfm", cluster="default", service="default", meta.application="zvenfit-frontend", meta.environment="production"}
 ```
 
 ## События приложения
@@ -43,6 +44,9 @@ Telegram username, UTM и тело ответа Fitbase в лог не попа�
 | Event                                  | Meaning                                             | Severity   |
 | -------------------------------------- | --------------------------------------------------- | ---------- |
 | `lead_storage_error`                   | Новую заявку не удалось сохранить в YDB             | Critical   |
+| `lead_submission_blocked`              | Honeypot, размер или rate limit отклонил отправку     | Diagnostic |
+| `lead_rate_limit_error`                | Rate limiter недоступен; заявка пропущена fail-open   | Warning    |
+| `lead_persisted`                       | Новая валидная заявка сохранена                       | Diagnostic |
 | `telegram_delivery_state_error`        | Сбой YDB при обработке статуса Telegram             | Critical   |
 | `telegram_delivery_retry_error`        | Retry-задача не смогла обработать заявку            | Critical   |
 | `telegram_delivery_retry_scheduled`    | Telegram временно недоступен, будет retry           | Log only   |
@@ -66,7 +70,7 @@ Telegram username, UTM и тело ответа Fitbase в лог не попа�
 - Selector:
 
 ```text
-{project="folder__b1ge1e4iopttj79hfdfm", cluster="default", service="default", message=*"lead_storage_error|telegram_delivery_state_error|telegram_delivery_retry_error"}
+{project="folder__b1ge1e4iopttj79hfdfm", cluster="default", service="default", meta.application="zvenfit-frontend", meta.environment="production", message=*"lead_storage_error|telegram_delivery_state_error|telegram_delivery_retry_error"}
 ```
 
 ### 2. Permanent Telegram failures
@@ -76,7 +80,7 @@ Telegram username, UTM и тело ответа Fitbase в лог не попа�
 - Selector:
 
 ```text
-{project="folder__b1ge1e4iopttj79hfdfm", cluster="default", service="default", message=*"telegram_delivery_failed_permanently"}
+{project="folder__b1ge1e4iopttj79hfdfm", cluster="default", service="default", meta.application="zvenfit-frontend", meta.environment="production", message=*"telegram_delivery_failed_permanently"}
 ```
 
 ### 3. Fitbase errors
@@ -86,7 +90,7 @@ Telegram username, UTM и тело ответа Fitbase в лог не попа�
 - Selector:
 
 ```text
-{project="folder__b1ge1e4iopttj79hfdfm", cluster="default", service="default", message=*"fitbase_schedule_error|fitbase_schedule_misconfigured"}
+{project="folder__b1ge1e4iopttj79hfdfm", cluster="default", service="default", meta.application="zvenfit-frontend", meta.environment="production", message=*"fitbase_schedule_error|fitbase_schedule_misconfigured"}
 ```
 
 ### 4. YDB retries
@@ -96,7 +100,7 @@ Telegram username, UTM и тело ответа Fitbase в лог не попа�
 - Selector:
 
 ```text
-{project="folder__b1ge1e4iopttj79hfdfm", cluster="default", service="default", message=*"ydb_retry"}
+{project="folder__b1ge1e4iopttj79hfdfm", cluster="default", service="default", meta.application="zvenfit-frontend", meta.environment="production", message=*"ydb_retry"}
 ```
 
 ### 5. Slow YDB operations
@@ -106,53 +110,114 @@ Telegram username, UTM и тело ответа Fitbase в лог не попа�
 - Selector:
 
 ```text
-{project="folder__b1ge1e4iopttj79hfdfm", cluster="default", service="default", message=*"ydb_slow_operation"}
+{project="folder__b1ge1e4iopttj79hfdfm", cluster="default", service="default", meta.application="zvenfit-frontend", meta.environment="production", message=*"ydb_slow_operation"}
+```
+
+### 6. Rate-limited submissions
+
+- ID: `zvenfit_lead_rate_limited_5m`
+- Window: 5 minutes
+- Selector:
+
+```text
+{project="folder__b1ge1e4iopttj79hfdfm", cluster="default", service="default", meta.application="zvenfit-frontend", meta.environment="production", message=*"lead_submission_blocked", meta.reason="rate_limit"}
+```
+
+Поле `meta.reason` обязательно: honeypot и слишком большое тело запроса не должны
+увеличивать именно эту метрику.
+
+### 7. Persisted leads
+
+- ID: `zvenfit_leads_persisted_5m`
+- Window: 5 minutes
+- Selector:
+
+```text
+{project="folder__b1ge1e4iopttj79hfdfm", cluster="default", service="default", meta.application="zvenfit-frontend", meta.environment="production", message=*"lead_persisted"}
 ```
 
 Каждая операция также пишет `ydb_operation_completed` с полями `operation`,
 `duration_ms` и `retry_attempts`. Значения заявки и текст SQL в эти события не попадают.
 
-Monium создаст итоговые селекторы с `service="logging_aggregates"`. Перед
-созданием алерта скопируй их из карточек метрик, чтобы не зависеть от значения
-поля имени (`name`, `sensor` или `signal`) в текущей конфигурации шарда.
+Исходные логи читаются из `service="default"`, а все семь созданных агрегатов
+записываются в отдельный `service="logging_aggregates"`. Текущий шард использует
+метку `name` для ID, поэтому итоговый селектор имеет формат:
+
+```text
+{project="folder__b1ge1e4iopttj79hfdfm", cluster="default", service="logging_aggregates", name="<ID метрики>"}
+```
+
+Это проверено по карточкам созданных метрик. Перед созданием алерта всё равно
+сверяй итоговый селектор конкретной метрики: он является источником истины.
 
 ## Alerts
 
-Один раз создай канал **ZvenFit production alerts**:
+Один раз создай два канала, потому что один канал Monium поддерживает только
+один метод доставки:
 
-- primary: Telegram через `@YandexCloudNotify_bot` в отдельную админскую группу;
-- backup: email;
-- statuses: `Alarm`, `Warning`, `OK`;
-- repeat: every 30 minutes while the alert remains active.
+- **ZvenFit Telegram alerts** (`zvenfit_telegram_alerts`) — primary: Telegram
+  через `@YandexCloudNotify_bot` в отдельную админскую группу, со скриншотом;
+- **ZvenFit Email alerts** (`zvenfit_email_alerts`) — backup: email;
+- для обоих каналов включи статусы `Alarm`, `Warning`, `OK` и повтор каждые
+  30 минут, пока алерт остаётся активным.
 
 Отдельный бот Yandex Cloud важен: он сможет сообщить о проблеме, даже если бот
 заявок потерял токен, доступ к чату или был заблокирован.
 
-Создай шесть обычных алертов. Пять используют итоговые метрики по логам.
-Runtime alert использует бесплатную автоматическую метрику Cloud Functions:
+Создай девять обычных алертов. Семь используют итоговые метрики по логам,
+runtime alert — автоматическую метрику Cloud Functions, storage alert — две
+автоматические метрики YDB:
 
-| Alert ID                          | Metric                                   | Function | Alarm | Evaluation window | No data |
-| --------------------------------- | ---------------------------------------- | -------- | ----: | ----------------: | ------- |
-| `zvenfit-lead-storage`            | `zvenfit_lead_storage_errors_1m`         | `max`    | `> 0` |         5 minutes | OK      |
-| `zvenfit-telegram-delivery`       | `zvenfit_telegram_delivery_failed_1m`    | `max`    | `> 0` |         5 minutes | OK      |
-| `zvenfit-fitbase-schedule`        | `zvenfit_fitbase_errors_5m`              | `max`    | `> 0` |        10 minutes | OK      |
-| `zvenfit-function-runtime-errors` | `functions_errors` for both function IDs | `sum`    | `> 0` |         5 minutes | OK      |
-| `zvenfit-ydb-retries`             | `zvenfit_ydb_retries_5m`                 | `sum`    | `> 5` |        10 minutes | OK      |
-| `zvenfit-ydb-latency`             | `zvenfit_ydb_slow_operations_5m`         | `sum`    | `> 0` |        10 minutes | OK      |
+| Alert ID                          | Metric / signal                          | Function | Warning | Alarm   | Window | Delay | No data |
+| --------------------------------- | ---------------------------------------- | -------- | ------: | ------: | -----: | ----: | ------- |
+| `zvenfit_lead_storage_errors`     | `zvenfit_lead_storage_errors_1m`         | `max`    |   `> 0` |  `> 0.5` |     5m |    3m | OK      |
+| `zvenfit_permanent_telegram_failures` | `zvenfit_telegram_delivery_failed_1m` | `max` |   `> 0` |  `> 0.5` |     5m |    3m | OK      |
+| `zvenfit_fitbase_errors`          | `zvenfit_fitbase_errors_5m`              | `max`    |   `> 0` |  `> 0.5` |    10m |    3m | OK      |
+| `zvenfit_function_runtime_errors` | `functions_errors` for both function names | `sum`  |   `> 0` |  `> 0.5` |     5m |   30s | OK      |
+| `zvenfit_ydb_retries`             | `zvenfit_ydb_retries_5m`                 | `sum`    | `> 4.5` |  `> 5.5` |    10m |    3m | OK      |
+| `zvenfit_slow_ydb_operations`     | `zvenfit_ydb_slow_operations_5m`         | `sum`    |   `> 0` |  `> 0.5` |    10m |    3m | OK      |
+| `zvenfit_rate-limited_leads`      | `zvenfit_lead_rate_limited_5m`           | `sum`    |   `> 0` |    `> 5` |    10m |    3m | OK      |
+| `zvenfit_persisted_leads_volume`  | `zvenfit_leads_persisted_5m`             | `sum`    |  `> 10` |   `> 20` |    10m |    3m | OK      |
+| `zvenfit_ydb_storage_usage`       | query `C`, storage used percent           | `last`   | `>= 70` | `>= 85` |    15m |   30s | Warning |
+
+Monium требует `Alarm > Warning`. Для целочисленных счётчиков промежуточное
+значение `0.5` техническое: любая первая точка со значением `1` сразу получает
+статус `Alarm`. Задержка `3m` у log-based алертов учитывает максимальную задержку
+появления агрегата после закрытия окна.
 
 Селектор автоматической метрики runtime errors:
 
 ```text
-{project="folder__b1ge1e4iopttj79hfdfm", service="serverless-functions", name="functions_errors", resource_id="d4ea7c6tcac97hu62rab|d4e80noc1hjn2g8u0beq"}
+{project="folder__b1ge1e4iopttj79hfdfm", service="serverless-functions", name="functions_errors", resource_id="zvenfit-telegram-lead|zvenfit-fitbase-schedule"}
 ```
 
-Отсутствие точек считается `OK`: эти метрики появляются только при ошибках.
-Во все шесть алертов добавь канал **ZvenFit production alerts**.
+Несмотря на название метки, live Monitoring API возвращает в `resource_id`
+имена функций, а не их облачные ID `d4e…`. Селектор проверен по фактическим
+сериям `functions_errors` обеих production-функций.
+
+Для `zvenfit_ydb_storage_usage` создай три запроса в текстовом режиме:
+
+```text
+A: {project="folder__b1ge1e4iopttj79hfdfm", service="ydb", name="resources.storage.used_bytes", database.serverless="zvenfit-leads"}
+B: {project="folder__b1ge1e4iopttj79hfdfm", service="ydb", name="resources.storage.limit_bytes", database.serverless="zvenfit-leads"}
+C: (A / B) * 100
+```
+
+Проверять нужно запрос `C`. Фактические labels `service` и `database.serverless`
+проверены через Monitoring API для production-базы, а селекторы —
+в редакторе алертов Monium. Метрика `used_bytes` включает
+пользовательские данные, служебные данные и вторичные индексы, поэтому процент
+отражает реальный расход лимита.
+
+Для log-based и runtime алертов отсутствие точек считается `OK`. Для storage
+отсутствие любой из двух platform metrics считается `Warning`: потеря данных о
+заполнении базы не должна выглядеть как исправное состояние. Во все девять
+алертов добавь оба канала: **ZvenFit Telegram alerts** и **ZvenFit Email alerts**.
 
 ## Проверка доставки алертов
 
 После создания метрик, канала и алертов запусти smoke-тест. Он не вызывает функции,
-не пишет лиды и не содержит персональных данных, но намеренно переводит пять log-based
+не пишет лиды и не содержит персональных данных, но намеренно переводит семь log-based
 алертов в `ALARM`:
 
 ```bash
@@ -160,22 +225,26 @@ bash scripts/test-monitoring-alerts.sh --confirm
 ```
 
 Проверь, что уведомления пришли одновременно в Telegram и email, а затем дождись возврата
-алертов в `OK`. Runtime alert проверь встроенной кнопкой тестирования канала в Monitoring:
-намеренно ронять production-функцию для него не нужно.
+алертов в `OK`. Эта проверка подтверждает доставку обоих каналов. Для runtime alert
+сверь селектор обеих production-функций и политику `No data → OK`: отдельного теста
+канала в Monium нет, а намеренно ронять функции нельзя. Storage alert проверяется по
+живому значению `C`; синтетически заполнять production-базу для его проверки нельзя.
 
 ## Dashboard
 
 Для вызовов, runtime errors и latency используй готовые service dashboards
-Cloud Functions. В отдельный компактный dashboard добавь пять итоговых метрик
-выше столбцами (`max`, без интерполяции пропусков) и виджеты статуса шести
+Cloud Functions. В отдельный компактный dashboard добавь семь итоговых метрик
+выше столбцами (`max`, без интерполяции пропусков) и виджеты статуса девяти
 алертов. Для YDB отдельно выведи количество `ydb_retry`, `ydb_slow_operation`
-и p95 поля `duration_ms` из `ydb_operation_completed`.
+и p95 поля `duration_ms` из `ydb_operation_completed`, а также `C` — процент
+использованного хранилища.
 
 ## Cost estimate
 
 - Automatic Yandex Cloud metrics and service dashboards: free.
-- Five log-derived metrics at one point per window: less than `0.10 RUB/month`.
-- Six continuously evaluated alerts: about `6.48 RUB/month`.
+- Seven log-derived metrics at one point per window: less than `0.15 RUB/month`.
+- Nine continuously evaluated alerts: about `9.72 RUB/month` at the current
+  tariff of `1.5 RUB / 1000 alert-hours`.
 - Telegram and email notification channels: no separate charge; SMS and calls
   are not enabled.
 - Cloud Logging remains within its free tier at the current traffic. The group

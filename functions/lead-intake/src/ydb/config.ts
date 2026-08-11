@@ -1,5 +1,5 @@
 const DEFAULT_TABLE_NAME = 'leads';
-const DEFAULT_RETENTION_DAYS = 1096;
+const DEFAULT_RATE_LIMITS_TABLE_NAME = 'lead_rate_limits';
 const DEFAULT_QUERY_TIMEOUT_MS = 5000;
 const DEFAULT_SLOW_OPERATION_MS = 1000;
 const DEFAULT_SESSION_POOL_SIZE = 5;
@@ -28,6 +28,12 @@ export function migrationTableName(): string {
   return validateIdentifier(`${tableName()}_migrations`, 'invalid_ydb_migration_table_name');
 }
 
+export function rateLimitsTableName(): string {
+  const value = (process.env.YDB_RATE_LIMITS_TABLE || DEFAULT_RATE_LIMITS_TABLE_NAME).trim();
+
+  return validateIdentifier(value, 'invalid_ydb_rate_limits_table_name');
+}
+
 export function dueIndexName(): string {
   return 'idx_telegram_due';
 }
@@ -49,10 +55,6 @@ export function normalizeConnectionString(value: string | undefined): string {
   const databasePath = database.startsWith('/') ? database : `/${database}`;
 
   return `${parsed.protocol}//${parsed.host}${databasePath}`;
-}
-
-export function retentionDays(): number {
-  return parsePositiveInt(process.env.LEAD_RETENTION_DAYS, DEFAULT_RETENTION_DAYS);
 }
 
 export function queryTimeoutMs(): number {

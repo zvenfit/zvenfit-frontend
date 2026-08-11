@@ -29,6 +29,8 @@ test('writes Yandex Cloud structured JSON with request context and redaction', (
   const record = lines[0];
   assert.ok(record);
   assert.equal(record.level, 'ERROR');
+  assert.equal(record.application, 'zvenfit-frontend');
+  assert.equal(record.environment, 'production');
   assert.equal(record.service, 'zvenfit-fitbase-schedule');
   assert.equal(record.request_id, 'schedule-request-id');
   assert.equal(record.event, 'fitbase_schedule_error');

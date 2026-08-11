@@ -93,7 +93,7 @@ export function rowToLead(row: SqlRow): ClaimedLead {
     createdAt: dateValue(row.created_at),
     name: stringValue(row.name),
     phone: stringValue(row.phone),
-    service: stringValue(row.service),
+    contactMethod: stringValue(row.contact_method),
     telegramUsername: stringValue(row.telegram_username),
     utm,
     telegramAttempts: Number(row.telegram_attempts || 0),

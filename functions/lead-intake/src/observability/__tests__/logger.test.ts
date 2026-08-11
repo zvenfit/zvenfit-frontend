@@ -20,6 +20,8 @@ test('writes Yandex Cloud structured JSON and redacts lead PII and secrets', () 
       phone: '+7 999 111-22-33',
       utm: { utm_source: 'secret-campaign' },
       token: 'secret-token',
+      sourceIp: '203.0.113.10',
+      rate_key: 'hashed-rate-key',
       context: { token: { access_token: 'iam-secret' } },
     },
     'lead_storage_error',
@@ -30,6 +32,8 @@ test('writes Yandex Cloud structured JSON and redacts lead PII and secrets', () 
   assert.deepEqual(
     {
       level: record.level,
+      application: record.application,
+      environment: record.environment,
       service: record.service,
       request_id: record.request_id,
       event: record.event,
@@ -38,6 +42,8 @@ test('writes Yandex Cloud structured JSON and redacts lead PII and secrets', () 
     },
     {
       level: 'ERROR',
+      application: 'zvenfit-frontend',
+      environment: 'production',
       service: 'zvenfit-lead-intake',
       request_id: 'lead-request-id',
       event: 'lead_storage_error',
@@ -49,6 +55,8 @@ test('writes Yandex Cloud structured JSON and redacts lead PII and secrets', () 
   assert.equal(record.phone, '[REDACTED]');
   assert.equal(record.utm, '[REDACTED]');
   assert.equal(record.token, '[REDACTED]');
+  assert.equal(record.sourceIp, '[REDACTED]');
+  assert.equal(record.rate_key, '[REDACTED]');
   assert.equal(record.context.token, '[REDACTED]');
   assert.equal('pid' in record, false);
   assert.equal('hostname' in record, false);

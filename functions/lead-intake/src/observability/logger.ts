@@ -3,15 +3,23 @@ import { destination, pino, stdTimeFunctions, type DestinationStream, type Logge
 import type { FunctionContext } from '../types';
 
 const SERVICE = 'zvenfit-lead-intake';
+const APPLICATION = 'zvenfit-frontend';
 const REDACT_PATHS = [
   'name',
   'phone',
   'telegram_username',
   'telegramUsername',
+  'company_website',
+  'companyWebsite',
+  'source_ip',
+  'sourceIp',
+  'rate_key',
+  'rateKey',
   'utm',
   'body',
   'payload',
   'token',
+  'secret',
   'access_token',
   'authorization',
   'Authorization',
@@ -29,7 +37,11 @@ export function createLogger(destination?: DestinationStream): Logger {
 
   return pino(
     {
-      base: { service: SERVICE },
+      base: {
+        application: APPLICATION,
+        environment: process.env.NODE_ENV || 'production',
+        service: SERVICE,
+      },
       level: process.env.LOG_LEVEL || 'info',
       messageKey: 'message',
       formatters: {

@@ -39,13 +39,12 @@ export async function claimForTelegram({
             created_at,
             name,
             phone,
-            service,
+            contact_method,
             telegram_username,
             utm_json,
             telegram_status,
             telegram_attempts,
-            telegram_next_attempt_at,
-            telegram_lease_until
+            telegram_due_at
           FROM ${leadsTable}
           WHERE lead_id = ${leadId};
         `,
@@ -56,10 +55,10 @@ export async function claimForTelegram({
         return null;
       }
 
-      const pendingAndDue = row.telegram_status === 'pending' && toEpoch(row.telegram_next_attempt_at) <= now.getTime();
-      const abandonedLease = row.telegram_status === 'sending' && toEpoch(row.telegram_lease_until) <= now.getTime();
+      const due = toEpoch(row.telegram_due_at) <= now.getTime();
+      const readyStatus = row.telegram_status === 'pending' || row.telegram_status === 'sending';
 
-      if (!pendingAndDue && !abandonedLease) {
+      if (!readyStatus || !due) {
         return null;
       }
 
@@ -70,7 +69,6 @@ export async function claimForTelegram({
         SET
           telegram_status = ${'sending'},
           telegram_attempts = ${ydbUint32(attempts)},
-          telegram_lease_until = ${ydbTimestamp(leaseUntil)},
           telegram_due_at = ${ydbTimestamp(leaseUntil)},
           telegram_delivery_token = ${deliveryToken}
         WHERE lead_id = ${leadId};
@@ -95,15 +93,14 @@ export async function markTelegramDelivered({
   return observed('mark_telegram_delivered', logger, async () => {
     const sql = await getSql();
     const leadsTable = sql.identifier(tableName());
-
     await timed(
       sql`
         UPDATE ${leadsTable}
         SET
           telegram_status = ${'sent'},
           telegram_due_at = NULL,
-          telegram_delivery_token = ${''},
-          telegram_last_error = ${''},
+          telegram_delivery_token = NULL,
+          telegram_last_error = NULL,
           telegram_notified_at = ${ydbTimestamp(notifiedAt)}
         WHERE
           lead_id = ${leadId}
@@ -140,9 +137,8 @@ export async function markTelegramFailed({
         UPDATE ${leadsTable}
         SET
           telegram_status = ${status},
-          telegram_next_attempt_at = ${ydbTimestamp(failedAt)},
           telegram_due_at = ${dueAt},
-          telegram_delivery_token = ${''},
+          telegram_delivery_token = NULL,
           telegram_last_error = ${errorCode}
         WHERE
           lead_id = ${leadId}
@@ -177,7 +173,6 @@ export async function listTelegramCandidates({
           WHERE
             telegram_due_at <= ${nowValue}
             AND (telegram_status = ${'pending'} OR telegram_status = ${'sending'})
-            AND expires_at > ${nowValue}
           ORDER BY telegram_due_at, created_at, lead_id
           LIMIT ${safeLimit};
         `

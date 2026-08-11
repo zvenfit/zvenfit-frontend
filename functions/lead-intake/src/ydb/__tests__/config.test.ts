@@ -18,7 +18,7 @@ function withEnv(name: string, value: string, callback: () => void): void {
   }
 }
 
-test('validates data and migration table identifiers', () => {
+test('validates data, migration, and rate-limit table identifiers', () => {
   withEnv('YDB_LEADS_TABLE', 'leads_test', () => {
     assert.equal(config.tableName(), 'leads_test');
     assert.equal(config.migrationTableName(), 'leads_test_migrations');
@@ -26,6 +26,14 @@ test('validates data and migration table identifiers', () => {
 
   withEnv('YDB_LEADS_TABLE', 'leads; DROP TABLE leads', () => {
     assert.throws(() => config.tableName(), /invalid_ydb_table_name/);
+  });
+
+  withEnv('YDB_RATE_LIMITS_TABLE', 'lead_limits_test', () => {
+    assert.equal(config.rateLimitsTableName(), 'lead_limits_test');
+  });
+
+  withEnv('YDB_RATE_LIMITS_TABLE', 'limits; DROP TABLE leads', () => {
+    assert.throws(() => config.rateLimitsTableName(), /invalid_ydb_rate_limits_table_name/);
   });
 });
 

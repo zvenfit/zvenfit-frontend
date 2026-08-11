@@ -51,8 +51,11 @@ Unit и integration-тесты лежат в `__tests__/` рядом с моду
 в Yandex Cloud упаковывается только runtime JavaScript без TypeScript/devDependencies.
 
 **lead-intake env:** `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `ALLOWED_ORIGINS`,
-`YDB_CONNECTION_STRING`, `YDB_LEADS_TABLE`, `LEAD_RETENTION_DAYS`, `MAX_TELEGRAM_ATTEMPTS`
-**fitbase-schedule env:** `FITBASE_API_TOKEN`, `FITBASE_DOMAIN`, `FITBASE_CLUB_ID`, `ALLOWED_ORIGINS`
+`YDB_CONNECTION_STRING`, `YDB_LEADS_TABLE`, `YDB_RATE_LIMITS_TABLE`,
+`LEAD_RATE_LIMIT_SECRET`, `LEAD_RATE_LIMIT_MAX`, `LEAD_RATE_LIMIT_WINDOW_SECONDS`,
+`MAX_TELEGRAM_ATTEMPTS`, `NODE_ENV`
+**fitbase-schedule env:** `FITBASE_API_TOKEN`, `FITBASE_DOMAIN`, `FITBASE_CLUB_ID`,
+`ALLOWED_ORIGINS`, `NODE_ENV`
 
 ### Frontend (статика)
 

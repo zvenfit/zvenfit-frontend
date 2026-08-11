@@ -96,17 +96,26 @@ jobs:
 
       - name: Deploy Cloud Function
         env:
+          NODE_ENV: production
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          LEAD_RATE_LIMIT_SECRET: ${{ secrets.LEAD_RATE_LIMIT_SECRET }}
           ALLOWED_ORIGINS: ${{ env.ALLOWED_ORIGINS }}
           YC_LEAD_SERVICE_ACCOUNT_ID: ${{ vars.YC_LEAD_SERVICE_ACCOUNT_ID }}
           YDB_DATABASE_NAME: ${{ vars.YDB_DATABASE_NAME || 'zvenfit-leads' }}
           YDB_LEADS_TABLE: ${{ vars.YDB_LEADS_TABLE || 'leads' }}
-          LEAD_RETENTION_DAYS: ${{ vars.LEAD_RETENTION_DAYS || '1096' }}
+          YDB_RATE_LIMITS_TABLE: ${{ vars.YDB_RATE_LIMITS_TABLE || 'lead_rate_limits' }}
+          LEAD_RATE_LIMIT_MAX: ${{ vars.LEAD_RATE_LIMIT_MAX || '5' }}
+          LEAD_RATE_LIMIT_WINDOW_SECONDS: ${{ vars.LEAD_RATE_LIMIT_WINDOW_SECONDS || '600' }}
           MAX_TELEGRAM_ATTEMPTS: ${{ vars.MAX_TELEGRAM_ATTEMPTS || '12' }}
           YDB_QUERY_TIMEOUT_MS: ${{ vars.YDB_QUERY_TIMEOUT_MS || '5000' }}
           YDB_SLOW_OPERATION_MS: ${{ vars.YDB_SLOW_OPERATION_MS || '1000' }}
           YDB_SESSION_POOL_SIZE: ${{ vars.YDB_SESSION_POOL_SIZE || '5' }}
+          MONIUM_METRICS_ENABLED: 'true'
+          MONIUM_PROJECT: folder__${{ secrets.YC_FOLDER_ID }}
+          MONIUM_CLUSTER: 'default'
+          MONIUM_SERVICE: 'zvenfit-frontend'
+          MONIUM_METRICS_TIMEOUT_MS: '1000'
           LOG_LEVEL: ${{ env.LOG_LEVEL }}
         run: bash scripts/deploy-lead-intake.sh
 
@@ -156,6 +165,7 @@ jobs:
 
       - name: Deploy schedule Cloud Function
         env:
+          NODE_ENV: production
           FITBASE_API_TOKEN: ${{ secrets.FITBASE_API_TOKEN }}
           FITBASE_DOMAIN: zvenfit
           FITBASE_CLUB_ID: ${{ vars.FITBASE_CLUB_ID }}

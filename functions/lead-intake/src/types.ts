@@ -3,6 +3,11 @@ export type Headers = Record<string, string>;
 
 export interface FunctionContext {
   requestId?: string;
+  token?: {
+    access_token?: string;
+    expires_in?: number;
+    token_type?: string;
+  };
 }
 
 export interface HttpEvent {
@@ -11,6 +16,7 @@ export interface HttpEvent {
   httpMethod?: string;
   isBase64Encoded?: boolean;
   messages?: Array<{ event_metadata?: { event_type?: string } }>;
+  requestContext?: { identity?: { sourceIp?: string } };
 }
 
 export interface HttpResponse {
@@ -23,6 +29,11 @@ export interface LoggerLike {
   error(fields: JsonObject, message?: string): void;
   info?(fields: JsonObject, message?: string): void;
   warn?(fields: JsonObject, message?: string): void;
+}
+
+export interface ApplicationMetrics {
+  addCounter(name: string, value?: number): void;
+  flush(): Promise<void>;
 }
 
 export type UtmKey =
@@ -43,7 +54,7 @@ export interface Lead {
   createdAt: Date;
   name: string;
   phone: string;
-  service: string;
+  contactMethod: string;
   telegramUsername: string;
   utm: Utm;
 }
@@ -85,7 +96,9 @@ export interface LeadStore {
 export interface HandlerDependencies {
   loggerFactory(context?: FunctionContext): LoggerLike;
   maxAttempts(): number;
+  metricsFactory(context: FunctionContext | undefined, logger: LoggerLike): ApplicationMetrics;
   now(): Date;
+  rateLimiter(args: { sourceIp: string; now: Date; logger?: LoggerLike }): Promise<boolean>;
   store: LeadStore;
   telegramSender(lead: ClaimedLead): Promise<void>;
   uuid(): string;

@@ -12,7 +12,8 @@
 - [x] Некорректные элементы `trainers` от Fitbase отбрасываются без падения всего расписания.
 - [x] Unit/integration-тесты запускаются по TypeScript-исходникам из `src`.
 - [x] Создан отдельный runtime service account `zvenfit-lead-runtime` с ID
-      `ajeev1i4lcsf73pvi96p` и необходимыми ролями YDB/Cloud Functions.
+      `ajeev1i4lcsf73pvi96p` с точечными ролями YDB/Cloud Functions и
+      `monium.metrics.writer` для прямых OTLP-метрик.
 - [x] Логи не содержат имён, телефонов, Telegram username, UTM и секретов.
 
 ## 1. Подготовить GitHub
@@ -23,6 +24,7 @@
       `YC_LEAD_SERVICE_ACCOUNT_ID=ajeev1i4lcsf73pvi96p`.
 - [ ] В `@BotFather` отзови старый токен бота и получи новый.
 - [ ] Обнови GitHub Secret `TELEGRAM_BOT_TOKEN` новым значением.
+- [ ] Создай GitHub Secret `LEAD_RATE_LIMIT_SECRET`: `openssl rand -hex 32`.
 - [ ] Не присылай токен в чат и не записывай его в файлы проекта.
 - [ ] Убедись, что уже настроены Secrets:
       `YC_SA_JSON_KEY`, `YC_FOLDER_ID`, `TELEGRAM_CHAT_ID`,
@@ -62,7 +64,7 @@ SELECT
   created_at,
   name,
   phone,
-  service,
+  contact_method,
   telegram_status,
   telegram_attempts,
   telegram_last_error
@@ -102,11 +104,14 @@ npm run import:leads -- \
 Это одноразовое действие в интерфейсе Yandex Monitoring. Точные селекторы и
 пороги находятся в [monitoring.md](monitoring.md).
 
-- [ ] Создай пять log-based metrics.
-- [ ] Создай канал `ZvenFit production alerts`:
-      Telegram через `@YandexCloudNotify_bot` + резервный email.
+- [ ] Создай семь log-based metrics.
+- [ ] Создай канал `ZvenFit Telegram alerts` через `@YandexCloudNotify_bot`
+      в отдельную админскую группу.
+- [ ] Создай резервный канал `ZvenFit Email alerts`.
 - [ ] Включи уведомления для `Alarm`, `Warning`, `OK` и повтор каждые 30 минут.
-- [ ] Создай шесть алертов и подключи к каждому созданный канал.
+- [ ] Создай девять алертов и подключи к каждому оба канала.
+- [ ] Для `zvenfit_ydb_storage_usage` проверь запросы `A/B/C`, пороги Warning 70%,
+      Alarm 85% и политику `No data → Warning`.
 - [ ] Запусти синтетическую проверку:
 
 ```bash
@@ -115,8 +120,8 @@ bash scripts/test-monitoring-alerts.sh --confirm
 
 - [ ] Убедись, что сообщения пришли в Telegram и email, а алерты затем
       вернулись в `OK`.
-- [ ] Runtime alert проверь кнопкой тестирования канала — production-функции
-      специально ронять не нужно.
+- [ ] Для runtime alert сверь селектор обеих функций и `No data → OK`;
+      production-функции специально ронять не нужно.
 
 ## 6. После успешного запуска
 
@@ -125,12 +130,11 @@ bash scripts/test-monitoring-alerts.sh --confirm
 - [ ] После изменений CSS/JS проверь актуальный `ASSET_VERSION` и очистку CDN-кеша.
 - [ ] Удали тестовую заявку из рабочих процессов вручную, если она попала менеджерам.
 
-## Отложенное решение: защита от спама
+## Эскалация защиты от спама
 
-CAPTCHA сейчас не блокирует запуск. Начать лучше с невидимой защиты без трения
-для посетителей: honeypot, минимальное время заполнения и серверная проверка
-`Origin`. Если появится реальный автоматический спам, подключить Yandex
-SmartCaptcha.
+Honeypot и серверный rate limit уже включены в код. Если метрика
+`zvenfit_lead_rate_limited_5m` регулярно уходит в Alarm или спам проходит
+в пределах распределённых IP, отдельным решением подключить Yandex SmartCaptcha.
 
 ## Запуск считается завершённым, когда
 

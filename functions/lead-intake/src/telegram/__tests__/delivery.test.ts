@@ -11,7 +11,7 @@ test('message includes the stable lead id and selected attribution fields', () =
     createdAt: new Date('2026-08-08T12:00:00.000Z'),
     name: 'Анна',
     phone: '+7 (999) 111-22-33',
-    service: 'Telegram',
+    contactMethod: 'Telegram',
     telegramUsername: '@anna',
     utm: { utm_source: 'direct' },
     telegramAttempts: 1,

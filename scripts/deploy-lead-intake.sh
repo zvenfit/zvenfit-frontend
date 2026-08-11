@@ -8,19 +8,30 @@ FUNCTION_NAME="${YC_LEAD_FUNCTION_NAME:-zvenfit-telegram-lead}"
 TRIGGER_NAME="${YC_LEAD_RETRY_TRIGGER_NAME:-zvenfit-lead-telegram-retry}"
 YDB_DATABASE_NAME="${YDB_DATABASE_NAME:-zvenfit-leads}"
 YDB_LEADS_TABLE="${YDB_LEADS_TABLE:-leads}"
-LEAD_RETENTION_DAYS="${LEAD_RETENTION_DAYS:-1096}"
+YDB_RATE_LIMITS_TABLE="${YDB_RATE_LIMITS_TABLE:-lead_rate_limits}"
+LEAD_RATE_LIMIT_MAX="${LEAD_RATE_LIMIT_MAX:-5}"
+LEAD_RATE_LIMIT_WINDOW_SECONDS="${LEAD_RATE_LIMIT_WINDOW_SECONDS:-600}"
 MAX_TELEGRAM_ATTEMPTS="${MAX_TELEGRAM_ATTEMPTS:-12}"
 YDB_QUERY_TIMEOUT_MS="${YDB_QUERY_TIMEOUT_MS:-5000}"
 YDB_SLOW_OPERATION_MS="${YDB_SLOW_OPERATION_MS:-1000}"
 YDB_SESSION_POOL_SIZE="${YDB_SESSION_POOL_SIZE:-5}"
+MONIUM_METRICS_ENABLED="${MONIUM_METRICS_ENABLED:-true}"
+MONIUM_CLUSTER="${MONIUM_CLUSTER:-default}"
+MONIUM_SERVICE="${MONIUM_SERVICE:-zvenfit-frontend}"
+MONIUM_METRICS_TIMEOUT_MS="${MONIUM_METRICS_TIMEOUT_MS:-1000}"
 RUNTIME="${YC_LEAD_RUNTIME:-nodejs22}"
 MEMORY="${YC_LEAD_MEMORY:-256m}"
 TIMEOUT="${YC_LEAD_TIMEOUT:-30s}"
 ALLOWED_ORIGINS="${ALLOWED_ORIGINS:-https://zvenfit.ru,https://www.zvenfit.ru,https://zvenigorod.zvenfit.ru}"
 LOG_LEVEL="${LOG_LEVEL:-info}"
 
-if [[ -z "${TELEGRAM_BOT_TOKEN:-}" || -z "${TELEGRAM_CHAT_ID:-}" ]]; then
-  echo "deploy-lead-intake: set TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID" >&2
+if [[ -z "${TELEGRAM_BOT_TOKEN:-}" || -z "${TELEGRAM_CHAT_ID:-}" || -z "${LEAD_RATE_LIMIT_SECRET:-}" ]]; then
+  echo "deploy-lead-intake: set TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID and LEAD_RATE_LIMIT_SECRET" >&2
+  exit 1
+fi
+
+if (( ${#LEAD_RATE_LIMIT_SECRET} < 32 )); then
+  echo "deploy-lead-intake: LEAD_RATE_LIMIT_SECRET must contain at least 32 characters" >&2
   exit 1
 fi
 
@@ -33,6 +44,8 @@ if [[ -z "${YC_FOLDER_ID:-}" ]]; then
   echo "deploy-lead-intake: set YC_FOLDER_ID" >&2
   exit 1
 fi
+
+MONIUM_PROJECT="${MONIUM_PROJECT:-folder__${YC_FOLDER_ID}}"
 
 if [[ -z "${YC_LEAD_SERVICE_ACCOUNT_ID:-}" ]]; then
   echo "deploy-lead-intake: set YC_LEAD_SERVICE_ACCOUNT_ID for YDB access and timer invocation" >&2
@@ -72,6 +85,7 @@ npm --prefix "${ROOT_DIR}/functions/lead-intake" run test:integration
 YDB_ACCESS_TOKEN_CREDENTIALS="${LEAD_YDB_IAM_TOKEN}" \
 YDB_CONNECTION_STRING="${YDB_CONNECTION_STRING}" \
 YDB_LEADS_TABLE="${YDB_LEADS_TABLE}" \
+YDB_RATE_LIMITS_TABLE="${YDB_RATE_LIMITS_TABLE}" \
 YDB_QUERY_TIMEOUT_MS="${YDB_QUERY_TIMEOUT_MS}" \
 npm --prefix "${ROOT_DIR}/functions/lead-intake" run migrate
 
@@ -102,12 +116,21 @@ yc serverless function version create \
   --environment ALLOWED_ORIGINS="${ALLOWED_ORIGINS}" \
   --environment YDB_CONNECTION_STRING="${YDB_CONNECTION_STRING}" \
   --environment YDB_LEADS_TABLE="${YDB_LEADS_TABLE}" \
-  --environment LEAD_RETENTION_DAYS="${LEAD_RETENTION_DAYS}" \
+  --environment YDB_RATE_LIMITS_TABLE="${YDB_RATE_LIMITS_TABLE}" \
+  --environment LEAD_RATE_LIMIT_SECRET="${LEAD_RATE_LIMIT_SECRET}" \
+  --environment LEAD_RATE_LIMIT_MAX="${LEAD_RATE_LIMIT_MAX}" \
+  --environment LEAD_RATE_LIMIT_WINDOW_SECONDS="${LEAD_RATE_LIMIT_WINDOW_SECONDS}" \
   --environment MAX_TELEGRAM_ATTEMPTS="${MAX_TELEGRAM_ATTEMPTS}" \
   --environment YDB_QUERY_TIMEOUT_MS="${YDB_QUERY_TIMEOUT_MS}" \
   --environment YDB_SLOW_OPERATION_MS="${YDB_SLOW_OPERATION_MS}" \
   --environment YDB_SESSION_POOL_SIZE="${YDB_SESSION_POOL_SIZE}" \
-  --environment LOG_LEVEL="${LOG_LEVEL}"
+  --environment MONIUM_METRICS_ENABLED="${MONIUM_METRICS_ENABLED}" \
+  --environment MONIUM_PROJECT="${MONIUM_PROJECT}" \
+  --environment MONIUM_CLUSTER="${MONIUM_CLUSTER}" \
+  --environment MONIUM_SERVICE="${MONIUM_SERVICE}" \
+  --environment MONIUM_METRICS_TIMEOUT_MS="${MONIUM_METRICS_TIMEOUT_MS}" \
+  --environment LOG_LEVEL="${LOG_LEVEL}" \
+  --environment NODE_ENV="${NODE_ENV:-production}"
 
 yc serverless function allow-unauthenticated-invoke "${FUNCTION_NAME}"
 

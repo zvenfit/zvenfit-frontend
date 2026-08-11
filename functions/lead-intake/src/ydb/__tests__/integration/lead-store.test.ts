@@ -3,9 +3,10 @@ import { randomUUID } from 'node:crypto';
 import test from 'node:test';
 
 import { createYdbClient } from '../../client';
-import { migrationTableName, queryTimeoutMs } from '../../config';
+import { migrationTableName, queryTimeoutMs, rateLimitsTableName } from '../../config';
 import * as leadStore from '../../lead-store';
 import { runMigrations } from '../../migrations';
+import { consumeLeadRateLimit } from '../../rate-limit';
 
 import type { ClaimedLead, Lead, YdbSql } from '../../../types';
 
@@ -17,7 +18,7 @@ function lead(leadId: string, createdAt: Date): Lead {
     createdAt,
     name: 'Integration test',
     phone: '+7 000 000-00-00',
-    service: 'Позвонить',
+    contactMethod: 'Позвонить',
     telegramUsername: '',
     utm: { utm_source: 'integration' },
   };
@@ -35,7 +36,7 @@ async function dropTable(sql: YdbSql, name: string): Promise<void> {
 }
 
 test(
-  'YDB migrations, idempotency, indexed queue, claim lease, and delivery token work together',
+  'YDB migrations, rate limit, idempotency, indexed queue, claim lease, and delivery token work together',
   { skip: !TEST_CONNECTION_STRING },
   async () => {
     if (!TEST_CONNECTION_STRING) {
@@ -44,13 +45,18 @@ test(
 
     const originalConnectionString = process.env.YDB_CONNECTION_STRING;
     const originalTable = process.env.YDB_LEADS_TABLE;
+    const originalRateLimitsTable = process.env.YDB_RATE_LIMITS_TABLE;
+    const originalRateLimitSecret = process.env.LEAD_RATE_LIMIT_SECRET;
     const table = `leads_it_${randomUUID().replaceAll('-', '').slice(0, 12)}`;
+    const rateLimitsTable = `limits_it_${randomUUID().replaceAll('-', '').slice(0, 12)}`;
 
     process.env.YDB_CONNECTION_STRING = TEST_CONNECTION_STRING;
     process.env.YDB_LEADS_TABLE = table;
+    process.env.YDB_RATE_LIMITS_TABLE = rateLimitsTable;
+    process.env.LEAD_RATE_LIMIT_SECRET = 'integration-test-secret-not-production-32';
 
     try {
-      assert.deepEqual(await runMigrations({ log: { info() {} } }), [1, 2, 3, 4]);
+      assert.deepEqual(await runMigrations({ log: { info() {} } }), [1]);
       assert.deepEqual(await runMigrations({ log: { info() {} } }), []);
 
       const migrationClient = await createYdbClient();
@@ -58,14 +64,22 @@ test(
         const migrationsTable = migrationClient.sql.identifier(migrationTableName());
         await migrationClient.sql`
           DELETE FROM ${migrationsTable}
-          WHERE version = ${new migrationClient.types.Uint32(2)} OR version = ${new migrationClient.types.Uint32(4)};
+          WHERE version = ${new migrationClient.types.Uint32(1)};
         `.timeout(queryTimeoutMs());
       } finally {
         await migrationClient.close();
       }
 
-      assert.deepEqual(await runMigrations({ log: { info() {} } }), [2, 4]);
+      assert.deepEqual(await runMigrations({ log: { info() {} } }), [1]);
       assert.deepEqual(await runMigrations({ log: { info() {} } }), []);
+
+      const rateLimitResults = await Promise.all(
+        Array.from({ length: 6 }, () =>
+          consumeLeadRateLimit({ sourceIp: '203.0.113.10', now: new Date('2026-08-10T10:01:00.000Z') }),
+        ),
+      );
+      assert.equal(rateLimitResults.filter(Boolean).length, 5);
+      assert.equal(rateLimitResults.filter(result => !result).length, 1);
 
       const now = new Date();
       const leadId = randomUUID();
@@ -116,6 +130,7 @@ test(
 
       const client = await createYdbClient();
       await dropTable(client.sql, table);
+      await dropTable(client.sql, rateLimitsTableName());
       await dropTable(client.sql, migrationTableName());
       await client.close();
 
@@ -128,6 +143,16 @@ test(
         delete process.env.YDB_LEADS_TABLE;
       } else {
         process.env.YDB_LEADS_TABLE = originalTable;
+      }
+      if (originalRateLimitsTable === undefined) {
+        delete process.env.YDB_RATE_LIMITS_TABLE;
+      } else {
+        process.env.YDB_RATE_LIMITS_TABLE = originalRateLimitsTable;
+      }
+      if (originalRateLimitSecret === undefined) {
+        delete process.env.LEAD_RATE_LIMIT_SECRET;
+      } else {
+        process.env.LEAD_RATE_LIMIT_SECRET = originalRateLimitSecret;
       }
     }
   },

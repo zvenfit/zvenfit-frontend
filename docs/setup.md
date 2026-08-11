@@ -95,6 +95,7 @@ rm sa-key.json
 | `YC_FOLDER_ID`         | `yc config get folder-id`  | `b1g...`                                   |
 | `TELEGRAM_BOT_TOKEN`   | @BotFather                 | `123456:ABC...`                            |
 | `TELEGRAM_CHAT_ID`     | getUpdates                 | `-5161525132`                              |
+| `LEAD_RATE_LIMIT_SECRET` | `openssl rand -hex 32`    | Случайная строка для HMAC IP               |
 | `YC_ACCESS_KEY_ID`     | Статический ключ SA для S3 | Уже есть                                   |
 | `YC_SECRET_ACCESS_KEY` | Пара к `ACCESS_KEY_ID`     | Уже есть                                   |
 
@@ -110,14 +111,23 @@ rm sa-key.json
 | ----------------------- | --------------- | ------------------------------------------------------------------------- |
 | `YDB_DATABASE_NAME`     | `zvenfit-leads` | Имя Serverless БД                                                         |
 | `YDB_LEADS_TABLE`       | `leads`         | Таблица заявок                                                            |
-| `LEAD_RETENTION_DAYS`   | `1096`          | Срок хранения персональных данных (не менее трёх лет по текущей политике) |
+| `YDB_RATE_LIMITS_TABLE` | `lead_rate_limits` | Технические счётчики ограничения частоты                              |
+| `LEAD_RATE_LIMIT_MAX`   | `5`             | Допустимых заявок с одного IP за окно                                     |
+| `LEAD_RATE_LIMIT_WINDOW_SECONDS` | `600` | Размер окна ограничения частоты                                        |
 | `MAX_TELEGRAM_ATTEMPTS` | `12`            | После скольких попыток поставить статус `failed`                          |
 | `YDB_QUERY_TIMEOUT_MS`  | `5000`          | Клиентский таймаут операции/транзакции YDB                                |
 | `YDB_SLOW_OPERATION_MS` | `1000`          | Порог события `ydb_slow_operation`                                        |
 | `YDB_SESSION_POOL_SIZE` | `5`             | Максимум YDB-сессий на экземпляр функции                                  |
+| `MONIUM_METRICS_ENABLED` | `true`         | Включает прямую отправку метрик функции по OTLP                            |
+| `MONIUM_PROJECT`        | `folder__<YC_FOLDER_ID>` | Проект Monium; локальный deploy выводит его из folder ID          |
+| `MONIUM_CLUSTER`        | `default`       | Кластер прямых метрик                                                      |
+| `MONIUM_SERVICE`        | `zvenfit-frontend` | Сервис прямых метрик                                                    |
+| `MONIUM_METRICS_TIMEOUT_MS` | `1000`     | Максимальное ожидание отправки метрик в конце вызова                       |
+| `NODE_ENV`              | `production`    | Значение поля `environment` в structured logs функций                     |
 
 Для production создай отдельный runtime SA, выдай ему `ydb.editor` на базу и
-`functions.functionInvoker` на каталог, а его ID положи в `YC_LEAD_SERVICE_ACCOUNT_ID`.
+`functions.functionInvoker` на функцию, а также `monium.metrics.writer` на каталог.
+Его ID положи в `YC_LEAD_SERVICE_ACCOUNT_ID`.
 Workflow остановит deploy, если переменная отсутствует; CI SA как runtime-аккаунт не используется.
 
 ### 5. Первый деплой
@@ -155,6 +165,7 @@ export YC_FOLDER_ID=b1g...
 export YC_LEAD_SERVICE_ACCOUNT_ID=aje...
 export TELEGRAM_BOT_TOKEN=...
 export TELEGRAM_CHAT_ID=...
+export LEAD_RATE_LIMIT_SECRET="$(openssl rand -hex 32)"
 
 npm run deploy:lead-fn
 ```
@@ -209,8 +220,8 @@ curl -X POST "$URL" \
 
 ### Интеграционная проверка YDB
 
-Тест создаёт две случайно именованные временные таблицы, проверяет миграции,
-конкурентную идемпотентность, индексированную очередь, lease и delivery token,
+Тест создаёт три случайно именованные временные таблицы, проверяет миграции,
+конкурентную идемпотентность, rate limit, индексированную очередь, lease и delivery token,
 затем удаляет только эти тестовые таблицы:
 
 ```bash
@@ -229,7 +240,7 @@ SELECT
   created_at,
   name,
   phone,
-  service,
+  contact_method,
   telegram_status,
   telegram_attempts,
   telegram_last_error
@@ -239,9 +250,8 @@ LIMIT 100;
 ```
 
 Статусы уведомления: `pending`, `sending`, `sent`, `failed`. Доступ к таблице содержит
-персональные данные и должен быть только у тех, кто обрабатывает заявки. По умолчанию строки
-автоматически удаляются через 1096 дней, чтобы соответствовать опубликованной политике; изменение
-срока нужно синхронизировать с её текстом.
+персональные данные и должен быть только у тех, кто обрабатывает заявки. Заявки сохраняются
+без автоматического удаления. При отзыве согласия запись нужно удалить вручную.
 
 ### Импорт старых заявок из Telegram
 

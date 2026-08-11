@@ -12,7 +12,7 @@ const DEFAULT_SOURCE_KEY = 'zvenfit-leads-import';
 const FIELD_LABELS = {
   Имя: 'name',
   Телефон: 'phone',
-  'Способ связи': 'service',
+  'Способ связи': 'contactMethod',
   Телеграм: 'telegramUsername',
 };
 const UTM_LABELS = {
@@ -94,7 +94,7 @@ function parseLeadBlock(block, sourceKey) {
     notifiedAt: createdAt,
     name: '',
     phone: '',
-    service: '',
+    contactMethod: '',
     telegramUsername: '',
     utm: {},
   };
@@ -117,7 +117,7 @@ function parseLeadBlock(block, sourceKey) {
     }
   }
 
-  if (!lead.name || !lead.phone || !lead.service) {
+  if (!lead.name || !lead.phone || !lead.contactMethod) {
     return { error: 'required_field_missing', messageId };
   }
 

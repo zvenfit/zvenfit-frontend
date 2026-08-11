@@ -1,4 +1,4 @@
-import { retentionDays, tableName } from './config';
+import { tableName } from './config';
 import {
   getSql,
   firstResultSet,
@@ -10,10 +10,6 @@ import {
 } from './context';
 
 import type { Lead, LoggerLike, TelegramStatus } from '../types';
-
-function expiresAt(createdAt: Date): Date {
-  return new Date(createdAt.getTime() + retentionDays() * 24 * 60 * 60 * 1000);
-}
 
 export async function saveLead(
   lead: Lead,
@@ -42,36 +38,26 @@ export async function saveLead(
         INSERT INTO ${leadsTable} (
           lead_id,
           created_at,
-          expires_at,
           name,
           phone,
-          service,
+          contact_method,
           telegram_username,
           utm_json,
           telegram_status,
           telegram_attempts,
-          telegram_next_attempt_at,
-          telegram_lease_until,
-          telegram_due_at,
-          telegram_delivery_token,
-          telegram_last_error
+          telegram_due_at
         )
         VALUES (
           ${lead.leadId},
           ${createdAtValue},
-          ${ydbTimestamp(expiresAt(lead.createdAt))},
           ${lead.name},
           ${lead.phone},
-          ${lead.service},
+          ${lead.contactMethod},
           ${lead.telegramUsername},
           ${JSON.stringify(lead.utm)},
           ${'pending'},
           ${ydbUint32(0)},
-          ${createdAtValue},
-          ${createdAtValue},
-          ${createdAtValue},
-          ${''},
-          ${''}
+          ${createdAtValue}
         );
       `;
 
@@ -108,35 +94,25 @@ export async function importDeliveredLead(
         INSERT INTO ${leadsTable} (
           lead_id,
           created_at,
-          expires_at,
           name,
           phone,
-          service,
+          contact_method,
           telegram_username,
           utm_json,
           telegram_status,
           telegram_attempts,
-          telegram_next_attempt_at,
-          telegram_lease_until,
-          telegram_delivery_token,
-          telegram_last_error,
           telegram_notified_at
         )
         VALUES (
           ${lead.leadId},
           ${createdAtValue},
-          ${ydbTimestamp(expiresAt(lead.createdAt))},
           ${lead.name},
           ${lead.phone},
-          ${lead.service},
+          ${lead.contactMethod},
           ${lead.telegramUsername},
           ${JSON.stringify(lead.utm)},
           ${'sent'},
           ${ydbUint32(1)},
-          ${createdAtValue},
-          ${createdAtValue},
-          ${''},
-          ${''},
           ${ydbTimestamp(notifiedAt)}
         );
       `;
@@ -145,5 +121,3 @@ export async function importDeliveredLead(
     });
   });
 }
-
-export const _private = { expiresAt };

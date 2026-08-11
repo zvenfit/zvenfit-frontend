@@ -56,7 +56,7 @@ test('parses Telegram HTML leads without depending on sender blocks', () => {
     utm_campaign: 'spring:brand',
   });
   assert.equal(parsed.leads[0].createdAt.toISOString(), '2026-05-19T11:52:09.000Z');
-  assert.equal(parsed.leads[1].service, 'Телефон');
+  assert.equal(parsed.leads[1].contactMethod, 'Телефон');
 });
 
 test('rejects a lead with missing required fields without exposing field values', () => {

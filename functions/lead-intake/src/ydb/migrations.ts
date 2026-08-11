@@ -1,11 +1,12 @@
 import { createYdbClient } from './client';
-import { dueIndexName, migrationTableName, queryTimeoutMs, tableName } from './config';
+import { dueIndexName, migrationTableName, queryTimeoutMs, rateLimitsTableName, tableName } from './config';
 
 import type { YdbClient, YdbQuery } from '../types';
 
 interface MigrationContext extends YdbClient {
   leadsTable: unknown;
   migrationsTable: unknown;
+  rateLimitsTable: unknown;
   dueIndex: unknown;
 }
 
@@ -30,44 +31,60 @@ async function createLeadsTable({ sql, leadsTable }: MigrationContext): Promise<
       CREATE TABLE IF NOT EXISTS ${leadsTable} (
         lead_id Utf8 NOT NULL,
         created_at Timestamp NOT NULL,
-        expires_at Timestamp NOT NULL,
         name Utf8 NOT NULL,
         phone Utf8 NOT NULL,
-        service Utf8 NOT NULL,
+        contact_method Utf8 NOT NULL,
         telegram_username Utf8 NOT NULL,
         utm_json Utf8 NOT NULL,
         telegram_status Utf8 NOT NULL,
         telegram_attempts Uint32 NOT NULL,
-        telegram_next_attempt_at Timestamp NOT NULL,
-        telegram_lease_until Timestamp NOT NULL,
-        telegram_delivery_token Utf8 NOT NULL,
-        telegram_last_error Utf8 NOT NULL,
+        telegram_due_at Timestamp,
+        telegram_delivery_token Utf8,
+        telegram_last_error Utf8,
         telegram_notified_at Timestamp,
+        INDEX idx_telegram_due GLOBAL SYNC
+          ON (telegram_due_at, created_at)
+          COVER (telegram_status),
         PRIMARY KEY (lead_id)
-      )
-      WITH (
+      );
+    `.idempotent(true),
+  );
+}
+
+async function createRateLimitsTable({ sql, rateLimitsTable }: MigrationContext): Promise<void> {
+  await timed(
+    sql`
+      CREATE TABLE IF NOT EXISTS ${rateLimitsTable} (
+        rate_key Utf8 NOT NULL,
+        request_count Uint32 NOT NULL,
+        expires_at Timestamp NOT NULL,
+        PRIMARY KEY (rate_key)
+      ) WITH (
         TTL = Interval("PT0S") ON expires_at
       );
     `.idempotent(true),
   );
 }
 
-async function verifyBaseLeadSchema({ sql, leadsTable }: MigrationContext): Promise<void> {
+async function createLeadStorage(context: MigrationContext): Promise<void> {
+  await createLeadsTable(context);
+  await createRateLimitsTable(context);
+}
+
+async function verifyLeadColumns({ sql, leadsTable }: MigrationContext): Promise<void> {
   await timed(
     sql`
       SELECT
         lead_id,
         created_at,
-        expires_at,
         name,
         phone,
-        service,
+        contact_method,
         telegram_username,
         utm_json,
         telegram_status,
         telegram_attempts,
-        telegram_next_attempt_at,
-        telegram_lease_until,
+        telegram_due_at,
         telegram_delivery_token,
         telegram_last_error,
         telegram_notified_at
@@ -79,21 +96,11 @@ async function verifyBaseLeadSchema({ sql, leadsTable }: MigrationContext): Prom
   );
 }
 
-async function addTelegramDueAt({ sql, leadsTable }: MigrationContext): Promise<void> {
-  await timed(sql`
-    ALTER TABLE ${leadsTable}
-    ADD COLUMN telegram_due_at Timestamp;
-  `);
-}
-
-async function verifyTelegramDueAt({ sql, leadsTable, types }: MigrationContext): Promise<void> {
-  const now = new types.Timestamp(new Date());
-
+async function verifyRateLimitsSchema({ sql, rateLimitsTable }: MigrationContext): Promise<void> {
   await timed(
     sql`
-      SELECT telegram_due_at
-      FROM ${leadsTable}
-      WHERE telegram_due_at <= ${now}
+      SELECT rate_key, request_count, expires_at
+      FROM ${rateLimitsTable}
       LIMIT ${0};
     `
       .idempotent(true)
@@ -101,33 +108,14 @@ async function verifyTelegramDueAt({ sql, leadsTable, types }: MigrationContext)
   );
 }
 
-async function backfillTelegramDueAt({ sql, leadsTable }: MigrationContext): Promise<void> {
-  await timed(
-    sql`
-      UPDATE ${leadsTable}
-      SET telegram_due_at = CASE
-        WHEN telegram_status = ${'pending'} THEN telegram_next_attempt_at
-        WHEN telegram_status = ${'sending'} THEN telegram_lease_until
-        ELSE NULL
-      END;
-    `.idempotent(true),
-  );
-}
-
-async function addTelegramDueIndex({ sql, leadsTable, dueIndex }: MigrationContext): Promise<void> {
-  await timed(sql`
-    ALTER TABLE ${leadsTable}
-    ADD INDEX ${dueIndex} GLOBAL SYNC
-    ON (telegram_due_at, created_at)
-    COVER (telegram_status, expires_at);
-  `);
+async function verifyLeadStorage(context: MigrationContext): Promise<void> {
+  await verifyLeadColumns(context);
+  await validateLeadSchema(context);
+  await verifyRateLimitsSchema(context);
 }
 
 export const MIGRATIONS: readonly Migration[] = [
-  { version: 1, name: 'create_leads_table', apply: createLeadsTable, verify: verifyBaseLeadSchema },
-  { version: 2, name: 'add_telegram_due_at', apply: addTelegramDueAt, verify: verifyTelegramDueAt },
-  { version: 3, name: 'backfill_telegram_due_at', apply: backfillTelegramDueAt },
-  { version: 4, name: 'add_telegram_due_index', apply: addTelegramDueIndex, verify: validateLeadSchema },
+  { version: 1, name: 'create_lead_storage', apply: createLeadStorage, verify: verifyLeadStorage },
 ];
 
 async function ensureMigrationTable(sql: YdbClient['sql'], migrationsTable: unknown): Promise<void> {
@@ -185,7 +173,6 @@ async function validateLeadSchema({ sql, leadsTable, dueIndex, types }: Migratio
       WHERE
         telegram_due_at <= ${now}
         AND (telegram_status = ${'pending'} OR telegram_status = ${'sending'})
-        AND expires_at > ${now}
       ORDER BY telegram_due_at, created_at, lead_id
       LIMIT ${1};
     `
@@ -219,6 +206,7 @@ function migrationContext(client: YdbClient): MigrationContext {
     ...client,
     leadsTable: client.sql.identifier(tableName()),
     migrationsTable: client.sql.identifier(migrationTableName()),
+    rateLimitsTable: client.sql.identifier(rateLimitsTableName()),
     dueIndex: client.sql.identifier(dueIndexName()),
   };
 }
@@ -243,7 +231,7 @@ export async function runMigrations({ log = console }: { log?: MigrationLogger }
       completed.push(migration.version);
     }
 
-    await validateLeadSchema(context);
+    await verifyLeadStorage(context);
 
     return completed;
   } finally {
@@ -252,17 +240,17 @@ export async function runMigrations({ log = console }: { log?: MigrationLogger }
 }
 
 export const _private = {
-  addTelegramDueAt,
-  addTelegramDueIndex,
   applyMigration,
   appliedVersions,
-  backfillTelegramDueAt,
+  createLeadStorage,
   createLeadsTable,
+  createRateLimitsTable,
   ensureMigrationTable,
   migrationContext,
   recordMigration,
   timed,
   validateLeadSchema,
-  verifyBaseLeadSchema,
-  verifyTelegramDueAt,
+  verifyLeadColumns,
+  verifyLeadStorage,
+  verifyRateLimitsSchema,
 };

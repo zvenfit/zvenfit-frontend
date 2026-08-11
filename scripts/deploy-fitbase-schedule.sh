@@ -48,6 +48,7 @@ ENV_ARGS=(
   --environment "FITBASE_DOMAIN=${FITBASE_DOMAIN}"
   --environment "ALLOWED_ORIGINS=${ALLOWED_ORIGINS}"
   --environment "LOG_LEVEL=${LOG_LEVEL}"
+  --environment "NODE_ENV=${NODE_ENV:-production}"
 )
 
 if [[ -n "${FITBASE_CLUB_ID:-}" ]]; then

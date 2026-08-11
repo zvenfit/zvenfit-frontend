@@ -3,7 +3,14 @@ import test from 'node:test';
 
 import { _private } from '../handler';
 
-import type { ClaimedLead, HandlerDependencies, HttpEvent, HttpResponse, LeadStore } from '../types';
+import type {
+  ApplicationMetrics,
+  ClaimedLead,
+  HandlerDependencies,
+  HttpEvent,
+  HttpResponse,
+  LeadStore,
+} from '../types';
 
 const LEAD_ID = '1cc32f4f-8f06-4dc8-915f-92955c829523';
 const DELIVERY_ID = '927c6260-678d-42d1-9293-a0ed5061c184';
@@ -36,7 +43,7 @@ function claimedLead(overrides: Partial<ClaimedLead> = {}): ClaimedLead {
     createdAt: NOW,
     name: 'Анна',
     phone: '+7 (999) 111-22-33',
-    service: 'Telegram',
+    contactMethod: 'Telegram',
     telegramUsername: '@anna',
     utm: { utm_source: 'direct' },
     telegramAttempts: 1,
@@ -53,6 +60,7 @@ function dependencies(store: StoreMock, overrides: Partial<HandlerDependencies> 
     }),
     maxAttempts: () => 12,
     now: () => NOW,
+    rateLimiter: async () => true,
     store: store as LeadStore,
     telegramSender: async () => {},
     uuid: () => DELIVERY_ID,
@@ -210,6 +218,8 @@ test('POST does not resend a lead already marked as sent', async () => {
 
 test('POST returns 503 and does not call Telegram when durable storage fails', async () => {
   let telegramCalled = false;
+  let metricFlushes = 0;
+  const metricCounters: Array<{ name: string; value: number }> = [];
   const errorLogs: string[] = [];
   const store: StoreMock = {
     async saveLead() {
@@ -218,6 +228,15 @@ test('POST returns 503 and does not call Telegram when durable storage fails', a
   };
   const handler = _private.createHandler(
     dependencies(store, {
+      metricsFactory: () =>
+        ({
+          addCounter(name, value = 1) {
+            metricCounters.push({ name, value });
+          },
+          async flush() {
+            metricFlushes += 1;
+          },
+        }) satisfies ApplicationMetrics,
       async telegramSender() {
         telegramCalled = true;
       },
@@ -232,6 +251,8 @@ test('POST returns 503 and does not call Telegram when durable storage fails', a
     assert.equal(response.statusCode, 503);
     assert.deepEqual(readJson(response.body), { ok: false, error: 'storage_unavailable' });
     assert.equal(telegramCalled, false);
+    assert.deepEqual(metricCounters, [{ name: 'zvenfit_lead_storage_errors', value: 1 }]);
+    assert.equal(metricFlushes, 1);
     assert.deepEqual(JSON.parse(errorLogs[0] ?? ''), {
       event: 'lead_storage_error',
       lead_id: LEAD_ID,
@@ -257,6 +278,145 @@ test('POST rejects malformed idempotency key before persistence', async () => {
   assert.equal(response.statusCode, 400);
   assert.deepEqual(readJson(response.body), { ok: false, error: 'invalid_submission_id' });
   assert.equal(saved, false);
+});
+
+test('POST silently accepts honeypot submissions without persisting them', async () => {
+  let saved = false;
+  const warnings: Record<string, unknown>[] = [];
+  const store: StoreMock = {
+    async saveLead() {
+      saved = true;
+      throw new Error('unexpected_save');
+    },
+  };
+  const handler = _private.createHandler(
+    dependencies(store, {
+      loggerFactory: () => ({
+        error() {},
+        warn(fields) {
+          warnings.push(fields);
+        },
+      }),
+    }),
+  );
+  const response = await invokeHttp(handler, postEvent({ company_website: 'https://spam.example' }));
+
+  assert.equal(response.statusCode, 200);
+  assert.deepEqual(readJson(response.body), { ok: true });
+  assert.equal(saved, false);
+  assert.deepEqual(warnings, [{ event: 'lead_submission_blocked', reason: 'honeypot' }]);
+});
+
+test('POST rejects oversized payloads before parsing or persistence', async () => {
+  let saved = false;
+  const warnings: Record<string, unknown>[] = [];
+  const store: StoreMock = {
+    async saveLead() {
+      saved = true;
+      throw new Error('unexpected_save');
+    },
+  };
+  const handler = _private.createHandler(
+    dependencies(store, {
+      loggerFactory: () => ({
+        error() {},
+        warn(fields) {
+          warnings.push(fields);
+        },
+      }),
+    }),
+  );
+  const response = await invokeHttp(handler, { ...postEvent(), body: 'x'.repeat(16 * 1024 + 1) });
+
+  assert.equal(response.statusCode, 413);
+  assert.deepEqual(readJson(response.body), { ok: false, error: 'payload_too_large' });
+  assert.equal(saved, false);
+  assert.deepEqual(warnings, [{ event: 'lead_submission_blocked', reason: 'payload_too_large' }]);
+});
+
+test('POST rejects contact methods outside the form allowlist', async () => {
+  let saved = false;
+  const store: StoreMock = {
+    async saveLead() {
+      saved = true;
+      throw new Error('unexpected_save');
+    },
+  };
+  const handler = _private.createHandler(dependencies(store));
+  const response = await invokeHttp(handler, postEvent({ service: 'Email' }));
+
+  assert.equal(response.statusCode, 400);
+  assert.deepEqual(readJson(response.body), { ok: false, error: 'invalid_contact_method' });
+  assert.equal(saved, false);
+});
+
+test('POST rate-limits a source IP before persistence', async () => {
+  let saved = false;
+  const warnings: Record<string, unknown>[] = [];
+  const store: StoreMock = {
+    async saveLead() {
+      saved = true;
+      throw new Error('unexpected_save');
+    },
+  };
+  const handler = _private.createHandler(
+    dependencies(store, {
+      loggerFactory: () => ({
+        error() {},
+        warn(fields) {
+          warnings.push(fields);
+        },
+      }),
+      rateLimiter: async ({ sourceIp }) => {
+        assert.equal(sourceIp, '203.0.113.10');
+
+        return false;
+      },
+    }),
+  );
+  const response = await invokeHttp(handler, {
+    ...postEvent(),
+    requestContext: { identity: { sourceIp: '203.0.113.10' } },
+  });
+
+  assert.equal(response.statusCode, 429);
+  assert.deepEqual(readJson(response.body), { ok: false, error: 'rate_limit_exceeded' });
+  assert.equal(saved, false);
+  assert.deepEqual(warnings, [{ event: 'lead_submission_blocked', reason: 'rate_limit' }]);
+  assert.doesNotMatch(JSON.stringify(warnings), /203\.0\.113\.10/);
+});
+
+test('POST fails open without logging the IP when the rate limiter is unavailable', async () => {
+  const errors: Record<string, unknown>[] = [];
+  let saved = false;
+  const store: StoreMock = {
+    async saveLead() {
+      saved = true;
+
+      return { created: false, telegramStatus: 'sent' };
+    },
+  };
+  const handler = _private.createHandler(
+    dependencies(store, {
+      loggerFactory: () => ({
+        error(fields) {
+          errors.push(fields);
+        },
+      }),
+      rateLimiter: async () => {
+        throw new Error('database offline for 203.0.113.10');
+      },
+    }),
+  );
+  const response = await invokeHttp(handler, {
+    ...postEvent(),
+    requestContext: { identity: { sourceIp: '203.0.113.10' } },
+  });
+
+  assert.equal(response.statusCode, 200);
+  assert.equal(saved, true);
+  assert.deepEqual(errors, [{ event: 'lead_rate_limit_error', error_code: 'rate_limit_unavailable' }]);
+  assert.doesNotMatch(JSON.stringify(errors), /203\.0\.113\.10/);
 });
 
 test('timer retries persisted pending leads', async () => {
