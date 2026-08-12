@@ -2,7 +2,7 @@
   "siteUrl": "https://zvenfit.ru",
   "organization": {
     "name": "ZvenFit",
-    "logo": "https://storage.yandexcloud.net/zvenfit/v2/images/webclip.png",
+    "logo": "/images/zvenfit-logo.svg",
     "sameAs": [
       "https://vk.com/zvenfit",
       "https://t.me/zvenfit",

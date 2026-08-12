@@ -1,146 +1,78 @@
 # ZvenFit Frontend
 
-Static website (Webflow HTML) + build pipeline + 2 Yandex Cloud Functions + YDB Serverless.
+Статический сайт ZvenFit из Webflow-экспорта, две Yandex Cloud Functions и надёжное хранение заявок в YDB Serverless.
 
-**Agent / contributor guide:** [`AGENTS.md`](AGENTS.md)  
-**Backlog:** [`TODO.md`](TODO.md)
+- Инструкции для контрибьюторов и AI-агентов: [`AGENTS.md`](AGENTS.md)
+- Текущий backlog: [`TODO.md`](TODO.md)
+- Полная настройка инфраструктуры: [`docs/setup.md`](docs/setup.md)
+- Повторяемый production release checklist: [`docs/launch-checklist.md`](docs/launch-checklist.md)
 
-## Архитектура
-
-```
-┌─────────────┐
-│   Browser   │
-│ zvenfit.ru  │
-└──────┬──────┘
-       │
-       ├─ POST lead form (lead-form.js)
-       │      ↓
-       │  functions/lead-intake → YDB (source of truth)
-       │                           └→ Telegram notification
-       │                               ↑ retry timer
-       │
-       └─ GET /raspisanie/ (schedule.js)
-              ↓
-          functions/fitbase-schedule → Fitbase API
-```
-
-Build (`scripts/build-static.cjs`) копирует `public/` → `dist/`, инжектит snippets, API URLs, OG/JSON-LD.
-
-**Lead:** форма получает успех после сохранения в YDB. Telegram — уведомление; при его сбое заявка
-остаётся в таблице и повторно отправляется таймером. Токен бота находится только в Cloud Function env.
-
-## Файлы и зоны ответственности
-
-### Cloud Functions (бэкенд)
-
-| Файл                                    | Что делает                                            |
-| --------------------------------------- | ----------------------------------------------------- |
-| `functions/lead-intake/src/index.ts` | Точка входа Cloud Function, только реэкспорт из `handler.ts` |
-| `functions/lead-intake/src/handler.ts` | Оркестрация POST формы и retry timer |
-| `functions/lead-intake/src/telegram/delivery.ts` | Telegram API, lease и retry policy |
-| `functions/lead-intake/src/ydb/` | YDB client, migrations, сохранение лидов и очередь уведомлений |
-| `functions/lead-intake/src/observability/` | Pino, YDB latency/retries и безопасные error codes |
-| `functions/fitbase-schedule/src/index.ts` | Точка входа Cloud Function, только реэкспорт из `handler.ts` |
-| `functions/fitbase-schedule/src/handler.ts` | Оркестрация GET расписания |
-| `functions/fitbase-schedule/src/fitbase/` | Fitbase API client и преобразование ответа |
-| `functions/fitbase-schedule/src/observability/logger.ts` | Structured logs и PII redaction |
-
-Исходники обеих функций находятся в `src/` и компилируются строгим TypeScript в локальный `build/`.
-Unit и integration-тесты лежат в `__tests__/` рядом с модулями, импортируют исходный TypeScript и
-запускаются через `node --import tsx`. Собранный CommonJS проверяется отдельным deployment smoke-тестом;
-в Yandex Cloud упаковывается только runtime JavaScript без TypeScript/devDependencies.
-
-**lead-intake env:** `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `ALLOWED_ORIGINS`,
-`YDB_CONNECTION_STRING`, `YDB_LEADS_TABLE`, `YDB_RATE_LIMITS_TABLE`,
-`LEAD_RATE_LIMIT_SECRET`, `LEAD_RATE_LIMIT_MAX`, `LEAD_RATE_LIMIT_WINDOW_SECONDS`,
-`MAX_TELEGRAM_ATTEMPTS`, `NODE_ENV`
-**fitbase-schedule env:** `FITBASE_API_TOKEN`, `FITBASE_DOMAIN`, `FITBASE_CLUB_ID`,
-`ALLOWED_ORIGINS`, `NODE_ENV`
-
-### Frontend (статика)
-
-| Файл                                   | Что делает                                                   |
-| -------------------------------------- | ------------------------------------------------------------ |
-| `public/forma-dlya-zayavki/index.html` | Форма заявки (имя, телефон, способ связи, username Telegram) |
-| `public/js/lead-form.js`               | Отправка формы на Cloud Function, показ success/error        |
-| `public/js/lead-config.js`             | `window.ZVENFIT_LEAD_API` (подставляется при билде)          |
-| `public/raspisanie/index.html`         | Страница расписания                                          |
-| `public/js/schedule.js`                | UI расписания, запросы к schedule API                        |
-| `public/js/schedule-config.js`         | `window.ZVENFIT_SCHEDULE_API` (подставляется при билде)      |
-
-### Билд и деплой
-
-| Файл                                 | Что делает                                                                  |
-| ------------------------------------ | --------------------------------------------------------------------------- |
-| `scripts/build-static.cjs`           | Копирует `public/` → `dist/`, подставляет `LEAD_API_URL` в `lead-config.js` |
-| `scripts/deploy-lead-intake.sh`      | Создаёт YDB при необходимости, деплоит функцию и retry timer                |
-| `scripts/import-leads.cjs`           | Dry-run и идемпотентный импорт заявок из HTML-экспорта в YDB               |
-| `scripts/deploy-fitbase-schedule.sh` | Deploy schedule function                                                    |
-| `mock-server.js`                     | Local API :3000 (lead POST + schedule GET)                                  |
-| `.github/workflows/main.yml`         | CI: deploy both functions → build → S3                                      |
-
-### Документация
-
-| Файл                                | О чём                                                    |
-| ----------------------------------- | -------------------------------------------------------- |
-| `AGENTS.md`                         | Guide для AI-агента: архитектура, markers, task map      |
-| `docs/launch-checklist.md`          | Пошаговый чеклист первого production-запуска             |
-| `docs/setup.md`                     | Быстрый старт: @BotFather, `yc init`, SA, GitHub Actions |
-| `docs/monitoring.md`                | Логи, метрики, алерты и проверка доставки уведомлений    |
-| `docs/utm-attribution-marketing.md` | UTM для маркетинга                                       |
-
-### Сообщения не приходят в Telegram
-
-**Проверь:**
+## Быстрый старт
 
 ```bash
-# 1. Бот в группе?
-# 2. Токен правильный?
-curl "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/getMe"
-# Ответ: {"ok":true, "result": {...}}
-
-# 3. chat_id правильный?
-curl "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage" \
-  -d "chat_id=$TELEGRAM_CHAT_ID&text=test"
-```
-
-### GitHub Actions fail
-
-**deploy-function:**
-
-- `Authentication failed` → проверь `YC_SA_JSON_KEY` (валидный JSON?)
-- `Permission denied` → проверь роли Cloud Functions, Triggers и YDB по [`docs/setup.md`](docs/setup.md)
-- `Failed to get function URL` → функция создалась? Проверь консоль YC
-
-**deploy-site:**
-
-- `Upload files failed` → проверь `YC_ACCESS_KEY_ID` / `YC_SECRET_ACCESS_KEY`
-- CORS error → `ALLOWED_ORIGINS` в `main.yml` env
-
-## Monitoring
-
-Cloud Functions пишут структурированные события об ошибках YDB, Telegram и
-Fitbase через Pino без персональных данных. Селекторы для Monium, production-алерты,
-каналы уведомлений, дашборд и оценка стоимости описаны в
-[`docs/monitoring.md`](docs/monitoring.md).
-
-## Env variables
-
-Скопируй `.env.example` → `.env.development` (gitignored). См. комментарии в файле.
-
-## Local dev
-
-```bash
+cp .env.example .env.development
 npm install
 npm ci --prefix functions/lead-intake
 npm ci --prefix functions/fitbase-schedule
-npm run dev:watch   # mock API :3000 + rebuild + site :4173
+npm run dev:watch
+```
+
+Локально сайт открывается на `http://localhost:4173`, mock API — на `http://localhost:3000`.
+Расписание использует fixture, если в `.env.development` не задан `FITBASE_API_TOKEN`.
+
+## Архитектура
+
+```text
+Browser (zvenfit.ru)
+  ├─ POST lead form → lead-intake → YDB → Telegram
+  │                                  ↑ retry timer
+  └─ GET /raspisanie/ → fitbase-schedule → Fitbase API
+
+Local development
+  ├─ mock-server :3000
+  └─ static site :4173
+```
+
+Заявка считается принятой после сохранения в YDB. Telegram служит каналом уведомления: при временном сбое retry timer повторит доставку сохранённой заявки.
+
+## Где менять код
+
+| Зона | Источник |
+| --- | --- |
+| Статические страницы | `public/` |
+| Lead form | `public/forma-dlya-zayavki/`, `public/js/lead-form.js` |
+| Расписание | `public/raspisanie/`, `public/js/schedule.js` |
+| Lead API / YDB / Telegram | `functions/lead-intake/src/` |
+| Fitbase API | `functions/fitbase-schedule/src/` |
+| Build и HTML-инъекции | `scripts/build-static.cjs`, `scripts/snippets/` |
+| Production workflow | `.github/workflows/main.yml` |
+
+`dist/` генерируется и не редактируется вручную. После изменений HTML, CSS, JS или build-конфигурации запускай `npm run build` либо используй `npm run dev:watch`.
+
+## Проверки
+
+```bash
+npm run lint:public
 npm run test:lead-fn
 npm run test:schedule-fn
-npm run lint:public
+npm run test:monitoring
+npm run test:lead-import
 npm run test:build
 ```
 
-## Backlog
+После production deploy выполни read-only smoke-test. Он проверяет страницы, runtime-конфиги, CORS lead API и ответ schedule API, но не отправляет форму и не создаёт заявку:
 
-См. [`TODO.md`](TODO.md) — UI/a11y, infra, pre-release checklist.
+```bash
+npm run smoke:production
+```
+
+## Документация
+
+| Файл | Назначение |
+| --- | --- |
+| [`docs/setup.md`](docs/setup.md) | Yandex Cloud, YDB, Telegram, GitHub Secrets, локальная разработка и troubleshooting |
+| [`docs/launch-checklist.md`](docs/launch-checklist.md) | Повторяемая проверка каждого production-релиза |
+| [`docs/monitoring.md`](docs/monitoring.md) | Логи, метрики, алерты, dashboard и synthetic tests |
+| [`docs/utm-attribution-marketing.md`](docs/utm-attribution-marketing.md) | UTM-разметка для маркетинга |
+
+Секреты, реальные `.env*`, ключи сервисных аккаунтов и содержимое `knowledge-base/` нельзя коммитить или отправлять во внешние системы.
