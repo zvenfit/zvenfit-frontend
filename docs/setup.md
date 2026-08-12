@@ -241,6 +241,14 @@ env:
 
 ### Форма показывает ошибку
 
+Сначала запусти read-only production smoke-test. Он не создаёт заявку:
+
+```bash
+npm run smoke:production
+```
+
+Скрипт проверит production-страницу, инжектированный URL функции и CORS preflight. Если нужен полный end-to-end тест, следующий запрос создаст реальную запись в YDB и уведомление в Telegram:
+
 ```bash
 # 1. Проверь URL в билде
 curl https://zvenfit.ru/js/lead-config.js

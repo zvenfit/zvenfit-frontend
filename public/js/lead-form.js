@@ -7,11 +7,15 @@ document.addEventListener('DOMContentLoaded', function () {
 
   const successBlock = formRoot.querySelector('.success-message');
   const errorBlock = formRoot.querySelector('.error-message');
+  const errorText = errorBlock ? errorBlock.querySelector('.error') : null;
   const submitButton = form.querySelector('[type="submit"]');
+  const serviceSelect = form.querySelector('[name="service"]');
+  const telegramField = form.querySelector('.telegram-wrapper');
+  const telegramInput = form.querySelector('[name="telegram_username"]');
+  const firstField = form.querySelector('[name="name"]');
   const defaultSubmitLabel = submitButton ? submitButton.value : 'Отправить';
-  const defaultServiceValue = 'Позвонить';
-  const defaultServiceLabel = 'Позвонить';
   const successMessageMs = 5000;
+  const defaultErrorMessage = 'Не удалось отправить заявку. Проверьте соединение и попробуйте ещё раз.';
   let successTimer;
   let submissionId = '';
 
@@ -48,28 +52,22 @@ document.addEventListener('DOMContentLoaded', function () {
     successTimer = null;
   }
 
-  function resetCustomFields() {
-    const selected = document.querySelector('.select-selected');
-    const hidden = document.querySelector('input[name="service"]');
-    const telegramField = document.querySelector('.telegram-wrapper');
-    const telegramInput = document.querySelector('[name="telegram_username"]');
+  function syncContactFields() {
+    const usesTelegram = serviceSelect?.value === 'Telegram';
 
-    if (selected) {
-      selected.innerText = defaultServiceLabel;
-    }
-    if (hidden) {
-      hidden.value = defaultServiceValue;
-    }
     if (telegramField) {
-      telegramField.style.display = 'none';
+      telegramField.hidden = !usesTelegram;
     }
     if (telegramInput) {
-      telegramInput.required = false;
-      telegramInput.value = '';
+      telegramInput.required = usesTelegram;
+      telegramInput.setAttribute('aria-required', String(usesTelegram));
+      if (!usesTelegram) {
+        telegramInput.value = '';
+      }
     }
   }
 
-  function setFormState(state) {
+  function setFormState(state, message = defaultErrorMessage) {
     clearSuccessTimer();
 
     if (!state) {
@@ -88,6 +86,7 @@ document.addEventListener('DOMContentLoaded', function () {
       form.style.display = 'none';
       if (successBlock) {
         successBlock.style.display = 'block';
+        successBlock.focus();
       }
       if (errorBlock) {
         errorBlock.style.display = 'none';
@@ -99,6 +98,10 @@ document.addEventListener('DOMContentLoaded', function () {
       }
       if (errorBlock) {
         errorBlock.style.display = 'block';
+        if (errorText) {
+          errorText.textContent = message;
+        }
+        errorBlock.focus();
       }
     }
   }
@@ -109,7 +112,11 @@ document.addEventListener('DOMContentLoaded', function () {
     }
     submitButton.disabled = isSubmitting;
     submitButton.value = isSubmitting ? 'Отправляем...' : defaultSubmitLabel;
+    form.setAttribute('aria-busy', String(isSubmitting));
   }
+
+  serviceSelect?.addEventListener('change', syncContactFields);
+  syncContactFields();
 
   form.addEventListener('submit', async function (event) {
     event.preventDefault();
@@ -117,7 +124,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     const apiUrl = (window.ZVENFIT_LEAD_API || '').trim();
     if (!apiUrl || apiUrl === '__LEAD_API_URL__') {
-      setFormState('error');
+      setFormState('error', 'Форма временно недоступна. Позвоните нам или попробуйте отправить заявку позже.');
 
       return;
     }
@@ -154,7 +161,11 @@ document.addEventListener('DOMContentLoaded', function () {
       });
 
       if (!response.ok) {
-        setFormState('error');
+        const message =
+          response.status === 429
+            ? 'Слишком много попыток. Подождите несколько минут и попробуйте снова.'
+            : defaultErrorMessage;
+        setFormState('error', message);
 
         return;
       }
@@ -168,10 +179,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
       form.reset();
       submissionId = '';
-      resetCustomFields();
+      syncContactFields();
       setFormState('success');
       successTimer = setTimeout(function () {
         setFormState(null);
+        firstField?.focus();
       }, successMessageMs);
     } catch {
       setFormState('error');

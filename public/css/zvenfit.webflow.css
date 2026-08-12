@@ -29,6 +29,19 @@ body {
   line-height: 20px;
 }
 
+:where(
+  a[href],
+  button,
+  input,
+  select,
+  textarea,
+  summary,
+  [tabindex]:not([tabindex="-1"])
+):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
 .body {
   background-color: var(--bg);
   pointer-events: auto;
@@ -1248,6 +1261,10 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .grain-overlay {
+    background-image: none;
+  }
+
   .app-badges__link {
     transition: none;
   }
@@ -2196,10 +2213,16 @@ html[data-wf-page="69b540f958c9c44d220bcf1a"] a[href="#reviews"] {
   background-color: var(--purple);
   text-transform: uppercase;
   border-radius: 10px;
+  min-height: 44px;
   margin-top: 10px;
   padding: 10px 30px;
   font-size: 20px;
   font-weight: 500;
+}
+
+.submit-button:disabled {
+  cursor: wait;
+  opacity: 0.7;
 }
 
 .text-field, .text-field-2 {
@@ -2216,12 +2239,38 @@ html[data-wf-page="69b540f958c9c44d220bcf1a"] a[href="#reviews"] {
 }
 
 .select-field {
-  background-color: var(--bg);
+  -webkit-appearance: none;
+  appearance: none;
+  border: 2px solid var(--white);
+  background-color: var(--bg-light);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5 6 6.5 11 1.5' fill='none' stroke='%23fff' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-position: right 16px center;
+  background-repeat: no-repeat;
+  background-size: 12px 8px;
   color: var(--white);
+  color-scheme: dark;
+  cursor: pointer;
   border-radius: 10px;
+  width: 100%;
+  height: 48px;
   margin-bottom: 20px;
+  padding: 8px 44px 8px 12px;
   font-family: Roboto, sans-serif;
-  display: none;
+  font-size: 20px;
+  font-weight: 400;
+  display: block;
+}
+
+.select-field:focus {
+  border-color: var(--white);
+  outline: none;
+  box-shadow: none;
+}
+
+.select-field:focus-visible {
+  border-color: var(--white);
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
 }
 
 .success-message {
@@ -2920,14 +2969,6 @@ html[data-wf-page="69b540f958c9c44d220bcf1a"] a[href="#reviews"] {
   display: flex;
 }
 
-.code-embed-7 {
-  text-transform: none;
-  margin-bottom: 20px;
-  font-family: Roboto, sans-serif;
-  font-size: 20px;
-  font-weight: 400;
-}
-
 .telegram-field {
   border: 2px solid var(--white);
   background-color: var(--transparent);
@@ -2977,6 +3018,10 @@ html[data-wf-page="69b540f958c9c44d220bcf1a"] a[href="#reviews"] {
 }
 
 .telegram-wrapper {
+  display: block;
+}
+
+.telegram-wrapper[hidden] {
   display: none;
 }
 
@@ -4010,10 +4055,6 @@ html[data-wf-page="69b540f958c9c44d220bcf1a"] a[href="#reviews"] {
     font-size: 22px;
   }
 
-  .code-embed-7 {
-    font-size: 20px;
-  }
-
   .smalltxt {
     font-size: 12px;
     line-height: 135%;
@@ -4573,7 +4614,7 @@ html[data-wf-page="69b540f958c9c44d220bcf1a"] a[href="#reviews"] {
     font-size: 20px;
   }
 
-  .code-embed-7, .telegram-field {
+  .telegram-field {
     font-size: 15px;
   }
 
@@ -5550,64 +5591,6 @@ html[data-wf-page="69b540f958c9c44d220bcf1a"] a[href="#reviews"] {
 
 .reviews-wrapper::-webkit-scrollbar {
   display: none;
-}
-
-.custom-select {
-  position: relative;
-}
-
-.select-selected {
-  background: #1a1a1a;
-  border: 2px solid white;
-  border-radius: 10px;
-  padding: 12px;
-  cursor: pointer;
-  min-height: 48px;
-  display: flex;
-  align-items: flex-start;
-  box-sizing: border-box;
-}
-
-.select-options {
-  display: none;
-  position: absolute;
-  width: 100%;
-  background: #1a1a1a;
-  border: 2px solid white;
-  border-radius: 10px;
-  margin-top: 5px;
-  overflow: hidden;
-  z-index: 10;
-}
-
-.select-options div {
-  padding: 10px;
-  font-size: 20px;
-  cursor: pointer;
-}
-
-.select-options div:hover {
-  background: #2a2a2a;
-}
-
-.select-options div:first-child:hover {
-  border-top-left-radius: 10px;
-  border-top-right-radius: 10px;
-}
-
-.select-options div:last-child:hover {
-  border-bottom-left-radius: 10px;
-  border-bottom-right-radius: 10px;
-}
-
-@media (max-width: 767px) {
-  .select-options div {
-    font-size: 15px;
-  }
-}
-
-.select-options div.active {
-  background: #2a2a2a;
 }
 
 /* Promo apps landing (/promos/apps/) */

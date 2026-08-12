@@ -1,147 +1,69 @@
-# Production launch checklist
+# Production release checklist
 
-Единый чеклист запуска надёжного хранения заявок в YDB, уведомлений в Telegram,
-расписания Fitbase и мониторинга. Выполняй пункты сверху вниз.
+Короткий повторяемый runbook для production-релизов ZvenFit. Первичная настройка Yandex Cloud, YDB, Telegram и GitHub Secrets вынесена в [`setup.md`](setup.md); мониторинг — в [`monitoring.md`](monitoring.md).
 
-## Уже готово в коде
+## Текущее состояние
 
-- [x] Изменения собраны в ветке `feature/durable-leads-ydb`.
-- [x] Заявка сначала сохраняется в YDB, а затем отправляется в Telegram.
-- [x] Retry timer повторяет доставку Telegram и не теряет сохранённый лид.
-- [x] YDB-миграции восстанавливаются после прерванного deploy.
-- [x] Некорректные элементы `trainers` от Fitbase отбрасываются без падения всего расписания.
-- [x] Unit/integration-тесты запускаются по TypeScript-исходникам из `src`.
-- [x] Создан отдельный runtime service account `zvenfit-lead-runtime` с ID
-      `ajeev1i4lcsf73pvi96p` с точечными ролями YDB/Cloud Functions и
-      `monium.metrics.writer` для прямых OTLP-метрик.
-- [x] Логи не содержат имён, телефонов, Telegram username, UTM и секретов.
+На 2026-08-13 в коде и локальной проектной документации зафиксированы:
 
-## 1. Подготовить GitHub
+- durable lead pipeline: YDB является источником истины, Telegram доставляется асинхронно;
+- retry timer, идемпотентность заявок и серверный rate limit;
+- production functions для lead intake и Fitbase schedule;
+- CI-проверки, миграции YDB, сборка сайта и deploy в Object Storage;
+- production monitoring dashboard, alert-конфигурация и synthetic test без персональных данных.
 
-Открой репозиторий GitHub → **Settings → Secrets and variables → Actions**.
+Старый план запуска ветки `feature/durable-leads-ydb` удалён: функциональность уже находится в `main`. Импорт старых Telegram-заявок и первоначальная ротация секретов — одноразовые исторические операции; повторять их при обычном релизе не нужно.
 
-- [ ] Создай repository variable:
-      `YC_LEAD_SERVICE_ACCOUNT_ID=ajeev1i4lcsf73pvi96p`.
-- [ ] В `@BotFather` отзови старый токен бота и получи новый.
-- [ ] Обнови GitHub Secret `TELEGRAM_BOT_TOKEN` новым значением.
-- [ ] Создай GitHub Secret `LEAD_RATE_LIMIT_SECRET`: `openssl rand -hex 32`.
-- [ ] Не присылай токен в чат и не записывай его в файлы проекта.
-- [ ] Убедись, что уже настроены Secrets:
-      `YC_SA_JSON_KEY`, `YC_FOLDER_ID`, `TELEGRAM_CHAT_ID`,
-      `YC_ACCESS_KEY_ID`, `YC_SECRET_ACCESS_KEY`, `FITBASE_API_TOKEN`.
-
-## 2. Проверить ветку и запустить deploy
-
-Перед отправкой ветки можно повторить локальные проверки:
+## Перед merge
 
 ```bash
+npm run lint:public
 npm run test:lead-fn
 npm run test:schedule-fn
 npm run test:monitoring
-npm run lint:public
+npm run test:lead-import
 npm run test:build
 ```
 
-- [ ] Запуши `feature/durable-leads-ydb` в GitHub.
-- [ ] Создай PR в `main`, дождись зелёных проверок и влей его.
-- [ ] Открой **Actions → Deploy to Production** и дождись успешного workflow.
-- [ ] Проверь, что прошли шаги YDB integration test, migrations, deploy обеих
-      функций, создание retry timer, сборка сайта и загрузка в Object Storage.
+- [ ] Все проверки завершились успешно.
+- [ ] В diff нет секретов, персональных данных, реальных `.env*` и содержимого `knowledge-base/`.
+- [ ] Для изменений CSS/JS используется новый `ASSET_VERSION` — workflow по умолчанию берёт номер запуска.
 
-Workflow сам создаст/обновит таблицы YDB, функции и минутный retry timer.
-Не прерывай workflow во время шага миграций.
+## После deploy
 
-## 3. Smoke-проверка production
+1. Дождись успешного завершения workflow **Deploy to Production**.
+2. Запусти read-only smoke-test:
 
-- [ ] Открой <https://zvenfit.ru/forma-dlya-zayavki/> и отправь одну явно тестовую заявку.
-- [ ] Убедись, что форма показала успешную отправку.
-- [ ] Убедись, что сообщение пришло в рабочий Telegram-чат.
-- [ ] В Yandex Cloud открой YDB → `zvenfit-leads` → Query и проверь запись:
+   ```bash
+   npm run smoke:production
+   ```
 
-```sql
-SELECT
-  lead_id,
-  created_at,
-  name,
-  phone,
-  contact_method,
-  telegram_status,
-  telegram_attempts,
-  telegram_last_error
-FROM leads
-ORDER BY created_at DESC
-LIMIT 20;
-```
+   Он проверяет обе страницы, подставленные API URL, CORS lead API через `OPTIONS` и JSON-ответ schedule API. Запрос `POST` не выполняется, запись в YDB не создаётся, Telegram не вызывается.
 
-- [ ] У тестовой заявки должен быть статус `sent`. Статус `pending` допустим
-      только временно: retry timer должен позднее перевести его в `sent`.
-- [ ] Открой <https://zvenfit.ru/raspisanie/> и проверь, что расписание загружается.
+3. Открой production dashboard из [`monitoring.md`](monitoring.md) и проверь:
 
-## 4. Импортировать старые заявки из Telegram
+   - retry worker heartbeat поступает;
+   - очередь Telegram не растёт и не содержит старых `pending`/`sending`;
+   - runtime, YDB, Fitbase и rate-limit health alerts находятся в `OK`;
+   - после deploy нет нового всплеска ошибок.
 
-Архив находится в:
-`/Users/nelmad/Downloads/Telegram Lite/ChatExport_2026-08-08`.
-Найди внутри HTML-файл с сообщениями, обычно `messages.html`.
+- [ ] Workflow завершился успешно.
+- [ ] `npm run smoke:production` завершился успешно.
+- [ ] Dashboard остаётся зелёным минимум десять минут после deploy.
 
-Сначала обязательный dry-run — он ничего не записывает в YDB:
+## Когда нужен реальный тестовый лид
 
-```bash
-npm run import:leads -- \
-  --file "/Users/nelmad/Downloads/Telegram Lite/ChatExport_2026-08-08/messages.html"
-```
+Отправляй явно помеченную тестовую заявку только если менялись payload формы, lead handler, YDB persistence, Telegram delivery или retry timer. После проверки удали её из рабочих процессов менеджеров.
 
-- [ ] Проверь итог dry-run: `rejected` должен быть равен `0`, а число
-      распознанных заявок — выглядеть правдоподобно.
-- [ ] Если результат корректный, выполни импорт по инструкции
-      [setup.md](setup.md#импорт-старых-заявок-из-telegram) с флагом `--apply`.
-- [ ] Повтори SQL-запрос из предыдущего раздела и выборочно проверь старые заявки.
+Проверка считается успешной, когда заявка:
 
-Импорт идемпотентен: повторный запуск одного экспорта не создаёт дубликаты.
-Архив содержит персональные данные — не добавляй его в Git.
+- появилась в YDB;
+- получила `telegram_status = sent` (временный `pending` допустим до срабатывания timer);
+- пришла в рабочий Telegram-чат ровно один раз.
 
-## 5. Настроить алерты
+## Операции не для каждого релиза
 
-Это одноразовое действие в интерфейсе Yandex Monitoring. Точные селекторы и
-пороги находятся в [monitoring.md](monitoring.md).
-
-- [ ] Создай семь log-based metrics.
-- [ ] Создай канал `ZvenFit Telegram alerts` через `@YandexCloudNotify_bot`
-      в отдельную админскую группу.
-- [ ] Создай резервный канал `ZvenFit Email alerts`.
-- [ ] Включи уведомления для `Alarm`, `Warning`, `OK` и повтор каждые 30 минут.
-- [ ] Создай тринадцать алертов и подключи к каждому оба канала.
-- [ ] Для `zvenfit_retry_worker_heartbeat` проверь политику `No data → Alarm`.
-- [ ] Для `zvenfit_telegram_delivery_backlog` проверь Warning 10 минут и Alarm 30 минут.
-- [ ] Для `zvenfit_ydb_storage_usage` проверь запросы `A/B/C`, пороги Warning 70%,
-      Alarm 85% и политику `No data → Warning`.
-- [ ] Запусти синтетическую проверку:
-
-```bash
-bash scripts/test-monitoring-alerts.sh --confirm
-```
-
-- [ ] Убедись, что сообщения пришли в Telegram и email, а алерты затем
-      вернулись в `OK`.
-- [ ] Для runtime alert сверь селектор обеих функций и `No data → OK`;
-      production-функции специально ронять не нужно.
-
-## 6. После успешного запуска
-
-- [ ] В течение первых суток проверь логи функций и статусы заявок в YDB.
-- [ ] Убедись, что нет заявок, надолго оставшихся в `pending` или `failed`.
-- [ ] После изменений CSS/JS проверь актуальный `ASSET_VERSION` и очистку CDN-кеша.
-- [ ] Удали тестовую заявку из рабочих процессов вручную, если она попала менеджерам.
-
-## Эскалация защиты от спама
-
-Honeypot и серверный rate limit уже включены в код. Если метрика
-`zvenfit_lead_rate_limited_5m` регулярно уходит в Alarm или спам проходит
-в пределах распределённых IP, отдельным решением подключить Yandex SmartCaptcha.
-
-## Запуск считается завершённым, когда
-
-- новая заявка одновременно видна в YDB и Telegram;
-- при временном сбое Telegram заявка остаётся в YDB и доставляется retry timer;
-- расписание открывается даже при некорректных отдельных данных тренера;
-- старые заявки импортированы без `rejected` и дубликатов;
-- тестовые уведомления всех production-алертов получены в Telegram и email.
+- Импорт исторических заявок: [`setup.md`](setup.md#импорт-старых-заявок-из-telegram).
+- Ротация токенов и ключей: [`setup.md`](setup.md#ротация-секретов).
+- Проверка Telegram/email notification channels синтетическими событиями: [`monitoring.md`](monitoring.md#проверка-доставки-алертов).
+- SmartCaptcha: подключать только если honeypot и rate limit перестанут сдерживать реальный спам.

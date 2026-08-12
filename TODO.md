@@ -8,28 +8,25 @@ Agent guide: [`AGENTS.md`](AGENTS.md)
 
 ## Critical (a11y / mobile)
 
-- [ ] **App badges — touch targets**  
-  `<479px`: badge 32px, gap 6px. Target: ≥44×44px, gap ≥8px, wrap on narrow screens.
+- [x] **App badges — touch targets**
+  Badges use ≥44px hit area, ≥8px gaps and wrap on narrow screens.
 
-- [ ] **Global `:focus-visible`**  
-  Links, buttons, dropdown, app badges (slider arrows already OK).
+- [x] **Global `:focus-visible`**
+  Shared focus ring for links, buttons, form controls and custom focusable elements.
 
-- [ ] **Footer link contrast**  
-  `.link` `#727272` on `#020202` (~3.4:1) → ≥4.5:1 (e.g. `#9CA3AF`).
-
-- [ ] **`prefers-reduced-motion`**  
-  Disable/reduce `grain.gif` and non-essential slider transitions.
+- [x] **`prefers-reduced-motion`**
+  При системной настройке уменьшения движения отключается анимированный `grain.gif`; основные UI transitions и skeleton-анимации также сокращаются.
 
 ---
 
 ## High (UX / maintainability)
 
-- [ ] **Run build-static before deploy**  
-  Badges, OG, analytics, structured data inject only via `node scripts/build-static.cjs`.
+- [x] **Run build-static before deploy**
+  Production workflow запускает `npm run build` до загрузки сайта.
 
 - [ ] **Footer duplication**  
   `section-4` (desktop) + `section-3` (mobile): duplicate map + contacts + 2× Yandex iframe.  
-  → single snippet/marker source.
+  Отложено до перехода на шаблонизатор; затем вынести в единый template partial.
 
 - [ ] **Homepage social proof**  
   Testimonials block on `/` (reviews exist on service pages only).
@@ -46,8 +43,8 @@ Agent guide: [`AGENTS.md`](AGENTS.md)
 
 - [ ] **Auto-generate sitemap** from `public/**/*.html` (manual `sitemap.xml` drifts).
 
-- [ ] **Structured data — Organization logo**  
-  Replace `webclip.png` with brand logo ≥112×112.
+- [x] **Structured data — Organization logo**
+  Organization JSON-LD использует отдельный квадратный брендовый logo asset 512×512.
 
 - [ ] **Base typography**  
   `body` 14px/1.43 → prefer 16px/1.5 on mobile. Arial in fallback stack.
@@ -55,13 +52,13 @@ Agent guide: [`AGENTS.md`](AGENTS.md)
 - [ ] **Отзывы для группового зала** (`/gruppovye-trenirovki/`)  
   Секция `#reviews` и пункт меню скрыты CSS (`data-wf-page="69b540f958c9c44d220bcf1a"`) — сейчас там копипаста с тренажёрного. Нужны реальные отзывы про групповые → заменить контент, убрать hide-rule.
 
-- [ ] **Lead form (`forma-dlya-zayavki`)**  
-  Duplicate `id="label-select"`; custom select a11y; review `method="get"`; clearer errors.
+- [x] **Lead form (`forma-dlya-zayavki`)**
+  Native select, уникальные labels, `method="post"`, aria-live feedback и понятные ошибки.
 
-- [ ] **App badges polish**  
+- [x] **App badges polish**
   `cursor: pointer`, `:focus-visible`, footer `flex-wrap` on small widths.
 
-- [ ] **Map iframes** — add `title` for screen readers.
+- [x] **Map accessibility** — build заменяет iframe на region с `role` и `aria-label`.
 
 - [ ] **Purple accent contrast** — `#b949ff` on `#1a1a1a` for small text (WCAG AA).
 
@@ -73,12 +70,10 @@ Agent guide: [`AGENTS.md`](AGENTS.md)
 - [x] `.env.example` for local dev
 - [x] `npm run lint:public` — lint `public/js` + `functions`
 - [x] `npm run test:build` — build smoke check
-- [ ] Turnstile/reCAPTCHA on lead form (spam protection)
 - [x] Durable lead storage in YDB + Telegram retry timer
 - [x] Lead function unit tests in CI
-- [ ] Production lead smoke test after deploy (without creating a real lead)
-- [ ] Legal review: актуализировать срок хранения лидов и текст `/privacy/` (сейчас политика требует не менее трёх лет)
-- [ ] Consolidate `README.md` / `docs/setup.md` overlap (setup stays detailed, README — index)
+- [x] Production smoke test after deploy without creating a real lead (`npm run smoke:production`)
+- [x] Consolidate `README.md` / `docs/setup.md` overlap (setup stays detailed, README — index)
 
 ---
 
@@ -98,13 +93,21 @@ Agent guide: [`AGENTS.md`](AGENTS.md)
 
 ## Pre-release checklist
 
-- [ ] Touch targets ≥44px @ 375px
-- [ ] Focus visible on all interactives
+- [x] Touch targets ≥44px @ 375px
+- [x] Focus visible on all interactives
 - [ ] Footer/muted text contrast AA
-- [ ] Test `prefers-reduced-motion: reduce`
-- [ ] App badges present after build-static
-- [ ] Form IDs and a11y validated
-- [ ] Map iframe titles set
+- [x] Test `prefers-reduced-motion: reduce`
+- [x] App badges present after build-static
+- [x] Form IDs and a11y validated
+- [x] Built maps expose an accessible region label
+
+---
+
+## Deferred / by signal
+
+- **Footer link contrast** — сознательно не меняем текущий `#727272` в этом цикле.
+- **Legal retention review** — срок хранения лидов и `/privacy/` не пересматриваем без отдельной юридической задачи.
+- **SmartCaptcha** — honeypot и серверного rate limit сейчас достаточно; возвращаемся только при подтверждённом спаме.
 
 ---
 
