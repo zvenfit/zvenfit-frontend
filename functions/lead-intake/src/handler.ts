@@ -123,7 +123,9 @@ function createHandler(overrides: Partial<HandlerDependencies> = {}): CloudHandl
 
     try {
       if (isTimerEvent(event)) {
-        return retryPendingLeads(dependencies, logger);
+        const retrySummary = await retryPendingLeads(dependencies, logger);
+
+        return retrySummary;
       }
 
       const origins = allowedOrigins();
@@ -156,7 +158,9 @@ function createHandler(overrides: Partial<HandlerDependencies> = {}): CloudHandl
 
       const sourceIp = event.requestContext?.identity?.sourceIp?.trim() || '';
 
-      return persistLead(body, dependencies, logger, metrics, headers, sourceIp);
+      const response = await persistLead(body, dependencies, logger, metrics, headers, sourceIp);
+
+      return response;
     } finally {
       await metrics.flush();
     }
