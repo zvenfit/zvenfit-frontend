@@ -1,0 +1,14 @@
+---
+description: Git branch naming conventions for ZvenFit
+alwaysApply: true
+---
+
+# Git Branch Naming
+
+- Do not use the `codex/` prefix.
+- Choose a semantic prefix that matches the work:
+  - `feature/` for new functionality.
+  - `bugfix/` for ordinary defect fixes.
+  - `hotfix/` for urgent production fixes.
+  - `chore/`, `docs/`, or `refactor/` when those categories fit better.
+- Keep the remainder short, lowercase, and kebab-case, for example `bugfix/telegram-ipv4`.
