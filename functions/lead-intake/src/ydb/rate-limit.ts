@@ -57,33 +57,38 @@ export async function consumeLeadRateLimit({
     const rateLimitsTable = sql.identifier(rateLimitsTableName());
     const key = rateKey(sourceIp, now, windowSeconds, secret);
     const expiresAt = new Date(windowStart(now, windowSeconds) + COUNTER_RETENTION_MS);
+    const maxRequestsValue = ydbUint32(maxRequests);
 
     return sql.begin(transactionOptions(), async tx => {
-      const rows = firstResultSet(
+      const updated = firstResultSet(
+        await tx`
+          UPDATE ${rateLimitsTable}
+          SET request_count = request_count + ${ydbUint32(1)}
+          WHERE
+            rate_key = ${key}
+            AND request_count < ${maxRequestsValue}
+          RETURNING request_count;
+        `,
+      );
+      if (updated.length > 0) {
+        return true;
+      }
+
+      const existing = firstResultSet(
         await tx`
           SELECT request_count
           FROM ${rateLimitsTable}
           WHERE rate_key = ${key};
         `,
       );
-      const currentCount = Number(rows[0]?.request_count || 0);
-
-      if (currentCount >= maxRequests) {
+      if (existing.length > 0) {
         return false;
       }
 
-      if (rows.length === 0) {
-        await tx`
-          INSERT INTO ${rateLimitsTable} (rate_key, request_count, expires_at)
-          VALUES (${key}, ${ydbUint32(1)}, ${ydbTimestamp(expiresAt)});
-        `;
-      } else {
-        await tx`
-          UPDATE ${rateLimitsTable}
-          SET request_count = ${ydbUint32(currentCount + 1)}
-          WHERE rate_key = ${key};
-        `;
-      }
+      await tx`
+        INSERT INTO ${rateLimitsTable} (rate_key, request_count, expires_at)
+        VALUES (${key}, ${ydbUint32(1)}, ${ydbTimestamp(expiresAt)});
+      `;
 
       return true;
     });
