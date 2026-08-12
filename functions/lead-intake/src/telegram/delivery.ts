@@ -1,3 +1,5 @@
+import { setDefaultResultOrder } from 'node:dns';
+
 import { TRACKED_UTM_PARAMS, sanitize } from '../lead-payload';
 
 import type { ClaimedLead, HandlerDependencies, JsonObject, LoggerLike, UtmKey } from '../types';
@@ -8,6 +10,9 @@ const TELEGRAM_LEASE_MS = 2 * 60 * 1000;
 const DEFAULT_RETRY_BATCH_SIZE = 5;
 const MAX_RETRY_BATCH_SIZE = 25;
 const DEFAULT_MAX_TELEGRAM_ATTEMPTS = 12;
+
+// Yandex Cloud Functions has public IPv4 egress only, while Telegram DNS returns IPv6 first.
+setDefaultResultOrder('ipv4first');
 
 const UTM_LABELS: Record<UtmKey, string> = {
   utm_source: 'source',
