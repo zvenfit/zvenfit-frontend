@@ -45,7 +45,7 @@ yc config get folder-id  # b1g...
 
 ```bash
 export YC_FOLDER_ID=$(yc config get folder-id)
-export SA_NAME=github-ci-zvenfit
+export SA_NAME=zvenfit-ci-sa
 
 # Создать SA
 yc iam service-account create --name $SA_NAME
@@ -55,22 +55,7 @@ SA_ID=$(yc iam service-account get --name $SA_NAME --format json | jq -r '.id')
 
 yc resource-manager folder add-access-binding \
   --id $YC_FOLDER_ID \
-  --role functions.admin \
-  --service-account-id $SA_ID
-
-yc resource-manager folder add-access-binding \
-  --id $YC_FOLDER_ID \
-  --role iam.serviceAccounts.user \
-  --service-account-id $SA_ID
-
-yc resource-manager folder add-access-binding \
-  --id $YC_FOLDER_ID \
-  --role functions.functionInvoker \
-  --service-account-id $SA_ID
-
-yc resource-manager folder add-access-binding \
-  --id $YC_FOLDER_ID \
-  --role ydb.editor \
+  --role functions.editor \
   --service-account-id $SA_ID
 
 # Создать авторизованный ключ
@@ -126,8 +111,58 @@ rm sa-key.json
 | `MONIUM_METRICS_TIMEOUT_MS` | `1000`     | Максимальное ожидание отправки метрик в конце вызова                       |
 | `NODE_ENV`              | `production`    | Значение поля `environment` в structured logs функций                     |
 
-Для production создай отдельный runtime SA, выдай ему `ydb.editor` на базу и
-`functions.functionInvoker` на функцию, а также `monium.telemetry.writer` на каталог.
+До первого CI deploy создай YDB, обе функции и отдельный runtime SA под учётной
+записью администратора. Права CI и runtime выдаются на конкретные ресурсы:
+
+```bash
+export CI_SA_ID=$(yc iam service-account get --name zvenfit-ci-sa --format json | jq -r '.id')
+
+yc ydb database create \
+  --name zvenfit-leads \
+  --description="Durable ZvenFit website leads" \
+  --serverless \
+  --sls-storage-size=1GB \
+  --deletion-protection
+
+yc iam service-account create \
+  --name zvenfit-lead-runtime \
+  --description="Runtime identity for ZvenFit durable lead delivery"
+export RUNTIME_SA_ID=$(yc iam service-account get --name zvenfit-lead-runtime --format json | jq -r '.id')
+
+yc ydb database add-access-binding \
+  --name zvenfit-leads \
+  --role ydb.editor \
+  --service-account-id $CI_SA_ID
+
+yc ydb database add-access-binding \
+  --name zvenfit-leads \
+  --role ydb.editor \
+  --service-account-id $RUNTIME_SA_ID
+
+yc iam service-account add-access-binding \
+  --id $RUNTIME_SA_ID \
+  --role iam.serviceAccounts.user \
+  --service-account-id $CI_SA_ID
+
+yc resource-manager folder add-access-binding \
+  --id $YC_FOLDER_ID \
+  --role monium.metrics.writer \
+  --service-account-id $RUNTIME_SA_ID
+
+yc serverless function create --name zvenfit-telegram-lead
+yc serverless function allow-unauthenticated-invoke zvenfit-telegram-lead
+yc serverless function add-access-binding \
+  --name zvenfit-telegram-lead \
+  --role functions.functionInvoker \
+  --service-account-id $RUNTIME_SA_ID
+
+yc serverless function create --name zvenfit-fitbase-schedule
+yc serverless function allow-unauthenticated-invoke zvenfit-fitbase-schedule
+```
+
+Публичный `functionInvoker` назначается один раз администратором. Обычный deploy
+только проверяет этот binding и поэтому CI не нуждается в `functions.admin`.
+
 Создай для этого SA API key со scope `yc.monium.metrics.write` и сохрани его
 secret-часть в GitHub Secret `MONIUM_API_KEY`. OTLP не принимает IAM-токен из
 контекста Cloud Function: заголовок должен иметь вид `Authorization: Api-Key …`.
@@ -144,7 +179,7 @@ git push origin main
 
 **Что произойдёт:**
 
-1. Workflow создаёт Serverless БД `zvenfit-leads`, если её ещё нет; включена защита от удаления.
+1. Workflow проверяет заранее созданную Serverless БД `zvenfit-leads` с защитой от удаления.
 2. Создаёт временные таблицы и прогоняет YDB integration test; production-таблица не меняется.
 3. До переключения функции применяет версионированные восстанавливаемые YDB-миграции из
    `functions/lead-intake/src/ydb/migrations.ts`.
@@ -298,8 +333,10 @@ curl "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage" \
 **deploy-function:**
 
 - `Authentication failed` → проверь `YC_SA_JSON_KEY` (валидный JSON?)
-- ошибка создания YDB → роль `ydb.editor` на CI SA
-- ошибка создания timer trigger → `functions.admin` у CI SA и `functions.functionInvoker` у runtime SA
+- `YDB database ... must be provisioned` → создай БД один раз и выдай CI `ydb.editor` на эту БД
+- ошибка YDB integration test или migration → проверь `ydb.editor` у CI на базе `zvenfit-leads`
+- ошибка создания timer trigger → `functions.editor` у CI и `functions.functionInvoker` у runtime SA
+- `missing the one-time public functionInvoker binding` → один раз выполни указанную команду под администратором
 - функция отвечает `storage_unavailable` → runtime SA не имеет `ydb.editor` или неверен endpoint БД
 - `Failed to get function URL` → функция создалась? Проверь в консоли YC
 
