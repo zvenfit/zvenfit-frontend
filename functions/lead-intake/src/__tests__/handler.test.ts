@@ -113,6 +113,38 @@ test('POST persists a pending lead and returns before Telegram delivery', async 
   assert.deepEqual(savedLead.utm, { utm_source: 'direct' });
 });
 
+test('flushes metrics after asynchronous POST events have been recorded', async () => {
+  const order: string[] = [];
+  const store: StoreMock = {
+    async saveLead() {
+      await Promise.resolve();
+      order.push('lead_saved');
+
+      return { created: true, telegramStatus: 'pending' };
+    },
+  };
+  const handler = _private.createHandler(
+    dependencies(store, {
+      loggerFactory: () => ({
+        error() {},
+        info() {},
+      }),
+      metricsFactory: () => ({
+        addCounter(name) {
+          order.push(`metric:${name}`);
+        },
+        async flush() {
+          order.push('metrics_flushed');
+        },
+      }),
+    }),
+  );
+
+  await invokeHttp(handler);
+
+  assert.deepEqual(order, ['lead_saved', 'metric:zvenfit_leads_persisted_5m', 'metrics_flushed']);
+});
+
 test('timer keeps a persisted lead pending when Telegram is unavailable', async () => {
   let failedDelivery: FailedDelivery | undefined;
   const store: StoreMock = {
