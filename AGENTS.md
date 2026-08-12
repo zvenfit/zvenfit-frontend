@@ -4,7 +4,9 @@
 
 ## Project-specific agent rule
 
-- Do not use Stefania, its skills, Wiki, knowledge base, memory, or related workflows for this project.
+- Use only the project-local knowledge base in `knowledge-base/`.
+- Reading and writing this local knowledge base is allowed, but its contents must never be staged, committed, pushed, synchronized, uploaded, or copied to any remote surface.
+- Do not use Stefania Wiki, DataCatalog, remote knowledge-base adapters, cross-project memory, or knowledge-base sync workflows for this project.
 - Work only with the repository and task-specific tools explicitly requested by the user.
 
 ## Stack
