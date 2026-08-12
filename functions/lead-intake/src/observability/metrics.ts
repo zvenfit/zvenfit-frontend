@@ -1,8 +1,7 @@
-import { OTLPMetricExporter } from '@opentelemetry/exporter-metrics-otlp-proto';
-import { AggregationTemporality, MeterProvider, PeriodicExportingMetricReader } from '@opentelemetry/sdk-metrics';
+import { createOtelTransport, type MetricsTransport, type MetricsTransportOptions } from './otel-transport';
 
 import type { ApplicationMetrics, FunctionContext, LoggerLike } from '../types';
-import type { Meter, MetricAttributes } from '@opentelemetry/api';
+import type { MetricAttributes } from '@opentelemetry/api';
 
 const DEFAULT_ENDPOINT = 'https://ingest.monium.yandex.cloud/otlp/v1/metrics';
 const DEFAULT_CLUSTER = 'default';
@@ -10,9 +9,6 @@ const DEFAULT_SERVICE = 'zvenfit-frontend';
 const DEFAULT_TIMEOUT_MS = 1000;
 const MIN_TIMEOUT_MS = 100;
 const MAX_TIMEOUT_MS = 5000;
-const EXPORT_INTERVAL_MS = 60_000;
-const METER_NAME = 'zvenfit-lead-intake';
-const METER_VERSION = '1';
 
 export interface InvocationMetrics extends ApplicationMetrics {
   addCounter(name: string, value?: number, attributes?: MetricAttributes): void;
@@ -20,67 +16,11 @@ export interface InvocationMetrics extends ApplicationMetrics {
   flush(): Promise<void>;
 }
 
-interface MetricsTransport {
-  addCounter(name: string, value: number, attributes?: MetricAttributes): void;
-  recordGauge(name: string, value: number, attributes?: MetricAttributes): void;
-  flush(): Promise<void>;
-}
-
-interface MetricsTransportOptions {
-  endpoint: string;
-  headers: Record<string, string>;
-  timeoutMs: number;
-}
-
 type MetricsTransportFactory = (options: MetricsTransportOptions) => MetricsTransport;
 
 interface CreateInvocationMetricsOptions {
   env?: NodeJS.ProcessEnv;
   transportFactory?: MetricsTransportFactory;
-}
-
-class OtelMetricsTransport implements MetricsTransport {
-  private readonly counters = new Map<string, ReturnType<Meter['createCounter']>>();
-  private readonly gauges = new Map<string, ReturnType<Meter['createGauge']>>();
-  private readonly provider: MeterProvider;
-  private readonly meter: Meter;
-  private readonly timeoutMs: number;
-
-  public constructor(provider: MeterProvider, meter: Meter, timeoutMs: number) {
-    this.provider = provider;
-    this.meter = meter;
-    this.timeoutMs = timeoutMs;
-  }
-
-  public addCounter(name: string, value: number, attributes?: MetricAttributes): void {
-    let counter = this.counters.get(name);
-    if (!counter) {
-      counter = this.meter.createCounter(name);
-      this.counters.set(name, counter);
-    }
-    counter.add(value, attributes);
-  }
-
-  public recordGauge(name: string, value: number, attributes?: MetricAttributes): void {
-    let gauge = this.gauges.get(name);
-    if (!gauge) {
-      gauge = this.meter.createGauge(name);
-      this.gauges.set(name, gauge);
-    }
-    gauge.record(value, attributes);
-  }
-
-  public async flush(): Promise<void> {
-    const exportResult = await settle(this.provider.forceFlush({ timeoutMillis: this.timeoutMs }));
-    const shutdownResult = await settle(this.provider.shutdown({ timeoutMillis: this.timeoutMs }));
-
-    if (exportResult.status === 'rejected') {
-      throw exportResult.reason;
-    }
-    if (shutdownResult.status === 'rejected') {
-      throw shutdownResult.reason;
-    }
-  }
 }
 
 class LazyInvocationMetrics implements InvocationMetrics {
@@ -143,13 +83,6 @@ const NOOP_METRICS: InvocationMetrics = {
   async flush() {},
 };
 
-function settle<T>(promise: Promise<T>): Promise<PromiseSettledResult<T>> {
-  return promise.then(
-    value => ({ status: 'fulfilled', value }),
-    reason => ({ status: 'rejected', reason }),
-  );
-}
-
 function metricErrorCode(error: unknown): string {
   if (!(error instanceof Error)) {
     return 'metrics_error';
@@ -180,23 +113,6 @@ function metricsTimeoutMs(env: NodeJS.ProcessEnv): number {
   }
 
   return Math.min(Math.max(configured, MIN_TIMEOUT_MS), MAX_TIMEOUT_MS);
-}
-
-function createOtelTransport(options: MetricsTransportOptions): MetricsTransport {
-  const exporter = new OTLPMetricExporter({
-    url: options.endpoint,
-    headers: options.headers,
-    timeoutMillis: options.timeoutMs,
-    temporalityPreference: AggregationTemporality.DELTA,
-  });
-  const reader = new PeriodicExportingMetricReader({
-    exporter,
-    exportIntervalMillis: EXPORT_INTERVAL_MS,
-    exportTimeoutMillis: options.timeoutMs,
-  });
-  const provider = new MeterProvider({ readers: [reader] });
-
-  return new OtelMetricsTransport(provider, provider.getMeter(METER_NAME, METER_VERSION), options.timeoutMs);
 }
 
 export function createInvocationMetrics(
@@ -245,6 +161,7 @@ export const _private = {
   DEFAULT_SERVICE,
   MAX_TIMEOUT_MS,
   MIN_TIMEOUT_MS,
+  createOtelTransport,
   metricsEnabled,
   metricsTimeoutMs,
 };
