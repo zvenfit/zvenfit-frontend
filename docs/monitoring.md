@@ -11,15 +11,15 @@
 
 ## Текущая инфраструктура
 
-| Ресурс                  | Значение                       |
-| ----------------------- | ------------------------------ |
-| Monium project          | `folder__b1ge1e4iopttj79hfdfm` |
-| Cloud Logging group     | `default`                      |
-| Log cluster / service   | `default` / `default`          |
+| Ресурс                    | Значение                          |
+| ------------------------- | --------------------------------- |
+| Monium project            | `folder__b1ge1e4iopttj79hfdfm`    |
+| Cloud Logging group       | `default`                         |
+| Log cluster / service     | `default` / `default`             |
 | Application / environment | `zvenfit-frontend` / `production` |
-| Lead function           | `zvenfit-telegram-lead`        |
-| Schedule function       | `zvenfit-fitbase-schedule`     |
-| Cloud Logging retention | 3 days                         |
+| Lead function             | `zvenfit-telegram-lead`           |
+| Schedule function         | `zvenfit-fitbase-schedule`        |
+| Cloud Logging retention   | 3 days                            |
 
 Project dashboard: <https://monium.yandex.cloud/projects/folder__b1ge1e4iopttj79hfdfm/dashboards/zvenfit-production-monitoring>
 
@@ -43,21 +43,21 @@ Telegram username, UTM и тело ответа Fitbase в лог не попа�
 а известные поля с PII, телами запросов и секретами автоматически заменяются на
 `[REDACTED]`. Уровень можно менять переменной `LOG_LEVEL`, по умолчанию `info`.
 
-| Event                                  | Meaning                                             | Severity   |
-| -------------------------------------- | --------------------------------------------------- | ---------- |
-| `lead_storage_error`                   | Новую заявку не удалось сохранить в YDB             | Critical   |
-| `lead_submission_blocked`              | Honeypot, размер или rate limit отклонил отправку     | Diagnostic |
-| `lead_rate_limit_error`                | Rate limiter недоступен; заявка пропущена fail-open   | Warning    |
-| `lead_persisted`                       | Новая валидная заявка сохранена                       | Diagnostic |
-| `telegram_delivery_retry_error`        | Retry-задача не смогла обработать заявку            | Critical   |
-| `telegram_delivery_retry_scheduled`    | Telegram временно недоступен, будет retry           | Log only   |
-| `telegram_delivery_failed_permanently` | Исчерпаны попытки Telegram                          | Critical   |
-| `ydb_operation_completed`              | Длительность и число retry завершённой операции YDB | Diagnostic |
-| `ydb_retry`                            | YDB SDK повторил операцию после временной ошибки    | Warning    |
-| `ydb_slow_operation`                   | Операция YDB превысила `YDB_SLOW_OPERATION_MS`      | Warning    |
-| `ydb_operation_failed`                 | Операция YDB завершилась ошибкой                    | Critical   |
-| `fitbase_schedule_error`               | Fitbase вернул ошибку или недоступен                | Warning    |
-| `fitbase_schedule_misconfigured`       | В функции отсутствует Fitbase token                 | Critical   |
+| Event                                  | Meaning                                                      | Severity   |
+| -------------------------------------- | ------------------------------------------------------------ | ---------- |
+| `lead_storage_error`                   | Новую заявку не удалось сохранить в YDB                      | Critical   |
+| `lead_submission_blocked`              | Honeypot, размер или rate limit отклонил отправку            | Diagnostic |
+| `lead_rate_limit_error`                | Rate limiter недоступен; заявка пропущена fail-open          | Warning    |
+| `lead_persisted`                       | Новая валидная заявка сохранена                              | Diagnostic |
+| `telegram_delivery_retry_error`        | Retry-задача не смогла обработать заявку                     | Critical   |
+| `telegram_delivery_retry_scheduled`    | Telegram временно недоступен, будет retry                    | Log only   |
+| `telegram_delivery_failed_permanently` | Исчерпаны попытки Telegram                                   | Critical   |
+| `ydb_operation_completed`              | Длительность SQL-операции и число retry, без запуска клиента | Diagnostic |
+| `ydb_retry`                            | YDB SDK повторил операцию после временной ошибки             | Warning    |
+| `ydb_slow_operation`                   | Операция YDB превысила `YDB_SLOW_OPERATION_MS`               | Warning    |
+| `ydb_operation_failed`                 | Операция YDB завершилась ошибкой                             | Critical   |
+| `fitbase_schedule_error`               | Fitbase вернул ошибку или недоступен                         | Warning    |
+| `fitbase_schedule_misconfigured`       | В функции отсутствует Fitbase token                          | Critical   |
 
 ## Метрики по логам
 
@@ -169,21 +169,30 @@ Telegram username, UTM и тело ответа Fitbase в лог не попа�
 OTLP-метрики приложения, два runtime-сигнала — автоматическую метрику Cloud
 Functions, storage alert — две автоматические метрики YDB:
 
-| Alert ID                          | Metric / signal                          | Function | Warning | Alarm   | Window | Delay | No data |
-| --------------------------------- | ---------------------------------------- | -------- | ------: | ------: | -----: | ----: | ------- |
-| `zvenfit_lead_storage_errors`     | direct `zvenfit_lead_storage_errors`     | `max`    |   `> 0` |  `> 0.5` |     5m |   30s | OK      |
-| `zvenfit_permanent_telegram_failures` | direct `zvenfit_telegram_delivery_failed_1m` | `max` |   `> 0` |  `> 0.5` |     5m |   30s | OK      |
-| `zvenfit_fitbase_errors`          | `functions_errors`, schedule only        | `max`    |   `> 0` |  `> 0.5` |    10m |   30s | OK      |
-| `zvenfit_function_runtime_errors` | `functions_errors` for both function names | `sum`  |   `> 0` |  `> 0.5` |     5m |   30s | OK      |
-| `zvenfit_ydb_retries`             | direct `zvenfit_ydb_retries_5m`          | `sum`    | `> 4.5` |  `> 5.5` |    10m |   30s | OK      |
-| `zvenfit_slow_ydb_operations`     | direct `zvenfit_ydb_slow_operations_5m`  | `sum`    |   `> 0` |  `> 0.5` |    10m |   30s | OK      |
-| `zvenfit_rate-limited_leads`      | direct `zvenfit_lead_rate_limited_5m`    | `sum`    |   `> 0` |    `> 5` |    10m |   30s | OK      |
-| `zvenfit_persisted_leads_volume`  | direct `zvenfit_leads_persisted_5m`      | `sum`    |  `> 10` |   `> 20` |    10m |   30s | OK      |
-| `zvenfit_ydb_storage_usage`       | query `C`, storage used percent           | `last`   | `>= 70` | `>= 85` |    15m |   30s | Warning |
+| Alert ID                              | Metric / signal                              | Function | Warning |   Alarm | Window | Delay | No data |
+| ------------------------------------- | -------------------------------------------- | -------- | ------: | ------: | -----: | ----: | ------- |
+| `zvenfit_lead_storage_errors`         | direct `zvenfit_lead_storage_errors`         | `max`    |   `> 0` | `> 0.5` |     5m |   30s | OK      |
+| `zvenfit_permanent_telegram_failures` | direct `zvenfit_telegram_delivery_failed_1m` | `max`    |   `> 0` | `> 0.5` |     5m |   30s | OK      |
+| `zvenfit_fitbase_errors`              | `functions_errors`, schedule only            | `max`    |   `> 0` | `> 0.5` |    10m |   30s | OK      |
+| `zvenfit_function_runtime_errors`     | `functions_errors` for both function names   | `sum`    |   `> 0` | `> 0.5` |     5m |   30s | OK      |
+| `zvenfit_ydb_retries`                 | direct `zvenfit_ydb_retries_5m`              | `sum`    | `> 4.5` | `> 5.5` |    10m |   30s | OK      |
+| `zvenfit_slow_ydb_operations`         | direct `zvenfit_ydb_slow_operations_5m`      | `sum`    | `> 0.5` | `> 2.5` |    10m |   30s | OK      |
+| `zvenfit_rate-limited_leads`          | direct `zvenfit_lead_rate_limited_5m`        | `sum`    |   `> 0` |   `> 5` |    10m |   30s | OK      |
+| `zvenfit_persisted_leads_volume`      | direct `zvenfit_leads_persisted_5m`          | `sum`    |  `> 10` |  `> 20` |    10m |   30s | OK      |
+| `zvenfit_ydb_storage_usage`           | query `C`, storage used percent              | `last`   | `>= 70` | `>= 85` |    15m |   30s | Warning |
 
 Monium требует `Alarm > Warning`. Для целочисленных счётчиков промежуточное
-значение `0.5` техническое: любая первая точка со значением `1` сразу получает
-статус `Alarm`. Прямые и platform metrics используют задержку вычисления `30s`.
+значение `0.5` техническое. Для error counters первая точка со значением `1`
+сразу даёт `Alarm`; для slow YDB пороги намеренно разведены: единичное превышение
+даёт `Warning`, а `Alarm` требует минимум три превышения за 10 минут. Прямые и
+platform metrics используют задержку вычисления `30s`.
+
+Приложение экспортирует event counters с `DELTA` temporality. Каждая инвокация
+serverless-функции создаёт отдельный одноразовый MeterProvider, поэтому
+`CUMULATIVE` сбрасывал бы одну и ту же временную серию обратно в `1`. Latency
+операции измеряется после готовности YDB-клиента, чтобы холодное создание driver
+не выглядело как медленный SQL-запрос. Порог `YDB_SLOW_OPERATION_MS` относится
+именно к выполнению операции после инициализации клиента.
 
 Селектор прямой метрики ошибки сохранения:
 

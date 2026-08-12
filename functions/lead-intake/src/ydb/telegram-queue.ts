@@ -1,7 +1,6 @@
 import { dueIndexName, tableName } from './config';
 import {
   firstResultSet,
-  getSql,
   observed,
   rowToLead,
   stringValue,
@@ -27,8 +26,7 @@ export async function claimForTelegram({
   deliveryToken: string;
   logger?: LoggerLike;
 }): Promise<ClaimedLead | null> {
-  return observed('claim_for_telegram', logger, async () => {
-    const sql = await getSql();
+  return observed('claim_for_telegram', logger, async sql => {
     const leadsTable = sql.identifier(tableName());
 
     return sql.begin(transactionOptions(), async tx => {
@@ -90,8 +88,7 @@ export async function markTelegramDelivered({
   notifiedAt: Date;
   logger?: LoggerLike;
 }): Promise<void> {
-  return observed('mark_telegram_delivered', logger, async () => {
-    const sql = await getSql();
+  return observed('mark_telegram_delivered', logger, async sql => {
     const leadsTable = sql.identifier(tableName());
     await timed(
       sql`
@@ -126,8 +123,7 @@ export async function markTelegramFailed({
   terminal: boolean;
   logger?: LoggerLike;
 }): Promise<void> {
-  return observed('mark_telegram_failed', logger, async () => {
-    const sql = await getSql();
+  return observed('mark_telegram_failed', logger, async sql => {
     const leadsTable = sql.identifier(tableName());
     const status = terminal ? 'failed' : 'pending';
     const dueAt = terminal ? sql.fragment`NULL` : sql.fragment`${ydbTimestamp(failedAt)}`;
@@ -158,8 +154,7 @@ export async function listTelegramCandidates({
   limit: number;
   logger?: LoggerLike;
 }): Promise<string[]> {
-  return observed('list_telegram_candidates', logger, async () => {
-    const sql = await getSql();
+  return observed('list_telegram_candidates', logger, async sql => {
     const leadsTable = sql.identifier(tableName());
     const dueIndex = sql.identifier(dueIndexName());
     const safeLimit = Math.min(Math.max(Number(limit) || 1, 1), 100);

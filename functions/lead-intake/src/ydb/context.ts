@@ -1,6 +1,6 @@
 import { createYdbClient } from './client';
 import { queryTimeoutMs } from './config';
-import { observeYdbOperation } from '../observability/ydb';
+import { prepareAndObserveYdbOperation } from '../observability/ydb';
 
 import type { ClaimedLead, LoggerLike, SqlRow, TelegramStatus, YdbClient, YdbQuery, YdbValue } from '../types';
 
@@ -37,8 +37,16 @@ export function timed<T>(query: YdbQuery<T>): YdbQuery<T> {
   return query.timeout(queryTimeoutMs());
 }
 
-export function observed<T>(operation: string, logger: LoggerLike | undefined, callback: () => Promise<T>): Promise<T> {
-  return observeYdbOperation(operation, logger, callback);
+export async function observed<T>(
+  operation: string,
+  logger: LoggerLike | undefined,
+  callback: (sql: YdbClient['sql']) => Promise<T>,
+): Promise<T> {
+  // Establishing a YDB driver can take a couple of seconds in a cold
+  // serverless container. Keep that startup cost out of the SQL-operation
+  // latency signal; otherwise the retry timer reports a slow query whenever
+  // Yandex Cloud gives it a fresh container.
+  return prepareAndObserveYdbOperation(operation, logger, getSql, callback);
 }
 
 export function firstResultSet(resultSets: unknown): SqlRow[] {

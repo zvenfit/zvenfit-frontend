@@ -37,7 +37,11 @@ test('every alert references a metric and is documented', () => {
     const hasPlatformMetric = typeof alert.metricSelector === 'string';
     const hasMetricQueries = Array.isArray(alert.queries) && alert.queries.length > 0;
 
-    assert.equal(Boolean(hasLogMetric || hasPlatformMetric || hasMetricQueries), true, `${alert.id} references an unknown metric`);
+    assert.equal(
+      Boolean(hasLogMetric || hasPlatformMetric || hasMetricQueries),
+      true,
+      `${alert.id} references an unknown metric`,
+    );
     assert.equal(alertIds.has(alert.id), false, `${alert.id} is duplicated`);
     assert.match(monitoringDocs, new RegExp(`\\b${alert.id}\\b`), `${alert.id} is missing from docs`);
     assert.equal(alert.noData, alert.id === 'zvenfit_ydb_storage_usage' ? 'WARNING' : 'OK');
@@ -81,6 +85,23 @@ test('YDB retry thresholds expose reachable Warning and Alarm states', () => {
     { warning: alert.warning, alarm: alert.alarm, operator: alert.operator },
     { warning: 4.5, alarm: 5.5, operator: '>' },
   );
+});
+
+test('slow YDB alert warns on one event and alarms on three events in ten minutes', () => {
+  const alert = config.alerts.find(item => item.id === 'zvenfit_slow_ydb_operations');
+
+  assert.deepEqual(
+    {
+      warning: alert.warning,
+      alarm: alert.alarm,
+      aggregation: alert.aggregation,
+      operator: alert.operator,
+      window: alert.window,
+    },
+    { warning: 0.5, alarm: 2.5, aggregation: 'sum', operator: '>', window: '10m' },
+  );
+  assert.match(monitoringDocs, /единичное превышение\s+даёт `Warning`/);
+  assert.match(monitoringDocs, /`Alarm` требует минимум три превышения за 10 минут/);
 });
 
 test('YDB storage alert uses live database metrics and 70/85 percent thresholds', () => {

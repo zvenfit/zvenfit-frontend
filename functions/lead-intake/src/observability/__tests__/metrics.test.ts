@@ -207,7 +207,7 @@ test('collects once and waits for the exporter callback before shutdown', async 
     .flatMap(scope => scope.metrics)
     .find(item => item.descriptor.name === 'zvenfit_test_events');
   assert.ok(metric);
-  assert.equal(metric.aggregationTemporality, AggregationTemporality.CUMULATIVE);
+  assert.equal(metric.aggregationTemporality, AggregationTemporality.DELTA);
   assert.equal(metric.dataPoints[0]?.value, 2);
   assert.deepEqual(metric.dataPoints[0]?.attributes, { outcome: 'stored' });
 });

@@ -74,16 +74,16 @@ rm sa-key.json
 
 **Settings → Secrets and variables → Actions:**
 
-| Secret                 | Откуда                     | Пример                                     |
-| ---------------------- | -------------------------- | ------------------------------------------ |
-| `YC_SA_JSON_KEY`       | `sa-key.json` целиком      | `{"id":"aje...","service_account_id":...}` |
-| `YC_FOLDER_ID`         | `yc config get folder-id`  | `b1g...`                                   |
-| `TELEGRAM_BOT_TOKEN`   | @BotFather                 | `123456:ABC...`                            |
-| `TELEGRAM_CHAT_ID`     | getUpdates                 | `-5161525132`                              |
-| `LEAD_RATE_LIMIT_SECRET` | `openssl rand -hex 32`    | Случайная строка для HMAC IP               |
-| `MONIUM_API_KEY`        | Scoped API key runtime SA | OTLP-запись метрик в Monium                 |
-| `YC_ACCESS_KEY_ID`     | Статический ключ SA для S3 | Уже есть                                   |
-| `YC_SECRET_ACCESS_KEY` | Пара к `ACCESS_KEY_ID`     | Уже есть                                   |
+| Secret                   | Откуда                     | Пример                                     |
+| ------------------------ | -------------------------- | ------------------------------------------ |
+| `YC_SA_JSON_KEY`         | `sa-key.json` целиком      | `{"id":"aje...","service_account_id":...}` |
+| `YC_FOLDER_ID`           | `yc config get folder-id`  | `b1g...`                                   |
+| `TELEGRAM_BOT_TOKEN`     | @BotFather                 | `123456:ABC...`                            |
+| `TELEGRAM_CHAT_ID`       | getUpdates                 | `-5161525132`                              |
+| `LEAD_RATE_LIMIT_SECRET` | `openssl rand -hex 32`     | Случайная строка для HMAC IP               |
+| `MONIUM_API_KEY`         | Scoped API key runtime SA  | OTLP-запись метрик в Monium                |
+| `YC_ACCESS_KEY_ID`       | Статический ключ SA для S3 | Уже есть                                   |
+| `YC_SECRET_ACCESS_KEY`   | Пара к `ACCESS_KEY_ID`     | Уже есть                                   |
 
 Обязательная GitHub Variable:
 
@@ -93,23 +93,23 @@ rm sa-key.json
 
 Опциональные GitHub Variables:
 
-| Variable                | Default         | Что меняет                                                                |
-| ----------------------- | --------------- | ------------------------------------------------------------------------- |
-| `YDB_DATABASE_NAME`     | `zvenfit-leads` | Имя Serverless БД                                                         |
-| `YDB_LEADS_TABLE`       | `leads`         | Таблица заявок                                                            |
-| `YDB_RATE_LIMITS_TABLE` | `lead_rate_limits` | Технические счётчики ограничения частоты                              |
-| `LEAD_RATE_LIMIT_MAX`   | `5`             | Допустимых заявок с одного IP за окно                                     |
-| `LEAD_RATE_LIMIT_WINDOW_SECONDS` | `600` | Размер окна ограничения частоты                                        |
-| `MAX_TELEGRAM_ATTEMPTS` | `12`            | После скольких попыток поставить статус `failed`                          |
-| `YDB_QUERY_TIMEOUT_MS`  | `5000`          | Клиентский таймаут операции/транзакции YDB                                |
-| `YDB_SLOW_OPERATION_MS` | `1000`          | Порог события `ydb_slow_operation`                                        |
-| `YDB_SESSION_POOL_SIZE` | `5`             | Максимум YDB-сессий на экземпляр функции                                  |
-| `MONIUM_METRICS_ENABLED` | `true`         | Включает прямую отправку метрик функции по OTLP                            |
-| `MONIUM_PROJECT`        | `folder__<YC_FOLDER_ID>` | Проект Monium; локальный deploy выводит его из folder ID          |
-| `MONIUM_CLUSTER`        | `default`       | Кластер прямых метрик                                                      |
-| `MONIUM_SERVICE`        | `zvenfit-frontend` | Сервис прямых метрик                                                    |
-| `MONIUM_METRICS_TIMEOUT_MS` | `1000`     | Максимальное ожидание отправки метрик в конце вызова                       |
-| `NODE_ENV`              | `production`    | Значение поля `environment` в structured logs функций                     |
+| Variable                         | Default                  | Что меняет                                                                 |
+| -------------------------------- | ------------------------ | -------------------------------------------------------------------------- |
+| `YDB_DATABASE_NAME`              | `zvenfit-leads`          | Имя Serverless БД                                                          |
+| `YDB_LEADS_TABLE`                | `leads`                  | Таблица заявок                                                             |
+| `YDB_RATE_LIMITS_TABLE`          | `lead_rate_limits`       | Технические счётчики ограничения частоты                                   |
+| `LEAD_RATE_LIMIT_MAX`            | `5`                      | Допустимых заявок с одного IP за окно                                      |
+| `LEAD_RATE_LIMIT_WINDOW_SECONDS` | `600`                    | Размер окна ограничения частоты                                            |
+| `MAX_TELEGRAM_ATTEMPTS`          | `12`                     | После скольких попыток поставить статус `failed`                           |
+| `YDB_QUERY_TIMEOUT_MS`           | `5000`                   | Клиентский таймаут операции/транзакции YDB                                 |
+| `YDB_SLOW_OPERATION_MS`          | `1000`                   | Порог SQL-операции `ydb_slow_operation`, без холодного запуска YDB-клиента |
+| `YDB_SESSION_POOL_SIZE`          | `5`                      | Максимум YDB-сессий на экземпляр функции                                   |
+| `MONIUM_METRICS_ENABLED`         | `true`                   | Включает прямую отправку метрик функции по OTLP                            |
+| `MONIUM_PROJECT`                 | `folder__<YC_FOLDER_ID>` | Проект Monium; локальный deploy выводит его из folder ID                   |
+| `MONIUM_CLUSTER`                 | `default`                | Кластер прямых метрик                                                      |
+| `MONIUM_SERVICE`                 | `zvenfit-frontend`       | Сервис прямых метрик                                                       |
+| `MONIUM_METRICS_TIMEOUT_MS`      | `1000`                   | Максимальное ожидание отправки метрик в конце вызова                       |
+| `NODE_ENV`                       | `production`             | Значение поля `environment` в structured logs функций                      |
 
 До первого CI deploy создай YDB, обе функции и отдельный runtime SA под учётной
 записью администратора. Права CI и runtime выдаются на конкретные ресурсы:
