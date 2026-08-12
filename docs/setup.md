@@ -96,6 +96,7 @@ rm sa-key.json
 | `TELEGRAM_BOT_TOKEN`   | @BotFather                 | `123456:ABC...`                            |
 | `TELEGRAM_CHAT_ID`     | getUpdates                 | `-5161525132`                              |
 | `LEAD_RATE_LIMIT_SECRET` | `openssl rand -hex 32`    | Случайная строка для HMAC IP               |
+| `MONIUM_API_KEY`        | Scoped API key runtime SA | OTLP-запись метрик в Monium                 |
 | `YC_ACCESS_KEY_ID`     | Статический ключ SA для S3 | Уже есть                                   |
 | `YC_SECRET_ACCESS_KEY` | Пара к `ACCESS_KEY_ID`     | Уже есть                                   |
 
@@ -126,7 +127,10 @@ rm sa-key.json
 | `NODE_ENV`              | `production`    | Значение поля `environment` в structured logs функций                     |
 
 Для production создай отдельный runtime SA, выдай ему `ydb.editor` на базу и
-`functions.functionInvoker` на функцию, а также `monium.metrics.writer` на каталог.
+`functions.functionInvoker` на функцию, а также `monium.telemetry.writer` на каталог.
+Создай для этого SA API key со scope `yc.monium.metrics.write` и сохрани его
+secret-часть в GitHub Secret `MONIUM_API_KEY`. OTLP не принимает IAM-токен из
+контекста Cloud Function: заголовок должен иметь вид `Authorization: Api-Key …`.
 Его ID положи в `YC_LEAD_SERVICE_ACCOUNT_ID`.
 Workflow остановит deploy, если переменная отсутствует; CI SA как runtime-аккаунт не используется.
 
