@@ -2,6 +2,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const vm = require('vm');
 
 const rootDir = path.join(__dirname, '..');
 const publicDir = path.join(rootDir, 'public');
@@ -30,6 +31,22 @@ if (fs.existsSync(path.join(distDir, 'js', 'webflow.js'))) {
   throw new Error('check-build: dist/js/webflow.js must be served from the assets CDN');
 }
 
+const mapsConfigPath = path.join(distDir, 'js', 'maps-config.js');
+if (!fs.existsSync(mapsConfigPath)) {
+  throw new Error('check-build: dist/js/maps-config.js is missing');
+}
+
+const mapsConfigSource = fs.readFileSync(mapsConfigPath, 'utf8');
+if (mapsConfigSource.includes('__ZVENFIT_MAPS_JSON__')) {
+  throw new Error('check-build: maps-config.js still contains its build placeholder');
+}
+
+const mapsSandbox = { window: {} };
+vm.runInNewContext(mapsConfigSource, mapsSandbox, { filename: mapsConfigPath });
+if (!mapsSandbox.window.ZVENFIT_MAPS?.sets || !mapsSandbox.window.ZVENFIT_MAPS?.locations) {
+  throw new Error('check-build: maps-config.js does not expose the expected runtime config');
+}
+
 let checkedPages = 0;
 for (const publicHtmlPath of walkHtmlFiles(publicDir)) {
   const sourceHtml = fs.readFileSync(publicHtmlPath, 'utf8');
@@ -56,3 +73,4 @@ if (checkedPages === 0) {
 }
 
 console.log(`check-build: versioned CDN webflow.js verified in ${checkedPages} HTML file(s)`);
+console.log('check-build: generated Yandex Maps runtime config verified');
