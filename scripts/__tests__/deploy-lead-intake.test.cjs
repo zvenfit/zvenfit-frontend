@@ -41,3 +41,9 @@ test('lead deployment package contains every runtime YDB module', () => {
   assert.match(deployScript, /lead-intake\/build\/\./);
   assert.match(deployScript, /cp -R/);
 });
+
+test('existing retry trigger is updated by resolved id', () => {
+  assert.match(deployScript, /TRIGGER_ID=.*serverless trigger get/);
+  assert.match(deployScript, /serverless trigger update timer[\s\\]+--id="\$\{TRIGGER_ID\}"/);
+  assert.doesNotMatch(deployScript, /serverless trigger update timer[\s\\]+--name=/);
+});

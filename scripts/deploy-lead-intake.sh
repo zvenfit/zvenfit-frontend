@@ -139,8 +139,18 @@ yc serverless function version create \
 yc serverless function allow-unauthenticated-invoke "${FUNCTION_NAME}"
 
 if yc serverless trigger get --name="${TRIGGER_NAME}" >/dev/null 2>&1; then
+  TRIGGER_ID="$(yc serverless trigger get --name="${TRIGGER_NAME}" --format=json | node -e "
+const fs = require('fs');
+const data = JSON.parse(fs.readFileSync(0, 'utf8'));
+process.stdout.write(data.id || '');
+")"
+  if [[ -z "${TRIGGER_ID}" ]]; then
+    echo "deploy-lead-intake: failed to resolve trigger id for ${TRIGGER_NAME}" >&2
+    exit 1
+  fi
+
   yc serverless trigger update timer \
-    --name="${TRIGGER_NAME}" \
+    --id="${TRIGGER_ID}" \
     --new-cron-expression='* * * * ? *' \
     --new-payload='retry-telegram' \
     --new-invoke-function-name="${FUNCTION_NAME}" \
