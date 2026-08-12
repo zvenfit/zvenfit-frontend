@@ -1,9 +1,14 @@
 import assert from 'node:assert/strict';
+import { getDefaultResultOrder } from 'node:dns';
 import test from 'node:test';
 
 import { buildMessage, retryBatchSize, sendTelegram, telegramTimeoutMs } from '../delivery';
 
 const LEAD_ID = '1cc32f4f-8f06-4dc8-915f-92955c829523';
+
+test('Telegram networking prefers IPv4 for Yandex Cloud Functions', () => {
+  assert.equal(getDefaultResultOrder(), 'ipv4first');
+});
 
 test('message includes the stable lead id and selected attribution fields', () => {
   const message = buildMessage({
