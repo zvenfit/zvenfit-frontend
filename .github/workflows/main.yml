@@ -65,6 +65,7 @@ jobs:
   deploy-function:
     needs: quality-checks
     runs-on: ubuntu-latest
+    environment: production
     outputs:
       function_url: ${{ steps.get-url.outputs.url }}
 
@@ -138,6 +139,7 @@ jobs:
   deploy-schedule-function:
     needs: quality-checks
     runs-on: ubuntu-latest
+    environment: production
     outputs:
       function_url: ${{ steps.get-schedule-url.outputs.url }}
 

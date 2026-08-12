@@ -28,6 +28,16 @@ test('production deploy jobs wait for quality checks', () => {
   assert.match(workflow.slice(scheduleDeployJob, siteDeployJob), /needs: quality-checks/);
 });
 
+test('every production deploy job is protected by the production environment', () => {
+  const leadDeployJob = workflow.indexOf('  deploy-function:');
+  const scheduleDeployJob = workflow.indexOf('  deploy-schedule-function:');
+  const siteDeployJob = workflow.indexOf('  deploy-site:');
+
+  assert.match(workflow.slice(leadDeployJob, scheduleDeployJob), /environment: production/);
+  assert.match(workflow.slice(scheduleDeployJob, siteDeployJob), /environment: production/);
+  assert.match(workflow.slice(siteDeployJob), /environment: production/);
+});
+
 test('lead deploy verifies YDB, migrates schema, and only then creates a function version', () => {
   const integration = deployScript.indexOf('run test:integration');
   const migration = deployScript.indexOf('run migrate');
