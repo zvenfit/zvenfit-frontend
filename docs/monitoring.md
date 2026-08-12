@@ -21,6 +21,8 @@
 | Schedule function       | `zvenfit-fitbase-schedule`     |
 | Cloud Logging retention | 3 days                         |
 
+Project dashboard: <https://monium.yandex.cloud/projects/folder__b1ge1e4iopttj79hfdfm/dashboards/zvenfit-production-monitoring>
+
 Cloud Logging автоматически показывает свои записи в Monium. Открыть логи:
 
 <https://monium.yandex.cloud/projects/folder__b1ge1e4iopttj79hfdfm/logs>
@@ -163,26 +165,35 @@ Telegram username, UTM и тело ответа Fitbase в лог не попа�
 Отдельный бот Yandex Cloud важен: он сможет сообщить о проблеме, даже если бот
 заявок потерял токен, доступ к чату или был заблокирован.
 
-Создай девять обычных алертов. Семь используют итоговые метрики по логам,
-runtime alert — автоматическую метрику Cloud Functions, storage alert — две
-автоматические метрики YDB:
+Создай девять обычных алертов. Шесть сигналов lead pipeline используют прямые
+OTLP-метрики приложения, два runtime-сигнала — автоматическую метрику Cloud
+Functions, storage alert — две автоматические метрики YDB:
 
 | Alert ID                          | Metric / signal                          | Function | Warning | Alarm   | Window | Delay | No data |
 | --------------------------------- | ---------------------------------------- | -------- | ------: | ------: | -----: | ----: | ------- |
-| `zvenfit_lead_storage_errors`     | `zvenfit_lead_storage_errors_1m`         | `max`    |   `> 0` |  `> 0.5` |     5m |    3m | OK      |
-| `zvenfit_permanent_telegram_failures` | `zvenfit_telegram_delivery_failed_1m` | `max` |   `> 0` |  `> 0.5` |     5m |    3m | OK      |
-| `zvenfit_fitbase_errors`          | `zvenfit_fitbase_errors_5m`              | `max`    |   `> 0` |  `> 0.5` |    10m |    3m | OK      |
+| `zvenfit_lead_storage_errors`     | direct `zvenfit_lead_storage_errors`     | `max`    |   `> 0` |  `> 0.5` |     5m |   30s | OK      |
+| `zvenfit_permanent_telegram_failures` | direct `zvenfit_telegram_delivery_failed_1m` | `max` |   `> 0` |  `> 0.5` |     5m |   30s | OK      |
+| `zvenfit_fitbase_errors`          | `functions_errors`, schedule only        | `max`    |   `> 0` |  `> 0.5` |    10m |   30s | OK      |
 | `zvenfit_function_runtime_errors` | `functions_errors` for both function names | `sum`  |   `> 0` |  `> 0.5` |     5m |   30s | OK      |
-| `zvenfit_ydb_retries`             | `zvenfit_ydb_retries_5m`                 | `sum`    | `> 4.5` |  `> 5.5` |    10m |    3m | OK      |
-| `zvenfit_slow_ydb_operations`     | `zvenfit_ydb_slow_operations_5m`         | `sum`    |   `> 0` |  `> 0.5` |    10m |    3m | OK      |
-| `zvenfit_rate-limited_leads`      | `zvenfit_lead_rate_limited_5m`           | `sum`    |   `> 0` |    `> 5` |    10m |    3m | OK      |
-| `zvenfit_persisted_leads_volume`  | `zvenfit_leads_persisted_5m`             | `sum`    |  `> 10` |   `> 20` |    10m |    3m | OK      |
+| `zvenfit_ydb_retries`             | direct `zvenfit_ydb_retries_5m`          | `sum`    | `> 4.5` |  `> 5.5` |    10m |   30s | OK      |
+| `zvenfit_slow_ydb_operations`     | direct `zvenfit_ydb_slow_operations_5m`  | `sum`    |   `> 0` |  `> 0.5` |    10m |   30s | OK      |
+| `zvenfit_rate-limited_leads`      | direct `zvenfit_lead_rate_limited_5m`    | `sum`    |   `> 0` |    `> 5` |    10m |   30s | OK      |
+| `zvenfit_persisted_leads_volume`  | direct `zvenfit_leads_persisted_5m`      | `sum`    |  `> 10` |   `> 20` |    10m |   30s | OK      |
 | `zvenfit_ydb_storage_usage`       | query `C`, storage used percent           | `last`   | `>= 70` | `>= 85` |    15m |   30s | Warning |
 
 Monium требует `Alarm > Warning`. Для целочисленных счётчиков промежуточное
 значение `0.5` техническое: любая первая точка со значением `1` сразу получает
-статус `Alarm`. Задержка `3m` у log-based алертов учитывает максимальную задержку
-появления агрегата после закрытия окна.
+статус `Alarm`. Прямые и platform metrics используют задержку вычисления `30s`.
+
+Селектор прямой метрики ошибки сохранения:
+
+```text
+{project="folder__b1ge1e4iopttj79hfdfm", cluster="default", service="zvenfit-frontend", name="zvenfit_lead_storage_errors"}
+```
+
+Lead-функция отправляет шесть метрик напрямую в Monium по OTLP с
+`service="zvenfit-frontend"`, поэтому эти alerts не зависят от Preview-конвейера
+метрик по логам. Их имена перечислены в таблице выше.
 
 Селектор автоматической метрики runtime errors:
 
@@ -208,26 +219,24 @@ C: (A / B) * 100
 пользовательские данные, служебные данные и вторичные индексы, поэтому процент
 отражает реальный расход лимита.
 
-Для log-based и runtime алертов отсутствие точек считается `OK`. Для storage
+Для direct и runtime алертов отсутствие точек считается `OK`. Для storage
 отсутствие любой из двух platform metrics считается `Warning`: потеря данных о
 заполнении базы не должна выглядеть как исправное состояние. Во все девять
 алертов добавь оба канала: **ZvenFit Telegram alerts** и **ZvenFit Email alerts**.
 
 ## Проверка доставки алертов
 
-После создания метрик, канала и алертов запусти smoke-тест. Он не вызывает функции,
-не пишет лиды и не содержит персональных данных, но намеренно переводит семь log-based
-алертов в `ALARM`:
+Скрипт ниже пишет синтетические записи без персональных данных и проверяет raw
+logs и оставленные диагностические log metrics. Production alerts от них больше
+не зависят:
 
 ```bash
 bash scripts/test-monitoring-alerts.sh --confirm
 ```
 
-Проверь, что уведомления пришли одновременно в Telegram и email, а затем дождись возврата
-алертов в `OK`. Эта проверка подтверждает доставку обоих каналов. Для runtime alert
-сверь селектор обеих production-функций и политику `No data → OK`: отдельного теста
-канала в Monium нет, а намеренно ронять функции нельзя. Storage alert проверяется по
-живому значению `C`; синтетически заполнять production-базу для его проверки нельзя.
+Доставку каналов проверяй по истории реального runtime alert: и Telegram, и email
+должны иметь `Success` для переходов `Alarm` и `OK`. Намеренно ронять production-
+функции или заполнять production-базу для теста storage alert нельзя.
 
 ## Dashboard
 

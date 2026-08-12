@@ -53,6 +53,7 @@ jobs:
           npm run test:lead-fn
           npm run test:schedule-fn
           npm run test:lead-import
+          npm run test:monitoring
 
       - name: Verify static production build
         env:

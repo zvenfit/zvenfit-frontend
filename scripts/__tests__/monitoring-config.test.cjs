@@ -56,7 +56,7 @@ test('anti-spam and accepted lead volume thresholds are explicit', () => {
   const rateAlert = config.alerts.find(alert => alert.id === 'zvenfit_rate-limited_leads');
   const volumeAlert = config.alerts.find(alert => alert.id === 'zvenfit_persisted_leads_volume');
 
-  assert.deepEqual(rateMetric.filters, { reason: 'rate_limit' });
+  assert.deepEqual(rateMetric.filters, { 'meta.reason': 'rate_limit' });
   assert.deepEqual(
     { warning: rateAlert.warning, alarm: rateAlert.alarm, window: rateAlert.window },
     { warning: 0, alarm: 5, window: '10m' },
@@ -67,14 +67,11 @@ test('anti-spam and accepted lead volume thresholds are explicit', () => {
   );
 });
 
-test('log-derived alerts account for aggregate delivery lag', () => {
+test('alerts no longer depend on the Preview log aggregate pipeline', () => {
   const metricIds = new Set(config.logMetrics.map(metric => metric.id));
   const logAlerts = config.alerts.filter(alert => metricIds.has(alert.metricId));
 
-  assert.equal(logAlerts.length, 7);
-  for (const alert of logAlerts) {
-    assert.equal(alert.delay, '3m', `${alert.id} must wait for log aggregate delivery`);
-  }
+  assert.equal(logAlerts.length, 0);
 });
 
 test('YDB retry thresholds expose reachable Warning and Alarm states', () => {
@@ -110,6 +107,39 @@ test('runtime alert covers both production functions', () => {
   assert.doesNotMatch(monitoringDocs, /кнопк[^\n]*тестирован[^\n]*канал/i);
 });
 
+test('lead storage alert uses the direct OTLP application metric', () => {
+  const alert = config.alerts.find(item => item.id === 'zvenfit_lead_storage_errors');
+
+  assert.match(alert.metricSelector, /service="zvenfit-frontend"/);
+  assert.match(alert.metricSelector, /name="zvenfit_lead_storage_errors"/);
+});
+
+test('lead pipeline alerts use direct OTLP application metrics', () => {
+  const directIds = [
+    'zvenfit_lead_storage_errors',
+    'zvenfit_permanent_telegram_failures',
+    'zvenfit_ydb_retries',
+    'zvenfit_slow_ydb_operations',
+    'zvenfit_rate-limited_leads',
+    'zvenfit_persisted_leads_volume',
+  ];
+
+  for (const id of directIds) {
+    const alert = config.alerts.find(item => item.id === id);
+    assert.match(alert.metricSelector, /service="zvenfit-frontend"/, `${id} is not direct`);
+    assert.equal(alert.delay, '30s', `${id} should use direct metric latency`);
+  }
+});
+
+test('Fitbase alert uses the schedule runtime error metric', () => {
+  const alert = config.alerts.find(item => item.id === 'zvenfit_fitbase_errors');
+
+  assert.match(alert.metricSelector, /service="serverless-functions"/);
+  assert.match(alert.metricSelector, /name="functions_errors"/);
+  assert.match(alert.metricSelector, /resource_id="zvenfit-fitbase-schedule"/);
+  assert.equal(alert.delay, '30s');
+});
+
 test('transient Telegram retries remain log-only', () => {
   const monitoredEvents = config.logMetrics.flatMap(metric => metric.events);
 
@@ -122,8 +152,10 @@ test('production log source and retention are explicit', () => {
   assert.deepEqual(config.source, {
     cluster: 'default',
     service: 'default',
-    application: 'zvenfit-frontend',
-    environment: 'production',
+    labels: {
+      'meta.application': 'zvenfit-frontend',
+      'meta.environment': 'production',
+    },
     retentionDays: 3,
   });
   assert.deepEqual(config.metricOutput, {
@@ -139,6 +171,8 @@ test('every log selector is isolated by repository and environment', () => {
   assert.match(smokeScript, /APPLICATION_NAME="zvenfit-frontend"/);
   assert.match(smokeScript, /MONITORING_ENVIRONMENT="\$\{NODE_ENV:-production\}"/);
   assert.match(monitoringDocs, /service="logging_aggregates"/);
+  assert.doesNotMatch(monitoringDocs, /[,{]\s*application="zvenfit-frontend"/);
+  assert.doesNotMatch(monitoringDocs, /[,{]\s*environment="production"/);
 });
 
 test('manual provisioning and notification channel requirements are explicit', () => {
@@ -181,5 +215,5 @@ test('monitoring smoke script requires confirmation and covers every log metric'
   }
 
   assert.match(smokeScript, /reason\\?":\\?"rate_limit/);
-  assert.match(smokeScript, /Expect seven log-based alerts/);
+  assert.match(smokeScript, /No production alert depends on these Preview log aggregates/);
 });
