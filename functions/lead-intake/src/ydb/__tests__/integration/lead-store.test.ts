@@ -73,12 +73,16 @@ test(
       assert.deepEqual(await runMigrations({ log: { info() {} } }), [1]);
       assert.deepEqual(await runMigrations({ log: { info() {} } }), []);
 
+      // Keep the fixture inside the active TTL window. A historical timestamp
+      // makes YDB immediately eligible to delete occupied rate-limit slots and
+      // can let a sixth concurrent request through while the test is running.
+      const rateLimitNow = new Date();
       for (let round = 0; round < 5; round += 1) {
         const rateLimitResults = await Promise.all(
           Array.from({ length: 10 }, () =>
             consumeLeadRateLimit({
               sourceIp: `203.0.113.${10 + round}`,
-              now: new Date('2026-08-10T10:01:00.000Z'),
+              now: rateLimitNow,
             }),
           ),
         );
