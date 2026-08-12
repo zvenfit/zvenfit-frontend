@@ -73,13 +73,18 @@ test(
       assert.deepEqual(await runMigrations({ log: { info() {} } }), [1]);
       assert.deepEqual(await runMigrations({ log: { info() {} } }), []);
 
-      const rateLimitResults = await Promise.all(
-        Array.from({ length: 6 }, () =>
-          consumeLeadRateLimit({ sourceIp: '203.0.113.10', now: new Date('2026-08-10T10:01:00.000Z') }),
-        ),
-      );
-      assert.equal(rateLimitResults.filter(Boolean).length, 5);
-      assert.equal(rateLimitResults.filter(result => !result).length, 1);
+      for (let round = 0; round < 5; round += 1) {
+        const rateLimitResults = await Promise.all(
+          Array.from({ length: 10 }, () =>
+            consumeLeadRateLimit({
+              sourceIp: `203.0.113.${10 + round}`,
+              now: new Date('2026-08-10T10:01:00.000Z'),
+            }),
+          ),
+        );
+        assert.equal(rateLimitResults.filter(Boolean).length, 5);
+        assert.equal(rateLimitResults.filter(result => !result).length, 5);
+      }
 
       const now = new Date();
       const leadId = randomUUID();
