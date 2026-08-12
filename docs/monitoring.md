@@ -193,7 +193,9 @@ Monium требует `Alarm > Warning`. Для целочисленных сч�
 
 Lead-функция отправляет шесть метрик напрямую в Monium по OTLP с
 `service="zvenfit-frontend"`, поэтому эти alerts не зависят от Preview-конвейера
-метрик по логам. Их имена перечислены в таблице выше.
+метрик по логам. Их имена перечислены в таблице выше. Для записи используется
+GitHub Secret `MONIUM_API_KEY`: API key runtime SA с ролью
+`monium.telemetry.writer` и scope `yc.monium.metrics.write`.
 
 Селектор автоматической метрики runtime errors:
 

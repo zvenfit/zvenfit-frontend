@@ -200,7 +200,7 @@ function createOtelTransport(options: MetricsTransportOptions): MetricsTransport
 }
 
 export function createInvocationMetrics(
-  context: FunctionContext | undefined,
+  _context: FunctionContext | undefined,
   logger: LoggerLike,
   options: CreateInvocationMetricsOptions = {},
 ): InvocationMetrics {
@@ -216,9 +216,9 @@ export function createInvocationMetrics(
     return NOOP_METRICS;
   }
 
-  const accessToken = context?.token?.access_token?.trim();
-  if (!accessToken) {
-    logMisconfiguration(logger, 'missing_context_token');
+  const apiKey = env.MONIUM_API_KEY?.trim();
+  if (!apiKey) {
+    logMisconfiguration(logger, 'missing_api_key');
 
     return NOOP_METRICS;
   }
@@ -227,7 +227,7 @@ export function createInvocationMetrics(
     {
       endpoint: env.MONIUM_METRICS_ENDPOINT?.trim() || DEFAULT_ENDPOINT,
       headers: {
-        Authorization: `Bearer ${accessToken}`,
+        Authorization: `Api-Key ${apiKey}`,
         'x-monium-project': project,
         'x-monium-cluster': env.MONIUM_CLUSTER?.trim() || DEFAULT_CLUSTER,
         'x-monium-service': env.MONIUM_SERVICE?.trim() || DEFAULT_SERVICE,

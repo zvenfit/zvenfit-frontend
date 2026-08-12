@@ -18,6 +18,7 @@ YDB_QUERY_TIMEOUT_MS="${YDB_QUERY_TIMEOUT_MS:-5000}"
 YDB_SLOW_OPERATION_MS="${YDB_SLOW_OPERATION_MS:-1000}"
 YDB_SESSION_POOL_SIZE="${YDB_SESSION_POOL_SIZE:-5}"
 MONIUM_METRICS_ENABLED="${MONIUM_METRICS_ENABLED:-true}"
+MONIUM_API_KEY="${MONIUM_API_KEY:-}"
 MONIUM_CLUSTER="${MONIUM_CLUSTER:-default}"
 MONIUM_SERVICE="${MONIUM_SERVICE:-zvenfit-frontend}"
 MONIUM_METRICS_TIMEOUT_MS="${MONIUM_METRICS_TIMEOUT_MS:-1000}"
@@ -44,6 +45,11 @@ fi
 
 if [[ -z "${YC_FOLDER_ID:-}" ]]; then
   echo "deploy-lead-intake: set YC_FOLDER_ID" >&2
+  exit 1
+fi
+
+if [[ "${MONIUM_METRICS_ENABLED}" =~ ^(1|true)$ && -z "${MONIUM_API_KEY}" ]]; then
+  echo "deploy-lead-intake: set MONIUM_API_KEY when direct metrics are enabled" >&2
   exit 1
 fi
 
@@ -129,6 +135,7 @@ yc serverless function version create \
   --environment YDB_SLOW_OPERATION_MS="${YDB_SLOW_OPERATION_MS}" \
   --environment YDB_SESSION_POOL_SIZE="${YDB_SESSION_POOL_SIZE}" \
   --environment MONIUM_METRICS_ENABLED="${MONIUM_METRICS_ENABLED}" \
+  --environment MONIUM_API_KEY="${MONIUM_API_KEY}" \
   --environment MONIUM_PROJECT="${MONIUM_PROJECT}" \
   --environment MONIUM_CLUSTER="${MONIUM_CLUSTER}" \
   --environment MONIUM_SERVICE="${MONIUM_SERVICE}" \

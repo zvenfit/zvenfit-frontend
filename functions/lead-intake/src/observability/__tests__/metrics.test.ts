@@ -27,6 +27,7 @@ class TestLogger implements LoggerLike {
 function enabledEnv(overrides: NodeJS.ProcessEnv = {}): NodeJS.ProcessEnv {
   return {
     MONIUM_METRICS_ENABLED: 'true',
+    MONIUM_API_KEY: 'monium-api-key',
     MONIUM_PROJECT: 'folder__test',
     ...overrides,
   };
@@ -52,19 +53,21 @@ test('stays inert when metrics are disabled', async () => {
   assert.deepEqual(logger.warnings, []);
 });
 
-test('requires an explicit project and the keyless function context token', () => {
+test('requires an explicit project and API key', () => {
   const missingProjectLogger = new TestLogger();
-  createInvocationMetrics({ token: { access_token: 'iam-token' } }, missingProjectLogger, {
+  createInvocationMetrics(undefined, missingProjectLogger, {
     env: { MONIUM_METRICS_ENABLED: '1' },
   });
   assert.deepEqual(missingProjectLogger.warnings, [
     { event: 'monium_metrics_misconfigured', reason: 'missing_project' },
   ]);
 
-  const missingTokenLogger = new TestLogger();
-  createInvocationMetrics(undefined, missingTokenLogger, { env: enabledEnv() });
-  assert.deepEqual(missingTokenLogger.warnings, [
-    { event: 'monium_metrics_misconfigured', reason: 'missing_context_token' },
+  const missingApiKeyLogger = new TestLogger();
+  createInvocationMetrics(undefined, missingApiKeyLogger, {
+    env: enabledEnv({ MONIUM_API_KEY: '' }),
+  });
+  assert.deepEqual(missingApiKeyLogger.warnings, [
+    { event: 'monium_metrics_misconfigured', reason: 'missing_api_key' },
   ]);
 });
 
@@ -73,7 +76,7 @@ test('lazily records metrics with Monium headers and flushes only once', async (
   const calls: Array<{ kind: string; name: string; value: number }> = [];
   const transportOptions: TransportOptions[] = [];
   let flushCalls = 0;
-  const metrics = createInvocationMetrics({ token: { access_token: 'iam-token' } }, logger, {
+  const metrics = createInvocationMetrics(undefined, logger, {
     env: enabledEnv({
       MONIUM_CLUSTER: 'production',
       MONIUM_SERVICE: 'zvenfit-frontend',
@@ -107,7 +110,7 @@ test('lazily records metrics with Monium headers and flushes only once', async (
     {
       endpoint: 'https://ingest.monium.yandex.cloud/otlp/v1/metrics',
       headers: {
-        Authorization: 'Bearer iam-token',
+        Authorization: 'Api-Key monium-api-key',
         'x-monium-project': 'folder__test',
         'x-monium-cluster': 'production',
         'x-monium-service': 'zvenfit-frontend',
@@ -120,16 +123,12 @@ test('lazily records metrics with Monium headers and flushes only once', async (
 
 test('does not propagate initialization or export failures', async () => {
   const initializationLogger = new TestLogger();
-  const initializationMetrics = createInvocationMetrics(
-    { token: { access_token: 'iam-token' } },
-    initializationLogger,
-    {
-      env: enabledEnv(),
-      transportFactory: () => {
-        throw Object.assign(new Error('unavailable'), { code: 'collector_unavailable' });
-      },
+  const initializationMetrics = createInvocationMetrics(undefined, initializationLogger, {
+    env: enabledEnv(),
+    transportFactory: () => {
+      throw Object.assign(new Error('unavailable'), { code: 'collector_unavailable' });
     },
-  );
+  });
 
   assert.doesNotThrow(() => initializationMetrics.addCounter('lead_storage_errors'));
   assert.deepEqual(initializationLogger.errors, [
@@ -137,25 +136,21 @@ test('does not propagate initialization or export failures', async () => {
   ]);
 
   const exportLogger = new TestLogger();
-  const exportMetrics: InvocationMetrics = createInvocationMetrics(
-    { token: { access_token: 'iam-token' } },
-    exportLogger,
-    {
-      env: enabledEnv(),
-      transportFactory: () => ({
-        addCounter() {},
-        recordGauge() {},
-        flush: async () => {
-          throw Object.assign(new Error('timeout'), { code: 'export_timeout' });
-        },
-      }),
-    },
-  );
+  const exportMetrics: InvocationMetrics = createInvocationMetrics(undefined, exportLogger, {
+    env: enabledEnv(),
+    transportFactory: () => ({
+      addCounter() {},
+      recordGauge() {},
+      flush: async () => {
+        throw Object.assign(new Error('timeout'), { code: 'export_timeout' });
+      },
+    }),
+  });
 
   exportMetrics.addCounter('lead_storage_errors');
   await assert.doesNotReject(exportMetrics.flush());
   assert.deepEqual(exportLogger.errors, [{ event: 'monium_metrics_export_error', error_code: 'export_timeout' }]);
-  assert.equal(JSON.stringify(exportLogger.errors).includes('iam-token'), false);
+  assert.equal(JSON.stringify(exportLogger.errors).includes('monium-api-key'), false);
 });
 
 test('bounds the exporter timeout', () => {
@@ -163,7 +158,7 @@ test('bounds the exporter timeout', () => {
   const logger = new TestLogger();
 
   for (const configured of ['10', '9000']) {
-    const metrics = createInvocationMetrics({ token: { access_token: 'iam-token' } }, logger, {
+    const metrics = createInvocationMetrics(undefined, logger, {
       env: enabledEnv({ MONIUM_METRICS_TIMEOUT_MS: configured }),
       transportFactory: options => {
         observedTimeouts.push(options.timeoutMs);

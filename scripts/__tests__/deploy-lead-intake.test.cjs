@@ -37,6 +37,12 @@ test('lead deploy verifies YDB, migrates schema, and only then creates a functio
   assert.equal(deploy > migration, true);
 });
 
+test('direct Monium metrics require and deploy the scoped API key secret', () => {
+  assert.match(workflow, /MONIUM_API_KEY: \$\{\{ secrets\.MONIUM_API_KEY \}\}/);
+  assert.match(deployScript, /set MONIUM_API_KEY when direct metrics are enabled/);
+  assert.match(deployScript, /--environment MONIUM_API_KEY="\$\{MONIUM_API_KEY\}"/);
+});
+
 test('lead deployment package contains every runtime YDB module', () => {
   assert.match(deployScript, /lead-intake\/build\/\./);
   assert.match(deployScript, /cp -R/);
