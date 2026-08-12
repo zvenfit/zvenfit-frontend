@@ -15,6 +15,12 @@ test('rate-limit key is stable inside a window and never contains the source IP'
   assert.doesNotMatch(first, /203\.0\.113\.10/);
 });
 
+test('only a duplicate-key precondition error marks a rate-limit slot as occupied', () => {
+  assert.equal(_private.isOccupiedSlotError({ code: 400120 }), true);
+  assert.equal(_private.isOccupiedSlotError({ code: 400090 }), false);
+  assert.equal(_private.isOccupiedSlotError(new Error('PRECONDITION_FAILED')), false);
+});
+
 test('rate-limit settings use safe defaults and require a secret', () => {
   const originalSecret = process.env.LEAD_RATE_LIMIT_SECRET;
   const originalMax = process.env.LEAD_RATE_LIMIT_MAX;

@@ -1,7 +1,7 @@
 import { createHmac } from 'node:crypto';
 
 import { parsePositiveInt, rateLimitsTableName } from './config';
-import { firstResultSet, observed, transactionOptions, ydbTimestamp, ydbUint32 } from './context';
+import { observed, timed, ydbTimestamp, ydbUint32 } from './context';
 
 import type { LoggerLike } from '../types';
 
@@ -11,6 +11,7 @@ const MIN_SECRET_LENGTH = 32;
 const MAX_CONFIGURED_REQUESTS = 1000;
 const MAX_WINDOW_SECONDS = 24 * 60 * 60;
 const COUNTER_RETENTION_MS = 24 * 60 * 60 * 1000;
+const YDB_PRECONDITION_FAILED = 400120;
 
 function settings(): { maxRequests: number; windowSeconds: number; secret: string } {
   const secret = (process.env.LEAD_RATE_LIMIT_SECRET || '').trim();
@@ -43,6 +44,10 @@ function rateKey(sourceIp: string, now: Date, windowSeconds: number, secret: str
   return `${ipDigest}:${windowStart(now, windowSeconds)}`;
 }
 
+function isOccupiedSlotError(error: unknown): boolean {
+  return typeof error === 'object' && error !== null && 'code' in error && error.code === YDB_PRECONDITION_FAILED;
+}
+
 export async function consumeLeadRateLimit({
   sourceIp,
   now,
@@ -57,42 +62,28 @@ export async function consumeLeadRateLimit({
     const rateLimitsTable = sql.identifier(rateLimitsTableName());
     const key = rateKey(sourceIp, now, windowSeconds, secret);
     const expiresAt = new Date(windowStart(now, windowSeconds) + COUNTER_RETENTION_MS);
-    const maxRequestsValue = ydbUint32(maxRequests);
+    // A counter update can lose the predicate race under concurrent YDB
+    // transactions: multiple callers may all observe request_count < max and
+    // report success. Model the limit as maxRequests unique primary-key slots
+    // instead. INSERT is the atomic arbiter: exactly one caller can occupy each
+    // slot, and the first caller that finds no free slot is rejected.
+    for (let slot = 1; slot <= maxRequests; slot += 1) {
+      try {
+        await timed(sql`
+          INSERT INTO ${rateLimitsTable} (rate_key, request_count, expires_at)
+          VALUES (${`${key}:${slot}`}, ${ydbUint32(slot)}, ${ydbTimestamp(expiresAt)});
+        `);
 
-    return sql.begin(transactionOptions(), async tx => {
-      const updated = firstResultSet(
-        await tx`
-          UPDATE ${rateLimitsTable}
-          SET request_count = request_count + ${ydbUint32(1)}
-          WHERE
-            rate_key = ${key}
-            AND request_count < ${maxRequestsValue}
-          RETURNING request_count;
-        `,
-      );
-      if (updated.length > 0) {
         return true;
+      } catch (error) {
+        if (!isOccupiedSlotError(error)) {
+          throw error;
+        }
       }
+    }
 
-      const existing = firstResultSet(
-        await tx`
-          SELECT request_count
-          FROM ${rateLimitsTable}
-          WHERE rate_key = ${key};
-        `,
-      );
-      if (existing.length > 0) {
-        return false;
-      }
-
-      await tx`
-        INSERT INTO ${rateLimitsTable} (rate_key, request_count, expires_at)
-        VALUES (${key}, ${ydbUint32(1)}, ${ydbTimestamp(expiresAt)});
-      `;
-
-      return true;
-    });
+    return false;
   });
 }
 
-export const _private = { rateKey, settings, windowStart };
+export const _private = { isOccupiedSlotError, rateKey, settings, windowStart };
