@@ -44,7 +44,13 @@ test('every alert references a metric and is documented', () => {
     );
     assert.equal(alertIds.has(alert.id), false, `${alert.id} is duplicated`);
     assert.match(monitoringDocs, new RegExp(`\\b${alert.id}\\b`), `${alert.id} is missing from docs`);
-    assert.equal(alert.noData, alert.id === 'zvenfit_ydb_storage_usage' ? 'WARNING' : 'OK');
+    const expectedNoData =
+      alert.id === 'zvenfit_ydb_storage_usage'
+        ? 'WARNING'
+        : alert.id === 'zvenfit_retry_worker_heartbeat'
+          ? 'ALARM'
+          : 'OK';
+    assert.equal(alert.noData, expectedNoData);
     assert.equal(typeof alert.warning, 'number', `${alert.id} has no Warning threshold`);
     assert.equal(typeof alert.alarm, 'number', `${alert.id} has no Alarm threshold`);
     assert.equal(alert.alarm > alert.warning, true, `${alert.id} requires Alarm > Warning`);
@@ -52,7 +58,7 @@ test('every alert references a metric and is documented', () => {
     alertIds.add(alert.id);
   }
 
-  assert.equal(alertIds.size, 9);
+  assert.equal(alertIds.size, 13);
 });
 
 test('anti-spam and accepted lead volume thresholds are explicit', () => {
@@ -71,11 +77,11 @@ test('anti-spam and accepted lead volume thresholds are explicit', () => {
   );
 });
 
-test('alerts no longer depend on the Preview log aggregate pipeline', () => {
+test('only the caught Fitbase application error depends on the log aggregate pipeline', () => {
   const metricIds = new Set(config.logMetrics.map(metric => metric.id));
   const logAlerts = config.alerts.filter(alert => metricIds.has(alert.metricId));
 
-  assert.equal(logAlerts.length, 0);
+  assert.deepEqual(logAlerts.map(alert => alert.id), ['zvenfit_fitbase_errors']);
 });
 
 test('YDB retry thresholds expose reachable Warning and Alarm states', () => {
@@ -143,6 +149,9 @@ test('lead pipeline alerts use direct OTLP application metrics', () => {
     'zvenfit_slow_ydb_operations',
     'zvenfit_rate-limited_leads',
     'zvenfit_persisted_leads_volume',
+    'zvenfit_retry_worker_heartbeat',
+    'zvenfit_telegram_delivery_backlog',
+    'zvenfit_rate_limit_health_errors',
   ];
 
   for (const id of directIds) {
@@ -152,13 +161,42 @@ test('lead pipeline alerts use direct OTLP application metrics', () => {
   }
 });
 
-test('Fitbase alert uses the schedule runtime error metric', () => {
+test('Fitbase alert uses the application error aggregate because the handler catches upstream failures', () => {
   const alert = config.alerts.find(item => item.id === 'zvenfit_fitbase_errors');
 
-  assert.match(alert.metricSelector, /service="serverless-functions"/);
-  assert.match(alert.metricSelector, /name="functions_errors"/);
-  assert.match(alert.metricSelector, /resource_id="zvenfit-fitbase-schedule"/);
-  assert.equal(alert.delay, '30s');
+  assert.equal(alert.metricId, 'zvenfit_fitbase_errors_5m');
+  assert.match(alert.metricSelector, /service="logging_aggregates"/);
+  assert.match(alert.metricSelector, /name="zvenfit_fitbase_errors_5m"/);
+  assert.equal(alert.delay, '3m');
+  assert.match(source, /catch \(error\)[\s\S]*fitbase_schedule_error[\s\S]*jsonResponse\(502/);
+});
+
+test('retry worker health covers missing heartbeats, delivery backlog, and trigger failures', () => {
+  const heartbeat = config.alerts.find(item => item.id === 'zvenfit_retry_worker_heartbeat');
+  const backlog = config.alerts.find(item => item.id === 'zvenfit_telegram_delivery_backlog');
+  const trigger = config.alerts.find(item => item.id === 'zvenfit_retry_trigger_errors');
+
+  assert.equal(heartbeat.noData, 'ALARM');
+  assert.equal(heartbeat.aggregation, 'last');
+  assert.match(heartbeat.metricSelector, /name="zvenfit_retry_worker_heartbeat"/);
+  assert.deepEqual(
+    { warning: backlog.warning, alarm: backlog.alarm, aggregation: backlog.aggregation },
+    { warning: 600, alarm: 1800, aggregation: 'last' },
+  );
+  assert.match(backlog.metricSelector, /name="zvenfit_telegram_oldest_pending_age_seconds"/);
+  assert.match(trigger.metricSelector, /serverless\.triggers\.access_error_per_second/);
+  assert.match(trigger.metricSelector, /serverless\.triggers\.error_per_second/);
+  assert.match(trigger.metricSelector, /trigger="a1smkp9ng1f4g9vqgm7u"/);
+});
+
+test('rate limiter fail-open path has a direct health alert', () => {
+  const alert = config.alerts.find(item => item.id === 'zvenfit_rate_limit_health_errors');
+
+  assert.match(alert.metricSelector, /name="zvenfit_rate_limit_errors_5m"/);
+  assert.deepEqual(
+    { warning: alert.warning, alarm: alert.alarm, window: alert.window },
+    { warning: 0, alarm: 2, window: '10m' },
+  );
 });
 
 test('transient Telegram retries remain log-only', () => {
@@ -236,5 +274,5 @@ test('monitoring smoke script requires confirmation and covers every log metric'
   }
 
   assert.match(smokeScript, /reason\\?":\\?"rate_limit/);
-  assert.match(smokeScript, /No production alert depends on these Preview log aggregates/);
+  assert.match(smokeScript, /synthetic Fitbase event intentionally exercises the production Fitbase alert/);
 });

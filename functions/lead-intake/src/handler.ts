@@ -124,6 +124,10 @@ function createHandler(overrides: Partial<HandlerDependencies> = {}): CloudHandl
     try {
       if (isTimerEvent(event)) {
         const retrySummary = await retryPendingLeads(dependencies, logger);
+        const queueHealth = await dependencies.store.getTelegramQueueHealth({ now: dependencies.now(), logger });
+        metrics.recordGauge('zvenfit_telegram_pending_leads', queueHealth.pendingCount);
+        metrics.recordGauge('zvenfit_telegram_oldest_pending_age_seconds', queueHealth.oldestPendingAgeSeconds);
+        metrics.recordGauge('zvenfit_retry_worker_heartbeat', 1);
 
         return retrySummary;
       }

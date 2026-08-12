@@ -109,7 +109,9 @@ npm run import:leads -- \
       в отдельную админскую группу.
 - [ ] Создай резервный канал `ZvenFit Email alerts`.
 - [ ] Включи уведомления для `Alarm`, `Warning`, `OK` и повтор каждые 30 минут.
-- [ ] Создай девять алертов и подключи к каждому оба канала.
+- [ ] Создай тринадцать алертов и подключи к каждому оба канала.
+- [ ] Для `zvenfit_retry_worker_heartbeat` проверь политику `No data → Alarm`.
+- [ ] Для `zvenfit_telegram_delivery_backlog` проверь Warning 10 минут и Alarm 30 минут.
 - [ ] Для `zvenfit_ydb_storage_usage` проверь запросы `A/B/C`, пороги Warning 70%,
       Alarm 85% и политику `No data → Warning`.
 - [ ] Запусти синтетическую проверку:

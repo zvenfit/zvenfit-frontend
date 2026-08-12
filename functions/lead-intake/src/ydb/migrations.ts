@@ -1,5 +1,12 @@
 import { createYdbClient } from './client';
-import { dueIndexName, migrationTableName, queryTimeoutMs, rateLimitsTableName, tableName } from './config';
+import {
+  dueIndexName,
+  migrationTableName,
+  queryTimeoutMs,
+  queueHealthIndexName,
+  rateLimitsTableName,
+  tableName,
+} from './config';
 
 import type { YdbClient, YdbQuery } from '../types';
 
@@ -8,6 +15,7 @@ interface MigrationContext extends YdbClient {
   migrationsTable: unknown;
   rateLimitsTable: unknown;
   dueIndex: unknown;
+  queueHealthIndex: unknown;
 }
 
 interface Migration {
@@ -45,6 +53,8 @@ async function createLeadsTable({ sql, leadsTable }: MigrationContext): Promise<
         INDEX idx_telegram_due GLOBAL SYNC
           ON (telegram_due_at, created_at)
           COVER (telegram_status),
+        INDEX idx_telegram_status_created GLOBAL SYNC
+          ON (telegram_status, created_at),
         PRIMARY KEY (lead_id)
       );
     `.idempotent(true),
@@ -69,6 +79,16 @@ async function createRateLimitsTable({ sql, rateLimitsTable }: MigrationContext)
 async function createLeadStorage(context: MigrationContext): Promise<void> {
   await createLeadsTable(context);
   await createRateLimitsTable(context);
+}
+
+async function createQueueHealthIndex({ sql, leadsTable, queueHealthIndex }: MigrationContext): Promise<void> {
+  await timed(
+    sql`
+      ALTER TABLE ${leadsTable}
+      ADD INDEX ${queueHealthIndex} GLOBAL SYNC
+      ON (telegram_status, created_at);
+    `.idempotent(true),
+  );
 }
 
 async function verifyLeadColumns({ sql, leadsTable }: MigrationContext): Promise<void> {
@@ -114,8 +134,28 @@ async function verifyLeadStorage(context: MigrationContext): Promise<void> {
   await verifyRateLimitsSchema(context);
 }
 
+async function verifyQueueHealthIndex({ sql, leadsTable, queueHealthIndex }: MigrationContext): Promise<void> {
+  await timed(
+    sql`
+      SELECT created_at
+      FROM ${leadsTable} VIEW ${queueHealthIndex}
+      WHERE telegram_status = ${'pending'} OR telegram_status = ${'sending'}
+      ORDER BY telegram_status, created_at
+      LIMIT ${1};
+    `
+      .idempotent(true)
+      .isolation('snapshotReadOnly'),
+  );
+}
+
 export const MIGRATIONS: readonly Migration[] = [
   { version: 1, name: 'create_lead_storage', apply: createLeadStorage, verify: verifyLeadStorage },
+  {
+    version: 2,
+    name: 'add_telegram_queue_health_index',
+    apply: createQueueHealthIndex,
+    verify: verifyQueueHealthIndex,
+  },
 ];
 
 async function ensureMigrationTable(sql: YdbClient['sql'], migrationsTable: unknown): Promise<void> {
@@ -208,6 +248,7 @@ function migrationContext(client: YdbClient): MigrationContext {
     migrationsTable: client.sql.identifier(migrationTableName()),
     rateLimitsTable: client.sql.identifier(rateLimitsTableName()),
     dueIndex: client.sql.identifier(dueIndexName()),
+    queueHealthIndex: client.sql.identifier(queueHealthIndexName()),
   };
 }
 
@@ -232,6 +273,7 @@ export async function runMigrations({ log = console }: { log?: MigrationLogger }
     }
 
     await verifyLeadStorage(context);
+    await verifyQueueHealthIndex(context);
 
     return completed;
   } finally {
@@ -244,6 +286,7 @@ export const _private = {
   appliedVersions,
   createLeadStorage,
   createLeadsTable,
+  createQueueHealthIndex,
   createRateLimitsTable,
   ensureMigrationTable,
   migrationContext,
@@ -252,5 +295,6 @@ export const _private = {
   validateLeadSchema,
   verifyLeadColumns,
   verifyLeadStorage,
+  verifyQueueHealthIndex,
   verifyRateLimitsSchema,
 };
