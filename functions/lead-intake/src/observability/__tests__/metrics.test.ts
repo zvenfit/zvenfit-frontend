@@ -212,6 +212,41 @@ test('collects once and waits for the exporter callback before shutdown', async 
   assert.deepEqual(metric.dataPoints[0]?.attributes, { outcome: 'stored' });
 });
 
+test('exports zero-valued gauges as cumulative instant values', async () => {
+  let exportedMetrics: ResourceMetrics | undefined;
+  const exporter: PushMetricExporter = {
+    export(metrics, resultCallback) {
+      exportedMetrics = metrics;
+      resultCallback({ code: ExportResultCode.SUCCESS });
+    },
+    async forceFlush() {},
+    async shutdown() {},
+  };
+  const transport = _private.createOtelTransport(
+    { endpoint: 'https://example.test', headers: {}, timeoutMs: 100 },
+    () => exporter,
+  );
+
+  transport.recordGauge('zvenfit_telegram_pending_leads', 0);
+  transport.recordGauge('zvenfit_telegram_oldest_pending_age_seconds', 0);
+  transport.recordGauge('zvenfit_retry_worker_heartbeat', 1);
+  await transport.flush();
+
+  const metrics = exportedMetrics?.scopeMetrics.flatMap(scope => scope.metrics) ?? [];
+  const gauges = new Map(metrics.map(metric => [metric.descriptor.name, metric]));
+
+  for (const [name, expectedValue] of [
+    ['zvenfit_telegram_pending_leads', 0],
+    ['zvenfit_telegram_oldest_pending_age_seconds', 0],
+    ['zvenfit_retry_worker_heartbeat', 1],
+  ] as const) {
+    const gauge = gauges.get(name);
+    assert.ok(gauge, `${name} was not exported`);
+    assert.equal(gauge.aggregationTemporality, AggregationTemporality.CUMULATIVE);
+    assert.equal(gauge.dataPoints[0]?.value, expectedValue);
+  }
+});
+
 test('rejects when the exporter callback reports a failure', async () => {
   const exporter: PushMetricExporter = {
     export(_metrics, resultCallback) {
