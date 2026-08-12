@@ -109,13 +109,14 @@
     },
     {
       "id": "zvenfit_fitbase_errors",
-      "metricSelector": "{project=\"folder__b1ge1e4iopttj79hfdfm\", cluster=\"default\", service=\"serverless-functions\", name=\"functions_errors\", resource_id=\"zvenfit-fitbase-schedule\"}",
+      "metricId": "zvenfit_fitbase_errors_5m",
+      "metricSelector": "{project=\"folder__b1ge1e4iopttj79hfdfm\", cluster=\"default\", service=\"logging_aggregates\", name=\"zvenfit_fitbase_errors_5m\"}",
       "aggregation": "max",
       "operator": ">",
       "warning": 0,
       "alarm": 0.5,
       "window": "10m",
-      "delay": "30s",
+      "delay": "3m",
       "noData": "OK"
     },
     {
@@ -170,6 +171,50 @@
       "warning": 10,
       "alarm": 20,
       "window": "10m",
+      "delay": "30s",
+      "noData": "OK"
+    },
+    {
+      "id": "zvenfit_retry_worker_heartbeat",
+      "metricSelector": "{project=\"folder__b1ge1e4iopttj79hfdfm\", cluster=\"default\", service=\"zvenfit-frontend\", name=\"zvenfit_retry_worker_heartbeat\"}",
+      "aggregation": "last",
+      "operator": "<",
+      "warning": 0,
+      "alarm": 0.5,
+      "window": "5m",
+      "delay": "30s",
+      "noData": "ALARM"
+    },
+    {
+      "id": "zvenfit_telegram_delivery_backlog",
+      "metricSelector": "{project=\"folder__b1ge1e4iopttj79hfdfm\", cluster=\"default\", service=\"zvenfit-frontend\", name=\"zvenfit_telegram_oldest_pending_age_seconds\"}",
+      "aggregation": "last",
+      "operator": ">",
+      "warning": 600,
+      "alarm": 1800,
+      "window": "5m",
+      "delay": "30s",
+      "noData": "OK"
+    },
+    {
+      "id": "zvenfit_rate_limit_health_errors",
+      "metricSelector": "{project=\"folder__b1ge1e4iopttj79hfdfm\", cluster=\"default\", service=\"zvenfit-frontend\", name=\"zvenfit_rate_limit_errors_5m\"}",
+      "aggregation": "sum",
+      "operator": ">",
+      "warning": 0,
+      "alarm": 2,
+      "window": "10m",
+      "delay": "30s",
+      "noData": "OK"
+    },
+    {
+      "id": "zvenfit_retry_trigger_errors",
+      "metricSelector": "{project=\"folder__b1ge1e4iopttj79hfdfm\", service=\"serverless-functions\", name=\"serverless.triggers.access_error_per_second|serverless.triggers.error_per_second\", trigger=\"a1smkp9ng1f4g9vqgm7u\", type=\"request\"}",
+      "aggregation": "max",
+      "operator": ">",
+      "warning": 0,
+      "alarm": 0.5,
+      "window": "5m",
       "delay": "30s",
       "noData": "OK"
     },

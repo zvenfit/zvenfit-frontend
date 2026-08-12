@@ -2,6 +2,7 @@ import type { ApplicationMetrics, JsonObject, LoggerLike } from '../types';
 
 const EVENT_COUNTERS: Record<string, string> = {
   lead_persisted: 'zvenfit_leads_persisted_5m',
+  lead_rate_limit_error: 'zvenfit_rate_limit_errors_5m',
   telegram_delivery_failed_permanently: 'zvenfit_telegram_delivery_failed_1m',
   telegram_delivery_retry_error: 'zvenfit_lead_storage_errors',
   ydb_retry: 'zvenfit_ydb_retries_5m',

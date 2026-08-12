@@ -33,6 +33,7 @@ export interface LoggerLike {
 
 export interface ApplicationMetrics {
   addCounter(name: string, value?: number): void;
+  recordGauge(name: string, value: number): void;
   flush(): Promise<void>;
 }
 
@@ -67,6 +68,11 @@ export interface StoreOptions {
   logger?: LoggerLike;
 }
 
+export interface TelegramQueueHealth {
+  pendingCount: number;
+  oldestPendingAgeSeconds: number;
+}
+
 export interface LeadStore {
   saveLead(lead: Lead, options?: StoreOptions): Promise<{ created: boolean; telegramStatus: TelegramStatus }>;
   claimForTelegram(args: {
@@ -91,6 +97,7 @@ export interface LeadStore {
     logger?: LoggerLike;
   }): Promise<void>;
   listTelegramCandidates(args: { now: Date; limit: number; logger?: LoggerLike }): Promise<string[]>;
+  getTelegramQueueHealth(args: { now: Date; logger?: LoggerLike }): Promise<TelegramQueueHealth>;
 }
 
 export interface HandlerDependencies {

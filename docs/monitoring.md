@@ -165,27 +165,34 @@ Telegram username, UTM и тело ответа Fitbase в лог не попа�
 Отдельный бот Yandex Cloud важен: он сможет сообщить о проблеме, даже если бот
 заявок потерял токен, доступ к чату или был заблокирован.
 
-Создай девять обычных алертов. Шесть сигналов lead pipeline используют прямые
-OTLP-метрики приложения, два runtime-сигнала — автоматическую метрику Cloud
-Functions, storage alert — две автоматические метрики YDB:
+Создай тринадцать обычных алертов. Девять сигналов lead pipeline используют
+прямые OTLP-метрики приложения, Fitbase — агрегат его application logs, runtime
+и retry trigger — автоматические метрики Cloud Functions, storage alert — две
+автоматические метрики YDB:
 
 | Alert ID                              | Metric / signal                              | Function | Warning |   Alarm | Window | Delay | No data |
 | ------------------------------------- | -------------------------------------------- | -------- | ------: | ------: | -----: | ----: | ------- |
 | `zvenfit_lead_storage_errors`         | direct `zvenfit_lead_storage_errors`         | `max`    |   `> 0` | `> 0.5` |     5m |   30s | OK      |
 | `zvenfit_permanent_telegram_failures` | direct `zvenfit_telegram_delivery_failed_1m` | `max`    |   `> 0` | `> 0.5` |     5m |   30s | OK      |
-| `zvenfit_fitbase_errors`              | `functions_errors`, schedule only            | `max`    |   `> 0` | `> 0.5` |    10m |   30s | OK      |
+| `zvenfit_fitbase_errors`              | log aggregate `zvenfit_fitbase_errors_5m`    | `max`    |   `> 0` | `> 0.5` |    10m |    3m | OK      |
 | `zvenfit_function_runtime_errors`     | `functions_errors` for both function names   | `sum`    |   `> 0` | `> 0.5` |     5m |   30s | OK      |
 | `zvenfit_ydb_retries`                 | direct `zvenfit_ydb_retries_5m`              | `sum`    | `> 4.5` | `> 5.5` |    10m |   30s | OK      |
 | `zvenfit_slow_ydb_operations`         | direct `zvenfit_ydb_slow_operations_5m`      | `sum`    | `> 0.5` | `> 2.5` |    10m |   30s | OK      |
 | `zvenfit_rate-limited_leads`          | direct `zvenfit_lead_rate_limited_5m`        | `sum`    |   `> 0` |   `> 5` |    10m |   30s | OK      |
 | `zvenfit_persisted_leads_volume`      | direct `zvenfit_leads_persisted_5m`          | `sum`    |  `> 10` |  `> 20` |    10m |   30s | OK      |
+| `zvenfit_retry_worker_heartbeat`      | direct `zvenfit_retry_worker_heartbeat`      | `last`   |   `< 0` | `< 0.5` |     5m |   30s | Alarm   |
+| `zvenfit_telegram_delivery_backlog`   | direct oldest pending age, seconds           | `last`   | `> 600` | `> 1800` |    5m |   30s | OK      |
+| `zvenfit_rate_limit_health_errors`    | direct `zvenfit_rate_limit_errors_5m`        | `sum`    |   `> 0` |   `> 2` |    10m |   30s | OK      |
+| `zvenfit_retry_trigger_errors`        | trigger access and invocation errors         | `max`    |   `> 0` | `> 0.5` |     5m |   30s | OK      |
 | `zvenfit_ydb_storage_usage`           | query `C`, storage used percent              | `last`   | `>= 70` | `>= 85` |    15m |   30s | Warning |
 
 Monium требует `Alarm > Warning`. Для целочисленных счётчиков промежуточное
 значение `0.5` техническое. Для error counters первая точка со значением `1`
 сразу даёт `Alarm`; для slow YDB пороги намеренно разведены: единичное превышение
-даёт `Warning`, а `Alarm` требует минимум три превышения за 10 минут. Прямые и
-platform metrics используют задержку вычисления `30s`.
+даёт `Warning`, а `Alarm` требует минимум три превышения за 10 минут. Heartbeat
+в норме всегда равен `1`; его основная проверка — политика `No data = Alarm`.
+Прямые и platform metrics используют задержку вычисления `30s`, а log aggregate
+Fitbase — `3m`, чтобы дождаться поставки логов.
 
 Приложение экспортирует event counters с `DELTA` temporality. Каждая инвокация
 serverless-функции создаёт отдельный одноразовый MeterProvider, поэтому
@@ -200,11 +207,29 @@ serverless-функции создаёт отдельный одноразовы
 {project="folder__b1ge1e4iopttj79hfdfm", cluster="default", service="zvenfit-frontend", name="zvenfit_lead_storage_errors"}
 ```
 
-Lead-функция отправляет шесть метрик напрямую в Monium по OTLP с
+Lead-функция отправляет девять alert-метрик и одну dashboard-метрику напрямую в Monium по OTLP с
 `service="zvenfit-frontend"`, поэтому эти alerts не зависят от Preview-конвейера
-метрик по логам. Их имена перечислены в таблице выше. Для записи используется
+метрик по логам. Новые health-сигналы:
+
+- `zvenfit_retry_worker_heartbeat` — успешное завершение минутного retry pass;
+- `zvenfit_telegram_pending_leads` — текущий размер очереди для dashboard;
+- `zvenfit_telegram_oldest_pending_age_seconds` — возраст старейшей ожидающей заявки;
+- `zvenfit_rate_limit_errors_5m` — недоступность fail-open rate limiter.
+
+Heartbeat записывается только после retry pass и read-only проверки очереди.
+Если timer не вызвал функцию, YDB недоступна или OTLP export перестал работать,
+точки исчезнут и heartbeat alert перейдёт в `Alarm`. Для записи используется
 GitHub Secret `MONIUM_API_KEY`: API key runtime SA с ролью
-`monium.telemetry.writer` и scope `yc.monium.metrics.write`.
+`monium.metrics.writer` и scope `yc.monium.metrics.write`.
+
+Fitbase не использует `functions_errors` как основной application alert: handler
+перехватывает недоступность upstream и возвращает контролируемый HTTP `502`, то
+есть invocation может считаться успешно завершённым. Поэтому
+`zvenfit_fitbase_errors` проверяет созданный log aggregate:
+
+```text
+{project="folder__b1ge1e4iopttj79hfdfm", cluster="default", service="logging_aggregates", name="zvenfit_fitbase_errors_5m"}
+```
 
 Селектор автоматической метрики runtime errors:
 
@@ -215,6 +240,15 @@ GitHub Secret `MONIUM_API_KEY`: API key runtime SA с ролью
 Несмотря на название метки, live Monitoring API возвращает в `resource_id`
 имена функций, а не их облачные ID `d4e…`. Селектор проверен по фактическим
 сериям `functions_errors` обеих production-функций.
+
+Селектор ошибок минутного retry trigger:
+
+```text
+{project="folder__b1ge1e4iopttj79hfdfm", service="serverless-functions", name="serverless.triggers.access_error_per_second|serverless.triggers.error_per_second", trigger="a1smkp9ng1f4g9vqgm7u", type="request"}
+```
+
+Он отдельно ловит потерю `functionInvoker`, ошибки вызова функции и другие
+проблемы trigger до того, как истечёт пятиминутное окно heartbeat.
 
 Для `zvenfit_ydb_storage_usage` создай три запроса в текстовом режиме:
 
@@ -230,16 +264,18 @@ C: (A / B) * 100
 пользовательские данные, служебные данные и вторичные индексы, поэтому процент
 отражает реальный расход лимита.
 
-Для direct и runtime алертов отсутствие точек считается `OK`. Для storage
-отсутствие любой из двух platform metrics считается `Warning`: потеря данных о
-заполнении базы не должна выглядеть как исправное состояние. Во все девять
-алертов добавь оба канала: **ZvenFit Telegram alerts** и **ZvenFit Email alerts**.
+Для direct и runtime алертов отсутствие точек обычно считается `OK`. Исключение —
+heartbeat: отсутствие точек считается `Alarm`. Для storage отсутствие любой из
+двух platform metrics считается `Warning`: потеря данных о заполнении базы не
+должна выглядеть как исправное состояние. Во все тринадцать алертов добавь оба
+канала: **ZvenFit Telegram alerts** и **ZvenFit Email alerts**.
 
 ## Проверка доставки алертов
 
 Скрипт ниже пишет синтетические записи без персональных данных и проверяет raw
-logs и оставленные диагностические log metrics. Production alerts от них больше
-не зависят:
+logs и диагностические log metrics. Событие `fitbase_schedule_error` намеренно
+переведёт production Fitbase alert в `Alarm`, поэтому запускай скрипт только при
+явной проверке каналов доставки:
 
 ```bash
 bash scripts/test-monitoring-alerts.sh --confirm
@@ -252,8 +288,8 @@ bash scripts/test-monitoring-alerts.sh --confirm
 ## Dashboard
 
 Для вызовов, runtime errors и latency используй готовые service dashboards
-Cloud Functions. В отдельный компактный dashboard добавь семь итоговых метрик
-выше столбцами (`max`, без интерполяции пропусков) и виджеты статуса девяти
+Cloud Functions. В отдельный компактный dashboard добавь ключевые error counters,
+heartbeat, размер и возраст Telegram-очереди, а также виджеты статуса тринадцати
 алертов. Для YDB отдельно выведи количество `ydb_retry`, `ydb_slow_operation`
 и p95 поля `duration_ms` из `ydb_operation_completed`, а также `C` — процент
 использованного хранилища.
@@ -262,7 +298,7 @@ Cloud Functions. В отдельный компактный dashboard добав
 
 - Automatic Yandex Cloud metrics and service dashboards: free.
 - Seven log-derived metrics at one point per window: less than `0.15 RUB/month`.
-- Nine continuously evaluated alerts: about `9.72 RUB/month` at the current
+- Thirteen continuously evaluated alerts: about `14.04 RUB/month` at the current
   tariff of `1.5 RUB / 1000 alert-hours`.
 - Telegram and email notification channels: no separate charge; SMS and calls
   are not enabled.

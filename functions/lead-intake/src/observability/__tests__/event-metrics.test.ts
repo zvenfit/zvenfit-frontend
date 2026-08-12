@@ -12,6 +12,7 @@ function capture() {
     addCounter(name, value = 1) {
       counters.push({ name, value });
     },
+    recordGauge() {},
     async flush() {},
   };
   const logger: LoggerLike = {
@@ -36,6 +37,7 @@ test('records direct counters for lead pipeline events without changing logs', (
   captured.logger.warn?.({ event: 'lead_submission_blocked', reason: 'rate_limit' });
   captured.logger.warn?.({ event: 'ydb_retry', retry_attempts: 3 });
   captured.logger.warn?.({ event: 'ydb_slow_operation' });
+  captured.logger.error({ event: 'lead_rate_limit_error' });
   captured.logger.error({ event: 'telegram_delivery_failed_permanently' });
   captured.logger.error({ event: 'telegram_delivery_retry_error' });
 
@@ -44,10 +46,11 @@ test('records direct counters for lead pipeline events without changing logs', (
     { name: 'zvenfit_lead_rate_limited_5m', value: 1 },
     { name: 'zvenfit_ydb_retries_5m', value: 3 },
     { name: 'zvenfit_ydb_slow_operations_5m', value: 1 },
+    { name: 'zvenfit_rate_limit_errors_5m', value: 1 },
     { name: 'zvenfit_telegram_delivery_failed_1m', value: 1 },
     { name: 'zvenfit_lead_storage_errors', value: 1 },
   ]);
-  assert.equal(captured.logs.length, 6);
+  assert.equal(captured.logs.length, 7);
 });
 
 test('ignores non-rate-limit blocks and unrelated events', () => {

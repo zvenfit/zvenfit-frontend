@@ -22,6 +22,7 @@ test('validates data, migration, and rate-limit table identifiers', () => {
   withEnv('YDB_LEADS_TABLE', 'leads_test', () => {
     assert.equal(config.tableName(), 'leads_test');
     assert.equal(config.migrationTableName(), 'leads_test_migrations');
+    assert.equal(config.queueHealthIndexName(), 'idx_telegram_status_created');
   });
 
   withEnv('YDB_LEADS_TABLE', 'leads; DROP TABLE leads', () => {

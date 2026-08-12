@@ -55,6 +55,6 @@ for _ in {1..21}; do
 done
 
 echo "test-monitoring-alerts: synthetic events written to ${LOG_GROUP_NAME}"
-echo "No production alert depends on these Preview log aggregates; use this output for diagnostics only."
+echo "The synthetic Fitbase event intentionally exercises the production Fitbase alert."
 echo "The YDB storage alert must be checked against live platform metrics, not synthetic logs."
 echo "Verify Telegram and email delivery, then acknowledge the test alerts in Monitoring."

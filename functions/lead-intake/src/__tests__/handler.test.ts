@@ -61,7 +61,12 @@ function dependencies(store: StoreMock, overrides: Partial<HandlerDependencies> 
     maxAttempts: () => 12,
     now: () => NOW,
     rateLimiter: async () => true,
-    store: store as LeadStore,
+    store: {
+      async getTelegramQueueHealth() {
+        return { pendingCount: 0, oldestPendingAgeSeconds: 0 };
+      },
+      ...store,
+    } as LeadStore,
     telegramSender: async () => {},
     uuid: () => DELIVERY_ID,
     ...overrides,
@@ -132,6 +137,9 @@ test('flushes metrics after asynchronous POST events have been recorded', async 
       metricsFactory: () => ({
         addCounter(name) {
           order.push(`metric:${name}`);
+        },
+        recordGauge(name, value) {
+          order.push(`gauge:${name}:${value}`);
         },
         async flush() {
           order.push('metrics_flushed');
@@ -262,6 +270,7 @@ test('POST returns 503 and does not call Telegram when durable storage fails', a
           addCounter(name, value = 1) {
             metricCounters.push({ name, value });
           },
+          recordGauge() {},
           async flush() {
             metricFlushes += 1;
           },
