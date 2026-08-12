@@ -180,7 +180,7 @@ Telegram username, UTM и тело ответа Fitbase в лог не попа�
 | `zvenfit_slow_ydb_operations`         | direct `zvenfit_ydb_slow_operations_5m`      | `sum`    | `> 0.5` | `> 2.5` |    10m |   30s | OK      |
 | `zvenfit_rate-limited_leads`          | direct `zvenfit_lead_rate_limited_5m`        | `sum`    |   `> 0` |   `> 5` |    10m |   30s | OK      |
 | `zvenfit_persisted_leads_volume`      | direct `zvenfit_leads_persisted_5m`          | `sum`    |  `> 10` |  `> 20` |    10m |   30s | OK      |
-| `zvenfit_retry_worker_heartbeat`      | direct `zvenfit_retry_worker_heartbeat`      | `last`   |   `< 0` | `< 0.5` |     5m |   30s | Alarm   |
+| `zvenfit_retry_worker_heartbeat`      | direct `zvenfit_retry_worker_heartbeat`      | `last`   | `< 0.9` | `< 0.5` |     5m |   30s | Alarm   |
 | `zvenfit_telegram_delivery_backlog`   | direct oldest pending age, seconds           | `last`   | `> 600` | `> 1800` |    5m |   30s | OK      |
 | `zvenfit_rate_limit_health_errors`    | direct `zvenfit_rate_limit_errors_5m`        | `sum`    |   `> 0` |   `> 2` |    10m |   30s | OK      |
 | `zvenfit_retry_trigger_errors`        | trigger access and invocation errors         | `max`    |   `> 0` | `> 0.5` |     5m |   30s | OK      |

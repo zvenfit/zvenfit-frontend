@@ -179,7 +179,7 @@
       "metricSelector": "{project=\"folder__b1ge1e4iopttj79hfdfm\", cluster=\"default\", service=\"zvenfit-frontend\", name=\"zvenfit_retry_worker_heartbeat\"}",
       "aggregation": "last",
       "operator": "<",
-      "warning": 0,
+      "warning": 0.9,
       "alarm": 0.5,
       "window": "5m",
       "delay": "30s",
