@@ -38,3 +38,6 @@ sa-key.json
 
 # Local agent tooling
 .agents
+
+# Project-local knowledge base (never commit or sync)
+knowledge-base/
