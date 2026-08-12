@@ -167,7 +167,10 @@ function createOtelExporter(options: MetricsTransportOptions): PushMetricExporte
     url: options.endpoint,
     headers: options.headers,
     timeoutMillis: options.timeoutMs,
-    temporalityPreference: AggregationTemporality.CUMULATIVE,
+    // Each Cloud Function invocation owns a one-shot meter provider. DELTA
+    // preserves event counts across those short-lived providers; CUMULATIVE
+    // made every invocation restart the same series at 1.
+    temporalityPreference: AggregationTemporality.DELTA,
   });
 }
 
@@ -177,7 +180,7 @@ export function createOtelTransport(
 ): MetricsTransport {
   const exporter = exporterFactory(options);
   const reader = new OneShotMetricReader({
-    aggregationTemporalitySelector: () => AggregationTemporality.CUMULATIVE,
+    aggregationTemporalitySelector: () => AggregationTemporality.DELTA,
   });
   const provider = new MeterProvider({ readers: [reader] });
 

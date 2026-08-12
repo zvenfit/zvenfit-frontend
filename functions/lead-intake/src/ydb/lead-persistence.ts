@@ -1,13 +1,5 @@
 import { tableName } from './config';
-import {
-  getSql,
-  firstResultSet,
-  observed,
-  telegramStatus,
-  transactionOptions,
-  ydbTimestamp,
-  ydbUint32,
-} from './context';
+import { firstResultSet, observed, telegramStatus, transactionOptions, ydbTimestamp, ydbUint32 } from './context';
 
 import type { Lead, LoggerLike, TelegramStatus } from '../types';
 
@@ -15,8 +7,7 @@ export async function saveLead(
   lead: Lead,
   { logger }: { logger?: LoggerLike } = {},
 ): Promise<{ created: boolean; telegramStatus: TelegramStatus }> {
-  return observed('save_lead', logger, async () => {
-    const sql = await getSql();
+  return observed('save_lead', logger, async sql => {
     const leadsTable = sql.identifier(tableName());
 
     return sql.begin(transactionOptions(), async tx => {
@@ -70,8 +61,7 @@ export async function importDeliveredLead(
   lead: Lead & { notifiedAt?: Date },
   { logger }: { logger?: LoggerLike } = {},
 ): Promise<{ created: boolean; telegramStatus: TelegramStatus }> {
-  return observed('import_delivered_lead', logger, async () => {
-    const sql = await getSql();
+  return observed('import_delivered_lead', logger, async sql => {
     const leadsTable = sql.identifier(tableName());
 
     return sql.begin(transactionOptions(), async tx => {
