@@ -47,7 +47,6 @@ Telegram username, UTM и тело ответа Fitbase в лог не попа�
 | `lead_submission_blocked`              | Honeypot, размер или rate limit отклонил отправку     | Diagnostic |
 | `lead_rate_limit_error`                | Rate limiter недоступен; заявка пропущена fail-open   | Warning    |
 | `lead_persisted`                       | Новая валидная заявка сохранена                       | Diagnostic |
-| `telegram_delivery_state_error`        | Сбой YDB при обработке статуса Telegram             | Critical   |
 | `telegram_delivery_retry_error`        | Retry-задача не смогла обработать заявку            | Critical   |
 | `telegram_delivery_retry_scheduled`    | Telegram временно недоступен, будет retry           | Log only   |
 | `telegram_delivery_failed_permanently` | Исчерпаны попытки Telegram                          | Critical   |
@@ -70,7 +69,7 @@ Telegram username, UTM и тело ответа Fitbase в лог не попа�
 - Selector:
 
 ```text
-{project="folder__b1ge1e4iopttj79hfdfm", cluster="default", service="default", meta.application="zvenfit-frontend", meta.environment="production", message=*"lead_storage_error|telegram_delivery_state_error|telegram_delivery_retry_error"}
+{project="folder__b1ge1e4iopttj79hfdfm", cluster="default", service="default", meta.application="zvenfit-frontend", meta.environment="production", message=*"lead_storage_error|telegram_delivery_retry_error"}
 ```
 
 ### 2. Permanent Telegram failures

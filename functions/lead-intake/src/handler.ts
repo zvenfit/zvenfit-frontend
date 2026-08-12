@@ -5,7 +5,6 @@ import { createLead, hasHoneypotValue, validateLead } from './lead-payload';
 import { createInvocationLogger } from './observability/logger';
 import { createInvocationMetrics } from './observability/metrics';
 import {
-  deliverLead,
   errorCode,
   logDeliveryFailure,
   maxTelegramAttempts,
@@ -94,10 +93,8 @@ async function persistLead(
     }
   }
 
-  let savedStatus = 'pending';
   try {
     const saved = await dependencies.store.saveLead(lead, { logger });
-    savedStatus = saved.telegramStatus;
     if (saved.created) {
       const event = 'lead_persisted';
       logger.info?.({ event }, event);
@@ -105,24 +102,14 @@ async function persistLead(
     if (saved.telegramStatus === 'sent') {
       return jsonResponse(200, { ok: true, lead_id: lead.leadId, notification: 'sent' }, headers);
     }
+
+    return jsonResponse(202, { ok: true, lead_id: lead.leadId, notification: saved.telegramStatus }, headers);
   } catch (error) {
     logDeliveryFailure(logger, 'lead_storage_error', lead.leadId, errorCode(error, 'storage_error'), 0);
     metrics.addCounter('zvenfit_lead_storage_errors');
 
     return jsonResponse(503, { ok: false, error: 'storage_unavailable' }, headers);
   }
-
-  let notification: 'sent' | 'pending' | 'failed' | 'skipped' = 'pending';
-  try {
-    notification = await deliverLead(lead.leadId, dependencies, logger);
-    if (notification === 'skipped') {
-      notification = savedStatus === 'failed' ? 'failed' : 'pending';
-    }
-  } catch (error) {
-    logDeliveryFailure(logger, 'telegram_delivery_state_error', lead.leadId, errorCode(error, 'storage_error'), 0);
-  }
-
-  return jsonResponse(200, { ok: true, lead_id: lead.leadId, notification }, headers);
 }
 
 function createHandler(overrides: Partial<HandlerDependencies> = {}): CloudHandler {

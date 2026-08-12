@@ -212,11 +212,11 @@ URL=$(yc serverless function get --name zvenfit-telegram-lead --format json | jq
 curl -X POST "$URL" \
   -H "Content-Type: application/json" \
   -d '{"name":"Test","phone":"+7 999","service":"Позвонить"}'
-# Ответ: {"ok":true,"lead_id":"...","notification":"sent|pending|failed"}
+# Ответ: {"ok":true,"lead_id":"...","notification":"pending"}
 ```
 
-`ok: true` означает, что заявка уже сохранена в YDB. `notification: pending` означает,
-что Telegram был недоступен и таймер повторит отправку.
+`202` и `ok: true` означают, что заявка надёжно сохранена в YDB. Telegram отправляется
+асинхронно минутным таймером; `notification: pending` означает, что она ожидает фоновой доставки.
 
 ### Интеграционная проверка YDB
 

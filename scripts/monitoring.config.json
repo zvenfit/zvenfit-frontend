@@ -40,7 +40,7 @@
   "logMetrics": [
     {
       "id": "zvenfit_lead_storage_errors_1m",
-      "events": ["lead_storage_error", "telegram_delivery_state_error", "telegram_delivery_retry_error"],
+      "events": ["lead_storage_error", "telegram_delivery_retry_error"],
       "aggregation": "count",
       "window": "1m"
     },
