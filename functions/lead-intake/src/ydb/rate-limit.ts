@@ -1,7 +1,7 @@
 import { createHmac } from 'node:crypto';
 
 import { parsePositiveInt, rateLimitsTableName } from './config';
-import { firstResultSet, getSql, observed, transactionOptions, ydbTimestamp, ydbUint32 } from './context';
+import { firstResultSet, observedSql, transactionOptions, ydbTimestamp, ydbUint32 } from './context';
 
 import type { LoggerLike } from '../types';
 
@@ -52,9 +52,9 @@ export async function consumeLeadRateLimit({
   now: Date;
   logger?: LoggerLike;
 }): Promise<boolean> {
-  return observed('lead_rate_limit', logger, async () => {
-    const { maxRequests, windowSeconds, secret } = settings();
-    const sql = await getSql();
+  const { maxRequests, windowSeconds, secret } = settings();
+
+  return observedSql('lead_rate_limit', logger, async sql => {
     const rateLimitsTable = sql.identifier(rateLimitsTableName());
     const key = rateKey(sourceIp, now, windowSeconds, secret);
     const expiresAt = new Date(windowStart(now, windowSeconds) + COUNTER_RETENTION_MS);

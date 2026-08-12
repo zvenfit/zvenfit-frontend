@@ -41,6 +41,17 @@ export function observed<T>(operation: string, logger: LoggerLike | undefined, c
   return observeYdbOperation(operation, logger, callback);
 }
 
+// Cold-start connection setup is not query latency and must not trigger the slow-operation alert.
+export async function observedSql<T>(
+  operation: string,
+  logger: LoggerLike | undefined,
+  callback: (sql: YdbClient['sql']) => Promise<T>,
+): Promise<T> {
+  const sql = await getSql();
+
+  return observed(operation, logger, () => callback(sql));
+}
+
 export function firstResultSet(resultSets: unknown): SqlRow[] {
   return Array.isArray(resultSets) && Array.isArray(resultSets[0]) ? (resultSets[0] as SqlRow[]) : [];
 }
