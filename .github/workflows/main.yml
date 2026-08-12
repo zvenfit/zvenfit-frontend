@@ -102,12 +102,15 @@ jobs:
           LEAD_RATE_LIMIT_SECRET: ${{ secrets.LEAD_RATE_LIMIT_SECRET }}
           ALLOWED_ORIGINS: ${{ env.ALLOWED_ORIGINS }}
           YC_LEAD_SERVICE_ACCOUNT_ID: ${{ vars.YC_LEAD_SERVICE_ACCOUNT_ID }}
+          YC_LEAD_TIMEOUT: ${{ vars.YC_LEAD_TIMEOUT || '120s' }}
           YDB_DATABASE_NAME: ${{ vars.YDB_DATABASE_NAME || 'zvenfit-leads' }}
           YDB_LEADS_TABLE: ${{ vars.YDB_LEADS_TABLE || 'leads' }}
           YDB_RATE_LIMITS_TABLE: ${{ vars.YDB_RATE_LIMITS_TABLE || 'lead_rate_limits' }}
           LEAD_RATE_LIMIT_MAX: ${{ vars.LEAD_RATE_LIMIT_MAX || '5' }}
           LEAD_RATE_LIMIT_WINDOW_SECONDS: ${{ vars.LEAD_RATE_LIMIT_WINDOW_SECONDS || '600' }}
           MAX_TELEGRAM_ATTEMPTS: ${{ vars.MAX_TELEGRAM_ATTEMPTS || '12' }}
+          TELEGRAM_RETRY_BATCH_SIZE: ${{ vars.TELEGRAM_RETRY_BATCH_SIZE || '5' }}
+          TELEGRAM_TIMEOUT_MS: ${{ vars.TELEGRAM_TIMEOUT_MS || '15000' }}
           YDB_QUERY_TIMEOUT_MS: ${{ vars.YDB_QUERY_TIMEOUT_MS || '5000' }}
           YDB_SLOW_OPERATION_MS: ${{ vars.YDB_SLOW_OPERATION_MS || '1000' }}
           YDB_SESSION_POOL_SIZE: ${{ vars.YDB_SESSION_POOL_SIZE || '5' }}

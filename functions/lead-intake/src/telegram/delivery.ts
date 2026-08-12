@@ -2,9 +2,11 @@ import { TRACKED_UTM_PARAMS, sanitize } from '../lead-payload';
 
 import type { ClaimedLead, HandlerDependencies, JsonObject, LoggerLike, UtmKey } from '../types';
 
-const TELEGRAM_TIMEOUT_MS = 5000;
+const DEFAULT_TELEGRAM_TIMEOUT_MS = 15_000;
+const MAX_TELEGRAM_TIMEOUT_MS = 25_000;
 const TELEGRAM_LEASE_MS = 2 * 60 * 1000;
-const RETRY_BATCH_SIZE = 25;
+const DEFAULT_RETRY_BATCH_SIZE = 5;
+const MAX_RETRY_BATCH_SIZE = 25;
 const DEFAULT_MAX_TELEGRAM_ATTEMPTS = 12;
 
 const UTM_LABELS: Record<UtmKey, string> = {
@@ -76,6 +78,18 @@ export function maxTelegramAttempts(): number {
   return Number.isInteger(value) && value > 0 ? value : DEFAULT_MAX_TELEGRAM_ATTEMPTS;
 }
 
+export function telegramTimeoutMs(): number {
+  const value = Number.parseInt(process.env.TELEGRAM_TIMEOUT_MS ?? '', 10);
+
+  return Number.isInteger(value) && value > 0 ? Math.min(value, MAX_TELEGRAM_TIMEOUT_MS) : DEFAULT_TELEGRAM_TIMEOUT_MS;
+}
+
+export function retryBatchSize(): number {
+  const value = Number.parseInt(process.env.TELEGRAM_RETRY_BATCH_SIZE ?? '', 10);
+
+  return Number.isInteger(value) && value > 0 ? Math.min(value, MAX_RETRY_BATCH_SIZE) : DEFAULT_RETRY_BATCH_SIZE;
+}
+
 function nextRetryAt(now: Date, attempts: number): Date {
   const delayMinutes = [1, 5, 15, 60, 6 * 60][Math.min(Math.max(attempts - 1, 0), 4)] ?? 1;
 
@@ -84,6 +98,25 @@ function nextRetryAt(now: Date, attempts: number): Date {
 
 function telegramError(message: string, code: string): Error & { code: string } {
   return Object.assign(new Error(message), { code });
+}
+
+function telegramNetworkErrorCode(error: unknown): string {
+  if (error && typeof error === 'object' && 'name' in error && error.name === 'TimeoutError') {
+    return 'telegram_timeout';
+  }
+
+  const cause = error && typeof error === 'object' && 'cause' in error ? error.cause : null;
+  const causeCode = cause && typeof cause === 'object' && 'code' in cause ? cause.code : null;
+  if (typeof causeCode !== 'string') {
+    return 'telegram_unreachable';
+  }
+
+  const normalizedCode = causeCode
+    .toLowerCase()
+    .replace(/[^a-z0-9_]/g, '_')
+    .slice(0, 40);
+
+  return normalizedCode ? `telegram_${normalizedCode}` : 'telegram_unreachable';
 }
 
 export async function sendTelegram(payload: ClaimedLead): Promise<void> {
@@ -99,11 +132,11 @@ export async function sendTelegram(payload: ClaimedLead): Promise<void> {
     response = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      signal: AbortSignal.timeout(TELEGRAM_TIMEOUT_MS),
+      signal: AbortSignal.timeout(telegramTimeoutMs()),
       body: JSON.stringify({ chat_id: chatId, text: buildMessage(payload) }),
     });
-  } catch {
-    throw telegramError('Telegram is unreachable', 'telegram_unreachable');
+  } catch (error) {
+    throw telegramError('Telegram is unreachable', telegramNetworkErrorCode(error));
   }
 
   let responseBody: unknown = null;
@@ -171,7 +204,7 @@ export async function deliverLead(
 export async function retryPendingLeads(dependencies: HandlerDependencies, logger: LoggerLike): Promise<RetrySummary> {
   const leadIds = await dependencies.store.listTelegramCandidates({
     now: dependencies.now(),
-    limit: RETRY_BATCH_SIZE,
+    limit: retryBatchSize(),
     logger,
   });
   const summary: RetrySummary = { processed: leadIds.length, sent: 0, pending: 0, failed: 0, skipped: 0 };

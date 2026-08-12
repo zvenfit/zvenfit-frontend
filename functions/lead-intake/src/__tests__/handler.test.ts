@@ -81,7 +81,7 @@ function readJson(body: string): Record<string, unknown> {
   return JSON.parse(body) as Record<string, unknown>;
 }
 
-test('POST persists lead before Telegram delivery and returns success', async () => {
+test('POST persists a pending lead and returns before Telegram delivery', async () => {
   const calls: Call[] = [];
   const store: StoreMock = {
     async saveLead(lead) {
@@ -89,19 +89,12 @@ test('POST persists lead before Telegram delivery and returns success', async ()
 
       return { created: true, telegramStatus: 'pending' };
     },
-    async claimForTelegram() {
-      calls.push(['claim']);
-
-      return claimedLead();
-    },
-    async markTelegramDelivered(args) {
-      calls.push(['delivered', args]);
-    },
   };
+  let telegramCalled = false;
   const handler = _private.createHandler(
     dependencies(store, {
-      async telegramSender(lead) {
-        calls.push(['telegram', lead]);
+      async telegramSender() {
+        telegramCalled = true;
       },
     }),
   );
@@ -109,21 +102,22 @@ test('POST persists lead before Telegram delivery and returns success', async ()
   const response = await invokeHttp(handler);
   const savedLead = calls[0]?.[1] as ClaimedLead;
 
-  assert.equal(response.statusCode, 200);
-  assert.deepEqual(readJson(response.body), { ok: true, lead_id: LEAD_ID, notification: 'sent' });
+  assert.equal(response.statusCode, 202);
+  assert.deepEqual(readJson(response.body), { ok: true, lead_id: LEAD_ID, notification: 'pending' });
   assert.deepEqual(
     calls.map(call => call[0]),
-    ['save', 'claim', 'telegram', 'delivered'],
+    ['save'],
   );
+  assert.equal(telegramCalled, false);
   assert.equal(savedLead.telegramUsername, '@anna');
   assert.deepEqual(savedLead.utm, { utm_source: 'direct' });
 });
 
-test('POST acknowledges a persisted lead when Telegram is unavailable', async () => {
+test('timer keeps a persisted lead pending when Telegram is unavailable', async () => {
   let failedDelivery: FailedDelivery | undefined;
   const store: StoreMock = {
-    async saveLead() {
-      return { created: true, telegramStatus: 'pending' };
+    async listTelegramCandidates() {
+      return [LEAD_ID];
     },
     async claimForTelegram() {
       return claimedLead();
@@ -143,10 +137,11 @@ test('POST acknowledges a persisted lead when Telegram is unavailable', async ()
   console.error = () => {};
 
   try {
-    const response = await invokeHttp(handler);
+    const result = await handler({
+      messages: [{ event_metadata: { event_type: 'yandex.cloud.events.serverless.triggers.TimerMessage' } }],
+    });
 
-    assert.equal(response.statusCode, 200);
-    assert.deepEqual(readJson(response.body), { ok: true, lead_id: LEAD_ID, notification: 'pending' });
+    assert.deepEqual(result, { processed: 1, sent: 0, pending: 1, failed: 0, skipped: 0 });
     assert.ok(failedDelivery);
     assert.equal(failedDelivery.errorCode, 'telegram_unreachable');
     assert.equal(failedDelivery.terminal, false);
@@ -156,12 +151,12 @@ test('POST acknowledges a persisted lead when Telegram is unavailable', async ()
   }
 });
 
-test('POST keeps the lead and exposes failed notification after the retry limit', async () => {
+test('timer marks the lead failed after the Telegram retry limit', async () => {
   let failedDelivery: FailedDelivery | undefined;
   const errorLogs: string[] = [];
   const store: StoreMock = {
-    async saveLead() {
-      return { created: false, telegramStatus: 'pending' };
+    async listTelegramCandidates() {
+      return [LEAD_ID];
     },
     async claimForTelegram() {
       return claimedLead({ telegramAttempts: 12 });
@@ -181,9 +176,11 @@ test('POST keeps the lead and exposes failed notification after the retry limit'
   console.error = (...data: unknown[]) => errorLogs.push(String(data[0]));
 
   try {
-    const response = await invokeHttp(handler);
+    const result = await handler({
+      messages: [{ event_metadata: { event_type: 'yandex.cloud.events.serverless.triggers.TimerMessage' } }],
+    });
 
-    assert.equal(readJson(response.body).notification, 'failed');
+    assert.deepEqual(result, { processed: 1, sent: 0, pending: 0, failed: 1, skipped: 0 });
     assert.ok(failedDelivery);
     assert.equal(failedDelivery.terminal, true);
     assert.equal(failedDelivery.failedAt.toISOString(), NOW.toISOString());
