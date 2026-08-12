@@ -3,8 +3,10 @@
   "source": {
     "cluster": "default",
     "service": "default",
-    "application": "zvenfit-frontend",
-    "environment": "production",
+    "labels": {
+      "meta.application": "zvenfit-frontend",
+      "meta.environment": "production"
+    },
     "retentionDays": 3
   },
   "metricOutput": {
@@ -71,7 +73,7 @@
     {
       "id": "zvenfit_lead_rate_limited_5m",
       "events": ["lead_submission_blocked"],
-      "filters": { "reason": "rate_limit" },
+      "filters": { "meta.reason": "rate_limit" },
       "aggregation": "count",
       "window": "5m"
     },
@@ -85,35 +87,35 @@
   "alerts": [
     {
       "id": "zvenfit_lead_storage_errors",
-      "metricId": "zvenfit_lead_storage_errors_1m",
+      "metricSelector": "{project=\"folder__b1ge1e4iopttj79hfdfm\", cluster=\"default\", service=\"zvenfit-frontend\", name=\"zvenfit_lead_storage_errors\"}",
       "aggregation": "max",
       "operator": ">",
       "warning": 0,
       "alarm": 0.5,
       "window": "5m",
-      "delay": "3m",
+      "delay": "30s",
       "noData": "OK"
     },
     {
       "id": "zvenfit_permanent_telegram_failures",
-      "metricId": "zvenfit_telegram_delivery_failed_1m",
+      "metricSelector": "{project=\"folder__b1ge1e4iopttj79hfdfm\", cluster=\"default\", service=\"zvenfit-frontend\", name=\"zvenfit_telegram_delivery_failed_1m\"}",
       "aggregation": "max",
       "operator": ">",
       "warning": 0,
       "alarm": 0.5,
       "window": "5m",
-      "delay": "3m",
+      "delay": "30s",
       "noData": "OK"
     },
     {
       "id": "zvenfit_fitbase_errors",
-      "metricId": "zvenfit_fitbase_errors_5m",
+      "metricSelector": "{project=\"folder__b1ge1e4iopttj79hfdfm\", cluster=\"default\", service=\"serverless-functions\", name=\"functions_errors\", resource_id=\"zvenfit-fitbase-schedule\"}",
       "aggregation": "max",
       "operator": ">",
       "warning": 0,
       "alarm": 0.5,
       "window": "10m",
-      "delay": "3m",
+      "delay": "30s",
       "noData": "OK"
     },
     {
@@ -129,46 +131,46 @@
     },
     {
       "id": "zvenfit_ydb_retries",
-      "metricId": "zvenfit_ydb_retries_5m",
+      "metricSelector": "{project=\"folder__b1ge1e4iopttj79hfdfm\", cluster=\"default\", service=\"zvenfit-frontend\", name=\"zvenfit_ydb_retries_5m\"}",
       "aggregation": "sum",
       "operator": ">",
       "warning": 4.5,
       "alarm": 5.5,
       "window": "10m",
-      "delay": "3m",
+      "delay": "30s",
       "noData": "OK"
     },
     {
       "id": "zvenfit_slow_ydb_operations",
-      "metricId": "zvenfit_ydb_slow_operations_5m",
+      "metricSelector": "{project=\"folder__b1ge1e4iopttj79hfdfm\", cluster=\"default\", service=\"zvenfit-frontend\", name=\"zvenfit_ydb_slow_operations_5m\"}",
       "aggregation": "sum",
       "operator": ">",
       "warning": 0,
       "alarm": 0.5,
       "window": "10m",
-      "delay": "3m",
+      "delay": "30s",
       "noData": "OK"
     },
     {
       "id": "zvenfit_rate-limited_leads",
-      "metricId": "zvenfit_lead_rate_limited_5m",
+      "metricSelector": "{project=\"folder__b1ge1e4iopttj79hfdfm\", cluster=\"default\", service=\"zvenfit-frontend\", name=\"zvenfit_lead_rate_limited_5m\"}",
       "aggregation": "sum",
       "operator": ">",
       "warning": 0,
       "alarm": 5,
       "window": "10m",
-      "delay": "3m",
+      "delay": "30s",
       "noData": "OK"
     },
     {
       "id": "zvenfit_persisted_leads_volume",
-      "metricId": "zvenfit_leads_persisted_5m",
+      "metricSelector": "{project=\"folder__b1ge1e4iopttj79hfdfm\", cluster=\"default\", service=\"zvenfit-frontend\", name=\"zvenfit_leads_persisted_5m\"}",
       "aggregation": "sum",
       "operator": ">",
       "warning": 10,
       "alarm": 20,
       "window": "10m",
-      "delay": "3m",
+      "delay": "30s",
       "noData": "OK"
     },
     {

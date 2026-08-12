@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 
 import { allowedOrigins, corsHeaders, jsonResponse, readBody } from './http';
 import { createLead, hasHoneypotValue, validateLead } from './lead-payload';
+import { withEventMetrics } from './observability/event-metrics';
 import { createInvocationLogger } from './observability/logger';
 import { createInvocationMetrics } from './observability/metrics';
 import {
@@ -116,8 +117,9 @@ function createHandler(overrides: Partial<HandlerDependencies> = {}): CloudHandl
   const dependencies = createDependencies(overrides);
 
   return async (event, context) => {
-    const logger = dependencies.loggerFactory(context);
-    const metrics = dependencies.metricsFactory(context, logger);
+    const baseLogger = dependencies.loggerFactory(context);
+    const metrics = dependencies.metricsFactory(context, baseLogger);
+    const logger = withEventMetrics(baseLogger, metrics);
 
     try {
       if (isTimerEvent(event)) {
