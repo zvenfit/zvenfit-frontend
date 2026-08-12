@@ -53,7 +53,9 @@ test('every alert references a metric and is documented', () => {
     assert.equal(alert.noData, expectedNoData);
     assert.equal(typeof alert.warning, 'number', `${alert.id} has no Warning threshold`);
     assert.equal(typeof alert.alarm, 'number', `${alert.id} has no Alarm threshold`);
-    assert.equal(alert.alarm > alert.warning, true, `${alert.id} requires Alarm > Warning`);
+    const alarmIsMoreSevere =
+      alert.operator === '<' ? alert.alarm < alert.warning : alert.alarm > alert.warning;
+    assert.equal(alarmIsMoreSevere, true, `${alert.id} has inverted Warning and Alarm thresholds`);
     assert.equal(typeof alert.delay, 'string', `${alert.id} has no evaluation delay`);
     alertIds.add(alert.id);
   }
@@ -178,6 +180,12 @@ test('retry worker health covers missing heartbeats, delivery backlog, and trigg
 
   assert.equal(heartbeat.noData, 'ALARM');
   assert.equal(heartbeat.aggregation, 'last');
+  assert.equal(heartbeat.operator, '<');
+  assert.deepEqual(
+    { warning: heartbeat.warning, alarm: heartbeat.alarm },
+    { warning: 0.9, alarm: 0.5 },
+  );
+  assert.ok(heartbeat.alarm < heartbeat.warning);
   assert.match(heartbeat.metricSelector, /name="zvenfit_retry_worker_heartbeat"/);
   assert.deepEqual(
     { warning: backlog.warning, alarm: backlog.alarm, aggregation: backlog.aggregation },

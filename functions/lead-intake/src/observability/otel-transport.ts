@@ -2,6 +2,7 @@ import { ExportResultCode } from '@opentelemetry/core';
 import { OTLPMetricExporter } from '@opentelemetry/exporter-metrics-otlp-proto';
 import {
   AggregationTemporality,
+  InstrumentType,
   MeterProvider,
   MetricReader,
   type PushMetricExporter,
@@ -174,13 +175,27 @@ function createOtelExporter(options: MetricsTransportOptions): PushMetricExporte
   });
 }
 
+function selectAggregationTemporality(instrumentType: InstrumentType): AggregationTemporality {
+  switch (instrumentType) {
+    case InstrumentType.COUNTER:
+    case InstrumentType.OBSERVABLE_COUNTER:
+    case InstrumentType.HISTOGRAM:
+      return AggregationTemporality.DELTA;
+    default:
+      return AggregationTemporality.CUMULATIVE;
+  }
+}
+
 export function createOtelTransport(
   options: MetricsTransportOptions,
   exporterFactory: MetricsExporterFactory = createOtelExporter,
 ): MetricsTransport {
   const exporter = exporterFactory(options);
   const reader = new OneShotMetricReader({
-    aggregationTemporalitySelector: () => AggregationTemporality.DELTA,
+    // Event counters are deltas for each short-lived function invocation.
+    // Gauges are cumulative instant values so an explicit zero remains a
+    // real sample instead of looking like missing telemetry in Monium.
+    aggregationTemporalitySelector: selectAggregationTemporality,
   });
   const provider = new MeterProvider({ readers: [reader] });
 
