@@ -43,6 +43,21 @@ if ! yc serverless function get --name="${FUNCTION_NAME}" >/dev/null 2>&1; then
   yc serverless function create --name="${FUNCTION_NAME}"
 fi
 
+if ! yc serverless function list-access-bindings --name="${FUNCTION_NAME}" --format=json | node -e "
+const fs = require('fs');
+const bindings = JSON.parse(fs.readFileSync(0, 'utf8'));
+const publicInvoker = bindings.some(binding =>
+  binding.role_id === 'functions.functionInvoker' &&
+  binding.subject?.type === 'system' &&
+  binding.subject?.id === 'allUsers'
+);
+process.exit(publicInvoker ? 0 : 1);
+"; then
+  echo "deploy-fitbase-schedule: ${FUNCTION_NAME} is missing the one-time public functionInvoker binding" >&2
+  echo "Run with an admin identity: yc serverless function allow-unauthenticated-invoke ${FUNCTION_NAME}" >&2
+  exit 1
+fi
+
 ENV_ARGS=(
   --environment "FITBASE_API_TOKEN=${FITBASE_API_TOKEN}"
   --environment "FITBASE_DOMAIN=${FITBASE_DOMAIN}"
@@ -63,8 +78,6 @@ yc serverless function version create \
   --execution-timeout="${TIMEOUT}" \
   --source-path="${SOURCE_DIR}" \
   "${ENV_ARGS[@]}"
-
-yc serverless function allow-unauthenticated-invoke "${FUNCTION_NAME}"
 
 INVOKE_URL="$(yc serverless function get --name="${FUNCTION_NAME}" --format=json | node -e "
 const fs = require('fs');
