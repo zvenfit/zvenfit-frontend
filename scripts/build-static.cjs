@@ -74,6 +74,7 @@ const SITE_CSS_SOURCE = 'zvenfit.webflow.css';
 const SITE_CSS_MIN = 'zvenfit.webflow.min.css';
 const ASSETS_CDN_BASE = 'https://storage.yandexcloud.net/zvenfit/v2';
 const CDN_VENDOR_JS = ['webflow.js'];
+const MAPS_CONFIG_PLACEHOLDER = '__ZVENFIT_MAPS_JSON__';
 const CACHE_BUST_SCRIPTS = [
   'utm-attribution.js',
   'lead-form.js',
@@ -242,9 +243,15 @@ function writeMapsConfig(distDir, structuredDataConfig, mapsConfig) {
 
   const runtimeConfig = buildMapsRuntimeConfig(structuredDataConfig, mapsConfig);
   const template = fs.readFileSync(mapsConfigPathDist, 'utf8');
+  const placeholderCount = template.split(MAPS_CONFIG_PLACEHOLDER).length - 1;
+  if (placeholderCount !== 1) {
+    throw new Error(`build-static: maps config template must contain exactly one placeholder; found ${placeholderCount}`);
+  }
+
+  const output = template.replace(MAPS_CONFIG_PLACEHOLDER, JSON.stringify(runtimeConfig, null, 2));
   fs.writeFileSync(
     mapsConfigPathDist,
-    template.replace('__ZVENFIT_MAPS_JSON__', JSON.stringify(runtimeConfig, null, 2)),
+    output,
     'utf8',
   );
 }
