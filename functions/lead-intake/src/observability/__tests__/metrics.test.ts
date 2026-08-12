@@ -1,7 +1,9 @@
+import { ExportResultCode } from '@opentelemetry/core';
+import { AggregationTemporality, type PushMetricExporter, type ResourceMetrics } from '@opentelemetry/sdk-metrics';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createInvocationMetrics, type InvocationMetrics } from '../metrics';
+import { _private, createInvocationMetrics, type InvocationMetrics } from '../metrics';
 
 import type { JsonObject, LoggerLike } from '../../types';
 
@@ -170,4 +172,62 @@ test('bounds the exporter timeout', () => {
   }
 
   assert.deepEqual(observedTimeouts, [100, 5000]);
+});
+
+test('collects once and waits for the exporter callback before shutdown', async () => {
+  let exportedMetrics: ResourceMetrics | undefined;
+  let callbackCompleted = false;
+  let shutdownCalls = 0;
+  const exporter: PushMetricExporter = {
+    export(metrics, resultCallback) {
+      exportedMetrics = metrics;
+      setTimeout(() => {
+        callbackCompleted = true;
+        resultCallback({ code: ExportResultCode.SUCCESS });
+      }, 10);
+    },
+    async forceFlush() {},
+    async shutdown() {
+      shutdownCalls += 1;
+    },
+  };
+  const transport = _private.createOtelTransport(
+    { endpoint: 'https://example.test', headers: {}, timeoutMs: 100 },
+    () => exporter,
+  );
+
+  transport.addCounter('zvenfit_test_events', 2, { outcome: 'stored' });
+  const flushPromise = transport.flush();
+  assert.equal(callbackCompleted, false);
+  await flushPromise;
+
+  assert.equal(callbackCompleted, true);
+  assert.equal(shutdownCalls, 1);
+  const metric = exportedMetrics?.scopeMetrics
+    .flatMap(scope => scope.metrics)
+    .find(item => item.descriptor.name === 'zvenfit_test_events');
+  assert.ok(metric);
+  assert.equal(metric.aggregationTemporality, AggregationTemporality.CUMULATIVE);
+  assert.equal(metric.dataPoints[0]?.value, 2);
+  assert.deepEqual(metric.dataPoints[0]?.attributes, { outcome: 'stored' });
+});
+
+test('rejects when the exporter callback reports a failure', async () => {
+  const exporter: PushMetricExporter = {
+    export(_metrics, resultCallback) {
+      resultCallback({
+        code: ExportResultCode.FAILED,
+        error: Object.assign(new Error('collector rejected metrics'), { code: 'collector_rejected' }),
+      });
+    },
+    async forceFlush() {},
+    async shutdown() {},
+  };
+  const transport = _private.createOtelTransport(
+    { endpoint: 'https://example.test', headers: {}, timeoutMs: 100 },
+    () => exporter,
+  );
+
+  transport.addCounter('zvenfit_test_events', 1);
+  await assert.rejects(transport.flush(), { code: 'collector_rejected' });
 });
