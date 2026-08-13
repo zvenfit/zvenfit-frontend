@@ -40,7 +40,9 @@ After any change that affects HTML/CSS/JS/config injection: run `npm run build` 
 Browser (zvenfit.ru)
   ├─ POST lead form → functions/lead-intake → YDB → Telegram
   │                                      ↑ retry timer
-  └─ GET /raspisanie/ → functions/fitbase-schedule → Fitbase API
+  └─ GET /raspisanie/ → functions/fitbase-schedule → provider
+                                                    ├─ production: Fitbase API
+                                                    └─ staging: dynamic fixture
 
 Local dev (npm run dev):
   mock-server :3000  ← lead POST + GET /schedule
@@ -78,8 +80,8 @@ Also at build time:
 | Task                       | Files                                                               |
 | -------------------------- | ------------------------------------------------------------------- |
 | Lead form UI/validation    | `public/forma-dlya-zayavki/index.html`, `public/js/lead-form.js`    |
-| Lead API / Telegram        | `functions/lead-intake/src/handler.ts`, `src/telegram/`           |
-| Lead storage / retry state | `functions/lead-intake/src/ydb/`                                  |
+| Lead API / Telegram        | `functions/lead-intake/src/handler.ts`, `src/telegram/`             |
+| Lead storage / retry state | `functions/lead-intake/src/ydb/`                                    |
 | Schedule UI                | `public/raspisanie/index.html`, `public/js/schedule.js`             |
 | Schedule API / Fitbase     | `functions/fitbase-schedule/src/handler.ts`, `src/fitbase/`         |
 | UTM in leads               | `public/js/utm-attribution.js`, `docs/utm-attribution-marketing.md` |
@@ -100,8 +102,8 @@ npm run dev:watch                  # mock API + rebuild + serve :4173
 ```
 
 - Lead form posts to `http://localhost:3000` in dev (via injected `LEAD_API_URL`)
-- Schedule uses fixture unless `FITBASE_API_TOKEN` is set in `.env.development`
-- Force fixture: `USE_SCHEDULE_FIXTURE=1`
+- Schedule uses dynamic fixture by default (`SCHEDULE_PROVIDER=fixture`)
+- Live local data requires both `SCHEDULE_PROVIDER=fitbase` and `FITBASE_API_TOKEN`
 
 ## Verification
 

@@ -67,11 +67,13 @@ test('logs a structured event without an API response body when Fitbase fails', 
   }
 });
 
-test('logs a structured event when the Fitbase token is missing', async () => {
+test('keeps the production Fitbase misconfiguration event backward compatible', async () => {
   const originalToken = process.env.FITBASE_API_TOKEN;
+  const originalProvider = process.env.SCHEDULE_PROVIDER;
   const messages: CapturedLog[] = [];
   const handler = createTestHandler(messages);
   delete process.env.FITBASE_API_TOKEN;
+  process.env.SCHEDULE_PROVIDER = 'fitbase';
 
   try {
     const result = await handler(getEvent());
@@ -89,5 +91,84 @@ test('logs a structured event when the Fitbase token is missing', async () => {
     if (originalToken !== undefined) {
       process.env.FITBASE_API_TOKEN = originalToken;
     }
+
+    if (originalProvider === undefined) {
+      delete process.env.SCHEDULE_PROVIDER;
+    } else {
+      process.env.SCHEDULE_PROVIDER = originalProvider;
+    }
   }
+});
+
+test('logs the provider misconfiguration event for an invalid non-Fitbase provider', async () => {
+  const originalProvider = process.env.SCHEDULE_PROVIDER;
+  const messages: CapturedLog[] = [];
+  const handler = createTestHandler(messages);
+  process.env.SCHEDULE_PROVIDER = 'automatic';
+
+  try {
+    const result = await handler(getEvent());
+
+    assert.equal(result.statusCode, 500);
+    assert.deepEqual(messages[0], {
+      message: 'schedule_provider_misconfigured',
+      fields: {
+        event: 'schedule_provider_misconfigured',
+        error_code: 'schedule_provider_misconfigured',
+        status: null,
+      },
+    });
+  } finally {
+    if (originalProvider === undefined) {
+      delete process.env.SCHEDULE_PROVIDER;
+    } else {
+      process.env.SCHEDULE_PROVIDER = originalProvider;
+    }
+  }
+});
+
+test('serves the provider contract without requiring Fitbase credentials', async () => {
+  const messages: CapturedLog[] = [];
+  const handler = _private.createHandler({
+    loggerFactory: () => ({
+      error(fields, message) {
+        messages.push({ fields, message });
+      },
+    }),
+    providerFactory: () => ({
+      name: 'fixture',
+      async getSchedule(from, to) {
+        return [
+          {
+            id: 'fixture-item',
+            date: from,
+            timeStart: '09:00',
+            timeEnd: '10:00',
+            duration: 60,
+            title: 'Тестовое занятие',
+            description: '',
+            color: '#00d10e',
+            trainers: [],
+            place: '',
+            club: 'ZvenFit Staging',
+            type: 'group',
+            ageType: 'adult',
+            cancelled: false,
+            registrationClosed: false,
+            registrationRequired: false,
+            maxParticipants: null,
+            transfer: null,
+          },
+        ].filter(item => item.date <= to);
+      },
+    }),
+  });
+
+  const result = await handler(getEvent());
+  const payload = JSON.parse(result.body);
+
+  assert.equal(result.statusCode, 200);
+  assert.equal(payload.count, 1);
+  assert.equal(payload.items[0].id, 'fixture-item');
+  assert.deepEqual(messages, []);
 });

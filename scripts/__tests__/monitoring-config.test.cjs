@@ -31,8 +31,7 @@ test('every monitored event exists in application code and documentation', () =>
 test('every log metric declares an application event or an exact platform selector', () => {
   for (const metric of config.logMetrics) {
     const hasEvents = Array.isArray(metric.events) && metric.events.length > 0;
-    const hasPlatformSelector =
-      metric.sourceType === 'platform-runtime' && typeof metric.selector === 'string';
+    const hasPlatformSelector = metric.sourceType === 'platform-runtime' && typeof metric.selector === 'string';
 
     assert.equal(hasEvents || hasPlatformSelector, true, `${metric.id} has no log source`);
   }
@@ -63,8 +62,7 @@ test('every alert references a metric and is documented', () => {
     assert.equal(alert.noData, expectedNoData);
     assert.equal(typeof alert.warning, 'number', `${alert.id} has no Warning threshold`);
     assert.equal(typeof alert.alarm, 'number', `${alert.id} has no Alarm threshold`);
-    const alarmIsMoreSevere =
-      alert.operator === '<' ? alert.alarm < alert.warning : alert.alarm > alert.warning;
+    const alarmIsMoreSevere = alert.operator === '<' ? alert.alarm < alert.warning : alert.alarm > alert.warning;
     assert.equal(alarmIsMoreSevere, true, `${alert.id} has inverted Warning and Alarm thresholds`);
     assert.equal(typeof alert.delay, 'string', `${alert.id} has no evaluation delay`);
     alertIds.add(alert.id);
@@ -93,11 +91,10 @@ test('only application and platform errors requiring message filters use log agg
   const metricIds = new Set(config.logMetrics.map(metric => metric.id));
   const logAlerts = config.alerts.filter(alert => metricIds.has(alert.metricId));
 
-  assert.deepEqual(logAlerts.map(alert => alert.id), [
-    'zvenfit_fitbase_errors',
-    'zvenfit_schedule_runtime_errors',
-    'zvenfit_schedule_cancellations',
-  ]);
+  assert.deepEqual(
+    logAlerts.map(alert => alert.id),
+    ['zvenfit_fitbase_errors', 'zvenfit_schedule_runtime_errors', 'zvenfit_schedule_cancellations'],
+  );
 });
 
 test('YDB retry thresholds expose reachable Warning and Alarm states', () => {
@@ -142,21 +139,11 @@ test('YDB storage alert uses live database metrics and 70/85 percent thresholds'
 });
 
 test('lead runtime errors remain critical while schedule client cancellations are isolated', () => {
-  const scheduleRuntimeMetric = config.logMetrics.find(
-    metric => metric.id === 'zvenfit_schedule_runtime_errors_1m',
-  );
-  const cancellationMetric = config.logMetrics.find(
-    metric => metric.id === 'zvenfit_schedule_client_cancellations_5m',
-  );
-  const leadRuntimeAlert = config.alerts.find(
-    alert => alert.id === 'zvenfit_function_runtime_errors',
-  );
-  const scheduleRuntimeAlert = config.alerts.find(
-    alert => alert.id === 'zvenfit_schedule_runtime_errors',
-  );
-  const cancellationAlert = config.alerts.find(
-    alert => alert.id === 'zvenfit_schedule_cancellations',
-  );
+  const scheduleRuntimeMetric = config.logMetrics.find(metric => metric.id === 'zvenfit_schedule_runtime_errors_1m');
+  const cancellationMetric = config.logMetrics.find(metric => metric.id === 'zvenfit_schedule_client_cancellations_5m');
+  const leadRuntimeAlert = config.alerts.find(alert => alert.id === 'zvenfit_function_runtime_errors');
+  const scheduleRuntimeAlert = config.alerts.find(alert => alert.id === 'zvenfit_schedule_runtime_errors');
+  const cancellationAlert = config.alerts.find(alert => alert.id === 'zvenfit_schedule_cancellations');
 
   assert.match(leadRuntimeAlert.metricSelector, /name="functions_errors"/);
   assert.match(leadRuntimeAlert.metricSelector, /resource_id="zvenfit-telegram-lead"/);
@@ -227,7 +214,7 @@ test('Fitbase alert uses the application error aggregate because the handler cat
   assert.match(alert.metricSelector, /service="logging_aggregates"/);
   assert.match(alert.metricSelector, /name="zvenfit_fitbase_errors_5m"/);
   assert.equal(alert.delay, '3m');
-  assert.match(source, /catch \(error\)[\s\S]*fitbase_schedule_error[\s\S]*jsonResponse\(502/);
+  assert.match(source, /catch \(error\)[\s\S]*provider\.name[\s\S]*jsonResponse\(502/);
 });
 
 test('retry worker health covers missing heartbeats, delivery backlog, and trigger failures', () => {
@@ -238,10 +225,7 @@ test('retry worker health covers missing heartbeats, delivery backlog, and trigg
   assert.equal(heartbeat.noData, 'ALARM');
   assert.equal(heartbeat.aggregation, 'last');
   assert.equal(heartbeat.operator, '<');
-  assert.deepEqual(
-    { warning: heartbeat.warning, alarm: heartbeat.alarm },
-    { warning: 0.9, alarm: 0.5 },
-  );
+  assert.deepEqual({ warning: heartbeat.warning, alarm: heartbeat.alarm }, { warning: 0.9, alarm: 0.5 });
   assert.ok(heartbeat.alarm < heartbeat.warning);
   assert.match(heartbeat.metricSelector, /name="zvenfit_retry_worker_heartbeat"/);
   assert.deepEqual(

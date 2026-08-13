@@ -11,9 +11,26 @@ TIMEOUT="${YC_SCHEDULE_TIMEOUT:-15s}"
 ALLOWED_ORIGINS="${ALLOWED_ORIGINS:-https://zvenfit.ru,https://www.zvenfit.ru,https://zvenigorod.zvenfit.ru}"
 FITBASE_DOMAIN="${FITBASE_DOMAIN:-zvenfit}"
 LOG_LEVEL="${LOG_LEVEL:-info}"
+NODE_ENV_VALUE="${NODE_ENV:-production}"
+DEPLOYMENT_ENVIRONMENT_VALUE="${DEPLOYMENT_ENVIRONMENT:-${NODE_ENV_VALUE}}"
+SCHEDULE_PROVIDER="${SCHEDULE_PROVIDER:-fitbase}"
 
-if [[ -z "${FITBASE_API_TOKEN:-}" ]]; then
-  echo "deploy-fitbase-schedule: set FITBASE_API_TOKEN" >&2
+case "${SCHEDULE_PROVIDER}" in
+  fitbase | fixture) ;;
+  *)
+    echo "deploy-fitbase-schedule: SCHEDULE_PROVIDER must be fitbase or fixture" >&2
+    exit 1
+    ;;
+esac
+
+if [[ "${SCHEDULE_PROVIDER}" == "fixture" ]] &&
+  { [[ "${NODE_ENV_VALUE}" == "production" ]] || [[ "${DEPLOYMENT_ENVIRONMENT_VALUE}" == "production" ]]; }; then
+  echo "deploy-fitbase-schedule: fixture provider is forbidden in production" >&2
+  exit 1
+fi
+
+if [[ "${SCHEDULE_PROVIDER}" == "fitbase" ]] && [[ -z "${FITBASE_API_TOKEN:-}" ]]; then
+  echo "deploy-fitbase-schedule: set FITBASE_API_TOKEN for the fitbase provider" >&2
   exit 1
 fi
 
@@ -59,15 +76,22 @@ process.exit(publicInvoker ? 0 : 1);
 fi
 
 ENV_ARGS=(
-  --environment "FITBASE_API_TOKEN=${FITBASE_API_TOKEN}"
-  --environment "FITBASE_DOMAIN=${FITBASE_DOMAIN}"
+  --environment "SCHEDULE_PROVIDER=${SCHEDULE_PROVIDER}"
+  --environment "DEPLOYMENT_ENVIRONMENT=${DEPLOYMENT_ENVIRONMENT_VALUE}"
   --environment "ALLOWED_ORIGINS=${ALLOWED_ORIGINS}"
   --environment "LOG_LEVEL=${LOG_LEVEL}"
-  --environment "NODE_ENV=${NODE_ENV:-production}"
+  --environment "NODE_ENV=${NODE_ENV_VALUE}"
 )
 
-if [[ -n "${FITBASE_CLUB_ID:-}" ]]; then
-  ENV_ARGS+=(--environment "FITBASE_CLUB_ID=${FITBASE_CLUB_ID}")
+if [[ "${SCHEDULE_PROVIDER}" == "fitbase" ]]; then
+  ENV_ARGS+=(
+    --environment "FITBASE_API_TOKEN=${FITBASE_API_TOKEN}"
+    --environment "FITBASE_DOMAIN=${FITBASE_DOMAIN}"
+  )
+
+  if [[ -n "${FITBASE_CLUB_ID:-}" ]]; then
+    ENV_ARGS+=(--environment "FITBASE_CLUB_ID=${FITBASE_CLUB_ID}")
+  fi
 fi
 
 yc serverless function version create \

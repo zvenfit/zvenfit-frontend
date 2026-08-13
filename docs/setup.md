@@ -74,6 +74,16 @@ rm sa-key.json
 
 **Settings → Secrets and variables → Actions:**
 
+Deployment использует GitHub Environments. Production jobs выбирают environment
+`production`, staging jobs — `staging`. Одинаковое имя секрета в этих
+environments должно содержать разные значения. Не копируй production Telegram,
+YDB, folder или Object Storage credentials в staging.
+
+Repository-level production secrets продолжают передаваться в reusable workflow
+через `secrets: inherit`, поэтому переход не требует одномоментной миграции.
+Environment secret с тем же именем имеет приоритет. Целевое состояние — хранить
+deployment secrets в соответствующем GitHub Environment.
+
 | Secret                   | Откуда                     | Пример                                     |
 | ------------------------ | -------------------------- | ------------------------------------------ |
 | `YC_SA_JSON_KEY`         | `sa-key.json` целиком      | `{"id":"aje...","service_account_id":...}` |
@@ -84,6 +94,7 @@ rm sa-key.json
 | `MONIUM_API_KEY`         | Scoped API key runtime SA  | OTLP-запись метрик в Monium                |
 | `YC_ACCESS_KEY_ID`       | Статический ключ SA для S3 | Уже есть                                   |
 | `YC_SECRET_ACCESS_KEY`   | Пара к `ACCESS_KEY_ID`     | Уже есть                                   |
+| `FITBASE_API_TOKEN`      | Read-only token Fitbase    | Только GitHub Environment `production`     |
 
 Обязательная GitHub Variable:
 
@@ -110,6 +121,20 @@ rm sa-key.json
 | `MONIUM_SERVICE`                 | `zvenfit-frontend`       | Сервис прямых метрик                                                       |
 | `MONIUM_METRICS_TIMEOUT_MS`      | `1000`                   | Максимальное ожидание отправки метрик в конце вызова                       |
 | `NODE_ENV`                       | `production`             | Значение поля `environment` в structured logs функций                      |
+
+Имена bucket, functions, retry trigger, YDB и список CORS origins не хранятся в
+GitHub Variables. Они явно зафиксированы в environment wrappers:
+
+- `.github/workflows/main.yml` — production;
+- `.github/workflows/staging.yml` — staging;
+- `.github/workflows/_deploy-environment.yml` — общая реализация.
+
+До обращения к Yandex Cloud workflow запускает
+`scripts/validate-deployment-config.cjs`. Он требует точную карту ресурсов и не
+позволяет staging использовать production names, origins или Fitbase provider.
+Production wrapper всегда выбирает `SCHEDULE_PROVIDER=fitbase`, staging wrapper —
+`SCHEDULE_PROVIDER=fixture`. Поэтому staging не требует и не получает
+`FITBASE_API_TOKEN`.
 
 До первого CI deploy создай YDB, обе функции и отдельный runtime SA под учётной
 записью администратора. Права CI и runtime выдаются на конкретные ресурсы:
@@ -193,6 +218,9 @@ git push origin main
 
 **Готово.** Форма на сайте работает.
 
+Staging не создаётся этим production runbook. Его изоляция, обязательные
+ресурсы и порядок bootstrap описаны в [`staging-environment.md`](staging-environment.md).
+
 ---
 
 ## Локальная разработка
@@ -220,6 +248,11 @@ npm run dev  # localhost:4173
 ```
 
 Открой `/forma-dlya-zayavki/` → тестируй.
+
+Расписание локально использует динамические синтетические данные из
+`SCHEDULE_PROVIDER=fixture`. Для осознанной read-only проверки Fitbase укажи
+`SCHEDULE_PROVIDER=fitbase` и `FITBASE_API_TOKEN` только в игнорируемом
+`.env.development`.
 
 ---
 
