@@ -39,7 +39,9 @@ function createHandler(overrides: HandlerOverrides = {}): CloudHandler {
     try {
       provider = providerFactory(process.env);
     } catch {
-      const eventName = 'schedule_provider_misconfigured';
+      const requestedProvider = (process.env.SCHEDULE_PROVIDER || 'fitbase').trim();
+      const eventName =
+        requestedProvider === 'fitbase' ? 'fitbase_schedule_misconfigured' : 'schedule_provider_misconfigured';
       logScheduleFailure(logger, eventName);
 
       return jsonResponse(500, { ok: false, error: 'server_misconfigured' }, headers, false);

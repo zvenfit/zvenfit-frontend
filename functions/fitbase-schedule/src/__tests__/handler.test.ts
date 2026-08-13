@@ -67,13 +67,44 @@ test('logs a structured event without an API response body when Fitbase fails', 
   }
 });
 
-test('logs a structured event when the schedule provider is misconfigured', async () => {
+test('keeps the production Fitbase misconfiguration event backward compatible', async () => {
   const originalToken = process.env.FITBASE_API_TOKEN;
   const originalProvider = process.env.SCHEDULE_PROVIDER;
   const messages: CapturedLog[] = [];
   const handler = createTestHandler(messages);
   delete process.env.FITBASE_API_TOKEN;
   process.env.SCHEDULE_PROVIDER = 'fitbase';
+
+  try {
+    const result = await handler(getEvent());
+
+    assert.equal(result.statusCode, 500);
+    assert.deepEqual(messages[0], {
+      message: 'fitbase_schedule_misconfigured',
+      fields: {
+        event: 'fitbase_schedule_misconfigured',
+        error_code: 'fitbase_schedule_misconfigured',
+        status: null,
+      },
+    });
+  } finally {
+    if (originalToken !== undefined) {
+      process.env.FITBASE_API_TOKEN = originalToken;
+    }
+
+    if (originalProvider === undefined) {
+      delete process.env.SCHEDULE_PROVIDER;
+    } else {
+      process.env.SCHEDULE_PROVIDER = originalProvider;
+    }
+  }
+});
+
+test('logs the provider misconfiguration event for an invalid non-Fitbase provider', async () => {
+  const originalProvider = process.env.SCHEDULE_PROVIDER;
+  const messages: CapturedLog[] = [];
+  const handler = createTestHandler(messages);
+  process.env.SCHEDULE_PROVIDER = 'automatic';
 
   try {
     const result = await handler(getEvent());
@@ -88,10 +119,6 @@ test('logs a structured event when the schedule provider is misconfigured', asyn
       },
     });
   } finally {
-    if (originalToken !== undefined) {
-      process.env.FITBASE_API_TOKEN = originalToken;
-    }
-
     if (originalProvider === undefined) {
       delete process.env.SCHEDULE_PROVIDER;
     } else {

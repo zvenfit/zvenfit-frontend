@@ -54,7 +54,7 @@
     },
     {
       "id": "zvenfit_fitbase_errors_5m",
-      "events": ["fitbase_schedule_error", "schedule_provider_misconfigured"],
+      "events": ["fitbase_schedule_error", "fitbase_schedule_misconfigured", "schedule_provider_misconfigured"],
       "aggregation": "count",
       "window": "5m"
     },
