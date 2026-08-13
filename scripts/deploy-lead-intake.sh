@@ -116,7 +116,9 @@ if ! yc serverless function get --name="${FUNCTION_NAME}" >/dev/null 2>&1; then
 fi
 
 if ! yc serverless function list-access-bindings --name="${FUNCTION_NAME}" --format=json |
-  node "${ROOT_DIR}/scripts/verify-function-invoker.cjs" "${FUNCTION_INVOKER_MODE}" "${GATEWAY_SERVICE_ACCOUNT_ID}"; then
+  node "${ROOT_DIR}/scripts/verify-function-invoker.cjs" \
+    "${FUNCTION_INVOKER_MODE}" \
+    "${GATEWAY_SERVICE_ACCOUNT_ID},${YC_LEAD_SERVICE_ACCOUNT_ID}"; then
   echo "deploy-lead-intake: ${FUNCTION_NAME} has an invalid ${FUNCTION_INVOKER_MODE} functionInvoker policy" >&2
   echo "Provision the required binding with an admin identity before deploy" >&2
   exit 1

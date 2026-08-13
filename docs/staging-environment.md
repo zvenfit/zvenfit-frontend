@@ -65,7 +65,9 @@ Fitbase credentials в окружение fixture-функции.
 1. Serverless YDB `zvenfit-leads-staging` с deletion protection.
 2. Runtime SA lead function с `ydb.editor` только на staging YDB.
 3. Gateway SA с `storage.viewer` на staging bucket и
-   `functions.functionInvoker` на lead, schedule и authorizer functions.
+   `functions.functionInvoker` на lead, schedule и authorizer functions. Lead
+   Runtime SA также получает `functions.functionInvoker` только на lead-функцию,
+   чтобы retry-trigger мог обработать очередь.
 4. Deploy SA с `functions.editor`, `api-gateway.editor` и resource-scoped
    YDB/S3 permissions только в staging folder.
 5. Три приватные Cloud Functions без binding `allUsers`:
@@ -127,7 +129,8 @@ Staging schedule-функция использует динамический `f
 - GitHub Environment содержит только staging credentials;
 - `staging.zvenfit.ru` указывает только на API Gateway;
 - bucket приватный и static website hosting выключен;
-- функции не содержат `allUsers`, Gateway SA имеет точечный invoker binding;
+- функции не содержат `allUsers`: Gateway SA имеет точечные invoker bindings,
+  а Lead Runtime SA — дополнительный binding только на lead-функцию;
 - authorizer credentials заданы только в staging Environment;
 - Telegram bot/chat не используются менеджерами;
 - staging wrapper содержит `schedule_provider: fixture`;
