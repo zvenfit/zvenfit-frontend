@@ -14,6 +14,8 @@ LOG_LEVEL="${LOG_LEVEL:-info}"
 NODE_ENV_VALUE="${NODE_ENV:-production}"
 DEPLOYMENT_ENVIRONMENT_VALUE="${DEPLOYMENT_ENVIRONMENT:-${NODE_ENV_VALUE}}"
 SCHEDULE_PROVIDER="${SCHEDULE_PROVIDER:-fitbase}"
+FUNCTION_INVOKER_MODE="${FUNCTION_INVOKER_MODE:-public}"
+GATEWAY_SERVICE_ACCOUNT_ID="${YC_GATEWAY_SERVICE_ACCOUNT_ID:-}"
 
 case "${SCHEDULE_PROVIDER}" in
   fitbase | fixture) ;;
@@ -22,6 +24,16 @@ case "${SCHEDULE_PROVIDER}" in
     exit 1
     ;;
 esac
+
+if [[ "${FUNCTION_INVOKER_MODE}" != "public" && "${FUNCTION_INVOKER_MODE}" != "gateway" ]]; then
+  echo "deploy-fitbase-schedule: FUNCTION_INVOKER_MODE must be public or gateway" >&2
+  exit 1
+fi
+
+if [[ "${FUNCTION_INVOKER_MODE}" == "gateway" && -z "${GATEWAY_SERVICE_ACCOUNT_ID}" ]]; then
+  echo "deploy-fitbase-schedule: YC_GATEWAY_SERVICE_ACCOUNT_ID is required for gateway mode" >&2
+  exit 1
+fi
 
 if [[ "${SCHEDULE_PROVIDER}" == "fixture" ]] &&
   { [[ "${NODE_ENV_VALUE}" == "production" ]] || [[ "${DEPLOYMENT_ENVIRONMENT_VALUE}" == "production" ]]; }; then
@@ -57,21 +69,17 @@ cp \
 npm pkg delete devDependencies --prefix "${SOURCE_DIR}"
 
 if ! yc serverless function get --name="${FUNCTION_NAME}" >/dev/null 2>&1; then
+  if [[ "${FUNCTION_INVOKER_MODE}" == "gateway" ]]; then
+    echo "deploy-fitbase-schedule: ${FUNCTION_NAME} must be provisioned before private gateway deploy" >&2
+    exit 1
+  fi
   yc serverless function create --name="${FUNCTION_NAME}"
 fi
 
-if ! yc serverless function list-access-bindings --name="${FUNCTION_NAME}" --format=json | node -e "
-const fs = require('fs');
-const bindings = JSON.parse(fs.readFileSync(0, 'utf8'));
-const publicInvoker = bindings.some(binding =>
-  binding.role_id === 'functions.functionInvoker' &&
-  binding.subject?.type === 'system' &&
-  binding.subject?.id === 'allUsers'
-);
-process.exit(publicInvoker ? 0 : 1);
-"; then
-  echo "deploy-fitbase-schedule: ${FUNCTION_NAME} is missing the one-time public functionInvoker binding" >&2
-  echo "Run with an admin identity: yc serverless function allow-unauthenticated-invoke ${FUNCTION_NAME}" >&2
+if ! yc serverless function list-access-bindings --name="${FUNCTION_NAME}" --format=json |
+  node "${ROOT_DIR}/scripts/verify-function-invoker.cjs" "${FUNCTION_INVOKER_MODE}" "${GATEWAY_SERVICE_ACCOUNT_ID}"; then
+  echo "deploy-fitbase-schedule: ${FUNCTION_NAME} has an invalid ${FUNCTION_INVOKER_MODE} functionInvoker policy" >&2
+  echo "Provision the required binding with an admin identity before deploy" >&2
   exit 1
 fi
 

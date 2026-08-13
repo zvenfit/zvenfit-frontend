@@ -20,4 +20,7 @@ jobs:
       lead_retry_trigger_name: zvenfit-lead-telegram-retry-staging
       ydb_database_name: zvenfit-leads-staging
       allowed_origins: https://staging.zvenfit.ru
+      site_access_mode: authenticated-gateway
+      gateway_name: zvenfit-staging
+      authorizer_function_name: zvenfit-staging-authorizer
     secrets: inherit

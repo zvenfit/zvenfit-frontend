@@ -27,6 +27,18 @@ MEMORY="${YC_LEAD_MEMORY:-256m}"
 TIMEOUT="${YC_LEAD_TIMEOUT:-120s}"
 ALLOWED_ORIGINS="${ALLOWED_ORIGINS:-https://zvenfit.ru,https://www.zvenfit.ru,https://zvenigorod.zvenfit.ru}"
 LOG_LEVEL="${LOG_LEVEL:-info}"
+FUNCTION_INVOKER_MODE="${FUNCTION_INVOKER_MODE:-public}"
+GATEWAY_SERVICE_ACCOUNT_ID="${YC_GATEWAY_SERVICE_ACCOUNT_ID:-}"
+
+if [[ "${FUNCTION_INVOKER_MODE}" != "public" && "${FUNCTION_INVOKER_MODE}" != "gateway" ]]; then
+  echo "deploy-lead-intake: FUNCTION_INVOKER_MODE must be public or gateway" >&2
+  exit 1
+fi
+
+if [[ "${FUNCTION_INVOKER_MODE}" == "gateway" && -z "${GATEWAY_SERVICE_ACCOUNT_ID}" ]]; then
+  echo "deploy-lead-intake: YC_GATEWAY_SERVICE_ACCOUNT_ID is required for gateway mode" >&2
+  exit 1
+fi
 
 if [[ -z "${TELEGRAM_BOT_TOKEN:-}" || -z "${TELEGRAM_CHAT_ID:-}" || -z "${LEAD_RATE_LIMIT_SECRET:-}" ]]; then
   echo "deploy-lead-intake: set TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID and LEAD_RATE_LIMIT_SECRET" >&2
@@ -96,21 +108,17 @@ npm --prefix "${ROOT_DIR}/functions/lead-intake" run migrate
 unset LEAD_YDB_IAM_TOKEN
 
 if ! yc serverless function get --name="${FUNCTION_NAME}" >/dev/null 2>&1; then
+  if [[ "${FUNCTION_INVOKER_MODE}" == "gateway" ]]; then
+    echo "deploy-lead-intake: ${FUNCTION_NAME} must be provisioned before private gateway deploy" >&2
+    exit 1
+  fi
   yc serverless function create --name="${FUNCTION_NAME}"
 fi
 
-if ! yc serverless function list-access-bindings --name="${FUNCTION_NAME}" --format=json | node -e "
-const fs = require('fs');
-const bindings = JSON.parse(fs.readFileSync(0, 'utf8'));
-const publicInvoker = bindings.some(binding =>
-  binding.role_id === 'functions.functionInvoker' &&
-  binding.subject?.type === 'system' &&
-  binding.subject?.id === 'allUsers'
-);
-process.exit(publicInvoker ? 0 : 1);
-"; then
-  echo "deploy-lead-intake: ${FUNCTION_NAME} is missing the one-time public functionInvoker binding" >&2
-  echo "Run with an admin identity: yc serverless function allow-unauthenticated-invoke ${FUNCTION_NAME}" >&2
+if ! yc serverless function list-access-bindings --name="${FUNCTION_NAME}" --format=json |
+  node "${ROOT_DIR}/scripts/verify-function-invoker.cjs" "${FUNCTION_INVOKER_MODE}" "${GATEWAY_SERVICE_ACCOUNT_ID}"; then
+  echo "deploy-lead-intake: ${FUNCTION_NAME} has an invalid ${FUNCTION_INVOKER_MODE} functionInvoker policy" >&2
+  echo "Provision the required binding with an admin identity before deploy" >&2
   exit 1
 fi
 

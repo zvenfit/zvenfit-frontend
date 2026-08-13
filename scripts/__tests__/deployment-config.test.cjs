@@ -16,6 +16,9 @@ function environmentConfig(environment, values) {
     LEAD_RETRY_TRIGGER_NAME: values.leadRetryTriggerName,
     YDB_DATABASE_NAME: values.ydbDatabaseName,
     ALLOWED_ORIGINS: values.allowedOrigins.join(','),
+    SITE_ACCESS_MODE: values.siteAccessMode,
+    GATEWAY_NAME: values.gatewayName,
+    AUTHORIZER_FUNCTION_NAME: values.authorizerFunctionName,
   };
 }
 
@@ -46,6 +49,19 @@ test('requires Fitbase in production and fixture in staging', () => {
   const stagingFitbase = environmentConfig('staging', STAGING);
   stagingFitbase.SCHEDULE_PROVIDER = 'fitbase';
   assert.throws(() => validateConfig(readConfig(stagingFitbase)), /staging scheduleProvider must be fixture/);
+});
+
+test('requires authenticated gateway access only in staging', () => {
+  const publicStaging = environmentConfig('staging', STAGING);
+  publicStaging.SITE_ACCESS_MODE = 'public';
+  assert.throws(
+    () => validateConfig(readConfig(publicStaging)),
+    /staging siteAccessMode must be authenticated-gateway/,
+  );
+
+  const gatewayProduction = environmentConfig('production', PRODUCTION);
+  gatewayProduction.SITE_ACCESS_MODE = 'authenticated-gateway';
+  assert.throws(() => validateConfig(readConfig(gatewayProduction)), /production siteAccessMode must be public/);
 });
 
 test('rejects unsupported environments, insecure origins and duplicate origins', () => {

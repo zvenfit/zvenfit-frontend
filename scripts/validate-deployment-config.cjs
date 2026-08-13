@@ -9,6 +9,9 @@ const PRODUCTION = Object.freeze({
   leadRetryTriggerName: 'zvenfit-lead-telegram-retry',
   ydbDatabaseName: 'zvenfit-leads',
   allowedOrigins: ['https://zvenfit.ru', 'https://www.zvenfit.ru', 'https://zvenigorod.zvenfit.ru'],
+  siteAccessMode: 'public',
+  gatewayName: 'disabled',
+  authorizerFunctionName: 'disabled',
 });
 
 const STAGING = Object.freeze({
@@ -20,6 +23,9 @@ const STAGING = Object.freeze({
   leadRetryTriggerName: 'zvenfit-lead-telegram-retry-staging',
   ydbDatabaseName: 'zvenfit-leads-staging',
   allowedOrigins: ['https://staging.zvenfit.ru'],
+  siteAccessMode: 'authenticated-gateway',
+  gatewayName: 'zvenfit-staging',
+  authorizerFunctionName: 'zvenfit-staging-authorizer',
 });
 
 function required(value, name) {
@@ -63,6 +69,9 @@ function readConfig(env = process.env) {
     leadRetryTriggerName: required(env.LEAD_RETRY_TRIGGER_NAME, 'LEAD_RETRY_TRIGGER_NAME'),
     ydbDatabaseName: required(env.YDB_DATABASE_NAME, 'YDB_DATABASE_NAME'),
     allowedOrigins: parseOrigins(env.ALLOWED_ORIGINS),
+    siteAccessMode: required(env.SITE_ACCESS_MODE, 'SITE_ACCESS_MODE'),
+    gatewayName: required(env.GATEWAY_NAME, 'GATEWAY_NAME'),
+    authorizerFunctionName: required(env.AUTHORIZER_FUNCTION_NAME, 'AUTHORIZER_FUNCTION_NAME'),
   };
 }
 
@@ -75,6 +84,9 @@ function assertExactConfig(actual, expected) {
     'scheduleProvider',
     'leadRetryTriggerName',
     'ydbDatabaseName',
+    'siteAccessMode',
+    'gatewayName',
+    'authorizerFunctionName',
   ]) {
     if (actual[key] !== expected[key]) {
       throw new Error(`deployment-config: ${actual.environment} ${key} must be ${expected[key]}, got ${actual[key]}`);
