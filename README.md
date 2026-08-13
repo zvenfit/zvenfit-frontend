@@ -1,6 +1,6 @@
 # ZvenFit Frontend
 
-Статический сайт ZvenFit из Webflow-экспорта, две Yandex Cloud Functions и надёжное хранение заявок в YDB Serverless.
+Статический сайт ZvenFit из Webflow-экспорта, serverless-функции и надёжное хранение заявок в YDB Serverless.
 
 - Инструкции для контрибьюторов и AI-агентов: [`AGENTS.md`](AGENTS.md)
 - Текущий backlog: [`TODO.md`](TODO.md)
@@ -14,6 +14,7 @@ cp .env.example .env.development
 npm install
 npm ci --prefix functions/lead-intake
 npm ci --prefix functions/fitbase-schedule
+npm ci --prefix functions/staging-authorizer
 npm run dev:watch
 ```
 
@@ -24,12 +25,14 @@ npm run dev:watch
 ## Архитектура
 
 ```text
-Browser (zvenfit.ru / staging.zvenfit.ru)
-  ├─ POST lead form → lead-intake → YDB → Telegram
-  │                                  ↑ retry timer
-  └─ GET /raspisanie/ → fitbase-schedule → provider
-                                             ├─ production: Fitbase API
-                                             └─ staging: dynamic fixture
+Browser (zvenfit.ru) → public production functions
+
+Browser / Playwright
+  └─ staging.zvenfit.ru (Basic-auth API Gateway)
+       ├─ private Object Storage
+       ├─ private lead-intake → staging YDB → test Telegram
+       │                           ↑ retry timer
+       └─ private fitbase-schedule → dynamic fixture
 
 Local development
   ├─ mock-server :3000
@@ -47,8 +50,10 @@ Local development
 | Расписание                | `public/raspisanie/`, `public/js/schedule.js`          |
 | Lead API / YDB / Telegram | `functions/lead-intake/src/`                           |
 | Fitbase API               | `functions/fitbase-schedule/src/`                      |
+| Staging Basic authorizer  | `functions/staging-authorizer/src/`                    |
 | Build и HTML-инъекции     | `scripts/build-static.cjs`, `scripts/snippets/`        |
 | Production workflow       | `.github/workflows/main.yml`                           |
+| Private staging workflow  | `.github/workflows/staging.yml`                        |
 
 `dist/` генерируется и не редактируется вручную. После изменений HTML, CSS, JS или build-конфигурации запускай `npm run build` либо используй `npm run dev:watch`.
 
@@ -58,9 +63,11 @@ Local development
 npm run lint:public
 npm run test:lead-fn
 npm run test:schedule-fn
+npm run test:staging-authorizer
 npm run test:monitoring
 npm run test:lead-import
 npm run test:build
+npm run test:build:staging
 ```
 
 После production deploy выполни read-only smoke-test. Он проверяет страницы, runtime-конфиги, CORS lead API и ответ schedule API, но не отправляет форму и не создаёт заявку:

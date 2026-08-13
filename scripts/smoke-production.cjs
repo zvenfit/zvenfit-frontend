@@ -66,13 +66,21 @@ function assertOk(response, label) {
   }
 }
 
-async function fetchText(fetchImpl, url, label, timeoutMs) {
-  const response = await request(
-    fetchImpl,
-    url,
-    { headers: { 'Cache-Control': 'no-cache' } },
-    timeoutMs,
-  );
+async function assertBasicAuthBoundary(fetchImpl, origin, timeoutMs) {
+  const response = await request(fetchImpl, `${origin}/`, { headers: { 'Cache-Control': 'no-cache' } }, timeoutMs);
+
+  if (response.status !== 401) {
+    throw new Error(`smoke-production: unauthenticated staging returned ${response.status}, expected 401`);
+  }
+
+  const challenge = response.headers.get('www-authenticate') || '';
+  if (!/^Basic(?:\s|$)/i.test(challenge)) {
+    throw new Error('smoke-production: staging 401 is missing the HTTP Basic challenge');
+  }
+}
+
+async function fetchText(fetchImpl, url, label, timeoutMs, headers = {}) {
+  const response = await request(fetchImpl, url, { headers: { 'Cache-Control': 'no-cache', ...headers } }, timeoutMs);
   assertOk(response, label);
 
   return response.text();
@@ -83,18 +91,27 @@ async function runSmoke({
   timeoutMs = DEFAULT_TIMEOUT_MS,
   fetchImpl = globalThis.fetch,
   log = console.log,
+  basicAuth,
 } = {}) {
   if (typeof fetchImpl !== 'function') {
     throw new Error('smoke-production: this Node.js version does not provide fetch');
   }
 
   const origin = normalizeSiteUrl(siteUrl);
+  const authorizationHeaders = basicAuth
+    ? {
+        Authorization: `Basic ${Buffer.from(`${basicAuth.username}:${basicAuth.password}`).toString('base64')}`,
+      }
+    : {};
+  if (basicAuth) {
+    await assertBasicAuthBoundary(fetchImpl, origin, timeoutMs);
+  }
   const leadPageUrl = `${origin}/forma-dlya-zayavki/`;
   const schedulePageUrl = `${origin}/raspisanie/`;
 
   const [leadPage, schedulePage] = await Promise.all([
-    fetchText(fetchImpl, leadPageUrl, 'lead page', timeoutMs),
-    fetchText(fetchImpl, schedulePageUrl, 'schedule page', timeoutMs),
+    fetchText(fetchImpl, leadPageUrl, 'lead page', timeoutMs, authorizationHeaders),
+    fetchText(fetchImpl, schedulePageUrl, 'schedule page', timeoutMs, authorizationHeaders),
   ]);
 
   extractScriptUrl(leadPage, 'lead-form.js', origin);
@@ -103,36 +120,43 @@ async function runSmoke({
   const leadConfigUrl = extractScriptUrl(leadPage, 'lead-config.js', origin);
   const scheduleConfigUrl = extractScriptUrl(schedulePage, 'schedule-config.js', origin);
   const [leadConfig, scheduleConfig] = await Promise.all([
-    fetchText(fetchImpl, leadConfigUrl, 'lead config', timeoutMs),
-    fetchText(fetchImpl, scheduleConfigUrl, 'schedule config', timeoutMs),
+    fetchText(fetchImpl, leadConfigUrl, 'lead config', timeoutMs, authorizationHeaders),
+    fetchText(fetchImpl, scheduleConfigUrl, 'schedule config', timeoutMs, authorizationHeaders),
   ]);
 
   const leadApiUrl = extractRuntimeUrl(leadConfig, 'ZVENFIT_LEAD_API');
   const scheduleApiUrl = extractRuntimeUrl(scheduleConfig, 'ZVENFIT_SCHEDULE_API');
 
-  const leadPreflight = await request(
-    fetchImpl,
-    leadApiUrl,
-    {
-      method: 'OPTIONS',
-      headers: {
-        Origin: origin,
-        'Access-Control-Request-Method': 'POST',
-        'Access-Control-Request-Headers': 'content-type',
+  const leadApiOrigin = new URL(leadApiUrl).origin;
+  if (leadApiOrigin !== origin) {
+    const leadPreflight = await request(
+      fetchImpl,
+      leadApiUrl,
+      {
+        method: 'OPTIONS',
+        headers: {
+          ...authorizationHeaders,
+          Origin: origin,
+          'Access-Control-Request-Method': 'POST',
+          'Access-Control-Request-Headers': 'content-type',
+        },
       },
-    },
-    timeoutMs,
-  );
-  assertOk(leadPreflight, 'lead API preflight');
-
-  const allowedOrigin = leadPreflight.headers.get('access-control-allow-origin');
-  if (allowedOrigin !== origin && allowedOrigin !== '*') {
-    throw new Error(
-      `smoke-production: lead API CORS allows ${allowedOrigin || 'nothing'} instead of ${origin}`,
+      timeoutMs,
     );
+    assertOk(leadPreflight, 'lead API preflight');
+
+    const allowedOrigin = leadPreflight.headers.get('access-control-allow-origin');
+    if (allowedOrigin !== origin && allowedOrigin !== '*') {
+      throw new Error(`smoke-production: lead API CORS allows ${allowedOrigin || 'nothing'} instead of ${origin}`);
+    }
   }
 
-  const scheduleResponse = await request(fetchImpl, scheduleApiUrl, { method: 'GET' }, timeoutMs);
+  const scheduleResponse = await request(
+    fetchImpl,
+    scheduleApiUrl,
+    { method: 'GET', headers: authorizationHeaders },
+    timeoutMs,
+  );
   assertOk(scheduleResponse, 'schedule API');
 
   const schedulePayload = await scheduleResponse.json();
@@ -141,7 +165,14 @@ async function runSmoke({
   }
 
   log(`smoke-production: site pages and runtime configs are available at ${origin}`);
-  log('smoke-production: lead API preflight and CORS are healthy (no lead was created)');
+  if (basicAuth) {
+    log('smoke-production: unauthenticated staging access is rejected with an HTTP Basic challenge');
+  }
+  log(
+    leadApiOrigin === origin
+      ? 'smoke-production: lead API is same-origin and no lead was created'
+      : 'smoke-production: lead API preflight and CORS are healthy (no lead was created)',
+  );
   log('smoke-production: schedule API returned JSON successfully');
 
   return { origin, leadApiUrl, scheduleApiUrl };
@@ -160,11 +191,28 @@ function readSiteArgument(argv) {
   return argv[siteIndex + 1];
 }
 
+function readBasicAuth(environment = process.env) {
+  const username = environment.STAGING_BASIC_AUTH_USERNAME || '';
+  const password = environment.STAGING_BASIC_AUTH_PASSWORD || '';
+
+  if (!username && !password) {
+    return undefined;
+  }
+  if (!username || !password) {
+    throw new Error('smoke-production: both staging Basic Auth credentials are required');
+  }
+
+  return { username, password };
+}
+
 if (require.main === module) {
-  runSmoke({ siteUrl: readSiteArgument(process.argv.slice(2)) }).catch(error => {
+  runSmoke({
+    siteUrl: readSiteArgument(process.argv.slice(2)),
+    basicAuth: readBasicAuth(),
+  }).catch(error => {
     console.error(error instanceof Error ? error.message : error);
     process.exitCode = 1;
   });
 }
 
-module.exports = { extractRuntimeUrl, extractScriptUrl, normalizeSiteUrl, runSmoke };
+module.exports = { extractRuntimeUrl, extractScriptUrl, normalizeSiteUrl, readBasicAuth, runSmoke };

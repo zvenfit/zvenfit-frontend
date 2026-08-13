@@ -39,6 +39,18 @@ on:
         description: Comma-separated CORS origins
         required: true
         type: string
+      site_access_mode:
+        description: Public production or authenticated staging gateway
+        required: true
+        type: string
+      gateway_name:
+        description: Pre-provisioned API Gateway name or disabled
+        required: true
+        type: string
+      authorizer_function_name:
+        description: Pre-provisioned Basic authorizer function name or disabled
+        required: true
+        type: string
 
 env:
   NODE_VERSION: '22'
@@ -57,6 +69,9 @@ jobs:
       LEAD_RETRY_TRIGGER_NAME: ${{ inputs.lead_retry_trigger_name }}
       YDB_DATABASE_NAME: ${{ inputs.ydb_database_name }}
       ALLOWED_ORIGINS: ${{ inputs.allowed_origins }}
+      SITE_ACCESS_MODE: ${{ inputs.site_access_mode }}
+      GATEWAY_NAME: ${{ inputs.gateway_name }}
+      AUTHORIZER_FUNCTION_NAME: ${{ inputs.authorizer_function_name }}
 
     steps:
       - name: Checkout repository
@@ -81,12 +96,14 @@ jobs:
             package-lock.json
             functions/lead-intake/package-lock.json
             functions/fitbase-schedule/package-lock.json
+            functions/staging-authorizer/package-lock.json
 
       - name: Install dependencies
         run: |
           npm ci
           npm ci --prefix functions/lead-intake
           npm ci --prefix functions/fitbase-schedule
+          npm ci --prefix functions/staging-authorizer
 
       - name: Run linters
         run: |
@@ -99,6 +116,7 @@ jobs:
           npm run test:schedule-fn
           npm run test:lead-import
           npm run test:monitoring
+          npm run test:staging-authorizer
 
       - name: Verify static production-like build
         env:
@@ -107,12 +125,21 @@ jobs:
           ASSET_VERSION: ci-${{ github.run_number }}
         run: npm run test:build
 
+      - name: Verify protected staging build
+        env:
+          NODE_ENV: staging
+          LEAD_API_URL: https://staging.zvenfit.ru/api/lead
+          SCHEDULE_API_URL: https://staging.zvenfit.ru/api/schedule
+          ASSET_VERSION: staging-ci-${{ github.run_number }}
+        run: npm run test:build:staging
+
   deploy-function:
     needs: [validate-config, quality-checks]
     runs-on: ubuntu-latest
     environment: ${{ inputs.deployment_environment }}
     outputs:
       function_url: ${{ steps.get-url.outputs.url }}
+      function_id: ${{ steps.get-url.outputs.id }}
 
     steps:
       - name: Checkout repository
@@ -155,6 +182,8 @@ jobs:
           LEAD_RATE_LIMIT_SECRET: ${{ secrets.LEAD_RATE_LIMIT_SECRET }}
           ALLOWED_ORIGINS: ${{ inputs.allowed_origins }}
           YC_LEAD_SERVICE_ACCOUNT_ID: ${{ vars.YC_LEAD_SERVICE_ACCOUNT_ID }}
+          FUNCTION_INVOKER_MODE: ${{ inputs.site_access_mode == 'authenticated-gateway' && 'gateway' || 'public' }}
+          YC_GATEWAY_SERVICE_ACCOUNT_ID: ${{ vars.YC_GATEWAY_SERVICE_ACCOUNT_ID }}
           YC_LEAD_TIMEOUT: ${{ vars.YC_LEAD_TIMEOUT || '120s' }}
           YDB_LEADS_TABLE: ${{ vars.YDB_LEADS_TABLE || 'leads' }}
           YDB_RATE_LIMITS_TABLE: ${{ vars.YDB_RATE_LIMITS_TABLE || 'lead_rate_limits' }}
@@ -186,6 +215,12 @@ jobs:
             exit 1
           fi
           echo "url=${URL}" >> $GITHUB_OUTPUT
+          ID=$(yc serverless function get --name="$FUNCTION_NAME" --format=json | jq -r '.id // empty')
+          if [ -z "$ID" ]; then
+            echo "ERROR: Failed to get lead function ID" >&2
+            exit 1
+          fi
+          echo "id=${ID}" >> $GITHUB_OUTPUT
           echo "Lead function URL: ${URL}"
 
   deploy-schedule-function:
@@ -194,6 +229,7 @@ jobs:
     environment: ${{ inputs.deployment_environment }}
     outputs:
       function_url: ${{ steps.get-schedule-url.outputs.url }}
+      function_id: ${{ steps.get-schedule-url.outputs.id }}
 
     steps:
       - name: Checkout repository
@@ -229,6 +265,8 @@ jobs:
           NODE_ENV: ${{ inputs.deployment_environment }}
           YC_FOLDER_ID: ${{ secrets.YC_FOLDER_ID }}
           YC_SCHEDULE_FUNCTION_NAME: ${{ inputs.schedule_function_name }}
+          FUNCTION_INVOKER_MODE: ${{ inputs.site_access_mode == 'authenticated-gateway' && 'gateway' || 'public' }}
+          YC_GATEWAY_SERVICE_ACCOUNT_ID: ${{ vars.YC_GATEWAY_SERVICE_ACCOUNT_ID }}
           SCHEDULE_PROVIDER: ${{ inputs.schedule_provider }}
           FITBASE_API_TOKEN: ${{ secrets.FITBASE_API_TOKEN }}
           FITBASE_DOMAIN: ${{ vars.FITBASE_DOMAIN || 'zvenfit' }}
@@ -248,10 +286,85 @@ jobs:
             exit 1
           fi
           echo "url=${URL}" >> $GITHUB_OUTPUT
+          ID=$(yc serverless function get --name="$FUNCTION_NAME" --format=json | jq -r '.id // empty')
+          if [ -z "$ID" ]; then
+            echo "ERROR: Failed to get schedule function ID" >&2
+            exit 1
+          fi
+          echo "id=${ID}" >> $GITHUB_OUTPUT
           echo "Schedule function URL: ${URL}"
 
+  deploy-authorizer:
+    needs: [validate-config, quality-checks]
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.deployment_environment }}
+    outputs:
+      function_id: ${{ steps.get-authorizer-id.outputs.id }}
+
+    steps:
+      - name: Production does not use a staging authorizer
+        if: inputs.site_access_mode == 'public'
+        id: disabled-authorizer
+        run: echo "Public production keeps its existing direct function access"
+
+      - name: Checkout repository
+        if: inputs.site_access_mode == 'authenticated-gateway'
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        if: inputs.site_access_mode == 'authenticated-gateway'
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install authorizer dependencies
+        if: inputs.site_access_mode == 'authenticated-gateway'
+        run: npm ci --prefix functions/staging-authorizer
+
+      - name: Install Yandex Cloud CLI
+        if: inputs.site_access_mode == 'authenticated-gateway'
+        run: |
+          curl -sSL https://storage.yandexcloud.net/yandexcloud-yc/install.sh | bash
+          echo "$HOME/yandex-cloud/bin" >> $GITHUB_PATH
+
+      - name: Authenticate with service account
+        if: inputs.site_access_mode == 'authenticated-gateway'
+        env:
+          YC_FOLDER_ID: ${{ secrets.YC_FOLDER_ID }}
+          YC_SA_KEY: ${{ secrets.YC_SA_JSON_KEY }}
+        run: |
+          echo "$YC_SA_KEY" > /tmp/sa-key.json
+          yc config profile create ci-profile-authorizer
+          yc config set service-account-key /tmp/sa-key.json
+          yc config set folder-id "$YC_FOLDER_ID"
+          rm /tmp/sa-key.json
+
+      - name: Deploy private staging authorizer
+        if: inputs.site_access_mode == 'authenticated-gateway'
+        env:
+          DEPLOYMENT_ENVIRONMENT: ${{ inputs.deployment_environment }}
+          YC_FOLDER_ID: ${{ secrets.YC_FOLDER_ID }}
+          YC_STAGING_AUTHORIZER_FUNCTION_NAME: ${{ inputs.authorizer_function_name }}
+          YC_GATEWAY_SERVICE_ACCOUNT_ID: ${{ vars.YC_GATEWAY_SERVICE_ACCOUNT_ID }}
+          STAGING_BASIC_AUTH_USERNAME: ${{ secrets.STAGING_BASIC_AUTH_USERNAME }}
+          STAGING_BASIC_AUTH_PASSWORD: ${{ secrets.STAGING_BASIC_AUTH_PASSWORD }}
+        run: bash scripts/deploy-staging-authorizer.sh
+
+      - name: Get staging authorizer function ID
+        if: inputs.site_access_mode == 'authenticated-gateway'
+        id: get-authorizer-id
+        env:
+          FUNCTION_NAME: ${{ inputs.authorizer_function_name }}
+        run: |
+          ID=$(yc serverless function get --name="$FUNCTION_NAME" --format=json | jq -r '.id // empty')
+          if [ -z "$ID" ]; then
+            echo "ERROR: Failed to get staging authorizer function ID" >&2
+            exit 1
+          fi
+          echo "id=${ID}" >> $GITHUB_OUTPUT
+
   deploy-site:
-    needs: [validate-config, deploy-function, deploy-schedule-function]
+    needs: [validate-config, deploy-function, deploy-schedule-function, deploy-authorizer]
     runs-on: ubuntu-latest
     environment: ${{ inputs.deployment_environment }}
 
@@ -271,8 +384,8 @@ jobs:
       - name: Build app
         env:
           NODE_ENV: ${{ inputs.deployment_environment }}
-          LEAD_API_URL: ${{ needs.deploy-function.outputs.function_url }}
-          SCHEDULE_API_URL: ${{ needs.deploy-schedule-function.outputs.function_url }}
+          LEAD_API_URL: ${{ inputs.site_access_mode == 'authenticated-gateway' && format('{0}/api/lead', inputs.site_url) || needs.deploy-function.outputs.function_url }}
+          SCHEDULE_API_URL: ${{ inputs.site_access_mode == 'authenticated-gateway' && format('{0}/api/schedule', inputs.site_url) || needs.deploy-schedule-function.outputs.function_url }}
           Y_MAPS_API_KEY: ${{ vars.Y_MAPS_API_KEY }}
           ASSET_VERSION: ${{ vars.ASSET_VERSION || github.run_number }}
         run: |
@@ -340,9 +453,42 @@ jobs:
             --cache-control "no-cache, must-revalidate"
             --metadata-directive REPLACE
 
+      - name: Install Yandex Cloud CLI for staging gateway
+        if: inputs.site_access_mode == 'authenticated-gateway'
+        run: |
+          curl -sSL https://storage.yandexcloud.net/yandexcloud-yc/install.sh | bash
+          echo "$HOME/yandex-cloud/bin" >> $GITHUB_PATH
+
+      - name: Authenticate staging gateway deploy
+        if: inputs.site_access_mode == 'authenticated-gateway'
+        env:
+          YC_FOLDER_ID: ${{ secrets.YC_FOLDER_ID }}
+          YC_SA_KEY: ${{ secrets.YC_SA_JSON_KEY }}
+        run: |
+          echo "$YC_SA_KEY" > /tmp/sa-key.json
+          yc config profile create ci-profile-gateway
+          yc config set service-account-key /tmp/sa-key.json
+          yc config set folder-id "$YC_FOLDER_ID"
+          rm /tmp/sa-key.json
+
+      - name: Deploy authenticated staging gateway
+        if: inputs.site_access_mode == 'authenticated-gateway'
+        env:
+          DEPLOYMENT_ENVIRONMENT: ${{ inputs.deployment_environment }}
+          YC_FOLDER_ID: ${{ secrets.YC_FOLDER_ID }}
+          YC_STAGING_GATEWAY_NAME: ${{ inputs.gateway_name }}
+          YC_GATEWAY_SERVICE_ACCOUNT_ID: ${{ vars.YC_GATEWAY_SERVICE_ACCOUNT_ID }}
+          STAGING_BUCKET: ${{ inputs.s3_bucket }}
+          STAGING_AUTHORIZER_FUNCTION_ID: ${{ needs.deploy-authorizer.outputs.function_id }}
+          STAGING_LEAD_FUNCTION_ID: ${{ needs.deploy-function.outputs.function_id }}
+          STAGING_SCHEDULE_FUNCTION_ID: ${{ needs.deploy-schedule-function.outputs.function_id }}
+        run: bash scripts/deploy-staging-gateway.sh
+
       - name: Read-only environment smoke test
         env:
           SITE_URL: ${{ inputs.site_url }}
+          STAGING_BASIC_AUTH_USERNAME: ${{ inputs.site_access_mode == 'authenticated-gateway' && secrets.STAGING_BASIC_AUTH_USERNAME || '' }}
+          STAGING_BASIC_AUTH_PASSWORD: ${{ inputs.site_access_mode == 'authenticated-gateway' && secrets.STAGING_BASIC_AUTH_PASSWORD || '' }}
         run: |
           for attempt in 1 2 3 4 5 6; do
             if npm run smoke:production -- --site "$SITE_URL"; then

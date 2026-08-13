@@ -23,4 +23,7 @@ jobs:
       lead_retry_trigger_name: zvenfit-lead-telegram-retry
       ydb_database_name: zvenfit-leads
       allowed_origins: https://zvenfit.ru,https://www.zvenfit.ru,https://zvenigorod.zvenfit.ru
+      site_access_mode: public
+      gateway_name: disabled
+      authorizer_function_name: disabled
     secrets: inherit

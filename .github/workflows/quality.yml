@@ -31,12 +31,14 @@ jobs:
             package-lock.json
             functions/lead-intake/package-lock.json
             functions/fitbase-schedule/package-lock.json
+            functions/staging-authorizer/package-lock.json
 
       - name: Install dependencies
         run: |
           npm ci
           npm ci --prefix functions/lead-intake
           npm ci --prefix functions/fitbase-schedule
+          npm ci --prefix functions/staging-authorizer
 
       - name: Run linters
         run: |
@@ -49,6 +51,7 @@ jobs:
           npm run test:schedule-fn
           npm run test:lead-import
           npm run test:monitoring
+          npm run test:staging-authorizer
 
       - name: Verify static production-like build
         env:
@@ -56,3 +59,11 @@ jobs:
           SCHEDULE_API_URL: https://example.invalid/schedule
           ASSET_VERSION: ci-${{ github.sha }}
         run: npm run test:build
+
+      - name: Verify protected staging build
+        env:
+          NODE_ENV: staging
+          LEAD_API_URL: https://staging.zvenfit.ru/api/lead
+          SCHEDULE_API_URL: https://staging.zvenfit.ru/api/schedule
+          ASSET_VERSION: staging-ci-${{ github.sha }}
+        run: npm run test:build:staging

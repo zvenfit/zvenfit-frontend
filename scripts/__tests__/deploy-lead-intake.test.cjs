@@ -55,29 +55,36 @@ test('reusable workflow validates config before cloud deploy jobs', () => {
   const qualityJob = reusableWorkflow.indexOf('  quality-checks:');
   const leadDeployJob = reusableWorkflow.indexOf('  deploy-function:');
   const scheduleDeployJob = reusableWorkflow.indexOf('  deploy-schedule-function:');
+  const authorizerDeployJob = reusableWorkflow.indexOf('  deploy-authorizer:');
   const siteDeployJob = reusableWorkflow.indexOf('  deploy-site:');
 
   assert.equal(validationJob >= 0, true);
   assert.equal(qualityJob > validationJob, true);
   assert.equal(leadDeployJob > qualityJob, true);
   assert.equal(scheduleDeployJob > leadDeployJob, true);
-  assert.equal(siteDeployJob > scheduleDeployJob, true);
+  assert.equal(authorizerDeployJob > scheduleDeployJob, true);
+  assert.equal(siteDeployJob > authorizerDeployJob, true);
   assert.match(reusableWorkflow.slice(leadDeployJob, scheduleDeployJob), /needs: \[validate-config, quality-checks\]/);
-  assert.match(reusableWorkflow.slice(scheduleDeployJob, siteDeployJob), /needs: \[validate-config, quality-checks\]/);
+  assert.match(
+    reusableWorkflow.slice(scheduleDeployJob, authorizerDeployJob),
+    /needs: \[validate-config, quality-checks\]/,
+  );
   assert.match(
     reusableWorkflow.slice(siteDeployJob),
-    /needs: \[validate-config, deploy-function, deploy-schedule-function\]/,
+    /needs: \[validate-config, deploy-function, deploy-schedule-function, deploy-authorizer\]/,
   );
 });
 
 test('every deploy job is protected by the selected GitHub Environment', () => {
   const leadDeployJob = reusableWorkflow.indexOf('  deploy-function:');
   const scheduleDeployJob = reusableWorkflow.indexOf('  deploy-schedule-function:');
+  const authorizerDeployJob = reusableWorkflow.indexOf('  deploy-authorizer:');
   const siteDeployJob = reusableWorkflow.indexOf('  deploy-site:');
   const environmentGuard = /environment: \$\{\{ inputs\.deployment_environment \}\}/;
 
   assert.match(reusableWorkflow.slice(leadDeployJob, scheduleDeployJob), environmentGuard);
-  assert.match(reusableWorkflow.slice(scheduleDeployJob, siteDeployJob), environmentGuard);
+  assert.match(reusableWorkflow.slice(scheduleDeployJob, authorizerDeployJob), environmentGuard);
+  assert.match(reusableWorkflow.slice(authorizerDeployJob, siteDeployJob), environmentGuard);
   assert.match(reusableWorkflow.slice(siteDeployJob), environmentGuard);
 });
 
@@ -122,9 +129,22 @@ test('existing retry trigger is updated by resolved id', () => {
 test('regular deploy verifies public access without mutating function IAM', () => {
   for (const script of [deployScript, scheduleDeployScript]) {
     assert.match(script, /serverless function list-access-bindings/);
-    assert.match(script, /missing the one-time public functionInvoker binding/);
+    assert.match(script, /verify-function-invoker\.cjs/);
     assert.doesNotMatch(script, /^yc serverless function allow-unauthenticated-invoke/m);
   }
+});
+
+test('staging deploy uses private gateway IAM while production remains public', () => {
+  assert.match(productionWorkflow, /site_access_mode: public/);
+  assert.match(stagingWorkflow, /site_access_mode: authenticated-gateway/);
+  assert.match(stagingWorkflow, /gateway_name: zvenfit-staging/);
+  assert.match(stagingWorkflow, /authorizer_function_name: zvenfit-staging-authorizer/);
+  assert.match(reusableWorkflow, /FUNCTION_INVOKER_MODE:/);
+  assert.match(reusableWorkflow, /YC_GATEWAY_SERVICE_ACCOUNT_ID:/);
+  assert.match(reusableWorkflow, /bash scripts\/deploy-staging-authorizer\.sh/);
+  assert.match(reusableWorkflow, /bash scripts\/deploy-staging-gateway\.sh/);
+  assert.match(deployScript, /must be provisioned before private gateway deploy/);
+  assert.match(scheduleDeployScript, /must be provisioned before private gateway deploy/);
 });
 
 test('regular deploy requires a pre-provisioned database', () => {
