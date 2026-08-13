@@ -94,6 +94,7 @@ deployment secrets в соответствующем GitHub Environment.
 | `MONIUM_API_KEY`         | Scoped API key runtime SA  | OTLP-запись метрик в Monium                |
 | `YC_ACCESS_KEY_ID`       | Статический ключ SA для S3 | Уже есть                                   |
 | `YC_SECRET_ACCESS_KEY`   | Пара к `ACCESS_KEY_ID`     | Уже есть                                   |
+| `FITBASE_API_TOKEN`      | Read-only token Fitbase    | Только GitHub Environment `production`     |
 
 Обязательная GitHub Variable:
 
@@ -130,7 +131,10 @@ GitHub Variables. Они явно зафиксированы в environment wrap
 
 До обращения к Yandex Cloud workflow запускает
 `scripts/validate-deployment-config.cjs`. Он требует точную карту ресурсов и не
-позволяет staging использовать production names или origins.
+позволяет staging использовать production names, origins или Fitbase provider.
+Production wrapper всегда выбирает `SCHEDULE_PROVIDER=fitbase`, staging wrapper —
+`SCHEDULE_PROVIDER=fixture`. Поэтому staging не требует и не получает
+`FITBASE_API_TOKEN`.
 
 До первого CI deploy создай YDB, обе функции и отдельный runtime SA под учётной
 записью администратора. Права CI и runtime выдаются на конкретные ресурсы:
@@ -244,6 +248,11 @@ npm run dev  # localhost:4173
 ```
 
 Открой `/forma-dlya-zayavki/` → тестируй.
+
+Расписание локально использует динамические синтетические данные из
+`SCHEDULE_PROVIDER=fixture`. Для осознанной read-only проверки Fitbase укажи
+`SCHEDULE_PROVIDER=fitbase` и `FITBASE_API_TOKEN` только в игнорируемом
+`.env.development`.
 
 ---
 

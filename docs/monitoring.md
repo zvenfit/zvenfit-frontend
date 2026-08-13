@@ -59,7 +59,7 @@ Telegram username, UTM и тело ответа Fitbase в лог не попа�
 | `ydb_slow_operation`                   | Операция YDB превысила `YDB_SLOW_OPERATION_MS`               | Warning    |
 | `ydb_operation_failed`                 | Операция YDB завершилась ошибкой                             | Critical   |
 | `fitbase_schedule_error`               | Fitbase вернул ошибку или недоступен                         | Warning    |
-| `fitbase_schedule_misconfigured`       | В функции отсутствует Fitbase token                          | Critical   |
+| `schedule_provider_misconfigured`      | Provider не настроен или fixture запрещён в production       | Critical   |
 
 ## Метрики по логам
 
@@ -93,7 +93,7 @@ Telegram username, UTM и тело ответа Fitbase в лог не попа�
 - Selector:
 
 ```text
-{project="folder__b1ge1e4iopttj79hfdfm", cluster="default", service="default", meta.application="zvenfit-frontend", meta.environment="production", message=*"fitbase_schedule_error|fitbase_schedule_misconfigured"}
+{project="folder__b1ge1e4iopttj79hfdfm", cluster="default", service="default", meta.application="zvenfit-frontend", meta.environment="production", message=*"fitbase_schedule_error|schedule_provider_misconfigured"}
 ```
 
 ### 4. YDB retries
@@ -204,23 +204,23 @@ Telegram username, UTM и тело ответа Fitbase в лог не попа�
 alert — две автоматические метрики YDB. Клиентские `499` вынесены в отдельный
 диагностический сигнал:
 
-| Alert ID                              | Metric / signal                              | Function | Warning |   Alarm | Window | Delay | No data |
-| ------------------------------------- | -------------------------------------------- | -------- | ------: | ------: | -----: | ----: | ------- |
-| `zvenfit_lead_storage_errors`         | direct `zvenfit_lead_storage_errors`         | `max`    |   `> 0` | `> 0.5` |     5m |   30s | OK      |
-| `zvenfit_permanent_telegram_failures` | direct `zvenfit_telegram_delivery_failed_1m` | `max`    |   `> 0` | `> 0.5` |     5m |   30s | OK      |
-| `zvenfit_fitbase_errors`              | log aggregate `zvenfit_fitbase_errors_5m`    | `max`    |   `> 0` | `> 0.5` |    10m |    3m | OK      |
-| `zvenfit_function_runtime_errors`     | automatic lead `functions_errors`            | `sum`    |   `> 0` | `> 0.5` |     5m |   30s | OK      |
-| `zvenfit_schedule_runtime_errors`     | schedule logs excluding `Code: 499`          | `max`    |   `> 0` | `> 0.5` |     5m |    3m | OK      |
-| `zvenfit_schedule_cancellations` | schedule logs for `Code: 499`                     | `sum`    |   `> 0` | `> 9.5` |    10m |    3m | OK      |
-| `zvenfit_ydb_retries`                 | direct `zvenfit_ydb_retries_5m`              | `sum`    | `> 4.5` | `> 5.5` |    10m |   30s | OK      |
-| `zvenfit_slow_ydb_operations`         | direct `zvenfit_ydb_slow_operations_5m`      | `sum`    | `> 0.5` | `> 2.5` |    10m |   30s | OK      |
-| `zvenfit_rate-limited_leads`          | direct `zvenfit_lead_rate_limited_5m`        | `sum`    |   `> 0` |   `> 5` |    10m |   30s | OK      |
-| `zvenfit_persisted_leads_volume`      | direct `zvenfit_leads_persisted_5m`          | `sum`    |  `> 10` |  `> 20` |    10m |   30s | OK      |
-| `zvenfit_retry_worker_heartbeat`      | direct `zvenfit_retry_worker_heartbeat`      | `last`   | `< 0.9` | `< 0.5` |     5m |   30s | Alarm   |
-| `zvenfit_telegram_delivery_backlog`   | direct oldest pending age, seconds           | `last`   | `> 600` | `> 1800` |    5m |   30s | OK      |
-| `zvenfit_rate_limit_health_errors`    | direct `zvenfit_rate_limit_errors_5m`        | `sum`    |   `> 0` |   `> 2` |    10m |   30s | OK      |
-| `zvenfit_retry_trigger_errors`        | trigger access and invocation errors         | `max`    |   `> 0` | `> 0.5` |     5m |   30s | OK      |
-| `zvenfit_ydb_storage_usage`           | query `C`, storage used percent              | `last`   | `>= 70` | `>= 85` |    15m |   30s | Warning |
+| Alert ID                              | Metric / signal                              | Function | Warning |    Alarm | Window | Delay | No data |
+| ------------------------------------- | -------------------------------------------- | -------- | ------: | -------: | -----: | ----: | ------- |
+| `zvenfit_lead_storage_errors`         | direct `zvenfit_lead_storage_errors`         | `max`    |   `> 0` |  `> 0.5` |     5m |   30s | OK      |
+| `zvenfit_permanent_telegram_failures` | direct `zvenfit_telegram_delivery_failed_1m` | `max`    |   `> 0` |  `> 0.5` |     5m |   30s | OK      |
+| `zvenfit_fitbase_errors`              | log aggregate `zvenfit_fitbase_errors_5m`    | `max`    |   `> 0` |  `> 0.5` |    10m |    3m | OK      |
+| `zvenfit_function_runtime_errors`     | automatic lead `functions_errors`            | `sum`    |   `> 0` |  `> 0.5` |     5m |   30s | OK      |
+| `zvenfit_schedule_runtime_errors`     | schedule logs excluding `Code: 499`          | `max`    |   `> 0` |  `> 0.5` |     5m |    3m | OK      |
+| `zvenfit_schedule_cancellations`      | schedule logs for `Code: 499`                | `sum`    |   `> 0` |  `> 9.5` |    10m |    3m | OK      |
+| `zvenfit_ydb_retries`                 | direct `zvenfit_ydb_retries_5m`              | `sum`    | `> 4.5` |  `> 5.5` |    10m |   30s | OK      |
+| `zvenfit_slow_ydb_operations`         | direct `zvenfit_ydb_slow_operations_5m`      | `sum`    | `> 0.5` |  `> 2.5` |    10m |   30s | OK      |
+| `zvenfit_rate-limited_leads`          | direct `zvenfit_lead_rate_limited_5m`        | `sum`    |   `> 0` |    `> 5` |    10m |   30s | OK      |
+| `zvenfit_persisted_leads_volume`      | direct `zvenfit_leads_persisted_5m`          | `sum`    |  `> 10` |   `> 20` |    10m |   30s | OK      |
+| `zvenfit_retry_worker_heartbeat`      | direct `zvenfit_retry_worker_heartbeat`      | `last`   | `< 0.9` |  `< 0.5` |     5m |   30s | Alarm   |
+| `zvenfit_telegram_delivery_backlog`   | direct oldest pending age, seconds           | `last`   | `> 600` | `> 1800` |     5m |   30s | OK      |
+| `zvenfit_rate_limit_health_errors`    | direct `zvenfit_rate_limit_errors_5m`        | `sum`    |   `> 0` |    `> 2` |    10m |   30s | OK      |
+| `zvenfit_retry_trigger_errors`        | trigger access and invocation errors         | `max`    |   `> 0` |  `> 0.5` |     5m |   30s | OK      |
+| `zvenfit_ydb_storage_usage`           | query `C`, storage used percent              | `last`   | `>= 70` |  `>= 85` |    15m |   30s | Warning |
 
 Monium требует `Alarm > Warning`. Для целочисленных счётчиков промежуточное
 значение `0.5` техническое. Для error counters первая точка со значением `1`

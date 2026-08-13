@@ -19,6 +19,7 @@ jobs:
       s3_bucket: zvenfit-frontend
       lead_function_name: zvenfit-telegram-lead
       schedule_function_name: zvenfit-fitbase-schedule
+      schedule_provider: fitbase
       lead_retry_trigger_name: zvenfit-lead-telegram-retry
       ydb_database_name: zvenfit-leads
       allowed_origins: https://zvenfit.ru,https://www.zvenfit.ru,https://zvenigorod.zvenfit.ru

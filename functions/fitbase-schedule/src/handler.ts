@@ -1,13 +1,21 @@
-import { fetchAllSchedule } from './fitbase/client';
 import { allowedOrigins, corsHeaders, jsonResponse, resolveDateRange } from './http';
 import { createInvocationLogger, logScheduleFailure } from './observability/logger';
+import { createScheduleProvider } from './providers';
 
-import type { FitbaseError, FunctionContext, HandlerOverrides, HttpEvent, HttpResponse } from './types';
+import type {
+  FitbaseError,
+  FunctionContext,
+  HandlerOverrides,
+  HttpEvent,
+  HttpResponse,
+  ScheduleProvider,
+} from './types';
 
 type CloudHandler = (event: HttpEvent, context?: FunctionContext) => Promise<HttpResponse>;
 
 function createHandler(overrides: HandlerOverrides = {}): CloudHandler {
   const loggerFactory = overrides.loggerFactory || createInvocationLogger;
+  const providerFactory = overrides.providerFactory || createScheduleProvider;
 
   return async (event, context) => {
     const logger = loggerFactory(context);
@@ -22,34 +30,32 @@ function createHandler(overrides: HandlerOverrides = {}): CloudHandler {
       return jsonResponse(405, { ok: false, error: 'method_not_allowed' }, headers, false);
     }
 
-    const token = process.env.FITBASE_API_TOKEN;
-    if (!token) {
-      const eventName = 'fitbase_schedule_misconfigured';
-      logScheduleFailure(logger, eventName);
-
-      return jsonResponse(500, { ok: false, error: 'server_misconfigured' }, headers, false);
-    }
-
     const range = resolveDateRange(event.queryStringParameters || {});
     if (range.error) {
       return jsonResponse(400, { ok: false, error: range.error }, headers, false);
     }
 
-    const fitbaseHeaders = {
-      domain: process.env.FITBASE_DOMAIN || 'zvenfit',
-      Authorization: `Bearer ${token}`,
-    };
-    const clubId = (process.env.FITBASE_CLUB_ID || '').trim();
+    let provider: ScheduleProvider;
+    try {
+      provider = providerFactory(process.env);
+    } catch {
+      const eventName = 'schedule_provider_misconfigured';
+      logScheduleFailure(logger, eventName);
+
+      return jsonResponse(500, { ok: false, error: 'server_misconfigured' }, headers, false);
+    }
 
     try {
-      const items = await fetchAllSchedule(range.from, range.to, fitbaseHeaders, clubId);
+      const items = await provider.getSchedule(range.from, range.to);
 
       return jsonResponse(200, { ok: true, from: range.from, to: range.to, count: items.length, items }, headers);
     } catch (error) {
-      const eventName = 'fitbase_schedule_error';
+      const eventName = provider.name === 'fitbase' ? 'fitbase_schedule_error' : 'fixture_schedule_error';
       logScheduleFailure(logger, eventName, error instanceof Error ? (error as FitbaseError) : undefined);
 
-      return jsonResponse(502, { ok: false, error: 'fitbase_unreachable' }, headers, false);
+      const errorCode = provider.name === 'fitbase' ? 'fitbase_unreachable' : 'schedule_unavailable';
+
+      return jsonResponse(502, { ok: false, error: errorCode }, headers, false);
     }
   };
 }

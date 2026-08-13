@@ -18,6 +18,7 @@ test('production wrapper keeps every existing production resource name', () => {
   assert.match(productionWorkflow, /s3_bucket: zvenfit-frontend(?:\n|$)/);
   assert.match(productionWorkflow, /lead_function_name: zvenfit-telegram-lead(?:\n|$)/);
   assert.match(productionWorkflow, /schedule_function_name: zvenfit-fitbase-schedule(?:\n|$)/);
+  assert.match(productionWorkflow, /schedule_provider: fitbase(?:\n|$)/);
   assert.match(productionWorkflow, /lead_retry_trigger_name: zvenfit-lead-telegram-retry(?:\n|$)/);
   assert.match(productionWorkflow, /ydb_database_name: zvenfit-leads(?:\n|$)/);
 });
@@ -39,6 +40,7 @@ test('staging wrapper is manual-only and uses isolated resource names', () => {
   }
 
   assert.match(stagingWorkflow, /allowed_origins: https:\/\/staging\.zvenfit\.ru/);
+  assert.match(stagingWorkflow, /schedule_provider: fixture(?:\n|$)/);
 });
 
 test('production and staging call the same reusable workflow with environment secrets', () => {
@@ -83,6 +85,7 @@ test('reusable workflow passes resource identities explicitly instead of using p
   assert.match(reusableWorkflow, /YC_LEAD_FUNCTION_NAME: \$\{\{ inputs\.lead_function_name \}\}/);
   assert.match(reusableWorkflow, /YC_LEAD_RETRY_TRIGGER_NAME: \$\{\{ inputs\.lead_retry_trigger_name \}\}/);
   assert.match(reusableWorkflow, /YC_SCHEDULE_FUNCTION_NAME: \$\{\{ inputs\.schedule_function_name \}\}/);
+  assert.match(reusableWorkflow, /SCHEDULE_PROVIDER: \$\{\{ inputs\.schedule_provider \}\}/);
   assert.match(reusableWorkflow, /YDB_DATABASE_NAME: \$\{\{ inputs\.ydb_database_name \}\}/);
   assert.match(reusableWorkflow, /s3:\/\/\$\{\{ inputs\.s3_bucket \}\}/);
   assert.doesNotMatch(reusableWorkflow, /zvenfit-telegram-lead(?:\n|'|")/);
@@ -127,4 +130,11 @@ test('regular deploy verifies public access without mutating function IAM', () =
 test('regular deploy requires a pre-provisioned database', () => {
   assert.match(deployScript, /must be provisioned before CI deploy/);
   assert.doesNotMatch(deployScript, /^\s*yc ydb database create/m);
+});
+
+test('schedule deploy has independent runtime and deploy-time production fixture guards', () => {
+  assert.match(scheduleDeployScript, /fixture provider is forbidden in production/);
+  assert.match(scheduleDeployScript, /SCHEDULE_PROVIDER=\$\{SCHEDULE_PROVIDER\}/);
+  assert.match(scheduleDeployScript, /DEPLOYMENT_ENVIRONMENT=\$\{DEPLOYMENT_ENVIRONMENT_VALUE\}/);
+  assert.match(scheduleDeployScript, /set FITBASE_API_TOKEN for the fitbase provider/);
 });

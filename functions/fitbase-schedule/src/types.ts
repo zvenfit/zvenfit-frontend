@@ -75,6 +75,16 @@ export interface ScheduleItem {
   transfer: { date: string; timeStart: string; timeEnd: string } | null;
 }
 
+export type ScheduleProviderName = 'fitbase' | 'fixture';
+
+export interface ScheduleProvider {
+  readonly name: ScheduleProviderName;
+  getSchedule(from: string, to: string): Promise<ScheduleItem[]>;
+}
+
+export type ScheduleProviderFactory = (environment: NodeJS.ProcessEnv) => ScheduleProvider;
+
 export interface HandlerOverrides {
   loggerFactory?(context?: FunctionContext): LoggerLike;
+  providerFactory?: ScheduleProviderFactory;
 }

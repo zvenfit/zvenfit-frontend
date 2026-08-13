@@ -23,6 +23,10 @@ on:
         description: Fitbase schedule Cloud Function name
         required: true
         type: string
+      schedule_provider:
+        description: Explicit schedule provider (fitbase or fixture)
+        required: true
+        type: string
       lead_retry_trigger_name:
         description: Telegram retry timer trigger name
         required: true
@@ -49,6 +53,7 @@ jobs:
       S3_BUCKET: ${{ inputs.s3_bucket }}
       LEAD_FUNCTION_NAME: ${{ inputs.lead_function_name }}
       SCHEDULE_FUNCTION_NAME: ${{ inputs.schedule_function_name }}
+      SCHEDULE_PROVIDER: ${{ inputs.schedule_provider }}
       LEAD_RETRY_TRIGGER_NAME: ${{ inputs.lead_retry_trigger_name }}
       YDB_DATABASE_NAME: ${{ inputs.ydb_database_name }}
       ALLOWED_ORIGINS: ${{ inputs.allowed_origins }}
@@ -224,6 +229,7 @@ jobs:
           NODE_ENV: ${{ inputs.deployment_environment }}
           YC_FOLDER_ID: ${{ secrets.YC_FOLDER_ID }}
           YC_SCHEDULE_FUNCTION_NAME: ${{ inputs.schedule_function_name }}
+          SCHEDULE_PROVIDER: ${{ inputs.schedule_provider }}
           FITBASE_API_TOKEN: ${{ secrets.FITBASE_API_TOKEN }}
           FITBASE_DOMAIN: ${{ vars.FITBASE_DOMAIN || 'zvenfit' }}
           FITBASE_CLUB_ID: ${{ vars.FITBASE_CLUB_ID }}
