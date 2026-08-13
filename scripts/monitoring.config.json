@@ -82,6 +82,22 @@
       "events": ["lead_persisted"],
       "aggregation": "count",
       "window": "5m"
+    },
+    {
+      "id": "zvenfit_schedule_runtime_errors_1m",
+      "sourceType": "platform-runtime",
+      "selector": "{project=\"folder__b1ge1e4iopttj79hfdfm\", cluster=\"default\", service=\"default\", resource_type=\"serverless.function\", resource_id=\"d4e80noc1hjn2g8u0beq\", level=\"ERROR\", message!=*\"Code: 499\"}",
+      "aggregation": "count",
+      "window": "1m",
+      "synthetic": false
+    },
+    {
+      "id": "zvenfit_schedule_client_cancellations_5m",
+      "sourceType": "platform-runtime",
+      "selector": "{project=\"folder__b1ge1e4iopttj79hfdfm\", cluster=\"default\", service=\"default\", resource_type=\"serverless.function\", resource_id=\"d4e80noc1hjn2g8u0beq\", level=\"ERROR\", message=*\"Code: 499\"}",
+      "aggregation": "count",
+      "window": "5m",
+      "synthetic": false
     }
   ],
   "alerts": [
@@ -121,13 +137,38 @@
     },
     {
       "id": "zvenfit_function_runtime_errors",
-      "metricSelector": "{project=\"folder__b1ge1e4iopttj79hfdfm\", service=\"serverless-functions\", name=\"functions_errors\", resource_id=\"zvenfit-telegram-lead|zvenfit-fitbase-schedule\"}",
+      "scope": "lead-function",
+      "metricSelector": "{project=\"folder__b1ge1e4iopttj79hfdfm\", service=\"serverless-functions\", name=\"functions_errors\", resource_id=\"zvenfit-telegram-lead\"}",
       "aggregation": "sum",
       "operator": ">",
       "warning": 0,
       "alarm": 0.5,
       "window": "5m",
       "delay": "30s",
+      "noData": "OK"
+    },
+    {
+      "id": "zvenfit_schedule_runtime_errors",
+      "metricId": "zvenfit_schedule_runtime_errors_1m",
+      "metricSelector": "{project=\"folder__b1ge1e4iopttj79hfdfm\", cluster=\"default\", service=\"logging_aggregates\", name=\"zvenfit_schedule_runtime_errors_1m\"}",
+      "aggregation": "max",
+      "operator": ">",
+      "warning": 0,
+      "alarm": 0.5,
+      "window": "5m",
+      "delay": "3m",
+      "noData": "OK"
+    },
+    {
+      "id": "zvenfit_schedule_cancellations",
+      "metricId": "zvenfit_schedule_client_cancellations_5m",
+      "metricSelector": "{project=\"folder__b1ge1e4iopttj79hfdfm\", cluster=\"default\", service=\"logging_aggregates\", name=\"zvenfit_schedule_client_cancellations_5m\"}",
+      "aggregation": "sum",
+      "operator": ">",
+      "warning": 0,
+      "alarm": 9.5,
+      "window": "10m",
+      "delay": "3m",
       "noData": "OK"
     },
     {
