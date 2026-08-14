@@ -1764,9 +1764,58 @@ body {
 }
 
 /* ZvenFit: group fitness — hide reviews until content is relevant */
-html[data-wf-page="69b540f958c9c44d220bcf1a"] #reviews,
-html[data-wf-page="69b540f958c9c44d220bcf1a"] a[href="#reviews"] {
+html[data-zvenfit-page="group-fitness"] #reviews,
+html[data-zvenfit-page="group-fitness"] a[href="#reviews"] {
   display: none !important;
+}
+
+/* ZvenFit: mini groups — keep Webflow grids inside the viewport at breakpoint edges */
+html[data-zvenfit-page="mini-groups"] .card_grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+html[data-zvenfit-page="mini-groups"] .card_grid > * {
+  min-width: 0;
+}
+
+html[data-zvenfit-page="mini-groups"],
+html[data-zvenfit-page="mini-groups"] body {
+  overflow-x: clip;
+}
+
+@media screen and (min-width: 768px) and (max-width: 1023px) {
+  html[data-zvenfit-page="mini-groups"] .left_cont,
+  html[data-zvenfit-page="mini-groups"] .right_cont {
+    width: 50%;
+    min-width: 0;
+    max-width: 50%;
+  }
+}
+
+@media screen and (max-width: 991px) {
+  html[data-zvenfit-page="mini-groups"] .card_grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media screen and (max-width: 767px) {
+  html[data-zvenfit-page="mini-groups"]
+    #w-node-_71a14719-eca7-48a6-e7aa-9e478f7f4357-4601c0c5,
+  html[data-zvenfit-page="mini-groups"]
+    #w-node-_80a19154-9ce4-5a52-e07f-2da72cb6cc92-4601c0c5 {
+    grid-column: 1 / -1;
+  }
+
+  html[data-zvenfit-page="mini-groups"]
+    #w-node-_80a19154-9ce4-5a52-e07f-2da72cb6cc92-4601c0c5 {
+    justify-self: center;
+  }
+}
+
+@media screen and (max-width: 479px) {
+  html[data-zvenfit-page="mini-groups"] .card_grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .heading-3 {
