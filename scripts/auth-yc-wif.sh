@@ -36,7 +36,7 @@ if ! IAM_RESPONSE="$(curl --fail-with-body --silent --show-error --location --re
   --request POST \
   --header 'Content-Type: application/x-www-form-urlencoded' \
   --data-urlencode 'grant_type=urn:ietf:params:oauth:grant-type:token-exchange' \
-  --data-urlencode 'requested_token_type=urn:ietf:params:oauth-token-type:access_token' \
+  --data-urlencode 'requested_token_type=urn:ietf:params:oauth:token-type:access_token' \
   --data-urlencode "audience=${YC_DEPLOY_SERVICE_ACCOUNT_ID}" \
   --data-urlencode "subject_token=${OIDC_TOKEN}" \
   --data-urlencode 'subject_token_type=urn:ietf:params:oauth:token-type:id_token' \

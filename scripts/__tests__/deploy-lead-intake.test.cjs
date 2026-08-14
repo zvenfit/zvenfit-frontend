@@ -162,6 +162,11 @@ test('deploy jobs use OIDC and ephemeral storage keys instead of long-lived clou
   const workloadIdentityAuth = fs.readFileSync(path.join(ROOT, 'scripts/auth-yc-wif.sh'), 'utf8');
   assert.doesNotMatch(workloadIdentityAuth, /config set token/);
   assert.match(workloadIdentityAuth, /YC_IAM_TOKEN/);
+  assert.match(
+    workloadIdentityAuth,
+    /requested_token_type=urn:ietf:params:oauth:token-type:access_token/,
+  );
+  assert.doesNotMatch(workloadIdentityAuth, /requested_token_type=urn:ietf:params:oauth-token-type/);
   assert.doesNotMatch(reusableWorkflow, /YC_SA_JSON_KEY|YC_ACCESS_KEY_ID|YC_SECRET_ACCESS_KEY/);
   assert.doesNotMatch(reusableWorkflow, /curl -sSL[^\n]+install\.sh \| bash/);
   assert.doesNotMatch(reusableWorkflow, /docker:\/\//);
