@@ -83,7 +83,7 @@ function verify(mode, bindings, serviceAccountId = '') {
   });
 }
 
-test('gateway function policy requires its service account and rejects allUsers', () => {
+test('gateway function policy accepts only the explicitly allowed service accounts', () => {
   const privateBindings = [
     {
       role_id: 'functions.functionInvoker',
@@ -92,6 +92,16 @@ test('gateway function policy requires its service account and rejects allUsers'
   ];
   assert.equal(verify('gateway', privateBindings, 'gateway-sa').status, 0);
   assert.equal(verify('gateway', privateBindings, 'wrong-sa').status, 1);
+
+  const leadBindings = [
+    ...privateBindings,
+    {
+      role_id: 'functions.functionInvoker',
+      subject: { type: 'serviceAccount', id: 'lead-runtime-sa' },
+    },
+  ];
+  assert.equal(verify('gateway', leadBindings, 'gateway-sa,lead-runtime-sa').status, 0);
+  assert.equal(verify('gateway', leadBindings, 'gateway-sa').status, 1);
 
   const publicBindings = [
     {
@@ -103,13 +113,13 @@ test('gateway function policy requires its service account and rejects allUsers'
   assert.equal(verify('public', publicBindings).status, 0);
 
   const extraInvoker = [
-    ...privateBindings,
+    ...leadBindings,
     {
       role_id: 'functions.functionInvoker',
       subject: { type: 'serviceAccount', id: 'unrelated-sa' },
     },
   ];
-  assert.equal(verify('gateway', extraInvoker, 'gateway-sa').status, 1);
+  assert.equal(verify('gateway', extraInvoker, 'gateway-sa,lead-runtime-sa').status, 1);
 });
 
 test('Basic credential hash accepts only an unambiguous high-entropy ASCII pair', () => {
