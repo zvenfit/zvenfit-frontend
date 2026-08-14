@@ -350,7 +350,7 @@ test('technical traffic analytics uses a stateless page-view log and built-in ed
     filters: { 'meta.service': 'zvenfit-site-traffic' },
     aggregation: 'count',
     window: '5m',
-    grouping: ['meta.traffic_class', 'meta.host'],
+    grouping: ['meta.traffic_class', 'host'],
     synthetic: false,
   });
   for (const metricName of [

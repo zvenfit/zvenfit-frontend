@@ -70,7 +70,7 @@ Object Storage и отдельного lifecycle. Повторный `page_view_
   `meta.environment="production"`, `meta.service="zvenfit-site-traffic"`;
 - filter/event: `meta.event="site_page_view"`;
 - aggregation: count, window 5 minutes;
-- grouping: `meta.traffic_class`, `meta.host`.
+- grouping: `meta.traffic_class`, `host` (в Monium `host` — системное поле, не `meta.host`).
 
 На dashboard добавь:
 
