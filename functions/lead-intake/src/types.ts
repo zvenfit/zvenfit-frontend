@@ -104,10 +104,11 @@ export interface HandlerDependencies {
   loggerFactory(context?: FunctionContext): LoggerLike;
   maxAttempts(): number;
   metricsFactory(context: FunctionContext | undefined, logger: LoggerLike): ApplicationMetrics;
+  notificationSender(lead: ClaimedLead): Promise<void>;
   now(): Date;
   rateLimiter(args: { sourceIp: string; now: Date; logger?: LoggerLike }): Promise<boolean>;
+  retryBatchSize(): number;
   store: LeadStore;
-  telegramSender(lead: ClaimedLead): Promise<void>;
   uuid(): string;
 }
 

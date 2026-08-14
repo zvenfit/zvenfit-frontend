@@ -2,8 +2,9 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { _private } from '../handler';
+import { createFitbaseProvider } from '../providers/fitbase-provider';
 
-import type { HttpEvent, JsonObject } from '../types';
+import type { HttpEvent, JsonObject, ScheduleProviderFactory } from '../types';
 
 interface CapturedLog {
   fields: JsonObject;
@@ -18,13 +19,22 @@ function getEvent(): HttpEvent {
   };
 }
 
-function createTestHandler(messages: CapturedLog[]) {
+function createTestHandler(
+  messages: CapturedLog[],
+  providerFactory: ScheduleProviderFactory = () => createFitbaseProvider(process.env),
+) {
   return _private.createHandler({
+    failurePolicy: {
+      misconfiguredEvent: 'fitbase_schedule_misconfigured',
+      unavailableError: 'fitbase_unreachable',
+      unavailableEvent: 'fitbase_schedule_error',
+    },
     loggerFactory: () => ({
       error(fields, message) {
         messages.push({ fields, message });
       },
     }),
+    providerFactory,
   });
 }
 
@@ -69,11 +79,9 @@ test('logs a structured event without an API response body when Fitbase fails', 
 
 test('keeps the production Fitbase misconfiguration event backward compatible', async () => {
   const originalToken = process.env.FITBASE_API_TOKEN;
-  const originalProvider = process.env.SCHEDULE_PROVIDER;
   const messages: CapturedLog[] = [];
   const handler = createTestHandler(messages);
   delete process.env.FITBASE_API_TOKEN;
-  process.env.SCHEDULE_PROVIDER = 'fitbase';
 
   try {
     const result = await handler(getEvent());
@@ -91,52 +99,54 @@ test('keeps the production Fitbase misconfiguration event backward compatible', 
     if (originalToken !== undefined) {
       process.env.FITBASE_API_TOKEN = originalToken;
     }
-
-    if (originalProvider === undefined) {
-      delete process.env.SCHEDULE_PROVIDER;
-    } else {
-      process.env.SCHEDULE_PROVIDER = originalProvider;
-    }
   }
 });
 
-test('logs the provider misconfiguration event for an invalid non-Fitbase provider', async () => {
-  const originalProvider = process.env.SCHEDULE_PROVIDER;
+test('uses the injected failure policy without inspecting a provider subtype', async () => {
   const messages: CapturedLog[] = [];
-  const handler = createTestHandler(messages);
-  process.env.SCHEDULE_PROVIDER = 'automatic';
-
-  try {
-    const result = await handler(getEvent());
-
-    assert.equal(result.statusCode, 500);
-    assert.deepEqual(messages[0], {
-      message: 'schedule_provider_misconfigured',
-      fields: {
-        event: 'schedule_provider_misconfigured',
-        error_code: 'schedule_provider_misconfigured',
-        status: null,
+  const handler = _private.createHandler({
+    failurePolicy: {
+      misconfiguredEvent: 'staging_schedule_misconfigured',
+      unavailableError: 'schedule_unavailable',
+      unavailableEvent: 'staging_schedule_error',
+    },
+    loggerFactory: () => ({
+      error(fields, message) {
+        messages.push({ fields, message });
       },
-    });
-  } finally {
-    if (originalProvider === undefined) {
-      delete process.env.SCHEDULE_PROVIDER;
-    } else {
-      process.env.SCHEDULE_PROVIDER = originalProvider;
-    }
-  }
+    }),
+    providerFactory: () => {
+      throw new Error('not configured');
+    },
+  });
+
+  const result = await handler(getEvent());
+
+  assert.equal(result.statusCode, 500);
+  assert.deepEqual(messages[0], {
+    message: 'staging_schedule_misconfigured',
+    fields: {
+      event: 'staging_schedule_misconfigured',
+      error_code: 'staging_schedule_misconfigured',
+      status: null,
+    },
+  });
 });
 
 test('serves the provider contract without requiring Fitbase credentials', async () => {
   const messages: CapturedLog[] = [];
   const handler = _private.createHandler({
+    failurePolicy: {
+      misconfiguredEvent: 'staging_schedule_misconfigured',
+      unavailableError: 'schedule_unavailable',
+      unavailableEvent: 'staging_schedule_error',
+    },
     loggerFactory: () => ({
       error(fields, message) {
         messages.push({ fields, message });
       },
     }),
     providerFactory: () => ({
-      name: 'fixture',
       async getSchedule(from, to) {
         return [
           {

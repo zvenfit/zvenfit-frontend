@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "outDir": "build-staging"
+  },
+  "include": ["src/staging-entry/index.ts"],
+  "exclude": ["build", "build-staging", "node_modules", "src/**/__tests__/**"]
+}

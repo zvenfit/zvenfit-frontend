@@ -5,6 +5,7 @@ node_modules/
 dist/
 upload/
 functions/*/build/
+functions/*/build-staging/
 
 # Environment (keep .env.example tracked)
 .env

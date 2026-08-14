@@ -21,39 +21,6 @@ export interface LoggerLike {
   error(fields: JsonObject, message?: string): void;
 }
 
-export interface FitbaseError extends Error {
-  payload?: unknown;
-  status?: number;
-}
-
-export interface Trainer {
-  full_name?: unknown;
-  surname?: unknown;
-  name?: unknown;
-  patronymic?: unknown;
-  photo?: unknown;
-}
-
-export interface FitbaseItem {
-  id?: unknown;
-  date?: string;
-  time_start?: string;
-  time_end?: string;
-  duration?: unknown;
-  training?: { name?: string; description?: string; color?: string } | null;
-  trainers?: unknown[];
-  place?: { name?: string } | null;
-  club?: { name?: string } | null;
-  event_type?: string;
-  age_type?: string;
-  cancel?: unknown;
-  stop_registration?: unknown;
-  need_register?: unknown;
-  max_register?: unknown;
-  transfer_event?: { date?: string; time_start?: string; time_end?: string } | null;
-  is_archive?: number;
-}
-
 export interface ScheduleItem {
   id: unknown;
   date: string;
@@ -75,16 +42,20 @@ export interface ScheduleItem {
   transfer: { date: string; timeStart: string; timeEnd: string } | null;
 }
 
-export type ScheduleProviderName = 'fitbase' | 'fixture';
-
 export interface ScheduleProvider {
-  readonly name: ScheduleProviderName;
   getSchedule(from: string, to: string): Promise<ScheduleItem[]>;
 }
 
-export type ScheduleProviderFactory = (environment: NodeJS.ProcessEnv) => ScheduleProvider;
+export type ScheduleProviderFactory = () => ScheduleProvider;
 
-export interface HandlerOverrides {
-  loggerFactory?(context?: FunctionContext): LoggerLike;
-  providerFactory?: ScheduleProviderFactory;
+export interface ScheduleFailurePolicy {
+  misconfiguredEvent: string;
+  unavailableError: string;
+  unavailableEvent: string;
+}
+
+export interface HandlerDependencies {
+  failurePolicy: ScheduleFailurePolicy;
+  loggerFactory(context?: FunctionContext): LoggerLike;
+  providerFactory: ScheduleProviderFactory;
 }

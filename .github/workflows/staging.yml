@@ -20,8 +20,6 @@ jobs:
       s3_bucket: zvenfit-frontend-staging
       lead_function_name: zvenfit-telegram-lead-staging
       schedule_function_name: zvenfit-fitbase-schedule-staging
-      schedule_provider: fixture
-      lead_notification_mode: fixture
       lead_retry_trigger_name: zvenfit-lead-telegram-retry-staging
       ydb_database_name: zvenfit-leads-staging
       allowed_origins: https://staging.zvenfit.ru

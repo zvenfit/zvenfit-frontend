@@ -6,12 +6,17 @@
 production browser -> public production Functions -> production YDB -> Telegram
 
 staging browser -> Basic Auth + SWS API Gateway
-                -> private staging Functions -> staging YDB -> fixture sink
+                -> private staging Functions -> staging YDB -> staging sink
                 -> private staging Object Storage
 ```
 
 Production и staging используют разные folders, databases, buckets, Functions,
 runtime/deploy service accounts и Workload Identity Federations.
+
+У каждой backend-функции отдельные production и staging composition roots и
+сборки. Production build физически не содержит staging fixtures, staging build
+не содержит Telegram/Fitbase adapters. Выбор делается deploy-скриптом по
+`DEPLOYMENT_ENVIRONMENT`, а не переключателем внутри runtime.
 
 ## Local development
 
@@ -151,7 +156,8 @@ Staging build удаляет исходный GTM и production analytics, до�
 ```bash
 export YC_FOLDER_ID=<folder-id>
 export YC_LEAD_SERVICE_ACCOUNT_ID=<runtime-sa-id>
-export TELEGRAM_DELIVERY_MODE=telegram
+export DEPLOYMENT_ENVIRONMENT=production
+export FUNCTION_INVOKER_MODE=public
 export TELEGRAM_BOT_TOKEN=<secret>
 export TELEGRAM_CHAT_ID=<secret>
 export LEAD_RATE_LIMIT_SECRET="$(openssl rand -hex 32)"
@@ -221,7 +227,9 @@ bucket policy и результат прямого anonymous GET. Не откл�
 
 ### Schedule is empty or invalid
 
-Production требует `fitbase` и token. Staging требует динамический `fixture`.
+Production deploy требует Fitbase token и собирает production entrypoint.
+Staging deploy собирает отдельный entrypoint с динамическими синтетическими
+данными и не принимает Fitbase/Telegram credentials.
 Smoke принимает только `{ ok: true, items: [] }`.
 
 ## Secret rotation

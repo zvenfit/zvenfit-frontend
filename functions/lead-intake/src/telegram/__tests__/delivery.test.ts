@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { getDefaultResultOrder } from 'node:dns';
 import test from 'node:test';
 
-import { buildMessage, retryBatchSize, sendTelegram, telegramTimeoutMs } from '../delivery';
+import { buildMessage, sendTelegram, telegramTimeoutMs } from '../delivery';
 
 const LEAD_ID = '1cc32f4f-8f06-4dc8-915f-92955c829523';
 
@@ -61,27 +61,6 @@ test('Telegram timeout is configurable and capped below the function timeout', (
   }
 });
 
-test('Telegram worker uses a small configurable retry batch', () => {
-  const previousBatchSize = process.env.TELEGRAM_RETRY_BATCH_SIZE;
-
-  try {
-    delete process.env.TELEGRAM_RETRY_BATCH_SIZE;
-    assert.equal(retryBatchSize(), 5);
-
-    process.env.TELEGRAM_RETRY_BATCH_SIZE = '10';
-    assert.equal(retryBatchSize(), 10);
-
-    process.env.TELEGRAM_RETRY_BATCH_SIZE = '999';
-    assert.equal(retryBatchSize(), 25);
-  } finally {
-    if (previousBatchSize === undefined) {
-      delete process.env.TELEGRAM_RETRY_BATCH_SIZE;
-    } else {
-      process.env.TELEGRAM_RETRY_BATCH_SIZE = previousBatchSize;
-    }
-  }
-});
-
 test('Telegram network failures preserve a safe diagnostic code', async () => {
   const previousToken = process.env.TELEGRAM_BOT_TOKEN;
   const previousChatId = process.env.TELEGRAM_CHAT_ID;
@@ -113,29 +92,6 @@ test('Telegram network failures preserve a safe diagnostic code', async () => {
       delete process.env.TELEGRAM_CHAT_ID;
     } else {
       process.env.TELEGRAM_CHAT_ID = previousChatId;
-    }
-  }
-});
-
-test('staging fixture delivery never contacts Telegram', async () => {
-  const previousMode = process.env.TELEGRAM_DELIVERY_MODE;
-  const previousFetch = globalThis.fetch;
-  let fetched = false;
-  process.env.TELEGRAM_DELIVERY_MODE = 'fixture';
-  globalThis.fetch = (async () => {
-    fetched = true;
-    throw new Error('unexpected_fetch');
-  }) as typeof fetch;
-
-  try {
-    await sendTelegram(testLead());
-    assert.equal(fetched, false);
-  } finally {
-    globalThis.fetch = previousFetch;
-    if (previousMode === undefined) {
-      delete process.env.TELEGRAM_DELIVERY_MODE;
-    } else {
-      process.env.TELEGRAM_DELIVERY_MODE = previousMode;
     }
   }
 });

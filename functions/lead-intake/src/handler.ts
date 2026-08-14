@@ -1,20 +1,7 @@
-import { randomUUID } from 'node:crypto';
-
 import { allowedOrigins, corsHeaders, isAllowedOrigin, isJsonContentType, jsonResponse, readBody } from './http';
 import { createLead, hasHoneypotValue, validateLead } from './lead-payload';
+import { errorCode, logDeliveryFailure, retryPendingLeads, type RetrySummary } from './notification/delivery';
 import { withEventMetrics } from './observability/event-metrics';
-import { createInvocationLogger } from './observability/logger';
-import { createInvocationMetrics } from './observability/metrics';
-import {
-  errorCode,
-  logDeliveryFailure,
-  maxTelegramAttempts,
-  retryPendingLeads,
-  sendTelegram,
-  type RetrySummary,
-} from './telegram/delivery';
-import * as leadStore from './ydb/lead-store';
-import { consumeLeadRateLimit } from './ydb/rate-limit';
 
 import type {
   ApplicationMetrics,
@@ -49,20 +36,6 @@ function requestBodyBytes(event: HttpEvent): number {
 function logBlockedSubmission(logger: LoggerLike, reason: string): void {
   const event = 'lead_submission_blocked';
   logger.warn?.({ event, reason }, event);
-}
-
-function createDependencies(overrides: Partial<HandlerDependencies>): HandlerDependencies {
-  return {
-    loggerFactory: createInvocationLogger,
-    maxAttempts: maxTelegramAttempts,
-    metricsFactory: createInvocationMetrics,
-    now: () => new Date(),
-    rateLimiter: consumeLeadRateLimit,
-    store: leadStore,
-    telegramSender: sendTelegram,
-    uuid: randomUUID,
-    ...overrides,
-  };
 }
 
 async function persistLead(
@@ -113,9 +86,7 @@ async function persistLead(
   }
 }
 
-function createHandler(overrides: Partial<HandlerDependencies> = {}): CloudHandler {
-  const dependencies = createDependencies(overrides);
-
+export function createHandler(dependencies: HandlerDependencies): CloudHandler {
   return async (event, context) => {
     const baseLogger = dependencies.loggerFactory(context);
     const metrics = dependencies.metricsFactory(context, baseLogger);
@@ -187,5 +158,4 @@ function createHandler(overrides: Partial<HandlerDependencies> = {}): CloudHandl
   };
 }
 
-export const handler = createHandler();
 export const _private = { createHandler, isTimerEvent, requestBodyBytes };

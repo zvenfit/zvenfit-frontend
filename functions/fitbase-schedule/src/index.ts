@@ -1,2 +1,1 @@
-export { handler } from './handler';
-export { generateFixtureSchedule } from './providers/fixture-provider';
+export { handler } from './composition/production';

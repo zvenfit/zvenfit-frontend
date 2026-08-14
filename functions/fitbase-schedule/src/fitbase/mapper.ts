@@ -1,4 +1,5 @@
-import type { FitbaseItem, ScheduleItem, Trainer } from '../types';
+import type { ScheduleItem } from '../types';
+import type { FitbaseItem, Trainer } from './types';
 
 function stringValue(value: unknown): string {
   return typeof value === 'string' ? value : '';

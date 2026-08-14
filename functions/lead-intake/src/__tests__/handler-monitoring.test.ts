@@ -9,6 +9,7 @@ test('timer exports queue health and heartbeat after a successful retry pass', a
   const gauges: Array<{ name: string; value: number }> = [];
   const handler = _private.createHandler({
     loggerFactory: () => ({ error() {} }),
+    maxAttempts: () => 12,
     metricsFactory: () => ({
       addCounter() {},
       recordGauge(name, value) {
@@ -16,7 +17,10 @@ test('timer exports queue health and heartbeat after a successful retry pass', a
       },
       async flush() {},
     }),
+    notificationSender: async () => {},
     now: () => new Date('2026-08-08T12:00:00.000Z'),
+    rateLimiter: async () => true,
+    retryBatchSize: () => 5,
     store: {
       async saveLead() {
         throw new Error('not_used');
@@ -33,6 +37,7 @@ test('timer exports queue health and heartbeat after a successful retry pass', a
         return { pendingCount: 2, oldestPendingAgeSeconds: 901 };
       },
     } satisfies LeadStore,
+    uuid: () => '927c6260-678d-42d1-9293-a0ed5061c184',
   });
 
   const result = await handler({

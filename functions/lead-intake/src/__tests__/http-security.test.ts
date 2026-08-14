@@ -30,10 +30,16 @@ test('POST rejects CSRF and non-JSON requests before persistence', async () => {
     },
   } as Partial<LeadStore> as LeadStore;
   const handler = _private.createHandler({
+    loggerFactory: () => ({ error() {} }),
+    maxAttempts: () => 12,
+    metricsFactory: () => ({ addCounter() {}, recordGauge() {}, async flush() {} }),
+    notificationSender: async () => {},
     now: () => new Date('2026-08-08T12:00:00.000Z'),
     rateLimiter: async () => true,
+    retryBatchSize: () => 5,
     store,
-  } as Partial<HandlerDependencies>);
+    uuid: () => '927c6260-678d-42d1-9293-a0ed5061c184',
+  } satisfies HandlerDependencies);
   const cases: Array<[Record<string, string>, number, string]> = [
     [{ origin: '' }, 403, 'origin_not_allowed'],
     [{ origin: 'https://attacker.example' }, 403, 'origin_not_allowed'],

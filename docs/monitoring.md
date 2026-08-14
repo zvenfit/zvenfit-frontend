@@ -60,7 +60,6 @@ Telegram username, UTM и тело ответа Fitbase в лог не попа�
 | `ydb_operation_failed`                 | Операция YDB завершилась ошибкой                             | Critical   |
 | `fitbase_schedule_error`               | Fitbase вернул ошибку или недоступен                         | Warning    |
 | `fitbase_schedule_misconfigured`       | Для production Fitbase provider отсутствует token            | Critical   |
-| `schedule_provider_misconfigured`      | Provider не настроен или fixture запрещён в production       | Critical   |
 
 ## Метрики по логам
 
@@ -94,7 +93,7 @@ Telegram username, UTM и тело ответа Fitbase в лог не попа�
 - Selector:
 
 ```text
-{project="folder__b1ge1e4iopttj79hfdfm", cluster="default", service="default", meta.application="zvenfit-frontend", meta.environment="production", message=*"fitbase_schedule_error|fitbase_schedule_misconfigured|schedule_provider_misconfigured"}
+{project="folder__b1ge1e4iopttj79hfdfm", cluster="default", service="default", meta.application="zvenfit-frontend", meta.environment="production", message=*"fitbase_schedule_error|fitbase_schedule_misconfigured"}
 ```
 
 ### 4. YDB retries

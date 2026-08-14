@@ -20,15 +20,15 @@ Staging**.
 | SWS / ARL | API protection + 120 req/min/IP | отдельно от staging |
 | Authorizer | `zvenfit-staging-authorizer` | не используется |
 | Lead Function | `zvenfit-telegram-lead-staging` | `zvenfit-telegram-lead` |
-| Notification mode | `fixture` без внешних вызовов | `telegram` |
+| Lead artifact | staging sink без внешних вызовов | Telegram adapter |
 | Schedule Function | `zvenfit-fitbase-schedule-staging` | `zvenfit-fitbase-schedule` |
-| Schedule provider | `fixture` | `fitbase` |
+| Schedule artifact | synthetic schedule | Fitbase adapter |
 | Retry trigger | bootstrap-only | bootstrap-only |
 | YDB | `zvenfit-leads-staging` | `zvenfit-leads` |
 | Allowed origins | только `https://staging.zvenfit.ru` | production domains |
 
 `scripts/validate-deployment-config.cjs` проверяет эту карту до cloud-команд.
-Staging не может получить production resource name, Fitbase или Telegram mode.
+Staging не может получить production resource name или production backend artifact.
 
 ## Аутентификация CI
 
@@ -123,9 +123,10 @@ Lead и schedule integrations также используют tag `staging-live`
 
 ## Заявки и внешние side effects
 
-Staging lead flow пишет только в staging YDB. `TELEGRAM_DELIVERY_MODE=fixture`
-считает уведомление доставленным без HTTP-запроса к Telegram; production bot и
-chat ID в окружении отсутствуют.
+Staging lead flow пишет только в staging YDB. Отдельный staging composition root
+считает уведомление доставленным через локальный sink без внешнего HTTP-запроса;
+Telegram adapter отсутствует в staging build, а production bot и chat ID — в
+окружении.
 
 Lead endpoint принимает только `POST application/json` с Origin из allowlist.
 Отсутствующий/чужой Origin возвращает `403`, другой media type — `415`. Это
@@ -159,4 +160,6 @@ Staging считается готовым, когда одновременно �
 - SWS и ARL подключены к Gateway;
 - smoke проверяет страницы, runtime configs, безопасный lead validation probe и
   рабочую схему schedule;
+- artifact-тесты подтверждают, что staging build не содержит Fitbase/Telegram,
+  а production build — staging fixtures;
 - никакой staging путь не вызывает Fitbase или Telegram.

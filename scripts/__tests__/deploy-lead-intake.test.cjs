@@ -18,7 +18,6 @@ test('production wrapper keeps every existing production resource name', () => {
   assert.match(productionWorkflow, /s3_bucket: zvenfit-frontend(?:\n|$)/);
   assert.match(productionWorkflow, /lead_function_name: zvenfit-telegram-lead(?:\n|$)/);
   assert.match(productionWorkflow, /schedule_function_name: zvenfit-fitbase-schedule(?:\n|$)/);
-  assert.match(productionWorkflow, /schedule_provider: fitbase(?:\n|$)/);
   assert.match(productionWorkflow, /lead_retry_trigger_name: zvenfit-lead-telegram-retry(?:\n|$)/);
   assert.match(productionWorkflow, /ydb_database_name: zvenfit-leads(?:\n|$)/);
 });
@@ -40,7 +39,6 @@ test('staging wrapper is manual-only and uses isolated resource names', () => {
   }
 
   assert.match(stagingWorkflow, /allowed_origins: https:\/\/staging\.zvenfit\.ru/);
-  assert.match(stagingWorkflow, /schedule_provider: fixture(?:\n|$)/);
 });
 
 test('production and staging call the same reusable workflow without secret inheritance', () => {
@@ -94,7 +92,6 @@ test('reusable workflow passes resource identities explicitly instead of using p
   assert.match(reusableWorkflow, /YC_LEAD_FUNCTION_NAME: \$\{\{ inputs\.lead_function_name \}\}/);
   assert.match(reusableWorkflow, /YC_LEAD_RETRY_TRIGGER_NAME: \$\{\{ inputs\.lead_retry_trigger_name \}\}/);
   assert.match(reusableWorkflow, /YC_SCHEDULE_FUNCTION_NAME: \$\{\{ inputs\.schedule_function_name \}\}/);
-  assert.match(reusableWorkflow, /SCHEDULE_PROVIDER: \$\{\{ inputs\.schedule_provider \}\}/);
   assert.match(reusableWorkflow, /YDB_DATABASE_NAME: \$\{\{ inputs\.ydb_database_name \}\}/);
   assert.match(reusableWorkflow, /s3:\/\/\$\{\{ inputs\.s3_bucket \}\}/);
   assert.doesNotMatch(reusableWorkflow, /zvenfit-telegram-lead(?:\n|'|")/);
@@ -117,8 +114,12 @@ test('direct Monium metrics require and deploy the environment-scoped API key se
   assert.match(deployScript, /--environment MONIUM_API_KEY="\$\{MONIUM_API_KEY\}"/);
 });
 
-test('lead deployment package contains every runtime YDB module', () => {
-  assert.match(deployScript, /lead-intake\/build\/\./);
+test('lead deployment packages the environment-specific artifact with its own entrypoint', () => {
+  assert.match(deployScript, /run build:staging/);
+  assert.match(deployScript, /BUILD_DIR=.*lead-intake\/build-staging/);
+  assert.match(deployScript, /FUNCTION_ENTRYPOINT="staging-entry\/index\.handler"/);
+  assert.match(deployScript, /BUILD_DIR=.*lead-intake\/build"/);
+  assert.match(deployScript, /FUNCTION_ENTRYPOINT="index\.handler"/);
   assert.match(deployScript, /cp -R/);
 });
 
@@ -180,9 +181,10 @@ test('staging checks bucket privacy before upload and rechecks object ACL afterw
   assert.doesNotMatch(reusableWorkflow, /--acl (?:public|private)/);
 });
 
-test('staging uses a synthetic notification sink and stable authorizer rollback', () => {
-  assert.match(stagingWorkflow, /lead_notification_mode: fixture/);
-  assert.match(productionWorkflow, /lead_notification_mode: telegram/);
+test('staging uses isolated artifacts instead of runtime provider switches and keeps stable authorizer rollback', () => {
+  assert.doesNotMatch(reusableWorkflow, /lead_notification_mode|schedule_provider/i);
+  assert.doesNotMatch(deployScript, /TELEGRAM_DELIVERY_MODE/);
+  assert.doesNotMatch(scheduleDeployScript, /SCHEDULE_PROVIDER/);
   assert.match(reusableWorkflow, /rollback-staging-authorizer:/);
   assert.match(reusableWorkflow, /previous_version_id/);
   assert.match(reusableWorkflow, /candidate_version_id/);
@@ -193,9 +195,10 @@ test('regular deploy requires a pre-provisioned database', () => {
   assert.doesNotMatch(deployScript, /^\s*yc ydb database create/m);
 });
 
-test('schedule deploy has independent runtime and deploy-time production fixture guards', () => {
-  assert.match(scheduleDeployScript, /fixture provider is forbidden in production/);
-  assert.match(scheduleDeployScript, /SCHEDULE_PROVIDER=\$\{SCHEDULE_PROVIDER\}/);
+test('schedule deploy selects an immutable artifact and requires production credentials only for production', () => {
+  assert.match(scheduleDeployScript, /run build:staging/);
+  assert.match(scheduleDeployScript, /FUNCTION_ENTRYPOINT="staging-entry\/index\.handler"/);
+  assert.match(scheduleDeployScript, /FUNCTION_ENTRYPOINT="index\.handler"/);
   assert.match(scheduleDeployScript, /DEPLOYMENT_ENVIRONMENT=\$\{DEPLOYMENT_ENVIRONMENT_VALUE\}/);
-  assert.match(scheduleDeployScript, /set FITBASE_API_TOKEN for the fitbase provider/);
+  assert.match(scheduleDeployScript, /set FITBASE_API_TOKEN for production/);
 });

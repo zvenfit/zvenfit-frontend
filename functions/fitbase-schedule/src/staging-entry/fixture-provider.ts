@@ -191,7 +191,6 @@ export function generateFixtureSchedule(from: string, to: string): ScheduleItem[
 
 export function createFixtureProvider(): ScheduleProvider {
   return {
-    name: 'fixture',
     async getSchedule(from, to) {
       return generateFixtureSchedule(from, to);
     },
