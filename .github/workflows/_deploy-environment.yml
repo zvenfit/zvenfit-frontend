@@ -8,7 +8,7 @@ on:
         required: true
         type: string
       site_url:
-        description: Public site origin used by the read-only smoke test
+        description: Public site origin used by the environment smoke test
         required: true
         type: string
       s3_bucket:
@@ -21,6 +21,10 @@ on:
         type: string
       schedule_function_name:
         description: Fitbase schedule Cloud Function name
+        required: true
+        type: string
+      traffic_function_name:
+        description: Stateless site traffic Cloud Function name
         required: true
         type: string
       lead_retry_trigger_name:
@@ -76,6 +80,7 @@ jobs:
       S3_BUCKET: ${{ inputs.s3_bucket }}
       LEAD_FUNCTION_NAME: ${{ inputs.lead_function_name }}
       SCHEDULE_FUNCTION_NAME: ${{ inputs.schedule_function_name }}
+      TRAFFIC_FUNCTION_NAME: ${{ inputs.traffic_function_name }}
       LEAD_RETRY_TRIGGER_NAME: ${{ inputs.lead_retry_trigger_name }}
       YDB_DATABASE_NAME: ${{ inputs.ydb_database_name }}
       ALLOWED_ORIGINS: ${{ inputs.allowed_origins }}
@@ -106,6 +111,7 @@ jobs:
             package-lock.json
             functions/lead-intake/package-lock.json
             functions/fitbase-schedule/package-lock.json
+            functions/site-traffic/package-lock.json
             functions/staging-authorizer/package-lock.json
 
       - name: Install dependencies
@@ -113,6 +119,7 @@ jobs:
           npm ci
           npm ci --prefix functions/lead-intake
           npm ci --prefix functions/fitbase-schedule
+          npm ci --prefix functions/site-traffic
           npm ci --prefix functions/staging-authorizer
 
       - name: Run linters
@@ -127,12 +134,13 @@ jobs:
           npm run test:lead-import
           npm run test:monitoring
           npm run test:staging-authorizer
-          npm run test:cdn-traffic
+          npm run test:site-traffic
 
       - name: Verify static production-like build
         env:
           LEAD_API_URL: https://example.invalid/lead
           SCHEDULE_API_URL: https://example.invalid/schedule
+          TRAFFIC_API_URL: https://example.invalid/traffic
           ASSET_VERSION: ci-${{ github.run_number }}
         run: npm run test:build
 
@@ -288,6 +296,67 @@ jobs:
           echo "id=${ID}" >> $GITHUB_OUTPUT
           echo "Schedule function URL: ${URL}"
 
+  deploy-traffic-function:
+    needs: [validate-config, quality-checks]
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.deployment_environment }}
+    outputs:
+      function_url: ${{ steps.get-traffic-url.outputs.url }}
+      function_id: ${{ steps.get-traffic-url.outputs.id }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install traffic function dependencies
+        run: npm ci --prefix functions/site-traffic
+
+      - name: Install Yandex Cloud CLI
+        run: bash scripts/install-yc-cli.sh
+
+      - name: Authenticate with GitHub OIDC
+        env:
+          YC_FOLDER_ID: ${{ vars.YC_FOLDER_ID }}
+          YC_DEPLOY_SERVICE_ACCOUNT_ID: ${{ vars.YC_DEPLOY_SERVICE_ACCOUNT_ID }}
+          YC_WIF_AUDIENCE: https://github.com/zvenfit
+        run: bash scripts/auth-yc-wif.sh
+
+      - name: Deploy stateless traffic Cloud Function
+        env:
+          DEPLOYMENT_ENVIRONMENT: ${{ inputs.deployment_environment }}
+          NODE_ENV: ${{ inputs.deployment_environment }}
+          YC_FOLDER_ID: ${{ vars.YC_FOLDER_ID }}
+          YC_TRAFFIC_FUNCTION_NAME: ${{ inputs.traffic_function_name }}
+          FUNCTION_INVOKER_MODE: ${{ inputs.site_access_mode == 'authenticated-gateway' && 'gateway' || 'public' }}
+          YC_GATEWAY_SERVICE_ACCOUNT_ID: ${{ vars.YC_GATEWAY_SERVICE_ACCOUNT_ID }}
+          ALLOWED_ORIGINS: ${{ inputs.allowed_origins }}
+          LOG_LEVEL: ${{ env.LOG_LEVEL }}
+        run: bash scripts/deploy-site-traffic.sh
+
+      - name: Get traffic function URL
+        id: get-traffic-url
+        env:
+          FUNCTION_NAME: ${{ inputs.traffic_function_name }}
+        run: |
+          URL=$(yc serverless function get --name="$FUNCTION_NAME" --format=json | jq -r '.http_invoke_url // empty')
+          if [ -z "$URL" ]; then
+            echo "ERROR: Failed to get traffic function URL" >&2
+            exit 1
+          fi
+          echo "url=${URL}" >> $GITHUB_OUTPUT
+          ID=$(yc serverless function get --name="$FUNCTION_NAME" --format=json | jq -r '.id // empty')
+          if [ -z "$ID" ]; then
+            echo "ERROR: Failed to get traffic function ID" >&2
+            exit 1
+          fi
+          echo "id=${ID}" >> $GITHUB_OUTPUT
+          echo "Traffic function URL: ${URL}"
+
   deploy-authorizer:
     needs: [validate-config, quality-checks]
     runs-on: ubuntu-latest
@@ -355,7 +424,7 @@ jobs:
           echo "id=${ID}" >> $GITHUB_OUTPUT
 
   deploy-site:
-    needs: [validate-config, deploy-function, deploy-schedule-function, deploy-authorizer]
+    needs: [validate-config, deploy-function, deploy-schedule-function, deploy-traffic-function, deploy-authorizer]
     runs-on: ubuntu-latest
     environment: ${{ inputs.deployment_environment }}
 
@@ -377,6 +446,7 @@ jobs:
           NODE_ENV: ${{ inputs.deployment_environment }}
           LEAD_API_URL: ${{ inputs.site_access_mode == 'authenticated-gateway' && format('{0}/api/lead', inputs.site_url) || needs.deploy-function.outputs.function_url }}
           SCHEDULE_API_URL: ${{ inputs.site_access_mode == 'authenticated-gateway' && format('{0}/api/schedule', inputs.site_url) || needs.deploy-schedule-function.outputs.function_url }}
+          TRAFFIC_API_URL: ${{ inputs.site_access_mode == 'authenticated-gateway' && format('{0}/api/traffic', inputs.site_url) || needs.deploy-traffic-function.outputs.function_url }}
           Y_MAPS_API_KEY: ${{ vars.Y_MAPS_API_KEY }}
           ASSET_VERSION: ${{ vars.ASSET_VERSION || github.run_number }}
         run: |
@@ -388,9 +458,14 @@ jobs:
             echo "ERROR: SCHEDULE_API_URL is empty — deploy-schedule-function output was not passed" >&2
             exit 1
           fi
+          if [ -z "$TRAFFIC_API_URL" ]; then
+            echo "ERROR: TRAFFIC_API_URL is empty — deploy-traffic-function output was not passed" >&2
+            exit 1
+          fi
           echo "Building environment: $NODE_ENV"
           echo "Building with LEAD_API_URL: $LEAD_API_URL"
           echo "Building with SCHEDULE_API_URL: $SCHEDULE_API_URL"
+          echo "Building with TRAFFIC_API_URL: $TRAFFIC_API_URL"
           echo "Building with ASSET_VERSION: $ASSET_VERSION"
           npm run build
 
@@ -484,10 +559,11 @@ jobs:
           STAGING_AUTHORIZER_FUNCTION_ID: ${{ needs.deploy-authorizer.outputs.function_id }}
           STAGING_LEAD_FUNCTION_ID: ${{ needs.deploy-function.outputs.function_id }}
           STAGING_SCHEDULE_FUNCTION_ID: ${{ needs.deploy-schedule-function.outputs.function_id }}
+          STAGING_TRAFFIC_FUNCTION_ID: ${{ needs.deploy-traffic-function.outputs.function_id }}
           STAGING_SWS_SECURITY_PROFILE_ID: ${{ vars.YC_SWS_SECURITY_PROFILE_ID }}
         run: bash scripts/deploy-staging-gateway.sh
 
-      - name: Non-persisting environment smoke test
+      - name: Environment smoke test (no lead created)
         env:
           SITE_URL: ${{ inputs.site_url }}
           STAGING_BASIC_AUTH_USERNAME: ${{ inputs.site_access_mode == 'authenticated-gateway' && secrets.STAGING_BASIC_AUTH_USERNAME || '' }}

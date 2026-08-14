@@ -62,6 +62,8 @@ const CDN_VENDOR_JS = ['webflow.js'];
 const MAPS_CONFIG_PLACEHOLDER = '__ZVENFIT_MAPS_JSON__';
 const CACHE_BUST_SCRIPTS = [
   'utm-attribution.js',
+  'traffic-beacon.js',
+  'traffic-config.js',
   'lead-form.js',
   'lead-config.js',
   'schedule.js',
@@ -212,6 +214,16 @@ function injectMapScripts(html, assetVersion) {
   }
 
   const scripts = `<script src="/js/maps-config.js?v=${assetVersion}" defer></script>\n  <script src="/js/yandex-map.js?v=${assetVersion}" defer></script>\n  `;
+
+  return html.replace('</body>', `${scripts}</body>`);
+}
+
+function injectTrafficScripts(html, assetVersion) {
+  if (!html.includes('</body>') || html.includes('/js/traffic-beacon.js')) {
+    return html;
+  }
+
+  const scripts = `<script src="/js/traffic-config.js?v=${assetVersion}" defer></script>\n  <script src="/js/traffic-beacon.js?v=${assetVersion}" defer></script>\n  `;
 
   return html.replace('</body>', `${scripts}</body>`);
 }
@@ -860,6 +872,7 @@ function runBuild() {
   const isStaging = nodeEnv === 'staging';
   const leadApiUrl = process.env.LEAD_API_URL || (isDev ? 'http://localhost:3000' : '');
   const scheduleApiUrl = process.env.SCHEDULE_API_URL || (isDev ? 'http://localhost:3000/schedule' : '');
+  const trafficApiUrl = process.env.TRAFFIC_API_URL || (isDev ? 'http://localhost:3000/traffic' : '');
   const assetVersion = process.env.ASSET_VERSION || '2';
   const appLinksConfig = getAppLinksConfig();
   const mapsConfig = getMapsConfig();
@@ -892,7 +905,8 @@ function runBuild() {
       injectAppDownloadLinks(withStructuredData, appLinksConfig, { skipFooterAppBlock }),
       assetVersion,
     );
-    const environmentHtml = isStaging ? injectStagingRobotsMeta(withMapScripts) : withMapScripts;
+    const withTrafficScripts = injectTrafficScripts(withMapScripts, assetVersion);
+    const environmentHtml = isStaging ? injectStagingRobotsMeta(withTrafficScripts) : withTrafficScripts;
     const nextHtml = bustAssetUrls(applySlashPrefix(environmentHtml), assetVersion);
 
     if (nextHtml !== html) {
@@ -957,6 +971,13 @@ function runBuild() {
     fs.writeFileSync(scheduleConfigPath, scheduleConfig.replaceAll('__SCHEDULE_API_URL__', scheduleApiUrl), 'utf8');
   }
 
+  const trafficConfigPath = path.join(distDir, 'js', 'traffic-config.js');
+
+  if (fs.existsSync(trafficConfigPath)) {
+    const trafficConfig = fs.readFileSync(trafficConfigPath, 'utf8');
+    fs.writeFileSync(trafficConfigPath, trafficConfig.replaceAll('__TRAFFIC_API_URL__', trafficApiUrl), 'utf8');
+  }
+
   writeMapsConfig(distDir, structuredDataConfig, mapsConfig);
 
   if (mapEmbedsReplaced > 0) {
@@ -980,6 +1001,12 @@ function runBuild() {
     console.warn('build-static: SCHEDULE_API_URL is empty — schedule page will fail until it is set');
   } else {
     console.log(`build-static: SCHEDULE_API_URL=${scheduleApiUrl} (NODE_ENV=${nodeEnv})`);
+  }
+
+  if (!trafficApiUrl) {
+    console.warn('build-static: TRAFFIC_API_URL is empty — technical page-view logging is disabled');
+  } else {
+    console.log(`build-static: TRAFFIC_API_URL=${trafficApiUrl} (NODE_ENV=${nodeEnv})`);
   }
 
   console.log(`build-static: ASSET_VERSION=${assetVersion}`);

@@ -44,10 +44,10 @@ Browser (zvenfit.ru)
                                                     ├─ production: Fitbase API
                                                     └─ staging: dynamic fixture
 
-Cloud CDN raw logs → private Object Storage → Yandex Query → DataLens
+Browser page-view beacon → functions/site-traffic → Cloud Logging → Monium
 
 Local dev (npm run dev):
-  mock-server :3000  ← lead POST + GET /schedule
+  mock-server :3000  ← lead POST + GET /schedule + POST /traffic
   serve dist :4173   ← static site
 ```
 
@@ -55,6 +55,7 @@ Build injects API URLs into:
 
 - `public/js/lead-config.js` → `window.ZVENFIT_LEAD_API`
 - `public/js/schedule-config.js` → `window.ZVENFIT_SCHEDULE_API`
+- `public/js/traffic-config.js` → `window.ZVENFIT_TRAFFIC_API`
 
 ## Build pipeline markers
 
@@ -86,7 +87,7 @@ Also at build time:
 | Lead storage / retry state | `functions/lead-intake/src/ydb/`                                    |
 | Schedule UI                | `public/raspisanie/index.html`, `public/js/schedule.js`             |
 | Schedule API / Fitbase     | `functions/fitbase-schedule/src/handler.ts`, `src/fitbase/`         |
-| Technical site traffic     | `analytics/cdn-traffic.yql`, `scripts/provision-cdn-raw-logs.sh`    |
+| Technical site traffic     | `public/js/traffic-beacon.js`, `functions/site-traffic/src/`        |
 | UTM in leads               | `public/js/utm-attribution.js`, `docs/utm-attribution-marketing.md` |
 | App store badges/links     | `scripts/app-links.config.json`, snippets in `scripts/snippets/`    |
 | SEO / JSON-LD              | `scripts/structured-data.config.json`, page `<meta>`                |
@@ -101,6 +102,7 @@ cp .env.example .env.development   # fill values
 npm install
 npm ci --prefix functions/lead-intake
 npm ci --prefix functions/fitbase-schedule
+npm ci --prefix functions/site-traffic
 npm run dev:watch                  # mock API + rebuild + serve :4173
 ```
 
@@ -114,7 +116,7 @@ npm run dev:watch                  # mock API + rebuild + serve :4173
 npm run build          # must produce dist/
 npm run lint:public    # JS in public/ and functions/
 npm run test:lead-fn   # durable storage / Telegram failure paths
-npm run test:cdn-traffic   # CDN traffic YQL classification/page-view contract
+npm run test:site-traffic  # page-view validation/classification/logging contract
 npm run test:build     # build + smoke check dist/index.html
 ```
 

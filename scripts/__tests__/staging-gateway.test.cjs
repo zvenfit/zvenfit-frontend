@@ -50,6 +50,7 @@ test('gateway protects static files and same-origin APIs with one Basic authoriz
       authorizerFunctionId: 'authorizer-function',
       leadFunctionId: 'lead-function',
       scheduleFunctionId: 'schedule-function',
+      trafficFunctionId: 'traffic-function',
       securityProfileId: 'sws-profile',
     });
 
@@ -72,6 +73,10 @@ test('gateway protects static files and same-origin APIs with one Basic authoriz
     assert.equal(
       specification.paths['/api/schedule'].get['x-yc-apigateway-integration'].function_id,
       'schedule-function',
+    );
+    assert.equal(
+      specification.paths['/api/traffic'].post['x-yc-apigateway-integration'].function_id,
+      'traffic-function',
     );
     assert.deepEqual(specification.components.securitySchemes.stagingBasicAuth['x-yc-apigateway-authorizer'], {
       type: 'function',

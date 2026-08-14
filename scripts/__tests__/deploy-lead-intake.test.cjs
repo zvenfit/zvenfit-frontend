@@ -8,6 +8,7 @@ const test = require('node:test');
 const ROOT = path.resolve(__dirname, '../..');
 const deployScript = fs.readFileSync(path.join(ROOT, 'scripts/deploy-lead-intake.sh'), 'utf8');
 const scheduleDeployScript = fs.readFileSync(path.join(ROOT, 'scripts/deploy-fitbase-schedule.sh'), 'utf8');
+const trafficDeployScript = fs.readFileSync(path.join(ROOT, 'scripts/deploy-site-traffic.sh'), 'utf8');
 const productionWorkflow = fs.readFileSync(path.join(ROOT, '.github/workflows/main.yml'), 'utf8');
 const stagingWorkflow = fs.readFileSync(path.join(ROOT, '.github/workflows/staging.yml'), 'utf8');
 const reusableWorkflow = fs.readFileSync(path.join(ROOT, '.github/workflows/_deploy-environment.yml'), 'utf8');
@@ -18,6 +19,7 @@ test('production wrapper keeps every existing production resource name', () => {
   assert.match(productionWorkflow, /s3_bucket: zvenfit-frontend(?:\n|$)/);
   assert.match(productionWorkflow, /lead_function_name: zvenfit-telegram-lead(?:\n|$)/);
   assert.match(productionWorkflow, /schedule_function_name: zvenfit-fitbase-schedule(?:\n|$)/);
+  assert.match(productionWorkflow, /traffic_function_name: zvenfit-site-traffic(?:\n|$)/);
   assert.match(productionWorkflow, /lead_retry_trigger_name: zvenfit-lead-telegram-retry(?:\n|$)/);
   assert.match(productionWorkflow, /ydb_database_name: zvenfit-leads(?:\n|$)/);
 });
@@ -32,6 +34,7 @@ test('staging wrapper is manual-only and uses isolated resource names', () => {
     's3_bucket: zvenfit-frontend-staging',
     'lead_function_name: zvenfit-telegram-lead-staging',
     'schedule_function_name: zvenfit-fitbase-schedule-staging',
+    'traffic_function_name: zvenfit-site-traffic-staging',
     'lead_retry_trigger_name: zvenfit-lead-telegram-retry-staging',
     'ydb_database_name: zvenfit-leads-staging',
   ]) {
@@ -55,6 +58,7 @@ test('reusable workflow validates config before cloud deploy jobs', () => {
   const qualityJob = reusableWorkflow.indexOf('  quality-checks:');
   const leadDeployJob = reusableWorkflow.indexOf('  deploy-function:');
   const scheduleDeployJob = reusableWorkflow.indexOf('  deploy-schedule-function:');
+  const trafficDeployJob = reusableWorkflow.indexOf('  deploy-traffic-function:');
   const authorizerDeployJob = reusableWorkflow.indexOf('  deploy-authorizer:');
   const siteDeployJob = reusableWorkflow.indexOf('  deploy-site:');
 
@@ -62,28 +66,32 @@ test('reusable workflow validates config before cloud deploy jobs', () => {
   assert.equal(qualityJob > validationJob, true);
   assert.equal(leadDeployJob > qualityJob, true);
   assert.equal(scheduleDeployJob > leadDeployJob, true);
-  assert.equal(authorizerDeployJob > scheduleDeployJob, true);
+  assert.equal(trafficDeployJob > scheduleDeployJob, true);
+  assert.equal(authorizerDeployJob > trafficDeployJob, true);
   assert.equal(siteDeployJob > authorizerDeployJob, true);
   assert.match(reusableWorkflow.slice(leadDeployJob, scheduleDeployJob), /needs: \[validate-config, quality-checks\]/);
   assert.match(
-    reusableWorkflow.slice(scheduleDeployJob, authorizerDeployJob),
+    reusableWorkflow.slice(scheduleDeployJob, trafficDeployJob),
     /needs: \[validate-config, quality-checks\]/,
   );
+  assert.match(reusableWorkflow.slice(trafficDeployJob, authorizerDeployJob), /needs: \[validate-config, quality-checks\]/);
   assert.match(
     reusableWorkflow.slice(siteDeployJob),
-    /needs: \[validate-config, deploy-function, deploy-schedule-function, deploy-authorizer\]/,
+    /needs: \[validate-config, deploy-function, deploy-schedule-function, deploy-traffic-function, deploy-authorizer\]/,
   );
 });
 
 test('every deploy job is protected by the selected GitHub Environment', () => {
   const leadDeployJob = reusableWorkflow.indexOf('  deploy-function:');
   const scheduleDeployJob = reusableWorkflow.indexOf('  deploy-schedule-function:');
+  const trafficDeployJob = reusableWorkflow.indexOf('  deploy-traffic-function:');
   const authorizerDeployJob = reusableWorkflow.indexOf('  deploy-authorizer:');
   const siteDeployJob = reusableWorkflow.indexOf('  deploy-site:');
   const environmentGuard = /environment: \$\{\{ inputs\.deployment_environment \}\}/;
 
   assert.match(reusableWorkflow.slice(leadDeployJob, scheduleDeployJob), environmentGuard);
-  assert.match(reusableWorkflow.slice(scheduleDeployJob, authorizerDeployJob), environmentGuard);
+  assert.match(reusableWorkflow.slice(scheduleDeployJob, trafficDeployJob), environmentGuard);
+  assert.match(reusableWorkflow.slice(trafficDeployJob, authorizerDeployJob), environmentGuard);
   assert.match(reusableWorkflow.slice(authorizerDeployJob, siteDeployJob), environmentGuard);
   assert.match(reusableWorkflow.slice(siteDeployJob), environmentGuard);
 });
@@ -92,6 +100,7 @@ test('reusable workflow passes resource identities explicitly instead of using p
   assert.match(reusableWorkflow, /YC_LEAD_FUNCTION_NAME: \$\{\{ inputs\.lead_function_name \}\}/);
   assert.match(reusableWorkflow, /YC_LEAD_RETRY_TRIGGER_NAME: \$\{\{ inputs\.lead_retry_trigger_name \}\}/);
   assert.match(reusableWorkflow, /YC_SCHEDULE_FUNCTION_NAME: \$\{\{ inputs\.schedule_function_name \}\}/);
+  assert.match(reusableWorkflow, /YC_TRAFFIC_FUNCTION_NAME: \$\{\{ inputs\.traffic_function_name \}\}/);
   assert.match(reusableWorkflow, /YDB_DATABASE_NAME: \$\{\{ inputs\.ydb_database_name \}\}/);
   assert.match(reusableWorkflow, /s3:\/\/\$\{\{ inputs\.s3_bucket \}\}/);
   assert.doesNotMatch(reusableWorkflow, /zvenfit-telegram-lead(?:\n|'|")/);
@@ -131,7 +140,7 @@ test('regular CI keeps retry-trigger administration bootstrap-only', () => {
 });
 
 test('regular deploy verifies public access without mutating function IAM', () => {
-  for (const script of [deployScript, scheduleDeployScript]) {
+  for (const script of [deployScript, scheduleDeployScript, trafficDeployScript]) {
     assert.match(script, /serverless function list-access-bindings/);
     assert.match(script, /verify-function-invoker\.cjs/);
     assert.doesNotMatch(script, /^yc serverless function allow-unauthenticated-invoke/m);
@@ -149,6 +158,15 @@ test('staging deploy uses private gateway IAM while production remains public', 
   assert.match(reusableWorkflow, /bash scripts\/deploy-staging-gateway\.sh/);
   assert.match(deployScript, /must be provisioned before private gateway deploy/);
   assert.match(scheduleDeployScript, /must be provisioned before private gateway deploy/);
+  assert.match(trafficDeployScript, /must be provisioned before private gateway deploy/);
+});
+
+test('traffic deploy remains stateless and carries no paid secret or storage chain', () => {
+  assert.match(trafficDeployScript, /--entrypoint="index\.handler"/);
+  assert.match(trafficDeployScript, /--memory="\$\{MEMORY\}"/);
+  assert.match(trafficDeployScript, /--execution-timeout="\$\{TIMEOUT\}"/);
+  assert.doesNotMatch(trafficDeployScript, /Lockbox|secret|HMAC|YDB|Object Storage|service-account-id/i);
+  assert.doesNotMatch(reusableWorkflow, /cdn-analytics|CDN_ANALYTICS|LOCKBOX|SESSION_STATE/i);
 });
 
 test('deploy jobs use OIDC and ephemeral storage keys instead of long-lived cloud credentials', () => {

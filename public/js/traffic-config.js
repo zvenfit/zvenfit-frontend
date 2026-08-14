@@ -1,0 +1,1 @@
+window.ZVENFIT_TRAFFIC_API = '__TRAFFIC_API_URL__';

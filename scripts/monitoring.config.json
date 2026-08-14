@@ -16,33 +16,27 @@
   },
   "trafficAnalytics": {
     "cdnResourceId": "bc8rubabuwzpqqp7rifz",
+    "ingestion": "browser-beacon-cloud-function-cloud-logging",
+    "productionFunctionName": "zvenfit-site-traffic",
+    "stagingFunctionName": "zvenfit-site-traffic-staging",
+    "event": "site_page_view",
     "siteHosts": [
       "zvenfit.ru",
       "www.zvenfit.ru",
       "zvenigorod.zvenfit.ru"
     ],
-    "rawLogBucket": "zvenfit-cdn-access-logs",
-    "rawLogPrefix": "raw/zvenfit/cdn",
-    "rawLogRetentionDays": 30,
-    "queryFile": "analytics/cdn-traffic.yql",
-    "queryBinding": "zvenfit-cdn-raw-logs",
     "trafficClasses": [
       "browser_like",
       "known_bot",
       "synthetic",
       "unknown"
     ],
-    "measures": ["requests", "page_views"],
-    "datalens": {
-      "refreshCadence": "manual-2-or-3-times-daily",
-      "cards": {
-        "lastReceivedLog": {
-          "title": "Последний полученный лог",
-          "visualization": "indicator",
-          "measure": "MAX(log_timestamp)",
-          "pagingAlert": false
-        }
-      }
+    "measures": ["edge_requests", "page_views"],
+    "pageViewMetricId": "zvenfit_site_page_views_5m",
+    "freshnessCard": {
+      "title": "Последний page view",
+      "source": "site_page_view logs",
+      "pagingAlert": false
     },
     "monitoringSelectors": {
       "edgeRequests": "edge.requests{service=\"yccdn\",resource=\"bc8rubabuwzpqqp7rifz\"}",
@@ -52,9 +46,11 @@
       "edgeLatency": "edge.request_time_seconds{service=\"yccdn\",resource=\"bc8rubabuwzpqqp7rifz\"}"
     },
     "privacy": {
-      "rawIpInDataset": false,
-      "rawUserAgentInDataset": false,
-      "rawUrlInDataset": false
+      "rawIpInLogs": true,
+      "rawUserAgentInLogs": true,
+      "rawUrlInLogs": true,
+      "rawFieldsInMetricLabels": false,
+      "persistentClientState": false
     }
   },
   "provisioning": {
@@ -146,6 +142,15 @@
       "selector": "{project=\"folder__b1ge1e4iopttj79hfdfm\", cluster=\"default\", service=\"default\", resource_type=\"serverless.function\", resource_id=\"d4e80noc1hjn2g8u0beq\", level=\"ERROR\", message=*\"Code: 499\"}",
       "aggregation": "count",
       "window": "5m",
+      "synthetic": false
+    },
+    {
+      "id": "zvenfit_site_page_views_5m",
+      "events": ["site_page_view"],
+      "filters": { "meta.service": "zvenfit-site-traffic" },
+      "aggregation": "count",
+      "window": "5m",
+      "grouping": ["meta.traffic_class", "meta.host"],
       "synthetic": false
     }
   ],

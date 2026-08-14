@@ -30,12 +30,12 @@ test('extractRuntimeUrl rejects build placeholders', () => {
   );
 });
 
-test('production smoke uses only read-only GET and OPTIONS requests', async () => {
+test('production smoke writes only a synthetic traffic event and never creates a lead', async () => {
   const requests = [];
   const routes = new Map([
     [
       'https://zvenfit.ru/forma-dlya-zayavki/',
-      response(200, '<script src="/js/lead-config.js?v=42"></script><script src="/js/lead-form.js?v=42"></script>'),
+      response(200, '<script src="/js/lead-config.js?v=42"></script><script src="/js/lead-form.js?v=42"></script><script src="/js/traffic-config.js?v=42"></script><script src="/js/traffic-beacon.js?v=42"></script>'),
     ],
     [
       'https://zvenfit.ru/raspisanie/',
@@ -49,8 +49,13 @@ test('production smoke uses only read-only GET and OPTIONS requests', async () =
       'https://zvenfit.ru/js/schedule-config.js?v=42',
       response(200, "window.ZVENFIT_SCHEDULE_API = 'https://schedule.example.test/';"),
     ],
+    [
+      'https://zvenfit.ru/js/traffic-config.js?v=42',
+      response(200, "window.ZVENFIT_TRAFFIC_API = 'https://traffic.example.test/';"),
+    ],
     ['https://lead.example.test/', response(204, '', { 'access-control-allow-origin': 'https://zvenfit.ru' })],
     ['https://schedule.example.test/', response(200, '{"ok":true,"items":[]}')],
+    ['https://traffic.example.test/', response(204, '')],
   ]);
 
   const result = await runSmoke({
@@ -67,9 +72,9 @@ test('production smoke uses only read-only GET and OPTIONS requests', async () =
   assert.equal(result.origin, 'https://zvenfit.ru');
   assert.deepEqual(
     requests.map(item => item.method),
-    ['GET', 'GET', 'GET', 'GET', 'OPTIONS', 'GET'],
+    ['GET', 'GET', 'GET', 'GET', 'GET', 'OPTIONS', 'GET', 'POST'],
   );
-  assert.ok(requests.every(item => item.method !== 'POST'));
+  assert.equal(requests.filter(item => item.method === 'POST').length, 1);
   assert.ok(
     requests.every(item => item.headers['User-Agent'] === 'ZvenFit-Synthetic-Monitor/1.0'),
   );
@@ -82,7 +87,7 @@ test('authenticated same-origin staging probes both APIs without creating a lead
     [`${origin}/`, response(401, '', { 'www-authenticate': 'Basic realm="ZvenFit staging"' })],
     [
       `${origin}/forma-dlya-zayavki/`,
-      response(200, '<script src="/js/lead-config.js?v=7"></script><script src="/js/lead-form.js?v=7"></script>'),
+      response(200, '<script src="/js/lead-config.js?v=7"></script><script src="/js/lead-form.js?v=7"></script><script src="/js/traffic-config.js?v=7"></script><script src="/js/traffic-beacon.js?v=7"></script>'),
     ],
     [
       `${origin}/raspisanie/`,
@@ -90,8 +95,10 @@ test('authenticated same-origin staging probes both APIs without creating a lead
     ],
     [`${origin}/js/lead-config.js?v=7`, response(200, `window.ZVENFIT_LEAD_API = '${origin}/api/lead';`)],
     [`${origin}/js/schedule-config.js?v=7`, response(200, `window.ZVENFIT_SCHEDULE_API = '${origin}/api/schedule';`)],
+    [`${origin}/js/traffic-config.js?v=7`, response(200, `window.ZVENFIT_TRAFFIC_API = '${origin}/api/traffic';`)],
     [`${origin}/api/lead`, response(400, '{"ok":false,"error":"invalid_name"}')],
     [`${origin}/api/schedule`, response(200, '{"ok":true,"items":[]}')],
+    [`${origin}/api/traffic`, response(204, '')],
   ]);
 
   await runSmoke({
@@ -109,15 +116,16 @@ test('authenticated same-origin staging probes both APIs without creating a lead
     log() {},
   });
 
-  assert.equal(requests.length, 8);
+  assert.equal(requests.length, 10);
   assert.deepEqual(
     requests.map(item => item.method),
-    ['GET', 'GET', 'GET', 'GET', 'GET', 'GET', 'POST', 'GET'],
+    ['GET', 'GET', 'GET', 'GET', 'GET', 'GET', 'GET', 'POST', 'GET', 'POST'],
   );
   assert.equal(requests[0].headers.Authorization, undefined);
   assert.match(requests[1].headers.Authorization, /^Basic /);
   assert.ok(requests.slice(2).every(item => /^Basic /.test(item.headers.Authorization)));
-  assert.equal(requests[6].headers['Content-Type'], 'application/json');
+  assert.equal(requests[7].headers['Content-Type'], 'application/json');
+  assert.equal(requests[9].headers['Content-Type'], 'text/plain;charset=UTF-8');
 });
 
 test('authenticated staging smoke fails if the anonymous boundary is open', async () => {
@@ -156,7 +164,7 @@ test('smoke rejects a syntactically valid but unusable schedule payload', async 
   const routes = new Map([
     [
       'https://zvenfit.ru/forma-dlya-zayavki/',
-      response(200, '<script src="/js/lead-config.js"></script><script src="/js/lead-form.js"></script>'),
+      response(200, '<script src="/js/lead-config.js"></script><script src="/js/lead-form.js"></script><script src="/js/traffic-config.js"></script><script src="/js/traffic-beacon.js"></script>'),
     ],
     [
       'https://zvenfit.ru/raspisanie/',
@@ -166,6 +174,10 @@ test('smoke rejects a syntactically valid but unusable schedule payload', async 
     [
       'https://zvenfit.ru/js/schedule-config.js',
       response(200, "window.ZVENFIT_SCHEDULE_API = 'https://schedule.test/';"),
+    ],
+    [
+      'https://zvenfit.ru/js/traffic-config.js',
+      response(200, "window.ZVENFIT_TRAFFIC_API = 'https://traffic.test/';"),
     ],
     ['https://lead.test/', response(204, '', { 'access-control-allow-origin': 'https://zvenfit.ru' })],
     ['https://schedule.test/', response(200, '{"error":"fixture_failed"}')],

@@ -152,7 +152,31 @@ http
       return;
     }
 
-    if (req.method === 'POST') {
+    if (req.method === 'POST' && req.url === '/traffic') {
+      let body = '';
+      req.on('data', chunk => (body += chunk));
+      req.on('end', () => {
+        try {
+          const payload = JSON.parse(body);
+          console.log('\n📈 Получен page view:');
+          console.log({
+            page_view_id: payload.page_view_id || 'missing',
+            url: payload.url || 'missing',
+            webdriver: payload.webdriver === true,
+            user_agent: req.headers['user-agent'] || '',
+          });
+          console.log('---');
+          res.writeHead(204);
+          res.end();
+        } catch {
+          sendJson(res, 400, { ok: false, error: 'invalid_json' });
+        }
+      });
+
+      return;
+    }
+
+    if (req.method === 'POST' && req.url === '/') {
       let body = '';
       req.on('data', chunk => (body += chunk));
       req.on('end', () => {
@@ -179,6 +203,7 @@ http
   .listen(PORT, HOST, () => {
     console.log(`🚀 Mock API сервер запущен: http://${HOST}:${PORT}`);
     console.log('  POST /          — lead form');
+    console.log('  POST /traffic   — page-view log');
     if (useFitbaseSchedule) {
       console.log('  GET  /schedule  — Fitbase API (live)');
       console.log(`  domain: ${process.env.FITBASE_DOMAIN}`);

@@ -101,6 +101,13 @@ if (!logoSource.includes('width="512"') || !logoSource.includes('height="512"'))
 }
 
 const homeHtml = fs.readFileSync(path.join(distDir, 'index.html'), 'utf8');
+if (!homeHtml.includes('/js/traffic-config.js?v=') || !homeHtml.includes('/js/traffic-beacon.js?v=')) {
+  throw new Error('check-build: home page is missing versioned technical traffic scripts');
+}
+const trafficConfigSource = fs.readFileSync(path.join(distDir, 'js', 'traffic-config.js'), 'utf8');
+if (trafficConfigSource.includes('__TRAFFIC_API_URL__')) {
+  throw new Error('check-build: traffic-config.js still contains its build placeholder');
+}
 if (!homeHtml.includes('https://zvenfit.ru/images/zvenfit-logo.svg')) {
   throw new Error('check-build: Organization JSON-LD does not reference the dedicated logo');
 }
@@ -119,5 +126,6 @@ console.log(`check-build: versioned CDN webflow.js verified in ${checkedPages} H
 console.log('check-build: generated Yandex Maps runtime config verified');
 console.log('check-build: lead form accessibility contract verified');
 console.log('check-build: Organization logo asset and JSON-LD reference verified');
+console.log('check-build: technical traffic beacon and runtime config verified');
 console.log('check-build: branded native-select chevron verified');
 console.log('check-build: reduced-motion grain fallback verified');

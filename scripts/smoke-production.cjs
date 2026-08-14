@@ -136,17 +136,21 @@ async function runSmoke({
   ]);
 
   extractScriptUrl(leadPage, 'lead-form.js', origin);
+  extractScriptUrl(leadPage, 'traffic-beacon.js', origin);
   extractScriptUrl(schedulePage, 'schedule.js', origin);
 
   const leadConfigUrl = extractScriptUrl(leadPage, 'lead-config.js', origin);
   const scheduleConfigUrl = extractScriptUrl(schedulePage, 'schedule-config.js', origin);
-  const [leadConfig, scheduleConfig] = await Promise.all([
+  const trafficConfigUrl = extractScriptUrl(leadPage, 'traffic-config.js', origin);
+  const [leadConfig, scheduleConfig, trafficConfig] = await Promise.all([
     fetchText(fetchImpl, leadConfigUrl, 'lead config', timeoutMs, authorizationHeaders),
     fetchText(fetchImpl, scheduleConfigUrl, 'schedule config', timeoutMs, authorizationHeaders),
+    fetchText(fetchImpl, trafficConfigUrl, 'traffic config', timeoutMs, authorizationHeaders),
   ]);
 
   const leadApiUrl = extractRuntimeUrl(leadConfig, 'ZVENFIT_LEAD_API');
   const scheduleApiUrl = extractRuntimeUrl(scheduleConfig, 'ZVENFIT_SCHEDULE_API');
+  const trafficApiUrl = extractRuntimeUrl(trafficConfig, 'ZVENFIT_TRAFFIC_API');
 
   const leadApiOrigin = new URL(leadApiUrl).origin;
   if (leadApiOrigin === origin) {
@@ -209,6 +213,29 @@ async function runSmoke({
     throw new Error('smoke-production: schedule API must return { ok: true, items: [] }');
   }
 
+  const trafficResponse = await request(
+    fetchImpl,
+    trafficApiUrl,
+    {
+      method: 'POST',
+      headers: {
+        ...authorizationHeaders,
+        Origin: origin,
+        'Content-Type': 'text/plain;charset=UTF-8',
+      },
+      body: JSON.stringify({
+        page_view_id: `smoke-${Date.now()}`,
+        url: `${origin}/`,
+        referrer: '',
+        webdriver: true,
+      }),
+    },
+    timeoutMs,
+  );
+  if (trafficResponse.status !== 204) {
+    throw new Error(`smoke-production: traffic API returned HTTP ${trafficResponse.status}, expected 204`);
+  }
+
   log(`smoke-production: site pages and runtime configs are available at ${origin}`);
   if (basicAuth) {
     log('smoke-production: missing credentials return 401 and invalid credentials return 403');
@@ -219,8 +246,9 @@ async function runSmoke({
       : 'smoke-production: lead API preflight and CORS are healthy (no lead was created)',
   );
   log('smoke-production: schedule API returned JSON successfully');
+  log('smoke-production: traffic API accepted a synthetic page view');
 
-  return { origin, leadApiUrl, scheduleApiUrl };
+  return { origin, leadApiUrl, scheduleApiUrl, trafficApiUrl };
 }
 
 function readSiteArgument(argv) {

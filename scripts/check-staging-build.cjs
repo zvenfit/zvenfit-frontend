@@ -48,12 +48,16 @@ if (robots !== 'User-agent: *\nDisallow: /\n') {
 
 const leadConfig = fs.readFileSync(path.join(distDir, 'js/lead-config.js'), 'utf8');
 const scheduleConfig = fs.readFileSync(path.join(distDir, 'js/schedule-config.js'), 'utf8');
+const trafficConfig = fs.readFileSync(path.join(distDir, 'js/traffic-config.js'), 'utf8');
 
 if (!leadConfig.includes('https://staging.zvenfit.ru/api/lead')) {
   throw new Error('check-staging-build: lead API must use the authenticated same-origin gateway');
 }
 if (!scheduleConfig.includes('https://staging.zvenfit.ru/api/schedule')) {
   throw new Error('check-staging-build: schedule API must use the authenticated same-origin gateway');
+}
+if (!trafficConfig.includes('https://staging.zvenfit.ru/api/traffic')) {
+  throw new Error('check-staging-build: traffic API must use the authenticated same-origin gateway');
 }
 
 console.log(`check-staging-build: ${htmlFiles.length} protected HTML file(s) verified`);

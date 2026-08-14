@@ -82,6 +82,7 @@ function buildSpecification({
   authorizerFunctionId,
   leadFunctionId,
   scheduleFunctionId,
+  trafficFunctionId,
   securityProfileId,
 }) {
   const paths = {};
@@ -94,6 +95,7 @@ function buildSpecification({
 
   paths['/api/lead'] = { post: functionOperation(leadFunctionId, 'lead') };
   paths['/api/schedule'] = { get: functionOperation(scheduleFunctionId, 'schedule') };
+  paths['/api/traffic'] = { post: functionOperation(trafficFunctionId, 'traffic') };
   paths['/{asset+}'] = {
     parameters: [
       {
@@ -159,6 +161,7 @@ function main() {
     authorizerFunctionId: required(process.env.STAGING_AUTHORIZER_FUNCTION_ID, 'STAGING_AUTHORIZER_FUNCTION_ID'),
     leadFunctionId: required(process.env.STAGING_LEAD_FUNCTION_ID, 'STAGING_LEAD_FUNCTION_ID'),
     scheduleFunctionId: required(process.env.STAGING_SCHEDULE_FUNCTION_ID, 'STAGING_SCHEDULE_FUNCTION_ID'),
+    trafficFunctionId: required(process.env.STAGING_TRAFFIC_FUNCTION_ID, 'STAGING_TRAFFIC_FUNCTION_ID'),
     securityProfileId: required(
       process.env.STAGING_SWS_SECURITY_PROFILE_ID,
       'STAGING_SWS_SECURITY_PROFILE_ID',

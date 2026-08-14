@@ -20,6 +20,7 @@ jobs:
       s3_bucket: zvenfit-frontend-staging
       lead_function_name: zvenfit-telegram-lead-staging
       schedule_function_name: zvenfit-fitbase-schedule-staging
+      traffic_function_name: zvenfit-site-traffic-staging
       lead_retry_trigger_name: zvenfit-lead-telegram-retry-staging
       ydb_database_name: zvenfit-leads-staging
       allowed_origins: https://staging.zvenfit.ru

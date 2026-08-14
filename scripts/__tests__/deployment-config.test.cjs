@@ -12,6 +12,7 @@ function environmentConfig(environment, values) {
     S3_BUCKET: values.s3Bucket,
     LEAD_FUNCTION_NAME: values.leadFunctionName,
     SCHEDULE_FUNCTION_NAME: values.scheduleFunctionName,
+    TRAFFIC_FUNCTION_NAME: values.trafficFunctionName,
     LEAD_RETRY_TRIGGER_NAME: values.leadRetryTriggerName,
     YDB_DATABASE_NAME: values.ydbDatabaseName,
     ALLOWED_ORIGINS: values.allowedOrigins.join(','),

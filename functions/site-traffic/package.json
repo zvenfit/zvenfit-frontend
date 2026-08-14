@@ -1,0 +1,20 @@
+{
+  "name": "zvenfit-site-traffic",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Stateless page-view logger for zvenfit.ru",
+  "scripts": {
+    "build": "rm -rf build && tsc --project tsconfig.build.json",
+    "typecheck": "tsc --project tsconfig.json --noEmit",
+    "test": "npm run typecheck && node --import tsx --test src/__tests__/*.test.ts && npm run test:artifact",
+    "test:artifact": "npm run build && node --test src/__tests__/deployment.test.cjs"
+  },
+  "dependencies": {
+    "pino": "10.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "22.15.3",
+    "tsx": "4.20.6",
+    "typescript": "5.9.3"
+  }
+}

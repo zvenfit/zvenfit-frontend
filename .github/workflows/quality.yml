@@ -31,6 +31,7 @@ jobs:
             package-lock.json
             functions/lead-intake/package-lock.json
             functions/fitbase-schedule/package-lock.json
+            functions/site-traffic/package-lock.json
             functions/staging-authorizer/package-lock.json
 
       - name: Install dependencies
@@ -38,6 +39,7 @@ jobs:
           npm ci
           npm ci --prefix functions/lead-intake
           npm ci --prefix functions/fitbase-schedule
+          npm ci --prefix functions/site-traffic
           npm ci --prefix functions/staging-authorizer
 
       - name: Run linters
@@ -49,6 +51,7 @@ jobs:
         run: |
           npm run test:lead-fn
           npm run test:schedule-fn
+          npm run test:site-traffic
           npm run test:lead-import
           npm run test:monitoring
           npm run test:staging-authorizer
@@ -57,6 +60,7 @@ jobs:
         env:
           LEAD_API_URL: https://example.invalid/lead
           SCHEDULE_API_URL: https://example.invalid/schedule
+          TRAFFIC_API_URL: https://example.invalid/traffic
           ASSET_VERSION: ci-${{ github.sha }}
         run: npm run test:build
 
@@ -65,5 +69,6 @@ jobs:
           NODE_ENV: staging
           LEAD_API_URL: https://staging.zvenfit.ru/api/lead
           SCHEDULE_API_URL: https://staging.zvenfit.ru/api/schedule
+          TRAFFIC_API_URL: https://staging.zvenfit.ru/api/traffic
           ASSET_VERSION: staging-ci-${{ github.sha }}
         run: npm run test:build:staging

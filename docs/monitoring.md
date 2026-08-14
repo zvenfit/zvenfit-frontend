@@ -1,6 +1,7 @@
 # Monitoring and alerts
 
-Минимальный мониторинг production-функций без персональных данных в логах.
+Минимальный мониторинг production-функций. Lead/schedule logs не содержат
+персональные данные; traffic log намеренно access-like и описан отдельно ниже.
 Машиночитаемый источник конфигурации: `scripts/monitoring.config.json`.
 
 > [!IMPORTANT]
@@ -22,7 +23,7 @@
 | Lead function             | `zvenfit-telegram-lead`           |
 | Schedule function         | `zvenfit-fitbase-schedule`        |
 | CDN resource              | `bc8rubabuwzpqqp7rifz`            |
-| Private CDN log bucket    | `zvenfit-cdn-access-logs`         |
+| Traffic function          | `zvenfit-site-traffic`            |
 | Cloud Logging retention   | 3 days                            |
 
 Project dashboard: <https://monium.yandex.cloud/projects/folder__b1ge1e4iopttj79hfdfm/dashboards/zvenfit-production-monitoring>
@@ -44,24 +45,28 @@ Top.Mail.Ru. Она отвечает на эксплуатационные во�
 просмотров пришло на CDN, сколько из них похоже на людей, роботов, автотесты или
 сканеры, и как ведут себя cache/status/latency.
 
-Данные идут по цепочке: Cloud CDN raw logs → приватный Object Storage → Yandex
-Query → DataLens. YQL делит трафик на четыре взаимоисключающих класса:
+На каждой HTML-странице build добавляет небольшой beacon. Он отправляет один
+POST в stateless-функцию `zvenfit-site-traffic`, а функция пишет structured
+event `site_page_view` в Cloud Logging. Monium считает page views прямо из этих
+логов и делит их на четыре взаимоисключающих класса:
 
 - `browser_like` — обычный browser-like User-Agent без признаков автоматизации;
 - `known_bot` — известные поисковые, preview и social bots;
 - `synthetic` — наши production smoke checks с User-Agent
   `ZvenFit-Synthetic-Monitor/1.0`;
-- `unknown` — headless/Playwright/curl, scanner paths и клиенты без достаточных
-  признаков обычного браузера.
+- `unknown` — curl, нестандартные клиенты и User-Agent без достаточных признаков
+  обычного браузера.
 
 Классификация эвристическая: технически невозможно гарантированно распознать
-хорошо замаскированного робота только по CDN-логу. Поэтому dashboard показывает
-классы отдельно, а не удаляет спорный трафик без следа.
+хорошо замаскированного робота по User-Agent. Кроме того, beacon видит только
+клиентов, исполнивших JavaScript. Поэтому `known_bot` — не полный объём роботов,
+а разница между `edge.requests` и page views не равна числу ботов: в CDN requests
+также входят assets и клиенты с заблокированным JavaScript.
 
 | Metric | Что считается |
 | --- | --- |
-| `requests` | Запросы raw-log dataset по `host` и `traffic_class` |
-| `page_views` | Ответы `2xx`/`304` по HTML-маршрутам site hosts без assets/API |
+| `edge.requests` | Все CDN-запросы, включая HTML, assets и роботов |
+| `zvenfit_site_page_views_5m` | Валидные browser beacon events по `traffic_class` и `host` |
 | `edge.requests_status` | Встроенная разбивка CDN по HTTP status |
 | `edge.requests_cache_status` | Встроенная разбивка CDN по cache status |
 | `edge.bytes_sent` | Встроенная скорость отдачи CDN |
@@ -77,30 +82,32 @@ edge.bytes_sent{service="yccdn", resource="bc8rubabuwzpqqp7rifz"}
 edge.request_time_seconds{service="yccdn", resource="bc8rubabuwzpqqp7rifz"}
 ```
 
-Raw CDN logs по определению содержат IP и User-Agent. Они лежат только в
-приватном бакете и автоматически удаляются через 30 дней. Dataset DataLens не
-выдаёт IP, User-Agent или raw URL. Session identifiers и session state отсутствуют.
+Access-like event сохраняет IP, полный User-Agent, полный URL с query,
+referrer, `page_view_id` и признак `webdriver`. Это осознанный диагностический
+лог с общей retention Cloud Logging 3 дня. Сырые поля нельзя добавлять в labels
+метрики: grouping ограничен `traffic_class` и `host` — максимум 12 штатных
+рядов. Нормализованный `page` остаётся полем лога, потому что произвольные 404
+пути сделали бы его небезопасной высококардинальной label.
 
-Одноразовое создание private bucket, lifecycle и включение raw log export:
+Отдельного client state нет: функция не использует HMAC, Lockbox, YDB, Object
+Storage, cookies или session timeout. `page_view_id` нужен только для поиска
+повторной доставки в логах; sessions и unique visitors не считаются.
 
-```bash
-YC_FOLDER_ID=b1ge1e4iopttj79hfdfm npm run provision:cdn-raw-logs
-```
-
-YQL dataset и карточки DataLens, включая индикатор **Последний полученный лог**
-по `MAX(log_timestamp)`, описаны в
-[`cdn-traffic-analytics.md`](cdn-traffic-analytics.md). Это диагностическая
-карточка для проверки два-три раза в день, без paging-alert.
+Настройка функции, log-based metric и карточки **Последний page view** описана в
+[`site-traffic-analytics.md`](site-traffic-analytics.md). Карточка freshness
+диагностическая, без paging-alert.
 
 ## События приложения
 
-Функции пишут только технические идентификаторы и коды ошибок. Имя, телефон,
-Telegram username, UTM и тело ответа Fitbase в лог не попадают.
+Lead и schedule функции пишут только технические идентификаторы и коды ошибок.
+Имя, телефон, Telegram username, UTM и тело ответа Fitbase в их лог не попадают.
+Traffic-функция отдельно пишет перечисленные выше access-like поля.
 
-Обе функции используют Pino с адаптером под structured logging Yandex Cloud:
-уровни записываются как `ERROR/WARN/INFO`, каждый вызов получает `request_id`,
-а известные поля с PII, телами запросов и секретами автоматически заменяются на
-`[REDACTED]`. Уровень можно менять переменной `LOG_LEVEL`, по умолчанию `info`.
+Все три функции используют Pino с адаптером под structured logging Yandex Cloud:
+уровни записываются как `ERROR/WARN/INFO`, каждый вызов получает `request_id`.
+Lead/schedule автоматически скрывают известные поля с PII, телами запросов и
+секретами. Traffic logger сохраняет согласованные access-like поля, но по-прежнему
+редактирует authorization headers. Уровень задаёт `LOG_LEVEL`, по умолчанию `info`.
 
 | Event                                  | Meaning                                                      | Severity   |
 | -------------------------------------- | ------------------------------------------------------------ | ---------- |
@@ -113,6 +120,7 @@ Telegram username, UTM и тело ответа Fitbase в лог не попа�
 | `telegram_delivery_failed_permanently` | Исчерпаны попытки Telegram                                   | Critical   |
 | `ydb_operation_completed`              | Длительность SQL-операции и число retry, без запуска клиента | Diagnostic |
 | `ydb_retry`                            | YDB-клиент повторил операцию после временной ошибки          | Warning    |
+| `site_page_view`                       | Beacon страницы принят и классифицирован                     | Diagnostic |
 | `ydb_slow_operation`                   | Операция YDB превысила `YDB_SLOW_OPERATION_MS`               | Warning    |
 | `ydb_operation_failed`                 | Операция YDB завершилась ошибкой                             | Critical   |
 | `fitbase_schedule_error`               | Fitbase вернул ошибку или недоступен                         | Warning    |
@@ -240,7 +248,7 @@ Telegram username, UTM и тело ответа Fitbase в лог не попа�
 Каждая операция также пишет `ydb_operation_completed` с полями `operation`,
 `duration_ms` и `retry_attempts`. Значения заявки и текст SQL в эти события не попадают.
 
-Исходные логи читаются из `service="default"`, а все десять созданных агрегатов
+Исходные логи читаются из `service="default"`, а созданные агрегаты
 записываются в отдельный `service="logging_aggregates"`. Текущий шард использует
 метку `name` для ID, поэтому итоговый селектор имеет формат:
 
@@ -427,26 +435,26 @@ heartbeat, размер и возраст Telegram-очереди, а также
 и p95 поля `duration_ms` из `ydb_operation_completed`, а также `C` — процент
 использованного хранилища.
 
-Для сайта используй отдельный DataLens dashboard: requests, page views, доли
-`browser_like` / `known_bot` / `synthetic` / `unknown` и индикатор **Последний
-полученный лог**. Sessions пока не считаются. Cache/status/bytes/latency оставь
-на встроенных `edge.*` графиках Monitoring. Маркетинговые конверсии и источники
-кампаний остаются в маркетинговых счётчиках.
+Для сайта используй компактный dashboard Monium: `edge.requests`, page views,
+доли `browser_like` / `known_bot` / `synthetic` / `unknown` и карточку
+**Последний page view**. Sessions пока не считаются. Cache/status/bytes/latency
+оставь на встроенных `edge.*` графиках Monitoring. Маркетинговые конверсии и
+источники кампаний остаются в маркетинговых счётчиках.
 
 ## Cost estimate
 
 - Automatic Yandex Cloud metrics and service dashboards: free.
-- Ten log-derived metrics at one point per window: less than `0.25 RUB/month`.
+- Eleven log-derived metrics at one point per window: well below `1 RUB/month`
+  at the current cardinality.
 - Fifteen continuously evaluated alerts: about `16.20 RUB/month` at the current
   tariff of `1.5 RUB / 1000 alert-hours`.
 - Telegram and email notification channels: no separate charge; SMS and calls
   are not enabled.
-- Cloud Logging remains within its free tier at the current traffic. The group
-  currently retains three days of logs.
-- CDN raw log export is a paid Cloud CDN feature. Object Storage and Yandex Query
-  scans are billed by actual volume; the 30-day lifecycle bounds storage growth.
-- No CDN analytics function, Object Storage trigger, Lockbox secret, session
-  state or custom metric writes are required.
+- Cloud Functions and Cloud Logging should remain within their shared billing-
+  account free tiers at the current traffic. The log group retains three days.
+- Paid CDN log export, Query and DataLens are not used.
+- No runtime service account, Object Storage trigger, Lockbox secret, HMAC,
+  session state or custom metric writes are required.
 
 ## Verification
 
@@ -455,7 +463,7 @@ Run the monitoring contract tests before deployment:
 ```bash
 npm run test:lead-fn
 npm run test:schedule-fn
-npm run test:cdn-traffic
+npm run test:site-traffic
 npm run test:monitoring
 ```
 

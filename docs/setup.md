@@ -232,45 +232,43 @@ Staging deploy собирает отдельный entrypoint с динамич�
 данными и не принимает Fitbase/Telegram credentials.
 Smoke принимает только `{ ok: true, items: [] }`.
 
-## Техническая аналитика Cloud CDN
+## Техническая посещаемость
 
-Для инфраструктурной посещаемости используется пакетный pipeline: raw logs
-основного CDN-ресурса → приватный Object Storage → Yandex Query → DataLens. Это
-не маркетинговый счётчик и не требует добавлять JavaScript на страницы.
+Build добавляет на страницы stateless beacon. Он вызывает отдельную функцию
+`zvenfit-site-traffic`, которая пишет access-like `site_page_view` в Cloud
+Logging. Функция не использует runtime service account, Lockbox, HMAC, YDB или
+Object Storage.
 
-Под учётной записью администратора выполни одноразовое provisioning бакета,
-lifecycle и raw-log export:
+Перед первым deploy под администраторской учётной записью создай функции и
+точные invoker bindings:
 
 ```bash
-YC_FOLDER_ID=b1ge1e4iopttj79hfdfm npm run provision:cdn-raw-logs
+yc serverless function create --name zvenfit-site-traffic
+yc serverless function add-access-binding \
+  --name zvenfit-site-traffic \
+  --role functions.functionInvoker \
+  --subject system:allUsers
+
+yc serverless function create --name zvenfit-site-traffic-staging
+yc serverless function add-access-binding \
+  --name zvenfit-site-traffic-staging \
+  --role functions.functionInvoker \
+  --subject serviceAccount:<YC_GATEWAY_SERVICE_ACCOUNT_ID>
 ```
 
-Скрипт создаёт:
-
-- приватный `zvenfit-cdn-access-logs` с лимитом 5 GiB;
-- lifecycle: raw logs удаляются через 30 дней;
-- raw log export CDN-ресурса `bc8rubabuwzpqqp7rifz` в `raw/zvenfit/cdn`.
-
-Скрипт принципиально не создаёт Cloud Function, Object Storage trigger, runtime
-service account или Lockbox secret. Sessions пока не считаются.
-
-Не добавляй restrictive bucket policy: Cloud CDN не сможет выгружать логи в
-бакет с запрещающей политикой. Сам бакет при этом остаётся закрыт для anonymous
-read/list/config access.
-
-Имя бакета можно переопределить переменной `YC_CDN_RAW_LOGS_BUCKET`, CDN-ресурс —
-`YC_CDN_RESOURCE_ID`; без них используются production defaults выше.
+Production вызывает функцию напрямую по CORS allowlist, staging — через
+защищённый `/api/traffic` API Gateway. После этого workflow сам собирает и
+обновляет версию функции.
 
 Проверка кода без доступа к облаку:
 
 ```bash
-npm run test:cdn-traffic
+npm run test:site-traffic
 npm run test:monitoring
 ```
 
-Raw log export тарифицируется отдельно Cloud CDN и работает с задержкой. Полная
-настройка Yandex Query binding, dataset и карточек DataLens описана в
-[`cdn-traffic-analytics.md`](cdn-traffic-analytics.md).
+Создание log-based metric и dashboard Monium описано в
+[`site-traffic-analytics.md`](site-traffic-analytics.md).
 
 ## Secret rotation
 

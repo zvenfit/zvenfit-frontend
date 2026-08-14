@@ -15,6 +15,7 @@ const source = [
   'functions/fitbase-schedule/src/handler.ts',
   'functions/fitbase-schedule/src/composition/production.ts',
   'functions/fitbase-schedule/src/observability/logger.ts',
+  'functions/site-traffic/src/handler.ts',
 ]
   .map(file => fs.readFileSync(path.join(ROOT, file), 'utf8'))
   .join('\n');
@@ -317,8 +318,12 @@ test('production log source and retention are explicit', () => {
   });
 });
 
-test('technical traffic analytics uses raw logs, YQL and built-in edge metrics', () => {
+test('technical traffic analytics uses a stateless page-view log and built-in edge metrics', () => {
+  const metric = config.logMetrics.find(item => item.id === 'zvenfit_site_page_views_5m');
+
   assert.equal(config.trafficAnalytics.cdnResourceId, 'bc8rubabuwzpqqp7rifz');
+  assert.equal(config.trafficAnalytics.ingestion, 'browser-beacon-cloud-function-cloud-logging');
+  assert.equal(config.trafficAnalytics.productionFunctionName, 'zvenfit-site-traffic');
   assert.deepEqual(config.trafficAnalytics.siteHosts, [
     'zvenfit.ru',
     'www.zvenfit.ru',
@@ -330,15 +335,18 @@ test('technical traffic analytics uses raw logs, YQL and built-in edge metrics',
     'synthetic',
     'unknown',
   ]);
-  assert.equal(config.trafficAnalytics.rawLogRetentionDays, 30);
-  assert.equal(config.trafficAnalytics.queryFile, 'analytics/cdn-traffic.yql');
-  assert.equal(config.trafficAnalytics.queryBinding, 'zvenfit-cdn-raw-logs');
-  assert.deepEqual(config.trafficAnalytics.measures, ['requests', 'page_views']);
-  assert.equal(
-    config.trafficAnalytics.datalens.cards.lastReceivedLog.title,
-    'Последний полученный лог',
-  );
-  assert.equal(config.trafficAnalytics.datalens.cards.lastReceivedLog.pagingAlert, false);
+  assert.deepEqual(config.trafficAnalytics.measures, ['edge_requests', 'page_views']);
+  assert.equal(config.trafficAnalytics.freshnessCard.title, 'Последний page view');
+  assert.equal(config.trafficAnalytics.freshnessCard.pagingAlert, false);
+  assert.deepEqual(metric, {
+    id: 'zvenfit_site_page_views_5m',
+    events: ['site_page_view'],
+    filters: { 'meta.service': 'zvenfit-site-traffic' },
+    aggregation: 'count',
+    window: '5m',
+    grouping: ['meta.traffic_class', 'meta.host'],
+    synthetic: false,
+  });
   for (const metricName of [
     'edge.requests',
     'edge.requests_status',
@@ -352,12 +360,14 @@ test('technical traffic analytics uses raw logs, YQL and built-in edge metrics',
     );
   }
   assert.deepEqual(config.trafficAnalytics.privacy, {
-    rawIpInDataset: false,
-    rawUserAgentInDataset: false,
-    rawUrlInDataset: false,
+    rawIpInLogs: true,
+    rawUserAgentInLogs: true,
+    rawUrlInLogs: true,
+    rawFieldsInMetricLabels: false,
+    persistentClientState: false,
   });
   assert.match(monitoringDocs, /browser_like.*known_bot.*synthetic.*unknown/s);
-  assert.doesNotMatch(monitoringDocs, /zvenfit_cdn_technical_sessions/);
+  assert.doesNotMatch(monitoringDocs, /provision:cdn-raw-logs|Cloud CDN raw logs →/i);
 });
 
 test('every log selector is isolated by repository and environment', () => {

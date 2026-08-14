@@ -9,6 +9,7 @@ const environment = {
   NODE_ENV: 'staging',
   LEAD_API_URL: 'https://staging.zvenfit.ru/api/lead',
   SCHEDULE_API_URL: 'https://staging.zvenfit.ru/api/schedule',
+  TRAFFIC_API_URL: 'https://staging.zvenfit.ru/api/traffic',
   ASSET_VERSION: process.env.ASSET_VERSION || 'staging-test',
 };
 
