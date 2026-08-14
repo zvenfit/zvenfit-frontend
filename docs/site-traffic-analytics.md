@@ -11,7 +11,7 @@ HTML page
   → traffic-beacon.js
   → POST site-traffic Cloud Function
   → structured site_page_view in Cloud Logging
-  → zvenfit_site_page_views_5m log metric
+  → zvenfit_site_page_views_by_class_5m log metric
   → Monium dashboard
 ```
 
@@ -65,10 +65,12 @@ Object Storage и отдельного lifecycle. Повторный `page_view_
 Создай в Monium одну метрику по desired state из
 `scripts/monitoring.config.json`:
 
-- ID: `zvenfit_site_page_views_5m`;
+- ID: `zvenfit_site_page_views_by_class_5m`;
 - source: production logs с `meta.application="zvenfit-frontend"`,
   `meta.environment="production"`, `meta.service="zvenfit-site-traffic"`;
-- filter/event: `meta.event="site_page_view"`;
+- filter/event: `meta.event="site_page_view"`, `meta.traffic_class="*"`,
+  `host="*"`; existence-фильтры для полей группировки обязательны в
+  Preview-конструкторе Monium;
 - aggregation: count, window 5 minutes;
 - grouping: `meta.traffic_class`, `host` (в Monium `host` — системное поле, не `meta.host`).
 
@@ -77,7 +79,7 @@ Object Storage и отдельного lifecycle. Повторный `page_view_
 1. stacked bars page views по `traffic_class`;
 2. долю `known_bot` и `synthetic`;
 3. плитку **Последний page view** с запросом
-   `series_sum({..., name="zvenfit_site_page_views_5m"})` и агрегацией `last`;
+   `series_sum({..., name="zvenfit_site_page_views_by_class_5m"})` и агрегацией `last`;
 4. при ручном разборе — top `meta.page` непосредственно в трёхдневных логах,
    не как metric label;
 5. рядом встроенные `edge.requests`, `edge.requests_status`,

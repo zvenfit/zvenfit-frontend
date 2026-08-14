@@ -32,11 +32,11 @@
       "unknown"
     ],
     "measures": ["edge_requests", "page_views"],
-    "pageViewMetricId": "zvenfit_site_page_views_5m",
+    "pageViewMetricId": "zvenfit_site_page_views_by_class_5m",
     "freshnessCard": {
       "title": "Последний page view",
-      "source": "zvenfit_site_page_views_5m",
-      "query": "series_sum({project=\"folder__b1ge1e4iopttj79hfdfm\", cluster=\"default\", service=\"logging_aggregates\", name=\"zvenfit_site_page_views_5m\"})",
+      "source": "zvenfit_site_page_views_by_class_5m",
+      "query": "series_sum({project=\"folder__b1ge1e4iopttj79hfdfm\", cluster=\"default\", service=\"logging_aggregates\", name=\"zvenfit_site_page_views_by_class_5m\"})",
       "visualization": "tile",
       "aggregation": "last",
       "exactLogTimestamp": false,
@@ -166,9 +166,13 @@
       "synthetic": false
     },
     {
-      "id": "zvenfit_site_page_views_5m",
+      "id": "zvenfit_site_page_views_by_class_5m",
       "events": ["site_page_view"],
-      "filters": { "meta.service": "zvenfit-site-traffic" },
+      "filters": {
+        "meta.service": "zvenfit-site-traffic",
+        "meta.traffic_class": "*",
+        "host": "*"
+      },
       "aggregation": "count",
       "window": "5m",
       "grouping": ["meta.traffic_class", "host"],

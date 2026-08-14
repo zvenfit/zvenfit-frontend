@@ -319,7 +319,7 @@ test('production log source and retention are explicit', () => {
 });
 
 test('technical traffic analytics uses a stateless page-view log and built-in edge metrics', () => {
-  const metric = config.logMetrics.find(item => item.id === 'zvenfit_site_page_views_5m');
+  const metric = config.logMetrics.find(item => item.id === 'zvenfit_site_page_views_by_class_5m');
 
   assert.equal(config.trafficAnalytics.cdnResourceId, 'bc8rubabuwzpqqp7rifz');
   assert.equal(config.trafficAnalytics.ingestion, 'browser-beacon-cloud-function-cloud-logging');
@@ -337,17 +337,21 @@ test('technical traffic analytics uses a stateless page-view log and built-in ed
   ]);
   assert.deepEqual(config.trafficAnalytics.measures, ['edge_requests', 'page_views']);
   assert.equal(config.trafficAnalytics.freshnessCard.title, 'Последний page view');
-  assert.equal(config.trafficAnalytics.freshnessCard.source, 'zvenfit_site_page_views_5m');
+  assert.equal(config.trafficAnalytics.freshnessCard.source, 'zvenfit_site_page_views_by_class_5m');
   assert.match(config.trafficAnalytics.freshnessCard.query, /^series_sum\(/);
-  assert.match(config.trafficAnalytics.freshnessCard.query, /name="zvenfit_site_page_views_5m"/);
+  assert.match(config.trafficAnalytics.freshnessCard.query, /name="zvenfit_site_page_views_by_class_5m"/);
   assert.equal(config.trafficAnalytics.freshnessCard.visualization, 'tile');
   assert.equal(config.trafficAnalytics.freshnessCard.aggregation, 'last');
   assert.equal(config.trafficAnalytics.freshnessCard.exactLogTimestamp, false);
   assert.equal(config.trafficAnalytics.freshnessCard.pagingAlert, false);
   assert.deepEqual(metric, {
-    id: 'zvenfit_site_page_views_5m',
+    id: 'zvenfit_site_page_views_by_class_5m',
     events: ['site_page_view'],
-    filters: { 'meta.service': 'zvenfit-site-traffic' },
+    filters: {
+      'meta.service': 'zvenfit-site-traffic',
+      'meta.traffic_class': '*',
+      host: '*',
+    },
     aggregation: 'count',
     window: '5m',
     grouping: ['meta.traffic_class', 'host'],

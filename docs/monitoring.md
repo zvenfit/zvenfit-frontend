@@ -66,7 +66,7 @@ event `site_page_view` в Cloud Logging. Monium считает page views пря
 | Metric | Что считается |
 | --- | --- |
 | `edge.requests` | Все CDN-запросы, включая HTML, assets и роботов |
-| `zvenfit_site_page_views_5m` | Валидные browser beacon events по `traffic_class` и `host` |
+| `zvenfit_site_page_views_by_class_5m` | Валидные browser beacon events по `traffic_class` и `host` |
 | `edge.requests_status` | Встроенная разбивка CDN по HTTP status |
 | `edge.requests_cache_status` | Встроенная разбивка CDN по cache status |
 | `edge.bytes_sent` | Встроенная скорость отдачи CDN |
