@@ -20,12 +20,12 @@ bytes и latency берутся из встроенных `edge.*` метрик 
 
 ## Как трактовать traffic_class
 
-| Класс | Интерпретация |
-| --- | --- |
-| `browser_like` | User-Agent похож на обычный браузер, явных признаков автоматизации нет |
-| `known_bot` | User-Agent содержит известный bot/crawler/spider signature |
-| `synthetic` | Наш smoke monitor, headless/autotest signature или `navigator.webdriver=true` |
-| `unknown` | curl, нестандартный клиент или недостаточно данных |
+| Класс          | Интерпретация                                                                 |
+| -------------- | ----------------------------------------------------------------------------- |
+| `browser_like` | User-Agent похож на обычный браузер, явных признаков автоматизации нет        |
+| `known_bot`    | User-Agent содержит известный bot/crawler/spider signature                    |
+| `synthetic`    | Наш smoke monitor, headless/autotest signature или `navigator.webdriver=true` |
+| `unknown`      | curl, нестандартный клиент или недостаточно данных                            |
 
 Beacon видит только клиентов, которые исполнили JavaScript. Поэтому большинство
 простых crawler-ов останется только в `edge.requests`, а `known_bot` отражает
@@ -50,6 +50,11 @@ Retention общей Cloud Logging group — 3 дня. В labels метрики 
 `traffic_class` и `host`, то есть не больше 12 штатных рядов. `page` тоже
 остаётся только в логах: произвольные 404 URL сделали бы его высококардинальной
 label. IP, URL, referrer, User-Agent и IDs тем более нельзя добавлять в grouping.
+
+Beacon не подключается к `404.html`, поэтому сканирование произвольных URL и
+опечатки не становятся page views. Referrer сохраняется полностью для HTTP(S);
+невалидные и app-specific схемы очищаются до пустой строки и не приводят к
+потере самого page view.
 
 Persistent state отсутствует. Нет cookies, sessionization, HMAC, Lockbox, YDB,
 Object Storage и отдельного lifecycle. Повторный `page_view_id` можно увидеть

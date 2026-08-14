@@ -108,6 +108,10 @@ const trafficConfigSource = fs.readFileSync(path.join(distDir, 'js', 'traffic-co
 if (trafficConfigSource.includes('__TRAFFIC_API_URL__')) {
   throw new Error('check-build: traffic-config.js still contains its build placeholder');
 }
+const notFoundHtml = fs.readFileSync(path.join(distDir, '404.html'), 'utf8');
+if (notFoundHtml.includes('/js/traffic-config.js') || notFoundHtml.includes('/js/traffic-beacon.js')) {
+  throw new Error('check-build: 404 page must not emit technical page views');
+}
 if (!homeHtml.includes('https://zvenfit.ru/images/zvenfit-logo.svg')) {
   throw new Error('check-build: Organization JSON-LD does not reference the dedicated logo');
 }
@@ -127,5 +131,6 @@ console.log('check-build: generated Yandex Maps runtime config verified');
 console.log('check-build: lead form accessibility contract verified');
 console.log('check-build: Organization logo asset and JSON-LD reference verified');
 console.log('check-build: technical traffic beacon and runtime config verified');
+console.log('check-build: 404 page-view beacon exclusion verified');
 console.log('check-build: branded native-select chevron verified');
 console.log('check-build: reduced-motion grain fallback verified');

@@ -93,6 +93,24 @@ test('rejects forged page origins and malformed payloads without logging', async
   assert.equal(logger.records.length, 0);
 });
 
+test('keeps the page view and clears unsupported diagnostic referrers', async () => {
+  process.env.ALLOWED_ORIGINS = 'https://zvenfit.ru';
+  const logger = new CaptureLogger();
+  const handler = createHandler({ loggerFactory: () => logger });
+  const payload = {
+    page_view_id: 'view-from-app',
+    url: 'https://zvenfit.ru/',
+    referrer: 'android-app://com.example.app',
+    webdriver: false,
+  };
+
+  const result = await handler(event({ body: JSON.stringify(payload) }));
+
+  assert.equal(result.statusCode, 204);
+  assert.equal(logger.records.length, 1);
+  assert.equal(logger.records[0]?.referrer, '');
+});
+
 test('supports preflight and rejects unsupported methods', async () => {
   process.env.ALLOWED_ORIGINS = 'https://zvenfit.ru';
   const handler = createHandler({ loggerFactory: () => new CaptureLogger() });

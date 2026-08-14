@@ -60,6 +60,20 @@ function decodeBody(event: HttpEvent): string {
   return decoded;
 }
 
+function normalizeReferrer(value: unknown): string {
+  if (typeof value !== 'string' || !value || value.length > MAX_URL_LENGTH) {
+    return '';
+  }
+
+  try {
+    const referrerUrl = new URL(value);
+
+    return ['http:', 'https:'].includes(referrerUrl.protocol) ? value : '';
+  } catch {
+    return '';
+  }
+}
+
 function parsePayload(event: HttpEvent, origin: string): { payload: PageViewPayload; url: URL } {
   let value: unknown;
   try {
@@ -76,11 +90,11 @@ function parsePayload(event: HttpEvent, origin: string): { payload: PageViewPayl
 
   const record = value as Record<string, unknown>;
   const urlValue = typeof record.url === 'string' ? record.url.trim() : '';
-  const referrer = typeof record.referrer === 'string' ? record.referrer : '';
+  const referrer = normalizeReferrer(record.referrer);
   const pageViewId = typeof record.page_view_id === 'string' ? record.page_view_id.trim() : '';
   const webdriver = record.webdriver;
 
-  if (!urlValue || urlValue.length > MAX_URL_LENGTH || referrer.length > MAX_URL_LENGTH) {
+  if (!urlValue || urlValue.length > MAX_URL_LENGTH) {
     throw new Error('invalid_url');
   }
   if (!pageViewId || pageViewId.length > MAX_ID_LENGTH) {
@@ -98,16 +112,6 @@ function parsePayload(event: HttpEvent, origin: string): { payload: PageViewPayl
   }
   if (!['http:', 'https:'].includes(url.protocol) || url.origin !== origin) {
     throw new Error('invalid_url');
-  }
-  if (referrer) {
-    try {
-      const referrerUrl = new URL(referrer);
-      if (!['http:', 'https:'].includes(referrerUrl.protocol)) {
-        throw new Error('invalid_referrer');
-      }
-    } catch {
-      throw new Error('invalid_referrer');
-    }
   }
 
   return {
@@ -187,4 +191,4 @@ export function createHandler(dependencies: HandlerDependencies): CloudHandler {
 
 export const handler = createHandler({ loggerFactory: createInvocationLogger });
 
-export const _private = { normalizePage, parsePayload, sourceIp };
+export const _private = { normalizePage, normalizeReferrer, parsePayload, sourceIp };

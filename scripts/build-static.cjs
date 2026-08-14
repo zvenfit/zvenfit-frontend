@@ -905,7 +905,8 @@ function runBuild() {
       injectAppDownloadLinks(withStructuredData, appLinksConfig, { skipFooterAppBlock }),
       assetVersion,
     );
-    const withTrafficScripts = injectTrafficScripts(withMapScripts, assetVersion);
+    const withTrafficScripts =
+      pagePath === '/404.html' ? withMapScripts : injectTrafficScripts(withMapScripts, assetVersion);
     const environmentHtml = isStaging ? injectStagingRobotsMeta(withTrafficScripts) : withTrafficScripts;
     const nextHtml = bustAssetUrls(applySlashPrefix(environmentHtml), assetVersion);
 
