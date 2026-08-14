@@ -154,7 +154,7 @@ test('YDB storage alert uses live database metrics and 70/85 percent thresholds'
   assert.equal(alert.noData, 'WARNING');
 });
 
-test('runtime alerts split lead and CDN failures from schedule cancellations', () => {
+test('runtime alerts keep critical lead failures separate from schedule cancellations', () => {
   const generalRuntimeAlert = config.alerts.find(alert => alert.id === 'zvenfit_function_runtime_errors');
   const scheduleRuntimeAlert = config.alerts.find(alert => alert.id === 'zvenfit_schedule_runtime_errors');
   const cancellationAlert = config.alerts.find(alert => alert.id === 'zvenfit_schedule_cancellations');
@@ -166,10 +166,9 @@ test('runtime alerts split lead and CDN failures from schedule cancellations', (
   );
 
   assert.match(generalRuntimeAlert.metricSelector, /name="functions_errors"/);
-  assert.match(
-    generalRuntimeAlert.metricSelector,
-    /resource_id="zvenfit-telegram-lead\|zvenfit-cdn-analytics"/,
-  );
+  assert.match(generalRuntimeAlert.metricSelector, /resource_id="zvenfit-telegram-lead"/);
+  assert.equal(generalRuntimeAlert.scope, 'lead-function');
+  assert.doesNotMatch(generalRuntimeAlert.metricSelector, /cdn-analytics/);
   assert.doesNotMatch(generalRuntimeAlert.metricSelector, /zvenfit-fitbase-schedule/);
   assert.doesNotMatch(generalRuntimeAlert.metricSelector, /resource_id="d4e/);
 
@@ -318,35 +317,47 @@ test('production log source and retention are explicit', () => {
   });
 });
 
-test('technical traffic metrics separate browsers, bots, automation and synthetic checks', () => {
-  assert.equal(config.trafficMetrics.cdnResourceId, 'bc8rubabuwzpqqp7rifz');
-  assert.deepEqual(config.trafficMetrics.siteHosts, [
+test('technical traffic analytics uses raw logs, YQL and built-in edge metrics', () => {
+  assert.equal(config.trafficAnalytics.cdnResourceId, 'bc8rubabuwzpqqp7rifz');
+  assert.deepEqual(config.trafficAnalytics.siteHosts, [
     'zvenfit.ru',
     'www.zvenfit.ru',
     'zvenigorod.zvenfit.ru',
   ]);
-  assert.deepEqual(config.trafficMetrics.trafficClasses, [
-    'browser',
+  assert.deepEqual(config.trafficAnalytics.trafficClasses, [
+    'browser_like',
     'known_bot',
     'synthetic',
-    'suspicious',
+    'unknown',
   ]);
-  assert.equal(config.trafficMetrics.sessionTimeoutMinutes, 30);
-  assert.equal(config.trafficMetrics.rawLogRetentionDays, 30);
-  assert.equal(config.trafficMetrics.sessionStateRetentionDays, 2);
-  assert.match(config.trafficMetrics.selectors.edgeRequests, /^edge\.requests\{/);
-  assert.match(config.trafficMetrics.selectors.edgeRequests, /service="yccdn"/);
-  assert.match(config.trafficMetrics.selectors.pageViews, /^zvenfit_cdn_page_views\{/);
-  assert.match(
-    config.trafficMetrics.selectors.technicalSessions,
-    /^zvenfit_cdn_technical_sessions\{/,
+  assert.equal(config.trafficAnalytics.rawLogRetentionDays, 30);
+  assert.equal(config.trafficAnalytics.queryFile, 'analytics/cdn-traffic.yql');
+  assert.equal(config.trafficAnalytics.queryBinding, 'zvenfit-cdn-raw-logs');
+  assert.deepEqual(config.trafficAnalytics.measures, ['requests', 'page_views']);
+  assert.equal(
+    config.trafficAnalytics.datalens.cards.lastReceivedLog.title,
+    'Последний полученный лог',
   );
-  assert.deepEqual(config.trafficMetrics.privacy, {
-    rawIpInMetrics: false,
-    rawUserAgentInMetrics: false,
-    sessionIdentifier: 'hmac-sha256',
+  assert.equal(config.trafficAnalytics.datalens.cards.lastReceivedLog.pagingAlert, false);
+  for (const metricName of [
+    'edge.requests',
+    'edge.requests_status',
+    'edge.requests_cache_status',
+    'edge.bytes_sent',
+    'edge.request_time_seconds',
+  ]) {
+    assert.match(
+      Object.values(config.trafficAnalytics.monitoringSelectors).join('\n'),
+      new RegExp(metricName.replace('.', '\\.')),
+    );
+  }
+  assert.deepEqual(config.trafficAnalytics.privacy, {
+    rawIpInDataset: false,
+    rawUserAgentInDataset: false,
+    rawUrlInDataset: false,
   });
-  assert.match(monitoringDocs, /browser.*known_bot.*synthetic.*suspicious/s);
+  assert.match(monitoringDocs, /browser_like.*known_bot.*synthetic.*unknown/s);
+  assert.doesNotMatch(monitoringDocs, /zvenfit_cdn_technical_sessions/);
 });
 
 test('every log selector is isolated by repository and environment', () => {

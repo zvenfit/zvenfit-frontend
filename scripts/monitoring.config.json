@@ -14,7 +14,7 @@
     "service": "logging_aggregates",
     "idLabel": "name"
   },
-  "trafficMetrics": {
+  "trafficAnalytics": {
     "cdnResourceId": "bc8rubabuwzpqqp7rifz",
     "siteHosts": [
       "zvenfit.ru",
@@ -22,25 +22,39 @@
       "zvenigorod.zvenfit.ru"
     ],
     "rawLogBucket": "zvenfit-cdn-access-logs",
+    "rawLogPrefix": "raw/zvenfit/cdn",
     "rawLogRetentionDays": 30,
-    "sessionStateRetentionDays": 2,
-    "sessionTimeoutMinutes": 30,
+    "queryFile": "analytics/cdn-traffic.yql",
+    "queryBinding": "zvenfit-cdn-raw-logs",
     "trafficClasses": [
-      "browser",
+      "browser_like",
       "known_bot",
       "synthetic",
-      "suspicious"
+      "unknown"
     ],
-    "selectors": {
+    "measures": ["requests", "page_views"],
+    "datalens": {
+      "refreshCadence": "manual-2-or-3-times-daily",
+      "cards": {
+        "lastReceivedLog": {
+          "title": "Последний полученный лог",
+          "visualization": "indicator",
+          "measure": "MAX(log_timestamp)",
+          "pagingAlert": false
+        }
+      }
+    },
+    "monitoringSelectors": {
       "edgeRequests": "edge.requests{service=\"yccdn\",resource=\"bc8rubabuwzpqqp7rifz\"}",
       "edgeStatus": "edge.requests_status{service=\"yccdn\",resource=\"bc8rubabuwzpqqp7rifz\"}",
-      "pageViews": "zvenfit_cdn_page_views{service=\"custom\",cdn_resource=\"bc8rubabuwzpqqp7rifz\"}",
-      "technicalSessions": "zvenfit_cdn_technical_sessions{service=\"custom\",cdn_resource=\"bc8rubabuwzpqqp7rifz\"}"
+      "edgeCache": "edge.requests_cache_status{service=\"yccdn\",resource=\"bc8rubabuwzpqqp7rifz\"}",
+      "edgeBytes": "edge.bytes_sent{service=\"yccdn\",resource=\"bc8rubabuwzpqqp7rifz\"}",
+      "edgeLatency": "edge.request_time_seconds{service=\"yccdn\",resource=\"bc8rubabuwzpqqp7rifz\"}"
     },
     "privacy": {
-      "rawIpInMetrics": false,
-      "rawUserAgentInMetrics": false,
-      "sessionIdentifier": "hmac-sha256"
+      "rawIpInDataset": false,
+      "rawUserAgentInDataset": false,
+      "rawUrlInDataset": false
     }
   },
   "provisioning": {
@@ -172,8 +186,8 @@
     },
     {
       "id": "zvenfit_function_runtime_errors",
-      "scope": "lead-and-cdn-functions",
-      "metricSelector": "{project=\"folder__b1ge1e4iopttj79hfdfm\", service=\"serverless-functions\", name=\"functions_errors\", resource_id=\"zvenfit-telegram-lead|zvenfit-cdn-analytics\"}",
+      "scope": "lead-function",
+      "metricSelector": "{project=\"folder__b1ge1e4iopttj79hfdfm\", service=\"serverless-functions\", name=\"functions_errors\", resource_id=\"zvenfit-telegram-lead\"}",
       "aggregation": "sum",
       "operator": ">",
       "warning": 0,

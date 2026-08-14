@@ -1,0 +1,57 @@
+-- DataLens dataset SQL for ZvenFit technical traffic.
+-- Expected Yandex Query binding: bindings.`zvenfit-cdn-raw-logs`
+-- Binding path: raw/zvenfit/cdn/, format: json_each_row, compression: gzip.
+-- Keep timestamp_ms as String; the query converts its stable UTC prefix to Datetime.
+
+$case_insensitive = Re2::Options(false AS CaseSensitive);
+$datetime_parse = DateTime::Parse("%Y-%m-%d %H:%M:%S");
+$synthetic_agent = Re2::Grep(@@zvenfit[-_ ]synthetic@@, $case_insensitive);
+$known_bot_agent = Re2::Grep(
+    @@bot|crawler|spider|slurp|bingpreview|facebookexternalhit|vkshare|telegrambot|whatsapp|yandeximages|googleother@@,
+    $case_insensitive
+);
+$automation_agent = Re2::Grep(
+    @@headless|playwright|puppeteer|selenium|phantom|python|curl|wget|postmanruntime|insomnia|go-http-client|java/|libwww|node(?:\.js)?|undici@@,
+    $case_insensitive
+);
+$browser_agent = Re2::Grep(
+    @@mozilla/5\.0|applewebkit|chrome/|chromium/|safari/|firefox/|edg/|opr/|yabrowser/|samsungbrowser/@@,
+    $case_insensitive
+);
+$scanner_path = Re2::Grep(
+    @@(?:^|/)(?:\.env|\.git|wp-admin|wp-login\.php|xmlrpc\.php|phpmyadmin|vendor/phpunit|actuator|cgi-bin)(?:/|$|\?)@@,
+    $case_insensitive
+);
+$static_path = Re2::Grep(
+    @@^/(?:css|documents|fonts|images|js)/|\.(?:avif|css|gif|ico|jpe?g|js|json|map|mp4|pdf|png|svg|ttf|webp|woff2?|xml)(?:$|\?)|^/(?:robots\.txt|sitemap\.xml)(?:$|\?)|^/api/@@,
+    $case_insensitive
+);
+$file_path = Re2::Grep(@@/[^/?]+\.[^/?]+(?:$|\?)@@, $case_insensitive);
+$successful_page_status = Re2::Match(@@(?:2[0-9][0-9]|304)@@);
+
+$classified = SELECT
+    DateTime::MakeDatetime($datetime_parse(SUBSTRING(timestamp_ms, 0, 19))) AS log_timestamp,
+    http_host AS host,
+    CASE
+        WHEN $synthetic_agent(user_agent) THEN "synthetic"
+        WHEN $known_bot_agent(user_agent) THEN "known_bot"
+        WHEN $automation_agent(user_agent) OR $scanner_path(request_uri) THEN "unknown"
+        WHEN $browser_agent(user_agent) THEN "browser_like"
+        ELSE "unknown"
+    END AS traffic_class,
+    $successful_page_status(status)
+        AND NOT $static_path(request_uri)
+        AND NOT $file_path(request_uri)
+        AND NOT $scanner_path(request_uri) AS is_page
+FROM bindings.`zvenfit-cdn-raw-logs`
+WHERE
+    resource_id = "bc8rubabuwzpqqp7rifz"
+    AND http_host IN ("zvenfit.ru", "www.zvenfit.ru", "zvenigorod.zvenfit.ru");
+
+SELECT
+    log_timestamp,
+    host,
+    traffic_class,
+    1 AS requests,
+    IF(is_page, 1, 0) AS page_views
+FROM $classified;

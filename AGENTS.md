@@ -44,7 +44,7 @@ Browser (zvenfit.ru)
                                                     ├─ production: Fitbase API
                                                     └─ staging: dynamic fixture
 
-Cloud CDN raw logs → private Object Storage → functions/cdn-analytics → Monitoring
+Cloud CDN raw logs → private Object Storage → Yandex Query → DataLens
 
 Local dev (npm run dev):
   mock-server :3000  ← lead POST + GET /schedule
@@ -86,7 +86,7 @@ Also at build time:
 | Lead storage / retry state | `functions/lead-intake/src/ydb/`                                    |
 | Schedule UI                | `public/raspisanie/index.html`, `public/js/schedule.js`             |
 | Schedule API / Fitbase     | `functions/fitbase-schedule/src/handler.ts`, `src/fitbase/`         |
-| Technical site traffic     | `functions/cdn-analytics/src/`, `scripts/provision-cdn-analytics.sh` |
+| Technical site traffic     | `analytics/cdn-traffic.yql`, `scripts/provision-cdn-raw-logs.sh`    |
 | UTM in leads               | `public/js/utm-attribution.js`, `docs/utm-attribution-marketing.md` |
 | App store badges/links     | `scripts/app-links.config.json`, snippets in `scripts/snippets/`    |
 | SEO / JSON-LD              | `scripts/structured-data.config.json`, page `<meta>`                |
@@ -101,7 +101,6 @@ cp .env.example .env.development   # fill values
 npm install
 npm ci --prefix functions/lead-intake
 npm ci --prefix functions/fitbase-schedule
-npm ci --prefix functions/cdn-analytics
 npm run dev:watch                  # mock API + rebuild + serve :4173
 ```
 
@@ -115,7 +114,7 @@ npm run dev:watch                  # mock API + rebuild + serve :4173
 npm run build          # must produce dist/
 npm run lint:public    # JS in public/ and functions/
 npm run test:lead-fn   # durable storage / Telegram failure paths
-npm run test:cdn-analytics # CDN traffic classification/session metrics
+npm run test:cdn-traffic   # CDN traffic YQL classification/page-view contract
 npm run test:build     # build + smoke check dist/index.html
 ```
 
@@ -127,6 +126,7 @@ Manual smoke:
 ## Secrets & security
 
 - Never commit tokens, SA keys, or real `.env*`
+- Never create a Lockbox secret without the user's explicit approval; it is a billable resource
 - Bot token / chat ID live only in Cloud Function env + GitHub Secrets
 - CORS origins: `ALLOWED_ORIGINS` in workflow and function env
 

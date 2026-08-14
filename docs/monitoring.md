@@ -21,7 +21,6 @@
 | Application / environment | `zvenfit-frontend` / `production` |
 | Lead function             | `zvenfit-telegram-lead`           |
 | Schedule function         | `zvenfit-fitbase-schedule`        |
-| CDN analytics function    | `zvenfit-cdn-analytics`           |
 | CDN resource              | `bc8rubabuwzpqqp7rifz`            |
 | Private CDN log bucket    | `zvenfit-cdn-access-logs`         |
 | Cloud Logging retention   | 3 days                            |
@@ -45,16 +44,15 @@ Top.Mail.Ru. Она отвечает на эксплуатационные во�
 просмотров пришло на CDN, сколько из них похоже на людей, роботов, автотесты или
 сканеры, и как ведут себя cache/status/latency.
 
-Данные идут по цепочке: Cloud CDN raw logs → приватный Object Storage →
-`zvenfit-cdn-analytics` → custom metrics Yandex Monitoring. Функция делит трафик
-на четыре взаимоисключающих класса:
+Данные идут по цепочке: Cloud CDN raw logs → приватный Object Storage → Yandex
+Query → DataLens. YQL делит трафик на четыре взаимоисключающих класса:
 
-- `browser` — обычный browser-like User-Agent без признаков автоматизации;
+- `browser_like` — обычный browser-like User-Agent без признаков автоматизации;
 - `known_bot` — известные поисковые, preview и social bots;
 - `synthetic` — наши production smoke checks с User-Agent
   `ZvenFit-Synthetic-Monitor/1.0`;
-- `suspicious` — headless/Playwright/curl и похожие клиенты, scanner paths или
-  аномальный burst запросов от одного клиента внутри log batch.
+- `unknown` — headless/Playwright/curl, scanner paths и клиенты без достаточных
+  признаков обычного браузера.
 
 Классификация эвристическая: технически невозможно гарантированно распознать
 хорошо замаскированного робота только по CDN-логу. Поэтому dashboard показывает
@@ -62,40 +60,37 @@ Top.Mail.Ru. Она отвечает на эксплуатационные во�
 
 | Metric | Что считается |
 | --- | --- |
-| `edge.requests` | Все запросы CDN, встроенная platform metric |
-| `zvenfit_cdn_requests` | Запросы по `host` и `traffic_class` |
-| `zvenfit_cdn_page_views` | Успешные HTML-маршруты site hosts без assets/API |
-| `zvenfit_cdn_technical_sessions` | Новая `browser`-сессия после 30 минут неактивности |
-| `zvenfit_cdn_responses` | Ответы по `status_class` и классу трафика |
-| `zvenfit_cdn_cache_requests` | Cache status по классу трафика |
+| `requests` | Запросы raw-log dataset по `host` и `traffic_class` |
+| `page_views` | Ответы `2xx`/`304` по HTML-маршрутам site hosts без assets/API |
+| `edge.requests_status` | Встроенная разбивка CDN по HTTP status |
+| `edge.requests_cache_status` | Встроенная разбивка CDN по cache status |
+| `edge.bytes_sent` | Встроенная скорость отдачи CDN |
+| `edge.request_time_seconds` | Встроенные перцентили latency CDN |
 
 Селекторы для графиков:
 
 ```text
 edge.requests{service="yccdn", resource="bc8rubabuwzpqqp7rifz"}
-zvenfit_cdn_page_views{service="custom", cdn_resource="bc8rubabuwzpqqp7rifz"}
-zvenfit_cdn_technical_sessions{service="custom", cdn_resource="bc8rubabuwzpqqp7rifz"}
+edge.requests_status{service="yccdn", resource="bc8rubabuwzpqqp7rifz"}
+edge.requests_cache_status{service="yccdn", resource="bc8rubabuwzpqqp7rifz"}
+edge.bytes_sent{service="yccdn", resource="bc8rubabuwzpqqp7rifz"}
+edge.request_time_seconds{service="yccdn", resource="bc8rubabuwzpqqp7rifz"}
 ```
 
 Raw CDN logs по определению содержат IP и User-Agent. Они лежат только в
-приватном бакете и автоматически удаляются через 30 дней. В Monitoring не
-отправляются IP, User-Agent или URL: только ограниченный набор агрегированных
-labels. Для 30-минутной сессии функция использует необратимый
-`HMAC-SHA256(IP + User-Agent)` с ключом из Lockbox; state удаляется через два дня.
-Логи самой функции содержат только счётчики и короткий hash имени объекта.
+приватном бакете и автоматически удаляются через 30 дней. Dataset DataLens не
+выдаёт IP, User-Agent или raw URL. Session identifiers и session state отсутствуют.
 
-Одноразовое создание private bucket, lifecycle, runtime SA, Lockbox secret,
-функции, trigger и включение raw log export:
+Одноразовое создание private bucket, lifecycle и включение raw log export:
 
 ```bash
-YC_FOLDER_ID=b1ge1e4iopttj79hfdfm npm run provision:cdn-analytics
+YC_FOLDER_ID=b1ge1e4iopttj79hfdfm npm run provision:cdn-raw-logs
 ```
 
-Последующие версии функции выкладывает CI. Для ручного обновления:
-
-```bash
-YC_FOLDER_ID=b1ge1e4iopttj79hfdfm npm run deploy:cdn-analytics
-```
+YQL dataset и карточки DataLens, включая индикатор **Последний полученный лог**
+по `MAX(log_timestamp)`, описаны в
+[`cdn-traffic-analytics.md`](cdn-traffic-analytics.md). Это диагностическая
+карточка для проверки два-три раза в день, без paging-alert.
 
 ## События приложения
 
@@ -281,7 +276,7 @@ Functions, storage alert — две автоматические метрики 
 | `zvenfit_lead_storage_errors`         | direct `zvenfit_lead_storage_errors`         | `max`    |   `> 0` | `> 0.5` |     5m |   30s | OK      |
 | `zvenfit_permanent_telegram_failures` | direct `zvenfit_telegram_delivery_failed_1m` | `max`    |   `> 0` | `> 0.5` |     5m |   30s | OK      |
 | `zvenfit_fitbase_errors`              | log aggregate `zvenfit_fitbase_errors_5m`    | `max`    |   `> 0` | `> 0.5` |    10m |    3m | OK      |
-| `zvenfit_function_runtime_errors`     | `functions_errors` for lead and CDN functions | `sum`   |   `> 0` | `> 0.5` |     5m |   30s | OK      |
+| `zvenfit_function_runtime_errors`     | `functions_errors` for lead function | `sum`   |   `> 0` | `> 0.5` |     5m |   30s | OK      |
 | `zvenfit_schedule_runtime_errors`     | log aggregate `zvenfit_schedule_runtime_errors_1m` | `max` |   `> 0` | `> 0.5` |     5m |    3m | OK      |
 | `zvenfit_schedule_cancellations`      | log aggregate `zvenfit_schedule_client_cancellations_5m` | `sum` | `> 0` | `> 9.5` |    10m |    3m | OK      |
 | `zvenfit_ydb_retries`                 | log aggregate `zvenfit_ydb_retries_5m`       | `sum`    | `> 4.5` | `> 5.5` |    10m |    3m | OK      |
@@ -355,10 +350,10 @@ Fitbase не использует `functions_errors` как основной app
 {project="folder__b1ge1e4iopttj79hfdfm", cluster="default", service="logging_aggregates", name="zvenfit_fitbase_errors_5m"}
 ```
 
-Селектор автоматической метрики runtime errors для lead и CDN analytics:
+Селектор автоматической метрики runtime errors только для критичной lead-функции:
 
 ```text
-{project="folder__b1ge1e4iopttj79hfdfm", service="serverless-functions", name="functions_errors", resource_id="zvenfit-telegram-lead|zvenfit-cdn-analytics"}
+{project="folder__b1ge1e4iopttj79hfdfm", service="serverless-functions", name="functions_errors", resource_id="zvenfit-telegram-lead"}
 ```
 
 Несмотря на название метки, live Monitoring API возвращает в `resource_id`
@@ -432,11 +427,11 @@ heartbeat, размер и возраст Telegram-очереди, а также
 и p95 поля `duration_ms` из `ydb_operation_completed`, а также `C` — процент
 использованного хранилища.
 
-Для сайта добавь рядом: total CDN requests, browser page views, technical
-sessions, доли `known_bot` / `synthetic` / `suspicious`, cache status и HTTP
-status classes. Маркетинговые конверсии и источники кампаний остаются в
-маркетинговых счётчиках; этот dashboard предназначен для владельцев продукта и
-инфраструктуры.
+Для сайта используй отдельный DataLens dashboard: requests, page views, доли
+`browser_like` / `known_bot` / `synthetic` / `unknown` и индикатор **Последний
+полученный лог**. Sessions пока не считаются. Cache/status/bytes/latency оставь
+на встроенных `edge.*` графиках Monitoring. Маркетинговые конверсии и источники
+кампаний остаются в маркетинговых счётчиках.
 
 ## Cost estimate
 
@@ -448,9 +443,10 @@ status classes. Маркетинговые конверсии и источни�
   are not enabled.
 - Cloud Logging remains within its free tier at the current traffic. The group
   currently retains three days of logs.
-- CDN raw log export is a paid Cloud CDN feature. Object Storage, function
-  invocations and custom metric writes are also billed by actual volume; the
-  30-day/2-day lifecycle rules bound storage growth.
+- CDN raw log export is a paid Cloud CDN feature. Object Storage and Yandex Query
+  scans are billed by actual volume; the 30-day lifecycle bounds storage growth.
+- No CDN analytics function, Object Storage trigger, Lockbox secret, session
+  state or custom metric writes are required.
 
 ## Verification
 
@@ -459,7 +455,7 @@ Run the monitoring contract tests before deployment:
 ```bash
 npm run test:lead-fn
 npm run test:schedule-fn
-npm run test:cdn-analytics
+npm run test:cdn-traffic
 npm run test:monitoring
 ```
 

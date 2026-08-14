@@ -12,16 +12,6 @@
       "abortIncompleteMultipartUpload": {
         "daysAfterExpiration": "1"
       }
-    },
-    {
-      "id": "delete-session-state-after-2-days",
-      "enabled": true,
-      "filter": {
-        "prefix": "state/sessions/"
-      },
-      "expiration": {
-        "days": "2"
-      }
     }
   ]
 }

@@ -16,7 +16,6 @@ npm install
 npm ci --prefix functions/lead-intake
 npm ci --prefix functions/fitbase-schedule
 npm ci --prefix functions/staging-authorizer
-npm ci --prefix functions/cdn-analytics
 npm run dev:watch
 ```
 
@@ -40,7 +39,7 @@ Browser / Playwright
 Cloud Functions собираются из отдельных composition roots. Production-артефакты содержат Telegram/Fitbase
 адаптеры, staging-артефакты — только staging sink/fixtures; runtime-переключателей между ними нет.
 
-Cloud CDN raw logs → private Object Storage → cdn-analytics → Monitoring
+Cloud CDN raw logs → private Object Storage → Yandex Query → DataLens
 
 Local development
   ├─ mock-server :3000
@@ -59,7 +58,7 @@ Local development
 | Lead API / YDB / Telegram | `functions/lead-intake/src/`                           |
 | Fitbase API               | `functions/fitbase-schedule/src/`                      |
 | Staging Basic authorizer  | `functions/staging-authorizer/src/`                    |
-| Техническая посещаемость  | `functions/cdn-analytics/src/`                         |
+| Техническая посещаемость  | `analytics/cdn-traffic.yql`                            |
 | Build и HTML-инъекции     | `scripts/build-static.cjs`, `scripts/snippets/`        |
 | Production workflow       | `.github/workflows/main.yml`                           |
 | Private staging workflow  | `.github/workflows/staging.yml`                        |
@@ -73,7 +72,7 @@ npm run lint:public
 npm run test:lead-fn
 npm run test:schedule-fn
 npm run test:staging-authorizer
-npm run test:cdn-analytics
+npm run test:cdn-traffic
 npm run test:monitoring
 npm run test:lead-import
 npm run test:build
@@ -95,6 +94,7 @@ npm run smoke:production
 | [`docs/setup.md`](docs/setup.md)                                         | Yandex Cloud, YDB, Telegram, GitHub Secrets, локальная разработка и troubleshooting |
 | [`docs/launch-checklist.md`](docs/launch-checklist.md)                   | Повторяемая проверка каждого production-релиза                                      |
 | [`docs/monitoring.md`](docs/monitoring.md)                               | Логи, метрики, алерты, dashboard и synthetic tests                                  |
+| [`docs/cdn-traffic-analytics.md`](docs/cdn-traffic-analytics.md)         | Raw CDN logs, Yandex Query-классификация и карточки DataLens                         |
 | [`docs/utm-attribution-marketing.md`](docs/utm-attribution-marketing.md) | UTM-разметка для маркетинга                                                         |
 
 Секреты, реальные `.env*`, ключи сервисных аккаунтов и содержимое `knowledge-base/` нельзя коммитить или отправлять во внешние системы.

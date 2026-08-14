@@ -234,51 +234,43 @@ Smoke принимает только `{ ok: true, items: [] }`.
 
 ## Техническая аналитика Cloud CDN
 
-Для инфраструктурной посещаемости используется отдельный privacy-safe pipeline:
-raw logs основного CDN-ресурса → приватный Object Storage → Cloud Function →
-custom metrics Yandex Monitoring. Это не маркетинговый счётчик и не требует
-добавлять новый JavaScript на страницы.
+Для инфраструктурной посещаемости используется пакетный pipeline: raw logs
+основного CDN-ресурса → приватный Object Storage → Yandex Query → DataLens. Это
+не маркетинговый счётчик и не требует добавлять JavaScript на страницы.
 
-Перед первым запуском установи зависимости функции:
-
-```bash
-npm ci --prefix functions/cdn-analytics
-```
-
-Затем под учётной записью администратора выполни одноразовое provisioning:
+Под учётной записью администратора выполни одноразовое provisioning бакета,
+lifecycle и raw-log export:
 
 ```bash
-YC_FOLDER_ID=b1ge1e4iopttj79hfdfm npm run provision:cdn-analytics
+YC_FOLDER_ID=b1ge1e4iopttj79hfdfm npm run provision:cdn-raw-logs
 ```
 
 Скрипт создаёт:
 
 - приватный `zvenfit-cdn-access-logs` с лимитом 5 GiB;
-- lifecycle: raw logs удаляются через 30 дней, HMAC session state — через два;
-- runtime SA `zvenfit-cdn-analytics-runtime` с bucket-level `storage.editor` и
-  folder-level `monitoring.editor`;
-- deletion-protected Lockbox secret `zvenfit-cdn-session-hmac`;
-- функцию `zvenfit-cdn-analytics` и Object Storage trigger;
-- raw log export CDN-ресурса `bc8rubabuwzpqqp7rifz` в `raw/zvenfit/`.
+- lifecycle: raw logs удаляются через 30 дней;
+- raw log export CDN-ресурса `bc8rubabuwzpqqp7rifz` в `raw/zvenfit/cdn`.
+
+Скрипт принципиально не создаёт Cloud Function, Object Storage trigger, runtime
+service account или Lockbox secret. Sessions пока не считаются.
 
 Не добавляй restrictive bucket policy: Cloud CDN не сможет выгружать логи в
 бакет с запрещающей политикой. Сам бакет при этом остаётся закрыт для anonymous
 read/list/config access.
 
-После provisioning workflow автоматически деплоит новые версии функции. Имена
-ресурсов можно переопределить GitHub Variables `YC_CDN_ANALYTICS_SA_NAME`,
-`YC_CDN_ANALYTICS_SECRET_NAME`, `YC_CDN_ANALYTICS_BUCKET` и
+Имя бакета можно переопределить переменной `YC_CDN_RAW_LOGS_BUCKET`, CDN-ресурс —
 `YC_CDN_RESOURCE_ID`; без них используются production defaults выше.
 
 Проверка кода без доступа к облаку:
 
 ```bash
-npm run test:cdn-analytics
+npm run test:cdn-traffic
 npm run test:monitoring
 ```
 
-Raw log export тарифицируется отдельно Cloud CDN. Данные выгружаются с задержкой,
-поэтому первые custom metrics могут появиться не сразу после включения.
+Raw log export тарифицируется отдельно Cloud CDN и работает с задержкой. Полная
+настройка Yandex Query binding, dataset и карточек DataLens описана в
+[`cdn-traffic-analytics.md`](cdn-traffic-analytics.md).
 
 ## Secret rotation
 
