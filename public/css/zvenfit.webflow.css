@@ -5794,6 +5794,7 @@ html[data-zvenfit-page="mini-groups"] body {
 
 .promo-apps-benefits__card {
   grid-row-gap: 12px;
+  min-width: 0;
   background-color: var(--bg-light);
   border: 2px solid #ffffff26;
   border-radius: 20px;
@@ -5826,6 +5827,7 @@ html[data-zvenfit-page="mini-groups"] body {
   font-family: Roadrage, Impact, sans-serif;
   font-size: 32px;
   line-height: 100%;
+  overflow-wrap: anywhere;
 }
 
 .promo-apps-benefits__text {
@@ -5834,6 +5836,7 @@ html[data-zvenfit-page="mini-groups"] body {
   margin-bottom: 0;
   font-family: Roboto, sans-serif;
   font-size: 17px;
+  overflow-wrap: anywhere;
   line-height: 150%;
 }
 
@@ -5981,7 +5984,7 @@ html[data-zvenfit-page="mini-groups"] body {
 
 @media screen and (max-width: 991px) {
   .promo-apps-benefits__grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .promo-apps-benefits__card {
