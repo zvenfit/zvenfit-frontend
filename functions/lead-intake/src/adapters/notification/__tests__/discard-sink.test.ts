@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { discardStagingNotification } from '../notification-sink';
+import { discardNotification } from '../discard-sink';
 
-test('staging notification sink has no external side effects', async () => {
+test('discard notification adapter has no external side effects', async () => {
   const previousFetch = globalThis.fetch;
   let fetched = false;
   globalThis.fetch = (async () => {
@@ -12,7 +12,7 @@ test('staging notification sink has no external side effects', async () => {
   }) as typeof fetch;
 
   try {
-    await discardStagingNotification();
+    await discardNotification();
     assert.equal(fetched, false);
   } finally {
     globalThis.fetch = previousFetch;

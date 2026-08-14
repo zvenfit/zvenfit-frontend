@@ -67,7 +67,7 @@ if [[ "${DEPLOYMENT_ENVIRONMENT_VALUE}" == "production" ]]; then
 else
   npm --prefix "${ROOT_DIR}/functions/fitbase-schedule" run build:staging
   BUILD_DIR="${ROOT_DIR}/functions/fitbase-schedule/build-staging"
-  FUNCTION_ENTRYPOINT="staging-entry/index.handler"
+  FUNCTION_ENTRYPOINT="entrypoints/staging.handler"
 fi
 
 cp -R "${BUILD_DIR}/." "${SOURCE_DIR}/"

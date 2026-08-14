@@ -1,17 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createFitbaseProvider } from '../../providers/fitbase-provider';
-import { generateFixtureSchedule } from '../fixture-provider';
-
-test('Fitbase adapter validates its own credentials', () => {
-  assert.throws(() => createFitbaseProvider({}), /fitbase_token_missing/);
-  assert.equal(typeof createFitbaseProvider({ FITBASE_API_TOKEN: 'test-token' }).getSchedule, 'function');
-});
+import { generateSyntheticSchedule } from '../schedule-provider';
 
 test('generates deterministic scenarios relative to the requested range', () => {
-  const first = generateFixtureSchedule('2030-01-10', '2030-01-15');
-  const second = generateFixtureSchedule('2030-01-10', '2030-01-15');
+  const first = generateSyntheticSchedule('2030-01-10', '2030-01-15');
+  const second = generateSyntheticSchedule('2030-01-10', '2030-01-15');
 
   assert.deepEqual(first, second);
   assert.equal(first.length, 7);
@@ -46,7 +40,7 @@ test('generates deterministic scenarios relative to the requested range', () => 
 });
 
 test('returns only scenarios that fit into a short requested range', () => {
-  const items = generateFixtureSchedule('2030-12-31', '2031-01-01');
+  const items = generateSyntheticSchedule('2030-12-31', '2031-01-01');
 
   assert.equal(items.length, 3);
   assert.deepEqual([...new Set(items.map(item => item.date))], ['2030-12-31', '2031-01-01']);

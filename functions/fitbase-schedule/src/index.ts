@@ -1,1 +1,1 @@
-export { handler } from './composition/production';
+export { handler } from './entrypoints/production';

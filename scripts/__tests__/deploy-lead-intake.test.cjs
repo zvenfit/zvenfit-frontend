@@ -117,7 +117,7 @@ test('direct Monium metrics require and deploy the environment-scoped API key se
 test('lead deployment packages the environment-specific artifact with its own entrypoint', () => {
   assert.match(deployScript, /run build:staging/);
   assert.match(deployScript, /BUILD_DIR=.*lead-intake\/build-staging/);
-  assert.match(deployScript, /FUNCTION_ENTRYPOINT="staging-entry\/index\.handler"/);
+  assert.match(deployScript, /FUNCTION_ENTRYPOINT="entrypoints\/staging\.handler"/);
   assert.match(deployScript, /BUILD_DIR=.*lead-intake\/build"/);
   assert.match(deployScript, /FUNCTION_ENTRYPOINT="index\.handler"/);
   assert.match(deployScript, /cp -R/);
@@ -197,7 +197,7 @@ test('regular deploy requires a pre-provisioned database', () => {
 
 test('schedule deploy selects an immutable artifact and requires production credentials only for production', () => {
   assert.match(scheduleDeployScript, /run build:staging/);
-  assert.match(scheduleDeployScript, /FUNCTION_ENTRYPOINT="staging-entry\/index\.handler"/);
+  assert.match(scheduleDeployScript, /FUNCTION_ENTRYPOINT="entrypoints\/staging\.handler"/);
   assert.match(scheduleDeployScript, /FUNCTION_ENTRYPOINT="index\.handler"/);
   assert.match(scheduleDeployScript, /DEPLOYMENT_ENVIRONMENT=\$\{DEPLOYMENT_ENVIRONMENT_VALUE\}/);
   assert.match(scheduleDeployScript, /set FITBASE_API_TOKEN for production/);

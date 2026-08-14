@@ -24,7 +24,7 @@ function javascriptSource(directory) {
 
 test('production and staging artifacts export only their cloud handler', () => {
   const compiledFunction = require('../../build/index.js');
-  const compiledStagingFunction = require('../../build-staging/staging-entry/index.js');
+  const compiledStagingFunction = require('../../build-staging/entrypoints/staging.js');
 
   assert.equal(typeof compiledFunction.handler, 'function');
   assert.deepEqual(Object.keys(compiledFunction), ['handler']);
@@ -32,14 +32,15 @@ test('production and staging artifacts export only their cloud handler', () => {
   assert.deepEqual(Object.keys(compiledStagingFunction), ['handler']);
 });
 
-test('fixture data and Fitbase integration are physically isolated between artifacts', () => {
+test('synthetic data and Fitbase integration are physically isolated between artifacts', () => {
   const productionRoot = path.resolve(__dirname, '../../build');
   const stagingRoot = path.resolve(__dirname, '../../build-staging');
   const productionSource = javascriptSource(productionRoot);
   const stagingSource = javascriptSource(stagingRoot);
 
-  assert.equal(fs.existsSync(path.join(productionRoot, 'staging-entry')), false);
-  assert.equal(fs.existsSync(path.join(stagingRoot, 'fitbase')), false);
+  assert.equal(fs.existsSync(path.join(productionRoot, 'entrypoints/staging.js')), false);
+  assert.equal(fs.existsSync(path.join(productionRoot, 'adapters/synthetic')), false);
+  assert.equal(fs.existsSync(path.join(stagingRoot, 'adapters/fitbase')), false);
   assert.doesNotMatch(productionSource, /fixture-|ZvenFit Staging|Тест: групповая тренировка/);
   assert.doesNotMatch(stagingSource, /FITBASE_API_TOKEN|api\.fitbase|fitbase_schedule_error/);
   assert.doesNotMatch(`${productionSource}\n${stagingSource}`, /SCHEDULE_PROVIDER/);

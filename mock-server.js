@@ -45,7 +45,7 @@ if (!['fitbase', 'fixture'].includes(localScheduleProvider)) {
 
 const useFitbaseSchedule = localScheduleProvider === 'fitbase';
 const productionScheduleHandler = require('./functions/fitbase-schedule/build/index.js');
-const stagingScheduleHandler = require('./functions/fitbase-schedule/build-staging/staging-entry/index.js');
+const stagingScheduleHandler = require('./functions/fitbase-schedule/build-staging/entrypoints/staging.js');
 
 if (!process.env.FITBASE_DOMAIN) {
   process.env.FITBASE_DOMAIN = 'zvenfit';

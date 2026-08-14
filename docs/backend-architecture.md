@@ -12,7 +12,7 @@ Telegram/Fitbase.
 ```text
 Cloud entrypoint (composition root)
   ├─> application handler -> ports and public contracts
-  └─> adapters (YDB, Telegram, Fitbase, staging sink/fixtures) -> ports
+  └─> adapters (YDB, Telegram, Fitbase, discard, synthetic) -> ports
 ```
 
 Application handler не создаёт adapters, не читает provider-mode из env и не
@@ -25,8 +25,10 @@ Application handler не создаёт adapters, не читает provider-mod
 - `src/notification/delivery.ts` — provider-neutral outbox/retry workflow;
 - `src/ydb/` — persistence adapters;
 - `src/telegram/delivery.ts` — только Telegram transport;
+- `src/adapters/notification/discard-sink.ts` — adapter без внешних side effects;
 - `src/composition/production.ts` — production wiring;
-- `src/staging-entry/` — staging wiring и sink без внешних side effects.
+- `src/composition/staging.ts` — staging wiring;
+- `src/entrypoints/` — тонкие cloud entrypoints.
 
 Схема YDB сохраняет исторические `telegram_*` имена до отдельной обратимо
 совместимой миграции. Это persistence detail; staging/production provider
@@ -36,19 +38,21 @@ Application handler не создаёт adapters, не читает provider-mod
 
 - `src/handler.ts` — provider-neutral schedule use-case;
 - `src/types.ts` — публичный schedule contract и ports;
-- `src/fitbase/` и `src/providers/fitbase-provider.ts` — production adapter;
+- `src/adapters/fitbase/` — production adapter и transport types;
+- `src/adapters/synthetic/` — synthetic schedule adapter;
 - `src/composition/production.ts` — production wiring и error policy;
-- `src/staging-entry/` — synthetic provider, staging policy и entrypoint.
+- `src/composition/staging.ts` — staging wiring и error policy;
+- `src/entrypoints/` — тонкие cloud entrypoints.
 
-Fitbase transport types находятся внутри `src/fitbase/` и не входят в общий
+Fitbase transport types находятся внутри `src/adapters/fitbase/` и не входят в общий
 application contract.
 
 ## Артефакты
 
 | Function | Production | Staging |
 | --- | --- | --- |
-| lead-intake | `build/index.js`, Telegram включён | `build-staging/staging-entry/index.js`, Telegram отсутствует |
-| fitbase-schedule | `build/index.js`, Fitbase включён | `build-staging/staging-entry/index.js`, fixtures включены |
+| lead-intake | `build/index.js`, Telegram включён | `build-staging/entrypoints/staging.js`, Telegram отсутствует |
+| fitbase-schedule | `build/index.js`, Fitbase включён | `build-staging/entrypoints/staging.js`, synthetic adapter включён |
 
 `tsconfig.build.json` и `tsconfig.staging.json` начинают компиляцию с разных
 entrypoints. TypeScript добавляет только транзитивно достижимые модули.
@@ -72,6 +76,7 @@ Telegram/Fitbase credentials добавляются только в environment 
    меняется поведение или набор внешних интеграций.
 3. Нельзя добавлять `*_MODE`, `isFixture` или проверку environment в handler и
    adapters для выбора реализации.
-4. Synthetic data живут только в staging/local outer layer.
+4. Adapter называется по назначению, а не по environment. Synthetic data живут
+   в outer layer и подключаются staging/local composition root.
 5. Любое изменение границы сопровождается unit-тестом composition и
    artifact-isolation test.

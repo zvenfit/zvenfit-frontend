@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 
+import { discardNotification } from '../adapters/notification/discard-sink';
 import { createHandler } from '../handler';
-import { discardStagingNotification } from './notification-sink';
 import { createInvocationLogger } from '../observability/logger';
 import { createInvocationMetrics } from '../observability/metrics';
 import * as leadStore from '../ydb/lead-store';
@@ -11,7 +11,7 @@ export const handler = createHandler({
   loggerFactory: createInvocationLogger,
   maxAttempts: () => 1,
   metricsFactory: createInvocationMetrics,
-  notificationSender: discardStagingNotification,
+  notificationSender: discardNotification,
   now: () => new Date(),
   rateLimiter: consumeLeadRateLimit,
   retryBatchSize: () => 25,

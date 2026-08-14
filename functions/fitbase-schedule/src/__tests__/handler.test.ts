@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import { createFitbaseProvider } from '../adapters/fitbase/provider';
 import { _private } from '../handler';
-import { createFitbaseProvider } from '../providers/fitbase-provider';
 
 import type { HttpEvent, JsonObject, ScheduleProviderFactory } from '../types';
 

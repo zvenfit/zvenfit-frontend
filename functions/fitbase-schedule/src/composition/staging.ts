@@ -1,5 +1,5 @@
+import { createSyntheticScheduleProvider } from '../adapters/synthetic/schedule-provider';
 import { createHandler } from '../handler';
-import { createFixtureProvider } from './fixture-provider';
 import { createInvocationLogger } from '../observability/logger';
 
 export const handler = createHandler({
@@ -9,5 +9,5 @@ export const handler = createHandler({
     unavailableEvent: 'staging_schedule_error',
   },
   loggerFactory: createInvocationLogger,
-  providerFactory: createFixtureProvider,
+  providerFactory: createSyntheticScheduleProvider,
 });

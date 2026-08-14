@@ -1,6 +1,6 @@
-import { fetchAllSchedule } from '../fitbase/client';
+import { fetchAllSchedule } from './client';
 
-import type { ScheduleProvider } from '../types';
+import type { ScheduleProvider } from '../../types';
 
 export function createFitbaseProvider(environment: NodeJS.ProcessEnv): ScheduleProvider {
   const token = (environment.FITBASE_API_TOKEN || '').trim();

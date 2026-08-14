@@ -1,6 +1,6 @@
+import { createFitbaseProvider } from '../adapters/fitbase/provider';
 import { createHandler } from '../handler';
 import { createInvocationLogger } from '../observability/logger';
-import { createFitbaseProvider } from '../providers/fitbase-provider';
 
 export const handler = createHandler({
   failurePolicy: {

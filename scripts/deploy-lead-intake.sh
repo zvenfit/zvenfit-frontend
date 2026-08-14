@@ -140,7 +140,7 @@ if [[ "${DEPLOYMENT_ENVIRONMENT_VALUE}" == "production" ]]; then
 else
   npm --prefix "${ROOT_DIR}/functions/lead-intake" run build:staging
   BUILD_DIR="${ROOT_DIR}/functions/lead-intake/build-staging"
-  FUNCTION_ENTRYPOINT="staging-entry/index.handler"
+  FUNCTION_ENTRYPOINT="entrypoints/staging.handler"
 fi
 
 if ! yc serverless function get --name="${FUNCTION_NAME}" >/dev/null 2>&1; then
