@@ -107,6 +107,7 @@ jobs:
             functions/lead-intake/package-lock.json
             functions/fitbase-schedule/package-lock.json
             functions/staging-authorizer/package-lock.json
+            functions/cdn-analytics/package-lock.json
 
       - name: Install dependencies
         run: |
@@ -114,6 +115,7 @@ jobs:
           npm ci --prefix functions/lead-intake
           npm ci --prefix functions/fitbase-schedule
           npm ci --prefix functions/staging-authorizer
+          npm ci --prefix functions/cdn-analytics
 
       - name: Run linters
         run: |
@@ -127,6 +129,7 @@ jobs:
           npm run test:lead-import
           npm run test:monitoring
           npm run test:staging-authorizer
+          npm run test:cdn-analytics
 
       - name: Verify static production-like build
         env:
@@ -286,6 +289,44 @@ jobs:
           fi
           echo "id=${ID}" >> $GITHUB_OUTPUT
           echo "Schedule function URL: ${URL}"
+
+  deploy-cdn-analytics:
+    needs: [validate-config, quality-checks]
+    if: inputs.deployment_environment == 'production'
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.deployment_environment }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install CDN analytics dependencies
+        run: npm ci --prefix functions/cdn-analytics
+
+      - name: Install Yandex Cloud CLI
+        run: bash scripts/install-yc-cli.sh
+
+      - name: Authenticate with GitHub OIDC
+        env:
+          YC_FOLDER_ID: ${{ vars.YC_FOLDER_ID }}
+          YC_DEPLOY_SERVICE_ACCOUNT_ID: ${{ vars.YC_DEPLOY_SERVICE_ACCOUNT_ID }}
+          YC_WIF_AUDIENCE: https://github.com/zvenfit
+        run: bash scripts/auth-yc-wif.sh
+
+      - name: Deploy CDN analytics function and trigger
+        env:
+          YC_FOLDER_ID: ${{ vars.YC_FOLDER_ID }}
+          YC_CDN_ANALYTICS_FUNCTION_NAME: ${{ vars.YC_CDN_ANALYTICS_FUNCTION_NAME || 'zvenfit-cdn-analytics' }}
+          YC_CDN_ANALYTICS_SA_NAME: ${{ vars.YC_CDN_ANALYTICS_SA_NAME || 'zvenfit-cdn-analytics-runtime' }}
+          YC_CDN_ANALYTICS_SECRET_NAME: ${{ vars.YC_CDN_ANALYTICS_SECRET_NAME || 'zvenfit-cdn-session-hmac' }}
+          YC_CDN_ANALYTICS_BUCKET: ${{ vars.YC_CDN_ANALYTICS_BUCKET || 'zvenfit-cdn-access-logs' }}
+          YC_CDN_RESOURCE_ID: ${{ vars.YC_CDN_RESOURCE_ID || 'bc8rubabuwzpqqp7rifz' }}
+        run: bash scripts/deploy-cdn-analytics.sh
 
   deploy-authorizer:
     needs: [validate-config, quality-checks]

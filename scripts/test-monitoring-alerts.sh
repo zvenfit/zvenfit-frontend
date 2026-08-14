@@ -42,6 +42,10 @@ done
 
 write_event ydb_slow_operation WARN
 
+for _ in 1 2 3; do
+  write_event lead_rate_limit_error
+done
+
 for _ in 1 2 3 4 5 6; do
   yc logging write \
     --group-name="${LOG_GROUP_NAME}" \

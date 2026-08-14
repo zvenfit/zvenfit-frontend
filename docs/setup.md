@@ -232,6 +232,54 @@ Staging deploy собирает отдельный entrypoint с динамич�
 данными и не принимает Fitbase/Telegram credentials.
 Smoke принимает только `{ ok: true, items: [] }`.
 
+## Техническая аналитика Cloud CDN
+
+Для инфраструктурной посещаемости используется отдельный privacy-safe pipeline:
+raw logs основного CDN-ресурса → приватный Object Storage → Cloud Function →
+custom metrics Yandex Monitoring. Это не маркетинговый счётчик и не требует
+добавлять новый JavaScript на страницы.
+
+Перед первым запуском установи зависимости функции:
+
+```bash
+npm ci --prefix functions/cdn-analytics
+```
+
+Затем под учётной записью администратора выполни одноразовое provisioning:
+
+```bash
+YC_FOLDER_ID=b1ge1e4iopttj79hfdfm npm run provision:cdn-analytics
+```
+
+Скрипт создаёт:
+
+- приватный `zvenfit-cdn-access-logs` с лимитом 5 GiB;
+- lifecycle: raw logs удаляются через 30 дней, HMAC session state — через два;
+- runtime SA `zvenfit-cdn-analytics-runtime` с bucket-level `storage.editor` и
+  folder-level `monitoring.editor`;
+- deletion-protected Lockbox secret `zvenfit-cdn-session-hmac`;
+- функцию `zvenfit-cdn-analytics` и Object Storage trigger;
+- raw log export CDN-ресурса `bc8rubabuwzpqqp7rifz` в `raw/zvenfit/`.
+
+Не добавляй restrictive bucket policy: Cloud CDN не сможет выгружать логи в
+бакет с запрещающей политикой. Сам бакет при этом остаётся закрыт для anonymous
+read/list/config access.
+
+После provisioning workflow автоматически деплоит новые версии функции. Имена
+ресурсов можно переопределить GitHub Variables `YC_CDN_ANALYTICS_SA_NAME`,
+`YC_CDN_ANALYTICS_SECRET_NAME`, `YC_CDN_ANALYTICS_BUCKET` и
+`YC_CDN_RESOURCE_ID`; без них используются production defaults выше.
+
+Проверка кода без доступа к облаку:
+
+```bash
+npm run test:cdn-analytics
+npm run test:monitoring
+```
+
+Raw log export тарифицируется отдельно Cloud CDN. Данные выгружаются с задержкой,
+поэтому первые custom metrics могут появиться не сразу после включения.
+
 ## Secret rotation
 
 Runtime secrets ротируются в соответствующем GitHub Environment. WIF не имеет

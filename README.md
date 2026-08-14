@@ -16,6 +16,7 @@ npm install
 npm ci --prefix functions/lead-intake
 npm ci --prefix functions/fitbase-schedule
 npm ci --prefix functions/staging-authorizer
+npm ci --prefix functions/cdn-analytics
 npm run dev:watch
 ```
 
@@ -39,6 +40,8 @@ Browser / Playwright
 Cloud Functions собираются из отдельных composition roots. Production-артефакты содержат Telegram/Fitbase
 адаптеры, staging-артефакты — только staging sink/fixtures; runtime-переключателей между ними нет.
 
+Cloud CDN raw logs → private Object Storage → cdn-analytics → Monitoring
+
 Local development
   ├─ mock-server :3000
   └─ static site :4173
@@ -56,6 +59,7 @@ Local development
 | Lead API / YDB / Telegram | `functions/lead-intake/src/`                           |
 | Fitbase API               | `functions/fitbase-schedule/src/`                      |
 | Staging Basic authorizer  | `functions/staging-authorizer/src/`                    |
+| Техническая посещаемость  | `functions/cdn-analytics/src/`                         |
 | Build и HTML-инъекции     | `scripts/build-static.cjs`, `scripts/snippets/`        |
 | Production workflow       | `.github/workflows/main.yml`                           |
 | Private staging workflow  | `.github/workflows/staging.yml`                        |
@@ -69,6 +73,7 @@ npm run lint:public
 npm run test:lead-fn
 npm run test:schedule-fn
 npm run test:staging-authorizer
+npm run test:cdn-analytics
 npm run test:monitoring
 npm run test:lead-import
 npm run test:build

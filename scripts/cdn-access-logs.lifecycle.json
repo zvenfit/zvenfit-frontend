@@ -1,0 +1,27 @@
+{
+  "lifecycleRules": [
+    {
+      "id": "delete-cdn-raw-logs-after-30-days",
+      "enabled": true,
+      "filter": {
+        "prefix": "raw/zvenfit/"
+      },
+      "expiration": {
+        "days": "30"
+      },
+      "abortIncompleteMultipartUpload": {
+        "daysAfterExpiration": "1"
+      }
+    },
+    {
+      "id": "delete-session-state-after-2-days",
+      "enabled": true,
+      "filter": {
+        "prefix": "state/sessions/"
+      },
+      "expiration": {
+        "days": "2"
+      }
+    }
+  ]
+}

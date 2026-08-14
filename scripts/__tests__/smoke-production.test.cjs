@@ -55,7 +55,7 @@ test('production smoke uses only read-only GET and OPTIONS requests', async () =
 
   const result = await runSmoke({
     fetchImpl: async (url, options = {}) => {
-      requests.push({ method: options.method || 'GET', url });
+      requests.push({ headers: options.headers || {}, method: options.method || 'GET', url });
       const route = routes.get(url);
       assert.ok(route, `unexpected request: ${options.method || 'GET'} ${url}`);
 
@@ -70,6 +70,9 @@ test('production smoke uses only read-only GET and OPTIONS requests', async () =
     ['GET', 'GET', 'GET', 'GET', 'OPTIONS', 'GET'],
   );
   assert.ok(requests.every(item => item.method !== 'POST'));
+  assert.ok(
+    requests.every(item => item.headers['User-Agent'] === 'ZvenFit-Synthetic-Monitor/1.0'),
+  );
 });
 
 test('authenticated same-origin staging probes both APIs without creating a lead', async () => {

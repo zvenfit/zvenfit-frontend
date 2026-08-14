@@ -2,6 +2,7 @@
 
 const DEFAULT_SITE_URL = 'https://zvenfit.ru';
 const DEFAULT_TIMEOUT_MS = 15_000;
+const SYNTHETIC_USER_AGENT = 'ZvenFit-Synthetic-Monitor/1.0';
 
 function normalizeSiteUrl(value) {
   const url = new URL(value || DEFAULT_SITE_URL);
@@ -50,6 +51,10 @@ async function request(fetchImpl, url, options, timeoutMs) {
     return await fetchImpl(url, {
       redirect: 'follow',
       ...options,
+      headers: {
+        'User-Agent': SYNTHETIC_USER_AGENT,
+        ...options.headers,
+      },
       signal: controller.signal,
     });
   } catch (error) {

@@ -14,6 +14,35 @@
     "service": "logging_aggregates",
     "idLabel": "name"
   },
+  "trafficMetrics": {
+    "cdnResourceId": "bc8rubabuwzpqqp7rifz",
+    "siteHosts": [
+      "zvenfit.ru",
+      "www.zvenfit.ru",
+      "zvenigorod.zvenfit.ru"
+    ],
+    "rawLogBucket": "zvenfit-cdn-access-logs",
+    "rawLogRetentionDays": 30,
+    "sessionStateRetentionDays": 2,
+    "sessionTimeoutMinutes": 30,
+    "trafficClasses": [
+      "browser",
+      "known_bot",
+      "synthetic",
+      "suspicious"
+    ],
+    "selectors": {
+      "edgeRequests": "edge.requests{service=\"yccdn\",resource=\"bc8rubabuwzpqqp7rifz\"}",
+      "edgeStatus": "edge.requests_status{service=\"yccdn\",resource=\"bc8rubabuwzpqqp7rifz\"}",
+      "pageViews": "zvenfit_cdn_page_views{service=\"custom\",cdn_resource=\"bc8rubabuwzpqqp7rifz\"}",
+      "technicalSessions": "zvenfit_cdn_technical_sessions{service=\"custom\",cdn_resource=\"bc8rubabuwzpqqp7rifz\"}"
+    },
+    "privacy": {
+      "rawIpInMetrics": false,
+      "rawUserAgentInMetrics": false,
+      "sessionIdentifier": "hmac-sha256"
+    }
+  },
   "provisioning": {
     "logMetrics": "manual-console",
     "notificationChannels": "manual-console",
@@ -67,6 +96,12 @@
     {
       "id": "zvenfit_ydb_slow_operations_5m",
       "events": ["ydb_slow_operation"],
+      "aggregation": "count",
+      "window": "5m"
+    },
+    {
+      "id": "zvenfit_rate_limit_errors_5m",
+      "events": ["lead_rate_limit_error"],
       "aggregation": "count",
       "window": "5m"
     },
@@ -137,8 +172,8 @@
     },
     {
       "id": "zvenfit_function_runtime_errors",
-      "scope": "lead-function",
-      "metricSelector": "{project=\"folder__b1ge1e4iopttj79hfdfm\", service=\"serverless-functions\", name=\"functions_errors\", resource_id=\"zvenfit-telegram-lead\"}",
+      "scope": "lead-and-cdn-functions",
+      "metricSelector": "{project=\"folder__b1ge1e4iopttj79hfdfm\", service=\"serverless-functions\", name=\"functions_errors\", resource_id=\"zvenfit-telegram-lead|zvenfit-cdn-analytics\"}",
       "aggregation": "sum",
       "operator": ">",
       "warning": 0,
@@ -173,46 +208,50 @@
     },
     {
       "id": "zvenfit_ydb_retries",
-      "metricSelector": "{project=\"folder__b1ge1e4iopttj79hfdfm\", cluster=\"default\", service=\"zvenfit-frontend\", name=\"zvenfit_ydb_retries_5m\"}",
+      "metricId": "zvenfit_ydb_retries_5m",
+      "metricSelector": "{project=\"folder__b1ge1e4iopttj79hfdfm\", cluster=\"default\", service=\"logging_aggregates\", name=\"zvenfit_ydb_retries_5m\"}",
       "aggregation": "sum",
       "operator": ">",
       "warning": 4.5,
       "alarm": 5.5,
       "window": "10m",
-      "delay": "30s",
+      "delay": "3m",
       "noData": "OK"
     },
     {
       "id": "zvenfit_slow_ydb_operations",
-      "metricSelector": "{project=\"folder__b1ge1e4iopttj79hfdfm\", cluster=\"default\", service=\"zvenfit-frontend\", name=\"zvenfit_ydb_slow_operations_5m\"}",
+      "metricId": "zvenfit_ydb_slow_operations_5m",
+      "metricSelector": "{project=\"folder__b1ge1e4iopttj79hfdfm\", cluster=\"default\", service=\"logging_aggregates\", name=\"zvenfit_ydb_slow_operations_5m\"}",
       "aggregation": "sum",
       "operator": ">",
       "warning": 0.5,
       "alarm": 2.5,
       "window": "10m",
-      "delay": "30s",
+      "delay": "3m",
       "noData": "OK"
     },
     {
       "id": "zvenfit_rate-limited_leads",
-      "metricSelector": "{project=\"folder__b1ge1e4iopttj79hfdfm\", cluster=\"default\", service=\"zvenfit-frontend\", name=\"zvenfit_lead_rate_limited_5m\"}",
+      "metricId": "zvenfit_lead_rate_limited_5m",
+      "metricSelector": "{project=\"folder__b1ge1e4iopttj79hfdfm\", cluster=\"default\", service=\"logging_aggregates\", name=\"zvenfit_lead_rate_limited_5m\"}",
       "aggregation": "sum",
       "operator": ">",
       "warning": 0,
       "alarm": 5,
       "window": "10m",
-      "delay": "30s",
+      "delay": "3m",
       "noData": "OK"
     },
     {
       "id": "zvenfit_persisted_leads_volume",
-      "metricSelector": "{project=\"folder__b1ge1e4iopttj79hfdfm\", cluster=\"default\", service=\"zvenfit-frontend\", name=\"zvenfit_leads_persisted_5m\"}",
+      "metricId": "zvenfit_leads_persisted_5m",
+      "metricSelector": "{project=\"folder__b1ge1e4iopttj79hfdfm\", cluster=\"default\", service=\"logging_aggregates\", name=\"zvenfit_leads_persisted_5m\"}",
       "aggregation": "sum",
       "operator": ">",
       "warning": 10,
       "alarm": 20,
       "window": "10m",
-      "delay": "30s",
+      "delay": "3m",
       "noData": "OK"
     },
     {
@@ -239,13 +278,14 @@
     },
     {
       "id": "zvenfit_rate_limit_health_errors",
-      "metricSelector": "{project=\"folder__b1ge1e4iopttj79hfdfm\", cluster=\"default\", service=\"zvenfit-frontend\", name=\"zvenfit_rate_limit_errors_5m\"}",
+      "metricId": "zvenfit_rate_limit_errors_5m",
+      "metricSelector": "{project=\"folder__b1ge1e4iopttj79hfdfm\", cluster=\"default\", service=\"logging_aggregates\", name=\"zvenfit_rate_limit_errors_5m\"}",
       "aggregation": "sum",
       "operator": ">",
       "warning": 0,
       "alarm": 2,
       "window": "10m",
-      "delay": "30s",
+      "delay": "3m",
       "noData": "OK"
     },
     {
