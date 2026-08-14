@@ -145,6 +145,7 @@ body {
   margin-bottom: 40px;
   font-size: 50px;
   line-height: 110%;
+  overflow-wrap: anywhere;
 }
 
 .cover_text {
@@ -242,13 +243,17 @@ body {
   grid-row-gap: 40px;
   flex-flow: row;
   grid-template-rows: auto;
-  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   grid-auto-columns: 1fr;
   grid-auto-flow: row;
   place-content: center space-between;
   place-items: start stretch;
   margin-top: 0;
   display: grid;
+}
+
+.card_grid > * {
+  min-width: 0;
 }
 
 .card_grid.main {
@@ -640,6 +645,26 @@ body {
   display: flex;
 }
 
+.txt_cont > * {
+  min-width: 0;
+}
+
+.txt_cont .footer,
+.txt_cont .link,
+.txt_cont [class^="link-block-"] {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.txt_cont .footer {
+  display: block;
+}
+
+.txt_cont .right_cont .footer {
+  font-size: clamp(24px, 5vw, 50px);
+}
+
 .txt_cont.txt_cont--home {
   grid-row-gap: 16px;
   flex-flow: column;
@@ -786,7 +811,8 @@ body {
   display: block;
   margin-top: 0;
   margin-bottom: 0;
-  max-width: none;
+  max-width: 100%;
+  overflow-wrap: anywhere;
   font-size: 40px;
   line-height: 110%;
 }
@@ -1339,6 +1365,7 @@ body {
 
 .h1-page {
   color: var(--white);
+  max-width: 100%;
   text-align: left;
   text-transform: uppercase;
   align-self: flex-start;
@@ -1348,6 +1375,7 @@ body {
   font-size: 90px;
   font-weight: 400;
   line-height: 100%;
+  overflow-wrap: anywhere;
 }
 
 .text-span-3 {
@@ -1764,9 +1792,106 @@ body {
 }
 
 /* ZvenFit: group fitness — hide reviews until content is relevant */
-html[data-wf-page="69b540f958c9c44d220bcf1a"] #reviews,
-html[data-wf-page="69b540f958c9c44d220bcf1a"] a[href="#reviews"] {
+html[data-zvenfit-page="group-fitness"] #reviews,
+html[data-zvenfit-page="group-fitness"] a[href="#reviews"] {
   display: none !important;
+}
+
+/* ZvenFit: mini groups — keep Webflow grids inside the viewport at breakpoint edges */
+html[data-zvenfit-page="mini-groups"] .card_grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+html[data-zvenfit-page="mini-groups"] .card_grid > * {
+  min-width: 0;
+}
+
+html[data-zvenfit-page="mini-groups"],
+html[data-zvenfit-page="mini-groups"] body {
+  overflow-x: clip;
+}
+
+@media screen and (min-width: 768px) and (max-width: 1023px) {
+  html[data-zvenfit-page="mini-groups"] .left_cont,
+  html[data-zvenfit-page="mini-groups"] .right_cont {
+    width: 50%;
+    min-width: 0;
+    max-width: 50%;
+  }
+}
+
+@media screen and (max-width: 991px) {
+  html[data-zvenfit-page="mini-groups"] .card_grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media screen and (max-width: 767px) {
+  html[data-zvenfit-page="mini-groups"]
+    #w-node-_71a14719-eca7-48a6-e7aa-9e478f7f4357-4601c0c5,
+  html[data-zvenfit-page="mini-groups"]
+    #w-node-_80a19154-9ce4-5a52-e07f-2da72cb6cc92-4601c0c5 {
+    grid-column: 1 / -1;
+  }
+
+  html[data-zvenfit-page="mini-groups"]
+    #w-node-_80a19154-9ce4-5a52-e07f-2da72cb6cc92-4601c0c5 {
+    justify-self: center;
+  }
+}
+
+@media screen and (max-width: 479px) {
+  html[data-zvenfit-page="mini-groups"] .card_grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media screen and (min-width: 992px) and (max-width: 1199px) {
+  .card_grid {
+    grid-column-gap: 25px;
+    grid-row-gap: 25px;
+  }
+
+  .card_grid .cat_card {
+    padding: 24px;
+  }
+
+  .card_grid .heading-page {
+    font-size: 42px;
+    overflow-wrap: anywhere;
+  }
+
+  .card_grid .h2-facts,
+  .card_grid .h2-facts._1 {
+    font-size: 56px;
+    overflow-wrap: anywhere;
+  }
+
+  .card_grid .text-block {
+    font-size: 24px;
+    overflow-wrap: anywhere;
+  }
+
+  .card_grid .body_txt {
+    overflow-wrap: anywhere;
+  }
+
+  html[data-zvenfit-page="gym"] .card_grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  html[data-zvenfit-page="gym"]
+    #w-node-_2ca4adfb-76a1-8db6-a790-2258cfa13838-cbc69cf8,
+  html[data-zvenfit-page="gym"]
+    #w-node-_32a9cb07-b18b-668e-db2f-1c5c3081817a-cbc69cf8 {
+    grid-column: 1 / -1 !important;
+  }
+}
+
+@media screen and (min-width: 480px) and (max-width: 767px) {
+  html[data-zvenfit-page="gym"] .card_grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
 }
 
 .heading-3 {
@@ -3059,11 +3184,11 @@ html[data-wf-page="69b540f958c9c44d220bcf1a"] a[href="#reviews"] {
   .card_grid {
     grid-column-gap: 25px;
     grid-row-gap: 25px;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .card_grid.main {
-    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .text-block {
@@ -3629,11 +3754,11 @@ html[data-wf-page="69b540f958c9c44d220bcf1a"] a[href="#reviews"] {
   }
 
   .card_grid {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .card_grid.main {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .text-block {
@@ -3756,7 +3881,7 @@ html[data-wf-page="69b540f958c9c44d220bcf1a"] a[href="#reviews"] {
   }
 
   .footer-locations {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
     grid-row-gap: 20px;
   }
 
@@ -5671,6 +5796,7 @@ html[data-wf-page="69b540f958c9c44d220bcf1a"] a[href="#reviews"] {
 
 .promo-apps-benefits__card {
   grid-row-gap: 12px;
+  min-width: 0;
   background-color: var(--bg-light);
   border: 2px solid #ffffff26;
   border-radius: 20px;
@@ -5703,6 +5829,7 @@ html[data-wf-page="69b540f958c9c44d220bcf1a"] a[href="#reviews"] {
   font-family: Roadrage, Impact, sans-serif;
   font-size: 32px;
   line-height: 100%;
+  overflow-wrap: anywhere;
 }
 
 .promo-apps-benefits__text {
@@ -5711,6 +5838,7 @@ html[data-wf-page="69b540f958c9c44d220bcf1a"] a[href="#reviews"] {
   margin-bottom: 0;
   font-family: Roboto, sans-serif;
   font-size: 17px;
+  overflow-wrap: anywhere;
   line-height: 150%;
 }
 
@@ -5858,7 +5986,7 @@ html[data-wf-page="69b540f958c9c44d220bcf1a"] a[href="#reviews"] {
 
 @media screen and (max-width: 991px) {
   .promo-apps-benefits__grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .promo-apps-benefits__card {
@@ -7180,7 +7308,7 @@ html.schedule-dialog-open body {
   grid-column-gap: 40px;
   grid-row-gap: 40px;
   grid-template-rows: auto;
-  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   grid-auto-columns: 1fr;
   grid-auto-flow: row;
   place-content: center space-between;
@@ -7194,7 +7322,7 @@ html.schedule-dialog-open body {
   grid-column-gap: 40px;
   grid-row-gap: 40px;
   grid-template-rows: auto;
-  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   grid-auto-columns: 1fr;
   grid-auto-flow: row;
   place-content: center space-between;
@@ -7204,10 +7332,16 @@ html.schedule-dialog-open body {
   display: grid;
 }
 
+.coaches-card-grid > *,
+.coaches-card-grid-bot > * {
+  min-width: 0;
+}
+
 @media screen and (max-width: 991px) {
   .coaches-card-grid {
     grid-column-gap: 25px;
     grid-row-gap: 25px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     margin-top: 20px;
     margin-bottom: 25px;
   }
@@ -7215,6 +7349,7 @@ html.schedule-dialog-open body {
   .coaches-card-grid-bot {
     grid-column-gap: 25px;
     grid-row-gap: 25px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     margin-bottom: 25px;
   }
 }
@@ -7223,7 +7358,7 @@ html.schedule-dialog-open body {
   .coaches-card-grid {
     grid-column-gap: 20px;
     grid-row-gap: 20px;
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
     margin-top: 10px;
     margin-bottom: 20px;
   }
@@ -7231,7 +7366,7 @@ html.schedule-dialog-open body {
   .coaches-card-grid-bot {
     grid-column-gap: 20px;
     grid-row-gap: 20px;
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
     margin-bottom: 20px;
   }
 }
