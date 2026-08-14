@@ -157,7 +157,16 @@ test('deploy jobs use OIDC and ephemeral storage keys instead of long-lived clou
   assert.match(reusableWorkflow, /bash scripts\/issue-ephemeral-storage-key\.sh/);
   assert.match(reusableWorkflow, /OBJECT_STORAGE_BUCKET: \$\{\{ inputs\.s3_bucket \}\}/);
   const ephemeralStorageKey = fs.readFileSync(path.join(ROOT, 'scripts/issue-ephemeral-storage-key.sh'), 'utf8');
-  assert.match(ephemeralStorageKey, /--policy "\$\{SESSION_POLICY\}"/);
+  assert.match(
+    ephemeralStorageKey,
+    /https:\/\/iam\.api\.cloud\.yandex\.net\/iam\/aws-compatibility\/v1\/ephemeralAccessKeys/,
+  );
+  assert.match(ephemeralStorageKey, /Authorization: Bearer %s/);
+  assert.match(ephemeralStorageKey, /--header "@\$\{AUTH_HEADER\}"/);
+  assert.match(ephemeralStorageKey, /subjectId: process\.argv\[3\]/);
+  assert.match(ephemeralStorageKey, /duration: "3600s"/);
+  assert.match(ephemeralStorageKey, /\["accessKeyId", "secret", "sessionToken"\]/);
+  assert.doesNotMatch(ephemeralStorageKey, /yc iam access-key issue-ephemeral/);
   assert.match(ephemeralStorageKey, /arn:aws:s3:::\$\{bucket\}\/\*/);
   const workloadIdentityAuth = fs.readFileSync(path.join(ROOT, 'scripts/auth-yc-wif.sh'), 'utf8');
   assert.doesNotMatch(workloadIdentityAuth, /config set token/);
