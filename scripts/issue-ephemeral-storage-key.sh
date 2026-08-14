@@ -29,7 +29,7 @@ const policy = {
     },
     {
       Effect: "Allow",
-      Action: ["s3:DeleteObject", "s3:GetObjectAcl", "s3:PutObject", "s3:PutObjectAcl"],
+      Action: ["s3:DeleteObject", "s3:GetObjectAcl", "s3:PutObject"],
       Resource: [`arn:aws:s3:::${bucket}/*`],
     },
   ],

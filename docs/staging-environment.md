@@ -84,13 +84,13 @@ Bootstrap выполняется административной identity од�
 
 | Subject | Resource | Role / действие |
 | --- | --- | --- |
-| Deploy SA | сам Deploy SA | выпуск ephemeral access key |
-| Deploy SA | три staging Functions | создание версий и чтение метаданных |
+| Deploy SA | сам Deploy SA | `iam.serviceAccounts.ephemeralAccessKeyAdmin` |
+| Deploy SA | три staging Functions | `functions.editor` |
 | Deploy SA | Lead runtime SA, Gateway SA | `iam.serviceAccounts.user` |
-| Deploy SA | staging YDB | миграции схемы и integration probe |
-| Deploy SA | staging bucket | sync/delete objects, чтение ACL/policy |
-| Deploy SA | staging API Gateway | обновление spec |
-| Gateway SA | staging bucket | read objects |
+| Deploy SA | staging YDB | `ydb.editor` |
+| Deploy SA | staging bucket | `storage.editor` + `storage.configViewer` только на bucket |
+| Deploy SA | staging API Gateway | `api-gateway.editor` |
+| Gateway SA | staging bucket | `storage.viewer` только на bucket |
 | Gateway SA | три staging Functions | `functions.functionInvoker` |
 | Lead runtime SA | staging YDB | read/write leads и rate limits |
 | Lead runtime SA | lead Function | timer invocation |
@@ -110,8 +110,8 @@ anonymous probes прямых URL bucket/Functions.
    GET. При любой публичности deployment останавливается.
 4. Собрать staging без GTM, Метрики/VK analytics, с `noindex, nofollow` и
    `robots.txt: Disallow /`.
-5. Загрузить каждый объект с private ACL, затем повторно проверить object ACL и
-   anonymous GET.
+5. Загрузить объекты с default private ACL без права CI менять ACL, затем
+   повторно проверить object ACL и anonymous GET.
 6. Создать candidate-версию authorizer, напрямую проверить правильный и
    неправильный Basic Auth, после чего переключить стабильный tag
    `staging-live`.

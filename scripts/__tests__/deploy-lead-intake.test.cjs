@@ -177,7 +177,7 @@ test('staging checks bucket privacy before upload and rechecks object ACL afterw
   assert.match(reusableWorkflow, /get-bucket-acl/);
   assert.match(reusableWorkflow, /get-bucket-policy/);
   assert.match(reusableWorkflow, /get-object-acl/);
-  assert.match(reusableWorkflow, /--acl private/);
+  assert.doesNotMatch(reusableWorkflow, /--acl (?:public|private)/);
 });
 
 test('staging uses a synthetic notification sink and stable authorizer rollback', () => {
