@@ -68,7 +68,7 @@ function functionOperation(functionId, method) {
     'x-yc-apigateway-integration': {
       type: 'cloud_functions',
       function_id: functionId,
-      tag: '$latest',
+      tag: 'staging-live',
       payload_format_version: '0.1',
       context: { environment: 'staging', method },
     },
@@ -82,6 +82,7 @@ function buildSpecification({
   authorizerFunctionId,
   leadFunctionId,
   scheduleFunctionId,
+  securityProfileId,
 }) {
   const paths = {};
   for (const { route, objectName } of collectHtmlRoutes(distDir)) {
@@ -113,6 +114,9 @@ function buildSpecification({
     },
     'x-yc-apigateway': {
       service_account_id: gatewayServiceAccountId,
+      smartWebSecurity: {
+        securityProfileId,
+      },
     },
     security: [{ stagingBasicAuth: [] }],
     paths,
@@ -124,7 +128,7 @@ function buildSpecification({
           'x-yc-apigateway-authorizer': {
             type: 'function',
             function_id: authorizerFunctionId,
-            tag: '$latest',
+            tag: 'staging-live',
             service_account_id: gatewayServiceAccountId,
             authorizer_result_ttl_in_seconds: 60,
             authorizer_result_caching_mode: 'path',
@@ -155,6 +159,10 @@ function main() {
     authorizerFunctionId: required(process.env.STAGING_AUTHORIZER_FUNCTION_ID, 'STAGING_AUTHORIZER_FUNCTION_ID'),
     leadFunctionId: required(process.env.STAGING_LEAD_FUNCTION_ID, 'STAGING_LEAD_FUNCTION_ID'),
     scheduleFunctionId: required(process.env.STAGING_SCHEDULE_FUNCTION_ID, 'STAGING_SCHEDULE_FUNCTION_ID'),
+    securityProfileId: required(
+      process.env.STAGING_SWS_SECURITY_PROFILE_ID,
+      'STAGING_SWS_SECURITY_PROFILE_ID',
+    ),
   });
 
   fs.writeFileSync(output, `${JSON.stringify(specification, null, 2)}\n`, 'utf8');

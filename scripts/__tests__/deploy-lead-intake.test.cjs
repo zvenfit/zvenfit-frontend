@@ -43,11 +43,13 @@ test('staging wrapper is manual-only and uses isolated resource names', () => {
   assert.match(stagingWorkflow, /schedule_provider: fixture(?:\n|$)/);
 });
 
-test('production and staging call the same reusable workflow with environment secrets', () => {
+test('production and staging call the same reusable workflow without secret inheritance', () => {
   for (const workflow of [productionWorkflow, stagingWorkflow]) {
     assert.match(workflow, /uses: \.\/\.github\/workflows\/_deploy-environment\.yml/);
-    assert.match(workflow, /secrets: inherit/);
+    assert.doesNotMatch(workflow, /secrets: inherit/);
   }
+  assert.match(productionWorkflow, /TELEGRAM_BOT_TOKEN: \$\{\{ secrets\.TELEGRAM_BOT_TOKEN \}\}/);
+  assert.doesNotMatch(stagingWorkflow, /TELEGRAM_BOT_TOKEN|FITBASE_API_TOKEN|MONIUM_API_KEY/);
 });
 
 test('reusable workflow validates config before cloud deploy jobs', () => {
@@ -120,10 +122,11 @@ test('lead deployment package contains every runtime YDB module', () => {
   assert.match(deployScript, /cp -R/);
 });
 
-test('existing retry trigger is updated by resolved id', () => {
+test('regular CI keeps retry-trigger administration bootstrap-only', () => {
+  assert.match(deployScript, /MANAGE_LEAD_RETRY_TRIGGER/);
+  assert.match(reusableWorkflow, /MANAGE_LEAD_RETRY_TRIGGER: 'false'/);
   assert.match(deployScript, /TRIGGER_ID=.*serverless trigger get/);
   assert.match(deployScript, /serverless trigger update timer[\s\\]+--id="\$\{TRIGGER_ID\}"/);
-  assert.doesNotMatch(deployScript, /serverless trigger update timer[\s\\]+--name=/);
 });
 
 test('regular deploy verifies public access without mutating function IAM', () => {
@@ -145,6 +148,44 @@ test('staging deploy uses private gateway IAM while production remains public', 
   assert.match(reusableWorkflow, /bash scripts\/deploy-staging-gateway\.sh/);
   assert.match(deployScript, /must be provisioned before private gateway deploy/);
   assert.match(scheduleDeployScript, /must be provisioned before private gateway deploy/);
+});
+
+test('deploy jobs use OIDC and ephemeral storage keys instead of long-lived cloud credentials', () => {
+  assert.match(reusableWorkflow, /id-token: write/);
+  assert.match(reusableWorkflow, /bash scripts\/auth-yc-wif\.sh/);
+  assert.match(reusableWorkflow, /bash scripts\/issue-ephemeral-storage-key\.sh/);
+  assert.match(reusableWorkflow, /OBJECT_STORAGE_BUCKET: \$\{\{ inputs\.s3_bucket \}\}/);
+  const ephemeralStorageKey = fs.readFileSync(path.join(ROOT, 'scripts/issue-ephemeral-storage-key.sh'), 'utf8');
+  assert.match(ephemeralStorageKey, /--policy "\$\{SESSION_POLICY\}"/);
+  assert.match(ephemeralStorageKey, /arn:aws:s3:::\$\{bucket\}\/\*/);
+  const workloadIdentityAuth = fs.readFileSync(path.join(ROOT, 'scripts/auth-yc-wif.sh'), 'utf8');
+  assert.doesNotMatch(workloadIdentityAuth, /config set token/);
+  assert.match(workloadIdentityAuth, /YC_IAM_TOKEN/);
+  assert.doesNotMatch(reusableWorkflow, /YC_SA_JSON_KEY|YC_ACCESS_KEY_ID|YC_SECRET_ACCESS_KEY/);
+  assert.doesNotMatch(reusableWorkflow, /curl -sSL[^\n]+install\.sh \| bash/);
+  assert.doesNotMatch(reusableWorkflow, /docker:\/\//);
+});
+
+test('staging checks bucket privacy before upload and rechecks object ACL afterwards', () => {
+  const preflight = reusableWorkflow.indexOf('Preflight private staging storage boundary');
+  const upload = reusableWorkflow.indexOf('Upload immutable assets');
+  const postflight = reusableWorkflow.indexOf('Verify uploaded staging objects remain private');
+
+  assert.equal(preflight >= 0, true);
+  assert.equal(upload > preflight, true);
+  assert.equal(postflight > upload, true);
+  assert.match(reusableWorkflow, /get-bucket-acl/);
+  assert.match(reusableWorkflow, /get-bucket-policy/);
+  assert.match(reusableWorkflow, /get-object-acl/);
+  assert.match(reusableWorkflow, /--acl private/);
+});
+
+test('staging uses a synthetic notification sink and stable authorizer rollback', () => {
+  assert.match(stagingWorkflow, /lead_notification_mode: fixture/);
+  assert.match(productionWorkflow, /lead_notification_mode: telegram/);
+  assert.match(reusableWorkflow, /rollback-staging-authorizer:/);
+  assert.match(reusableWorkflow, /previous_version_id/);
+  assert.match(reusableWorkflow, /candidate_version_id/);
 });
 
 test('regular deploy requires a pre-provisioned database', () => {

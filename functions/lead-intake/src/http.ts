@@ -26,6 +26,14 @@ export function corsHeaders(origin: string, origins: string[]): Headers {
   };
 }
 
+export function isAllowedOrigin(origin: string, origins: string[]): boolean {
+  return Boolean(origin) && origins.includes(origin);
+}
+
+export function isJsonContentType(contentType: string): boolean {
+  return /^application\/json(?:\s*;|$)/i.test(contentType.trim());
+}
+
 export function jsonResponse(statusCode: number, payload: JsonObject, headers: Headers): HttpResponse {
   return {
     statusCode,

@@ -11,6 +11,10 @@ const ROOT = path.resolve(__dirname, '../..');
 const VERIFY_INVOKER = path.join(ROOT, 'scripts/verify-function-invoker.cjs');
 const { buildSpecification, collectHtmlRoutes } = require('../generate-staging-gateway-spec.cjs');
 const { credentialHash } = require('../hash-staging-basic-auth.cjs');
+const { assertPrivateUrl } = require('../assert-private-http.cjs');
+const { verify: verifyNoPublicIam } = require('../verify-no-public-iam.cjs');
+const { verifyAcl, verifyMetadata, verifyPolicy } = require('../verify-storage-access.cjs');
+const { verify: verifyAuthorizerResult } = require('../verify-authorizer-result.cjs');
 
 function withDist(run) {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'zvenfit-gateway-test-'));
@@ -46,10 +50,14 @@ test('gateway protects static files and same-origin APIs with one Basic authoriz
       authorizerFunctionId: 'authorizer-function',
       leadFunctionId: 'lead-function',
       scheduleFunctionId: 'schedule-function',
+      securityProfileId: 'sws-profile',
     });
 
     assert.deepEqual(specification.security, [{ stagingBasicAuth: [] }]);
     assert.equal(specification['x-yc-apigateway'].service_account_id, 'gateway-service-account');
+    assert.deepEqual(specification['x-yc-apigateway'].smartWebSecurity, {
+      securityProfileId: 'sws-profile',
+    });
     assert.equal(
       specification.components.securitySchemes.stagingBasicAuth['x-yc-apigateway-authorizer'].function_id,
       'authorizer-function',
@@ -68,11 +76,15 @@ test('gateway protects static files and same-origin APIs with one Basic authoriz
     assert.deepEqual(specification.components.securitySchemes.stagingBasicAuth['x-yc-apigateway-authorizer'], {
       type: 'function',
       function_id: 'authorizer-function',
-      tag: '$latest',
+      tag: 'staging-live',
       service_account_id: 'gateway-service-account',
       authorizer_result_ttl_in_seconds: 60,
       authorizer_result_caching_mode: 'path',
     });
+    assert.equal(
+      specification.paths['/api/lead'].post['x-yc-apigateway-integration'].tag,
+      'staging-live',
+    );
   });
 });
 
@@ -135,4 +147,70 @@ test('Basic credential hash accepts only an unambiguous high-entropy ASCII pair'
       credentialHash({ ...environment, STAGING_BASIC_AUTH_PASSWORD: `${environment.STAGING_BASIC_AUTH_PASSWORD} ` }),
     /without spaces/,
   );
+});
+
+test('storage verification rejects public flags, ACL groups, and wildcard policies', () => {
+  assert.doesNotThrow(() =>
+    verifyMetadata({ anonymous_access_flags: { read: false, list: false, config_read: false } }),
+  );
+  assert.throws(() => verifyMetadata({ anonymous_access_flags: { read: true } }), /must be private/);
+
+  assert.doesNotThrow(() => verifyAcl({ Grants: [{ Grantee: { Type: 'CanonicalUser', ID: 'deploy-sa' } }] }));
+  assert.throws(
+    () =>
+      verifyAcl({
+        Grants: [
+          { Grantee: { URI: 'http://acs.amazonaws.com/groups/global/AllUsers' }, Permission: 'READ' },
+        ],
+      }),
+    /public/,
+  );
+  assert.throws(
+    () =>
+      verifyPolicy({
+        Policy: JSON.stringify({
+          Statement: [{ Effect: 'Allow', Principal: '*', Action: 's3:GetObject' }],
+        }),
+      }),
+    /public object access/,
+  );
+});
+
+test('parent IAM audit rejects public invoker and storage roles', () => {
+  assert.doesNotThrow(() =>
+    verifyNoPublicIam([
+      { role_id: 'viewer', subject: { type: 'system', id: 'allUsers' } },
+      { role_id: 'storage.editor', subject: { type: 'serviceAccount', id: 'deploy-sa' } },
+    ]),
+  );
+  assert.throws(
+    () =>
+      verifyNoPublicIam([
+        { role_id: 'functions.functionInvoker', subject: { type: 'system', id: 'allAuthenticatedUsers' } },
+      ]),
+    /public parent IAM binding/,
+  );
+});
+
+test('effective anonymous probe accepts only access-denied statuses', async () => {
+  await assert.doesNotReject(() =>
+    assertPrivateUrl('https://private.example/index.html', {
+      fetchImpl: async () => ({ status: 403 }),
+    }),
+  );
+  await assert.rejects(
+    () =>
+      assertPrivateUrl('https://public.example/index.html', {
+        fetchImpl: async () => ({ status: 200 }),
+      }),
+    /private boundary is not proven/,
+  );
+});
+
+test('authorizer candidate verification checks both allow and deny results', () => {
+  assert.doesNotThrow(() =>
+    verifyAuthorizerResult('{"isAuthorized":true,"context":{"environment":"staging"}}', true),
+  );
+  assert.doesNotThrow(() => verifyAuthorizerResult('{"isAuthorized":false}', false));
+  assert.throws(() => verifyAuthorizerResult('{"isAuthorized":true}', true), /staging context/);
 });

@@ -77,6 +77,22 @@ async function assertBasicAuthBoundary(fetchImpl, origin, timeoutMs) {
   if (!/^Basic(?:\s|$)/i.test(challenge)) {
     throw new Error('smoke-production: staging 401 is missing the HTTP Basic challenge');
   }
+
+  const wrongCredentials = Buffer.from('zvenfit-smoke:deliberately-wrong-credentials').toString('base64');
+  const wrongResponse = await request(
+    fetchImpl,
+    `${origin}/`,
+    {
+      headers: {
+        Authorization: `Basic ${wrongCredentials}`,
+        'Cache-Control': 'no-cache',
+      },
+    },
+    timeoutMs,
+  );
+  if (wrongResponse.status !== 403) {
+    throw new Error(`smoke-production: invalid staging credentials returned ${wrongResponse.status}, expected 403`);
+  }
 }
 
 async function fetchText(fetchImpl, url, label, timeoutMs, headers = {}) {
@@ -128,7 +144,31 @@ async function runSmoke({
   const scheduleApiUrl = extractRuntimeUrl(scheduleConfig, 'ZVENFIT_SCHEDULE_API');
 
   const leadApiOrigin = new URL(leadApiUrl).origin;
-  if (leadApiOrigin !== origin) {
+  if (leadApiOrigin === origin) {
+    const leadValidation = await request(
+      fetchImpl,
+      leadApiUrl,
+      {
+        method: 'POST',
+        headers: {
+          ...authorizationHeaders,
+          Origin: origin,
+          'Content-Type': 'application/json',
+        },
+        body: '{}',
+      },
+      timeoutMs,
+    );
+    if (leadValidation.status !== 400) {
+      throw new Error(
+        `smoke-production: lead API validation probe returned HTTP ${leadValidation.status}, expected 400`,
+      );
+    }
+    const leadPayload = await leadValidation.json();
+    if (!leadPayload || leadPayload.ok !== false || typeof leadPayload.error !== 'string') {
+      throw new Error('smoke-production: lead API validation probe returned an invalid error payload');
+    }
+  } else {
     const leadPreflight = await request(
       fetchImpl,
       leadApiUrl,
@@ -160,17 +200,17 @@ async function runSmoke({
   assertOk(scheduleResponse, 'schedule API');
 
   const schedulePayload = await scheduleResponse.json();
-  if (!schedulePayload || typeof schedulePayload !== 'object') {
-    throw new Error('smoke-production: schedule API did not return JSON data');
+  if (!schedulePayload || schedulePayload.ok !== true || !Array.isArray(schedulePayload.items)) {
+    throw new Error('smoke-production: schedule API must return { ok: true, items: [] }');
   }
 
   log(`smoke-production: site pages and runtime configs are available at ${origin}`);
   if (basicAuth) {
-    log('smoke-production: unauthenticated staging access is rejected with an HTTP Basic challenge');
+    log('smoke-production: missing credentials return 401 and invalid credentials return 403');
   }
   log(
     leadApiOrigin === origin
-      ? 'smoke-production: lead API is same-origin and no lead was created'
+      ? 'smoke-production: same-origin lead API rejected an empty validation probe; no lead was created'
       : 'smoke-production: lead API preflight and CORS are healthy (no lead was created)',
   );
   log('smoke-production: schedule API returned JSON successfully');

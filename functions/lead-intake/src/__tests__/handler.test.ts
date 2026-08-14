@@ -24,7 +24,7 @@ type Call = [name: string, payload?: unknown];
 function postEvent(overrides: Record<string, unknown> = {}): HttpEvent {
   return {
     httpMethod: 'POST',
-    headers: { origin: 'https://zvenfit.ru' },
+    headers: { origin: 'https://zvenfit.ru', 'content-type': 'application/json' },
     body: JSON.stringify({
       submission_id: LEAD_ID,
       name: 'Анна',

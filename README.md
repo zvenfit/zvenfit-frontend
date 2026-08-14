@@ -30,8 +30,8 @@ Browser (zvenfit.ru) → public production functions
 Browser / Playwright
   └─ staging.zvenfit.ru (Basic-auth API Gateway)
        ├─ private Object Storage
-       ├─ private lead-intake → staging YDB → test Telegram
-       │                           ↑ retry timer
+       ├─ private lead-intake → staging YDB → fixture notification sink
+       │                           ↑ bootstrap-only retry timer
        └─ private fitbase-schedule → dynamic fixture
 
 Local development
@@ -70,7 +70,9 @@ npm run test:build
 npm run test:build:staging
 ```
 
-После production deploy выполни read-only smoke-test. Он проверяет страницы, runtime-конфиги, CORS lead API и ответ schedule API, но не отправляет форму и не создаёт заявку:
+После production deploy выполни read-only smoke-test. Он проверяет страницы,
+runtime-конфиги, CORS lead API и рабочую схему schedule API, но не отправляет
+форму и не создаёт заявку:
 
 ```bash
 npm run smoke:production

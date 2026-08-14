@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 
-import { allowedOrigins, corsHeaders, jsonResponse, readBody } from './http';
+import { allowedOrigins, corsHeaders, isAllowedOrigin, isJsonContentType, jsonResponse, readBody } from './http';
 import { createLead, hasHoneypotValue, validateLead } from './lead-payload';
 import { withEventMetrics } from './observability/event-metrics';
 import { createInvocationLogger } from './observability/logger';
@@ -133,14 +133,30 @@ function createHandler(overrides: Partial<HandlerDependencies> = {}): CloudHandl
       }
 
       const origins = allowedOrigins();
-      const headers = corsHeaders(event.headers?.Origin || event.headers?.origin || '', origins);
+      const requestOrigin = event.headers?.Origin || event.headers?.origin || '';
+      const headers = corsHeaders(requestOrigin, origins);
       const method = (event.httpMethod || 'GET').toUpperCase();
 
       if (method === 'OPTIONS') {
+        if (!isAllowedOrigin(requestOrigin, origins)) {
+          return jsonResponse(403, { ok: false, error: 'origin_not_allowed' }, headers);
+        }
+
         return { statusCode: 204, headers, body: '' };
       }
       if (method !== 'POST') {
         return jsonResponse(405, { ok: false, error: 'method_not_allowed' }, headers);
+      }
+      if (!isAllowedOrigin(requestOrigin, origins)) {
+        logBlockedSubmission(logger, 'origin_not_allowed');
+
+        return jsonResponse(403, { ok: false, error: 'origin_not_allowed' }, headers);
+      }
+      const contentType = event.headers?.['Content-Type'] || event.headers?.['content-type'] || '';
+      if (!isJsonContentType(contentType)) {
+        logBlockedSubmission(logger, 'unsupported_media_type');
+
+        return jsonResponse(415, { ok: false, error: 'unsupported_media_type' }, headers);
       }
       if (requestBodyBytes(event) > MAX_REQUEST_BODY_BYTES) {
         logBlockedSubmission(logger, 'payload_too_large');

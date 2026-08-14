@@ -13,6 +13,7 @@ function environmentConfig(environment, values) {
     LEAD_FUNCTION_NAME: values.leadFunctionName,
     SCHEDULE_FUNCTION_NAME: values.scheduleFunctionName,
     SCHEDULE_PROVIDER: values.scheduleProvider,
+    LEAD_NOTIFICATION_MODE: values.leadNotificationMode,
     LEAD_RETRY_TRIGGER_NAME: values.leadRetryTriggerName,
     YDB_DATABASE_NAME: values.ydbDatabaseName,
     ALLOWED_ORIGINS: values.allowedOrigins.join(','),
@@ -49,6 +50,22 @@ test('requires Fitbase in production and fixture in staging', () => {
   const stagingFitbase = environmentConfig('staging', STAGING);
   stagingFitbase.SCHEDULE_PROVIDER = 'fitbase';
   assert.throws(() => validateConfig(readConfig(stagingFitbase)), /staging scheduleProvider must be fixture/);
+});
+
+test('requires real notifications only in production and fixture delivery in staging', () => {
+  const productionFixture = environmentConfig('production', PRODUCTION);
+  productionFixture.LEAD_NOTIFICATION_MODE = 'fixture';
+  assert.throws(
+    () => validateConfig(readConfig(productionFixture)),
+    /production leadNotificationMode must be telegram/,
+  );
+
+  const stagingTelegram = environmentConfig('staging', STAGING);
+  stagingTelegram.LEAD_NOTIFICATION_MODE = 'telegram';
+  assert.throws(
+    () => validateConfig(readConfig(stagingTelegram)),
+    /staging leadNotificationMode must be fixture/,
+  );
 });
 
 test('requires authenticated gateway access only in staging', () => {

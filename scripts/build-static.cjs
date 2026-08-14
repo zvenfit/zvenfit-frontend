@@ -331,6 +331,13 @@ function injectStagingRobotsMeta(html) {
   return withoutExistingRobots.replace('</head>', '  <meta name="robots" content="noindex, nofollow">\n</head>');
 }
 
+function stripGoogleTagManager(html) {
+  return html
+    .replace(/\s*<script\b[^>]*>[\s\S]*?googletagmanager\.com\/gtm\.js[\s\S]*?<\/script>/gi, '\n')
+    .replace(/\s*<noscript>[\s\S]*?googletagmanager\.com\/ns\.html[\s\S]*?<\/noscript>/gi, '\n')
+    .replace(/\s*<!--\s*(?:End )?Google Tag Manager(?: \(noscript\))?\s*-->/gi, '\n');
+}
+
 function escapeHtmlAttr(value) {
   return String(value).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
 }
@@ -874,7 +881,8 @@ function runBuild() {
     const skipFooterAppBlock =
       htmlPath.includes(`${path.sep}contacts${path.sep}platforms${path.sep}`) ||
       htmlPath.includes(`${path.sep}promos${path.sep}apps${path.sep}`);
-    const withMapEmbeds = replaceMapEmbeds(html, pagePath, mapsConfig);
+    const sourceHtml = isStaging ? stripGoogleTagManager(html) : html;
+    const withMapEmbeds = replaceMapEmbeds(sourceHtml, pagePath, mapsConfig);
     const withHeadSnippets = injectHeadSnippets(withMapEmbeds, assetVersion, {
       includeAnalytics: !isStaging,
     });

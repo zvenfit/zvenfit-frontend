@@ -3,7 +3,9 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SOURCE_DIR="$(mktemp -d /tmp/zvenfit-staging-authorizer.XXXXXX)"
-trap 'rm -rf -- "${SOURCE_DIR}"' EXIT
+CORRECT_EVENT="$(mktemp /tmp/zvenfit-staging-authorizer-correct.XXXXXX.json)"
+WRONG_EVENT="$(mktemp /tmp/zvenfit-staging-authorizer-wrong.XXXXXX.json)"
+trap 'rm -rf -- "${SOURCE_DIR}"; rm -f -- "${CORRECT_EVENT}" "${WRONG_EVENT}"' EXIT
 
 FUNCTION_NAME="${YC_STAGING_AUTHORIZER_FUNCTION_NAME:-zvenfit-staging-authorizer}"
 GATEWAY_SERVICE_ACCOUNT_ID="${YC_GATEWAY_SERVICE_ACCOUNT_ID:-}"
@@ -50,7 +52,18 @@ npm pkg delete devDependencies --prefix "${SOURCE_DIR}"
 
 CREDENTIAL_SHA256="$(node "${ROOT_DIR}/scripts/hash-staging-basic-auth.cjs")"
 
-yc serverless function version create \
+PREVIOUS_VERSION_ID=''
+if PREVIOUS_VERSION_JSON="$(yc serverless function version get-by-tag \
+  --function-name="${FUNCTION_NAME}" \
+  --tag=staging-live \
+  --format=json 2>/dev/null)"; then
+  PREVIOUS_VERSION_ID="$(node -e '
+const version = JSON.parse(process.argv[1]);
+process.stdout.write(version.id || "");
+' "${PREVIOUS_VERSION_JSON}")"
+fi
+
+CANDIDATE_VERSION_JSON="$(yc serverless function version create \
   --function-name="${FUNCTION_NAME}" \
   --runtime="${RUNTIME}" \
   --entrypoint=index.handler \
@@ -58,7 +71,54 @@ yc serverless function version create \
   --execution-timeout="${TIMEOUT}" \
   --source-path="${SOURCE_DIR}" \
   --environment BASIC_AUTH_CREDENTIAL_SHA256="${CREDENTIAL_SHA256}" \
-  --environment NODE_ENV=staging
+  --environment NODE_ENV=staging \
+  --format=json)"
+CANDIDATE_VERSION_ID="$(node -e '
+const version = JSON.parse(process.argv[1]);
+if (!version.id) process.exit(1);
+process.stdout.write(version.id);
+' "${CANDIDATE_VERSION_JSON}")"
 
-unset CREDENTIAL_SHA256
+yc serverless function version set-tag --id="${CANDIDATE_VERSION_ID}" --tag=staging-candidate >/dev/null
+
+node -e '
+const fs = require("node:fs");
+const correct = `Basic ${Buffer.from(`${process.env.STAGING_BASIC_AUTH_USERNAME}:${process.env.STAGING_BASIC_AUTH_PASSWORD}`).toString("base64")}`;
+const wrong = `Basic ${Buffer.from("zvenfit-smoke:deliberately-wrong-credentials").toString("base64")}`;
+fs.writeFileSync(process.argv[1], JSON.stringify({ headers: { Authorization: correct } }), { mode: 0o600 });
+fs.writeFileSync(process.argv[2], JSON.stringify({ headers: { Authorization: wrong } }), { mode: 0o600 });
+' "${CORRECT_EVENT}" "${WRONG_EVENT}"
+unset CREDENTIAL_SHA256 CANDIDATE_VERSION_JSON PREVIOUS_VERSION_JSON
+
+yc serverless function invoke \
+  --name="${FUNCTION_NAME}" \
+  --tag=staging-candidate \
+  --data-file="${CORRECT_EVENT}" |
+  node "${ROOT_DIR}/scripts/verify-authorizer-result.cjs" true
+yc serverless function invoke \
+  --name="${FUNCTION_NAME}" \
+  --tag=staging-candidate \
+  --data-file="${WRONG_EVENT}" |
+  node "${ROOT_DIR}/scripts/verify-authorizer-result.cjs" false
+
+yc serverless function version set-tag --id="${CANDIDATE_VERSION_ID}" --tag=staging-live >/dev/null
+
+INVOKE_URL="$(yc serverless function get --name="${FUNCTION_NAME}" --format=json | node -e '
+const fs = require("node:fs");
+const fn = JSON.parse(fs.readFileSync(0, "utf8"));
+process.stdout.write(fn.http_invoke_url || "");
+')"
+if [[ -z "${INVOKE_URL}" ]]; then
+  echo 'deploy-staging-authorizer: http_invoke_url is empty' >&2
+  exit 1
+fi
+node "${ROOT_DIR}/scripts/assert-private-http.cjs" "${INVOKE_URL}"
+
+if [[ -n "${GITHUB_OUTPUT:-}" ]]; then
+  {
+    printf 'previous_version_id=%s\n' "${PREVIOUS_VERSION_ID}"
+    printf 'candidate_version_id=%s\n' "${CANDIDATE_VERSION_ID}"
+  } >> "${GITHUB_OUTPUT}"
+fi
+
 echo "deploy-staging-authorizer: OK"

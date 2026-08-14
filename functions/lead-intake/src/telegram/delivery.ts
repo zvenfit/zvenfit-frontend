@@ -125,6 +125,14 @@ function telegramNetworkErrorCode(error: unknown): string {
 }
 
 export async function sendTelegram(payload: ClaimedLead): Promise<void> {
+  const deliveryMode = (process.env.TELEGRAM_DELIVERY_MODE || 'telegram').trim();
+  if (deliveryMode === 'fixture') {
+    return;
+  }
+  if (deliveryMode !== 'telegram') {
+    throw telegramError('Telegram delivery mode is invalid', 'telegram_mode_invalid');
+  }
+
   const token = process.env.TELEGRAM_BOT_TOKEN;
   const chatId = process.env.TELEGRAM_CHAT_ID;
 

@@ -91,6 +91,11 @@ ENV_ARGS=(
   --environment "NODE_ENV=${NODE_ENV_VALUE}"
 )
 
+VERSION_TAG_ARGS=()
+if [[ "${FUNCTION_INVOKER_MODE}" == "gateway" ]]; then
+  VERSION_TAG_ARGS+=(--tags=staging-live)
+fi
+
 if [[ "${SCHEDULE_PROVIDER}" == "fitbase" ]]; then
   ENV_ARGS+=(
     --environment "FITBASE_API_TOKEN=${FITBASE_API_TOKEN}"
@@ -109,6 +114,7 @@ yc serverless function version create \
   --memory="${MEMORY}" \
   --execution-timeout="${TIMEOUT}" \
   --source-path="${SOURCE_DIR}" \
+  "${VERSION_TAG_ARGS[@]}" \
   "${ENV_ARGS[@]}"
 
 INVOKE_URL="$(yc serverless function get --name="${FUNCTION_NAME}" --format=json | node -e "
@@ -124,6 +130,9 @@ if [[ -z "${INVOKE_URL}" ]]; then
   exit 0
 fi
 
+if [[ "${FUNCTION_INVOKER_MODE}" == "gateway" ]]; then
+  node "${ROOT_DIR}/scripts/assert-private-http.cjs" "${INVOKE_URL}"
+fi
+
 echo "deploy-fitbase-schedule: OK"
 echo "SCHEDULE_API_URL=${INVOKE_URL}"
-echo "Add SCHEDULE_API_URL to GitHub Actions and rebuild the site."

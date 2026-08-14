@@ -6,6 +6,19 @@ import { buildMessage, retryBatchSize, sendTelegram, telegramTimeoutMs } from '.
 
 const LEAD_ID = '1cc32f4f-8f06-4dc8-915f-92955c829523';
 
+function testLead() {
+  return {
+    leadId: LEAD_ID,
+    createdAt: new Date('2026-08-08T12:00:00.000Z'),
+    name: 'Анна',
+    phone: '+7 (999) 111-22-33',
+    contactMethod: 'Позвонить',
+    telegramUsername: '',
+    utm: {},
+    telegramAttempts: 1,
+  };
+}
+
 test('Telegram networking prefers IPv4 for Yandex Cloud Functions', () => {
   assert.equal(getDefaultResultOrder(), 'ipv4first');
 });
@@ -82,16 +95,7 @@ test('Telegram network failures preserve a safe diagnostic code', async () => {
 
   try {
     await assert.rejects(
-      sendTelegram({
-        leadId: LEAD_ID,
-        createdAt: new Date('2026-08-08T12:00:00.000Z'),
-        name: 'Анна',
-        phone: '+7 (999) 111-22-33',
-        contactMethod: 'Позвонить',
-        telegramUsername: '',
-        utm: {},
-        telegramAttempts: 1,
-      }),
+      sendTelegram(testLead()),
       (error: unknown) =>
         error instanceof Error &&
         'code' in error &&
@@ -109,6 +113,29 @@ test('Telegram network failures preserve a safe diagnostic code', async () => {
       delete process.env.TELEGRAM_CHAT_ID;
     } else {
       process.env.TELEGRAM_CHAT_ID = previousChatId;
+    }
+  }
+});
+
+test('staging fixture delivery never contacts Telegram', async () => {
+  const previousMode = process.env.TELEGRAM_DELIVERY_MODE;
+  const previousFetch = globalThis.fetch;
+  let fetched = false;
+  process.env.TELEGRAM_DELIVERY_MODE = 'fixture';
+  globalThis.fetch = (async () => {
+    fetched = true;
+    throw new Error('unexpected_fetch');
+  }) as typeof fetch;
+
+  try {
+    await sendTelegram(testLead());
+    assert.equal(fetched, false);
+  } finally {
+    globalThis.fetch = previousFetch;
+    if (previousMode === undefined) {
+      delete process.env.TELEGRAM_DELIVERY_MODE;
+    } else {
+      process.env.TELEGRAM_DELIVERY_MODE = previousMode;
     }
   }
 });

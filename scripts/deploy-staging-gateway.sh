@@ -13,7 +13,7 @@ if [[ "${DEPLOYMENT_ENVIRONMENT:-}" != "staging" ]]; then
   exit 1
 fi
 
-for name in YC_FOLDER_ID YC_GATEWAY_SERVICE_ACCOUNT_ID STAGING_AUTHORIZER_FUNCTION_ID STAGING_LEAD_FUNCTION_ID STAGING_SCHEDULE_FUNCTION_ID; do
+for name in YC_FOLDER_ID YC_GATEWAY_SERVICE_ACCOUNT_ID STAGING_AUTHORIZER_FUNCTION_ID STAGING_LEAD_FUNCTION_ID STAGING_SCHEDULE_FUNCTION_ID STAGING_SWS_SECURITY_PROFILE_ID; do
   if [[ -z "${!name:-}" ]]; then
     echo "deploy-staging-gateway: ${name} is required" >&2
     exit 1
@@ -28,15 +28,7 @@ if ! yc serverless api-gateway get --name="${GATEWAY_NAME}" >/dev/null 2>&1; the
 fi
 
 yc storage bucket get --name="${STAGING_BUCKET}" --format=json |
-  node -e "
-const fs = require('node:fs');
-const bucket = JSON.parse(fs.readFileSync(0, 'utf8'));
-const access = bucket.anonymous_access_flags || {};
-if (access.read || access.list || access.config_read || bucket.website_settings) {
-  console.error('deploy-staging-gateway: staging bucket must be private and website hosting must be disabled');
-  process.exit(1);
-}
-"
+  node "${ROOT_DIR}/scripts/verify-storage-access.cjs" metadata
 
 STAGING_BUCKET="${STAGING_BUCKET}" \
   node "${ROOT_DIR}/scripts/generate-staging-gateway-spec.cjs" \
