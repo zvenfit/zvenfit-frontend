@@ -9,6 +9,10 @@ interface OperationState {
   retries: number;
 }
 
+interface ObserveYdbOperationOptions {
+  retryAbortOnce?: boolean;
+}
+
 const operationStorage = new AsyncLocalStorage<OperationState>();
 let subscribed = false;
 
@@ -39,6 +43,10 @@ function errorCode(error: unknown): string {
   return String(codedError.code || codedError.cause?.code || error.name || 'ydb_error').slice(0, 64);
 }
 
+function isAbortError(error: unknown): boolean {
+  return error instanceof Error && error.name === 'AbortError';
+}
+
 function writeLog(logger: LoggerLike | undefined, level: 'info' | 'warn' | 'error', fields: JsonObject): void {
   const write = logger?.[level];
 
@@ -51,6 +59,7 @@ export async function observeYdbOperation<T>(
   operationName: string,
   logger: LoggerLike | undefined,
   callback: () => Promise<T>,
+  options: ObserveYdbOperationOptions = {},
 ): Promise<T> {
   subscribeToRetries();
 
@@ -58,7 +67,19 @@ export async function observeYdbOperation<T>(
   const operation = { retries: 0 };
 
   try {
-    const result = await operationStorage.run(operation, callback);
+    const result = await operationStorage.run(operation, async () => {
+      try {
+        return await callback();
+      } catch (error) {
+        if (!options.retryAbortOnce || !isAbortError(error)) {
+          throw error;
+        }
+
+        operation.retries += 1;
+
+        return callback();
+      }
+    });
     const durationMs = Date.now() - startedAt;
 
     writeLog(logger, 'info', {
@@ -102,14 +123,16 @@ export async function prepareAndObserveYdbOperation<TPrepared, TResult>(
   logger: LoggerLike | undefined,
   prepare: () => Promise<TPrepared>,
   callback: (prepared: TPrepared) => Promise<TResult>,
+  options: ObserveYdbOperationOptions = {},
 ): Promise<TResult> {
   const prepared = await prepare();
 
-  return observeYdbOperation(operationName, logger, () => callback(prepared));
+  return observeYdbOperation(operationName, logger, () => callback(prepared), options);
 }
 
 export const _private = {
   errorCode,
+  isAbortError,
   subscribeToRetries,
   writeLog,
 };
