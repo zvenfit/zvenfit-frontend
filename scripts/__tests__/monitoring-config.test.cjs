@@ -337,6 +337,12 @@ test('technical traffic analytics uses a stateless page-view log and built-in ed
   ]);
   assert.deepEqual(config.trafficAnalytics.measures, ['edge_requests', 'page_views']);
   assert.equal(config.trafficAnalytics.freshnessCard.title, 'Последний page view');
+  assert.equal(config.trafficAnalytics.freshnessCard.source, 'zvenfit_site_page_views_5m');
+  assert.match(config.trafficAnalytics.freshnessCard.query, /^series_sum\(/);
+  assert.match(config.trafficAnalytics.freshnessCard.query, /name="zvenfit_site_page_views_5m"/);
+  assert.equal(config.trafficAnalytics.freshnessCard.visualization, 'tile');
+  assert.equal(config.trafficAnalytics.freshnessCard.aggregation, 'last');
+  assert.equal(config.trafficAnalytics.freshnessCard.exactLogTimestamp, false);
   assert.equal(config.trafficAnalytics.freshnessCard.pagingAlert, false);
   assert.deepEqual(metric, {
     id: 'zvenfit_site_page_views_5m',
@@ -368,6 +374,30 @@ test('technical traffic analytics uses a stateless page-view log and built-in ed
   });
   assert.match(monitoringDocs, /browser_like.*known_bot.*synthetic.*unknown/s);
   assert.doesNotMatch(monitoringDocs, /provision:cdn-raw-logs|Cloud CDN raw logs →/i);
+});
+
+test('traffic runtime errors stay diagnostic and legacy stateful widgets are removed', () => {
+  const runtimeErrors = config.dashboard.runtimeErrors;
+  const criticalRuntimeAlert = config.alerts.find(alert => alert.id === 'zvenfit_function_runtime_errors');
+
+  assert.equal(runtimeErrors.title, 'Ошибки Cloud Functions');
+  assert.match(runtimeErrors.metricSelector, /name="functions_errors"/);
+  assert.match(runtimeErrors.metricSelector, /zvenfit-telegram-lead/);
+  assert.match(runtimeErrors.metricSelector, /zvenfit-fitbase-schedule/);
+  assert.match(runtimeErrors.metricSelector, /zvenfit-site-traffic/);
+  assert.equal(runtimeErrors.pagingAlert, false);
+  assert.doesNotMatch(criticalRuntimeAlert.metricSelector, /zvenfit-site-traffic/);
+  assert.deepEqual(config.dashboard.trafficWidgets, [
+    'Cloud CDN: запросы',
+    'Cloud CDN: HTTP-статусы',
+    'Трафик: просмотры страниц по классам',
+    'Последний page view',
+  ]);
+  assert.deepEqual(config.dashboard.removeTrafficWidgets, [
+    'Трафик: запросы по классам',
+    'Трафик: технические сессии людей',
+  ]);
+  assert.match(monitoringDocs, /zvenfit-site-traffic.*diagnostic.*functions_errors/is);
 });
 
 test('every log selector is isolated by repository and environment', () => {

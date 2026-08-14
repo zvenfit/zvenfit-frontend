@@ -76,15 +76,28 @@ Object Storage и отдельного lifecycle. Повторный `page_view_
 
 1. stacked bars page views по `traffic_class`;
 2. долю `known_bot` и `synthetic`;
-3. log-card **Последний page view** по максимальному timestamp события;
+3. плитку **Последний page view** с запросом
+   `series_sum({..., name="zvenfit_site_page_views_5m"})` и агрегацией `last`;
 4. при ручном разборе — top `meta.page` непосредственно в трёхдневных логах,
    не как metric label;
 5. рядом встроенные `edge.requests`, `edge.requests_status`,
    `edge.requests_cache_status`, `edge.bytes_sent` и
    `edge.request_time_seconds` для CDN resource `bc8rubabuwzpqqp7rifz`.
+6. в общий диагностический график `functions_errors` добавь
+   `resource_id="zvenfit-site-traffic"`, но не создавай для аналитики paging-alert.
+
+Старые виджеты **Трафик: запросы по классам** и
+**Трафик: технические сессии людей** относятся к удалённой stateful-схеме
+и должны быть удалены с dashboard.
 
 Freshness-card не является paging-alert: задержка или потеря технической
 аналитики не должна попадать в критичный lead alert.
+
+Пользовательский dashboard Monium не поддерживает raw-log widget. Поэтому плитка
+показывает последнее значение объединённого пятиминутного bucket, а не точный
+timestamp строки лога. Для точного времени последнего `site_page_view` используй
+Cloud Logging с тем же event selector. Добавлять ради этого отдельную timestamp-
+метрику или application state не нужно.
 
 ## Стоимость и ограничения
 

@@ -95,7 +95,9 @@ Storage, cookies или session timeout. `page_view_id` нужен только 
 
 Настройка функции, log-based metric и карточки **Последний page view** описана в
 [`site-traffic-analytics.md`](site-traffic-analytics.md). Карточка freshness
-диагностическая, без paging-alert.
+диагностическая, без paging-alert. Пользовательский dashboard Monium не встраивает
+raw-log строки, поэтому плитка показывает последнее значение объединённой
+пятиминутной метрики; точный timestamp события смотри в Cloud Logging.
 
 ## События приложения
 
@@ -435,11 +437,23 @@ heartbeat, размер и возраст Telegram-очереди, а также
 и p95 поля `duration_ms` из `ydb_operation_completed`, а также `C` — процент
 использованного хранилища.
 
+Общий диагностический график **Ошибки Cloud Functions** считает встроенную
+`functions_errors` для `zvenfit-telegram-lead`, `zvenfit-fitbase-schedule` и
+`zvenfit-site-traffic`. Для `zvenfit-site-traffic` это только diagnostic-сигнал:
+он не входит в критичный `zvenfit_function_runtime_errors` и не создаёт paging.
+Контролируемые HTTP `400/403/405/413` не являются runtime failures и в этот
+график не попадают.
+
 Для сайта используй компактный dashboard Monium: `edge.requests`, page views,
 доли `browser_like` / `known_bot` / `synthetic` / `unknown` и карточку
 **Последний page view**. Sessions пока не считаются. Cache/status/bytes/latency
 оставь на встроенных `edge.*` графиках Monitoring. Маркетинговые конверсии и
 источники кампаний остаются в маркетинговых счётчиках.
+
+Плитка **Последний page view** использует `series_sum` для объединения рядов
+`traffic_class × host` и агрегацию `last`. Она показывает последнее значение
+пятиминутного bucket в выбранном диапазоне, а не timestamp raw-log записи. Это
+намеренная диагностическая аппроксимация без новой метрики, state и alert.
 
 ## Cost estimate
 

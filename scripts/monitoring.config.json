@@ -35,7 +35,11 @@
     "pageViewMetricId": "zvenfit_site_page_views_5m",
     "freshnessCard": {
       "title": "Последний page view",
-      "source": "site_page_view logs",
+      "source": "zvenfit_site_page_views_5m",
+      "query": "series_sum({project=\"folder__b1ge1e4iopttj79hfdfm\", cluster=\"default\", service=\"logging_aggregates\", name=\"zvenfit_site_page_views_5m\"})",
+      "visualization": "tile",
+      "aggregation": "last",
+      "exactLogTimestamp": false,
       "pagingAlert": false
     },
     "monitoringSelectors": {
@@ -52,6 +56,23 @@
       "rawFieldsInMetricLabels": false,
       "persistentClientState": false
     }
+  },
+  "dashboard": {
+    "runtimeErrors": {
+      "title": "Ошибки Cloud Functions",
+      "metricSelector": "{project=\"folder__b1ge1e4iopttj79hfdfm\", service=\"serverless-functions\", name=\"functions_errors\", resource_id=\"zvenfit-telegram-lead|zvenfit-fitbase-schedule|zvenfit-site-traffic\"}",
+      "pagingAlert": false
+    },
+    "trafficWidgets": [
+      "Cloud CDN: запросы",
+      "Cloud CDN: HTTP-статусы",
+      "Трафик: просмотры страниц по классам",
+      "Последний page view"
+    ],
+    "removeTrafficWidgets": [
+      "Трафик: запросы по классам",
+      "Трафик: технические сессии людей"
+    ]
   },
   "provisioning": {
     "logMetrics": "manual-console",
