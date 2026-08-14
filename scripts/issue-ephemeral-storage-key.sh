@@ -80,7 +80,7 @@ for (const field of ["accessKeyId", "secret", "sessionToken"]) {
     process.exit(1);
   }
 }
-process.stdout.write([key.accessKeyId, key.secret, key.sessionToken].join(" "));
+process.stdout.write(`${[key.accessKeyId, key.secret, key.sessionToken].join(" ")}\n`);
 ' "${RESPONSE_BODY}")
 
 echo "::add-mask::${ACCESS_KEY}"

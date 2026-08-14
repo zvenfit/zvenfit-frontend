@@ -166,6 +166,7 @@ test('deploy jobs use OIDC and ephemeral storage keys instead of long-lived clou
   assert.match(ephemeralStorageKey, /subjectId: process\.argv\[3\]/);
   assert.match(ephemeralStorageKey, /duration: "3600s"/);
   assert.match(ephemeralStorageKey, /\["accessKeyId", "secret", "sessionToken"\]/);
+  assert.match(ephemeralStorageKey, /join\(" "\)\}\s*\\n/);
   assert.doesNotMatch(ephemeralStorageKey, /yc iam access-key issue-ephemeral/);
   assert.match(ephemeralStorageKey, /arn:aws:s3:::\$\{bucket\}\/\*/);
   const workloadIdentityAuth = fs.readFileSync(path.join(ROOT, 'scripts/auth-yc-wif.sh'), 'utf8');
