@@ -434,32 +434,32 @@ jobs:
             --allow-missing
 
       - name: Upload immutable assets to Yandex Object Storage
-        run: >-
-          aws s3 sync ./dist s3://${{ inputs.s3_bucket }}
-            --delete
-            --exclude "*.html"
-            --exclude "robots.txt"
-            --exclude "sitemap.xml"
-            --cache-control "public, max-age=31536000, immutable"
+        run: |
+          aws s3 sync ./dist s3://${{ inputs.s3_bucket }} \
+            --delete \
+            --exclude "*.html" \
+            --exclude "robots.txt" \
+            --exclude "sitemap.xml" \
+            --cache-control "public, max-age=31536000, immutable" \
             --metadata-directive REPLACE
 
       - name: Upload crawl metadata (no-cache)
-        run: >-
-          aws s3 sync ./dist s3://${{ inputs.s3_bucket }}
-            --delete
-            --exclude "*"
-            --include "robots.txt"
-            --include "sitemap.xml"
-            --cache-control "no-cache, must-revalidate"
+        run: |
+          aws s3 sync ./dist s3://${{ inputs.s3_bucket }} \
+            --delete \
+            --exclude "*" \
+            --include "robots.txt" \
+            --include "sitemap.xml" \
+            --cache-control "no-cache, must-revalidate" \
             --metadata-directive REPLACE
 
       - name: Upload HTML (no-cache)
-        run: >-
-          aws s3 sync ./dist s3://${{ inputs.s3_bucket }}
-            --delete
-            --exclude "*"
-            --include "*.html"
-            --cache-control "no-cache, must-revalidate"
+        run: |
+          aws s3 sync ./dist s3://${{ inputs.s3_bucket }} \
+            --delete \
+            --exclude "*" \
+            --include "*.html" \
+            --cache-control "no-cache, must-revalidate" \
             --metadata-directive REPLACE
 
       - name: Verify uploaded staging objects remain private

@@ -197,6 +197,18 @@ test('staging checks bucket privacy before upload and rechecks object ACL afterw
   assert.doesNotMatch(reusableWorkflow, /--acl (?:public|private)/);
 });
 
+test('every Object Storage sync keeps all flags in one shell command', () => {
+  const syncCommands = reusableWorkflow.match(/aws s3 sync [\s\S]*?--metadata-directive REPLACE/g) || [];
+
+  assert.equal(syncCommands.length, 3);
+  for (const command of syncCommands) {
+    const lines = command.split('\n');
+    for (const line of lines.slice(0, -1)) {
+      assert.match(line, /\\$/);
+    }
+  }
+});
+
 test('staging uses isolated artifacts instead of runtime provider switches and keeps stable authorizer rollback', () => {
   assert.doesNotMatch(reusableWorkflow, /lead_notification_mode|schedule_provider/i);
   assert.doesNotMatch(deployScript, /TELEGRAM_DELIVERY_MODE/);
