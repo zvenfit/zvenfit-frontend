@@ -27,11 +27,13 @@ const policy = {
   Statement: [
     {
       Effect: "Allow",
+      Principal: "*",
       Action: ["s3:GetBucketAcl", "s3:GetBucketPolicy", "s3:ListBucket"],
       Resource: [`arn:aws:s3:::${bucket}`],
     },
     {
       Effect: "Allow",
+      Principal: "*",
       Action: ["s3:DeleteObject", "s3:GetObjectAcl", "s3:PutObject"],
       Resource: [`arn:aws:s3:::${bucket}/*`],
     },

@@ -165,6 +165,7 @@ test('deploy jobs use OIDC and ephemeral storage keys instead of long-lived clou
   assert.match(ephemeralStorageKey, /--header "@\$\{AUTH_HEADER\}"/);
   assert.match(ephemeralStorageKey, /subjectId: process\.argv\[3\]/);
   assert.match(ephemeralStorageKey, /duration: "3600s"/);
+  assert.equal((ephemeralStorageKey.match(/Principal: "\*"/g) || []).length, 2);
   assert.match(ephemeralStorageKey, /\["accessKeyId", "secret", "sessionToken"\]/);
   assert.match(ephemeralStorageKey, /join\(" "\)\}\s*\\n/);
   assert.doesNotMatch(ephemeralStorageKey, /yc iam access-key issue-ephemeral/);
