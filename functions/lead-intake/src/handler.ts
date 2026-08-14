@@ -1,20 +1,7 @@
-import { randomUUID } from 'node:crypto';
-
-import { allowedOrigins, corsHeaders, jsonResponse, readBody } from './http';
+import { allowedOrigins, corsHeaders, isAllowedOrigin, isJsonContentType, jsonResponse, readBody } from './http';
 import { createLead, hasHoneypotValue, validateLead } from './lead-payload';
+import { errorCode, logDeliveryFailure, retryPendingLeads, type RetrySummary } from './notification/delivery';
 import { withEventMetrics } from './observability/event-metrics';
-import { createInvocationLogger } from './observability/logger';
-import { createInvocationMetrics } from './observability/metrics';
-import {
-  errorCode,
-  logDeliveryFailure,
-  maxTelegramAttempts,
-  retryPendingLeads,
-  sendTelegram,
-  type RetrySummary,
-} from './telegram/delivery';
-import * as leadStore from './ydb/lead-store';
-import { consumeLeadRateLimit } from './ydb/rate-limit';
 
 import type {
   ApplicationMetrics,
@@ -49,20 +36,6 @@ function requestBodyBytes(event: HttpEvent): number {
 function logBlockedSubmission(logger: LoggerLike, reason: string): void {
   const event = 'lead_submission_blocked';
   logger.warn?.({ event, reason }, event);
-}
-
-function createDependencies(overrides: Partial<HandlerDependencies>): HandlerDependencies {
-  return {
-    loggerFactory: createInvocationLogger,
-    maxAttempts: maxTelegramAttempts,
-    metricsFactory: createInvocationMetrics,
-    now: () => new Date(),
-    rateLimiter: consumeLeadRateLimit,
-    store: leadStore,
-    telegramSender: sendTelegram,
-    uuid: randomUUID,
-    ...overrides,
-  };
 }
 
 async function persistLead(
@@ -113,9 +86,7 @@ async function persistLead(
   }
 }
 
-function createHandler(overrides: Partial<HandlerDependencies> = {}): CloudHandler {
-  const dependencies = createDependencies(overrides);
-
+export function createHandler(dependencies: HandlerDependencies): CloudHandler {
   return async (event, context) => {
     const baseLogger = dependencies.loggerFactory(context);
     const metrics = dependencies.metricsFactory(context, baseLogger);
@@ -133,14 +104,30 @@ function createHandler(overrides: Partial<HandlerDependencies> = {}): CloudHandl
       }
 
       const origins = allowedOrigins();
-      const headers = corsHeaders(event.headers?.Origin || event.headers?.origin || '', origins);
+      const requestOrigin = event.headers?.Origin || event.headers?.origin || '';
+      const headers = corsHeaders(requestOrigin, origins);
       const method = (event.httpMethod || 'GET').toUpperCase();
 
       if (method === 'OPTIONS') {
+        if (!isAllowedOrigin(requestOrigin, origins)) {
+          return jsonResponse(403, { ok: false, error: 'origin_not_allowed' }, headers);
+        }
+
         return { statusCode: 204, headers, body: '' };
       }
       if (method !== 'POST') {
         return jsonResponse(405, { ok: false, error: 'method_not_allowed' }, headers);
+      }
+      if (!isAllowedOrigin(requestOrigin, origins)) {
+        logBlockedSubmission(logger, 'origin_not_allowed');
+
+        return jsonResponse(403, { ok: false, error: 'origin_not_allowed' }, headers);
+      }
+      const contentType = event.headers?.['Content-Type'] || event.headers?.['content-type'] || '';
+      if (!isJsonContentType(contentType)) {
+        logBlockedSubmission(logger, 'unsupported_media_type');
+
+        return jsonResponse(415, { ok: false, error: 'unsupported_media_type' }, headers);
       }
       if (requestBodyBytes(event) > MAX_REQUEST_BODY_BYTES) {
         logBlockedSubmission(logger, 'payload_too_large');
@@ -171,5 +158,4 @@ function createHandler(overrides: Partial<HandlerDependencies> = {}): CloudHandl
   };
 }
 
-export const handler = createHandler();
 export const _private = { createHandler, isTimerEvent, requestBodyBytes };

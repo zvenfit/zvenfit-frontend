@@ -14,6 +14,7 @@ LEAD_RATE_LIMIT_WINDOW_SECONDS="${LEAD_RATE_LIMIT_WINDOW_SECONDS:-600}"
 MAX_TELEGRAM_ATTEMPTS="${MAX_TELEGRAM_ATTEMPTS:-12}"
 TELEGRAM_RETRY_BATCH_SIZE="${TELEGRAM_RETRY_BATCH_SIZE:-5}"
 TELEGRAM_TIMEOUT_MS="${TELEGRAM_TIMEOUT_MS:-15000}"
+MANAGE_LEAD_RETRY_TRIGGER="${MANAGE_LEAD_RETRY_TRIGGER:-false}"
 YDB_QUERY_TIMEOUT_MS="${YDB_QUERY_TIMEOUT_MS:-5000}"
 YDB_SLOW_OPERATION_MS="${YDB_SLOW_OPERATION_MS:-1000}"
 YDB_SESSION_POOL_SIZE="${YDB_SESSION_POOL_SIZE:-5}"
@@ -27,9 +28,46 @@ MEMORY="${YC_LEAD_MEMORY:-256m}"
 TIMEOUT="${YC_LEAD_TIMEOUT:-120s}"
 ALLOWED_ORIGINS="${ALLOWED_ORIGINS:-https://zvenfit.ru,https://www.zvenfit.ru,https://zvenigorod.zvenfit.ru}"
 LOG_LEVEL="${LOG_LEVEL:-info}"
+FUNCTION_INVOKER_MODE="${FUNCTION_INVOKER_MODE:-public}"
+GATEWAY_SERVICE_ACCOUNT_ID="${YC_GATEWAY_SERVICE_ACCOUNT_ID:-}"
+DEPLOYMENT_ENVIRONMENT_VALUE="${DEPLOYMENT_ENVIRONMENT:-}"
 
-if [[ -z "${TELEGRAM_BOT_TOKEN:-}" || -z "${TELEGRAM_CHAT_ID:-}" || -z "${LEAD_RATE_LIMIT_SECRET:-}" ]]; then
-  echo "deploy-lead-intake: set TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID and LEAD_RATE_LIMIT_SECRET" >&2
+case "${DEPLOYMENT_ENVIRONMENT_VALUE}" in
+  production | staging) ;;
+  *)
+    echo "deploy-lead-intake: DEPLOYMENT_ENVIRONMENT must be production or staging" >&2
+    exit 1
+    ;;
+esac
+
+if [[ "${FUNCTION_INVOKER_MODE}" != "public" && "${FUNCTION_INVOKER_MODE}" != "gateway" ]]; then
+  echo "deploy-lead-intake: FUNCTION_INVOKER_MODE must be public or gateway" >&2
+  exit 1
+fi
+
+if [[ "${DEPLOYMENT_ENVIRONMENT_VALUE}" == "production" && "${FUNCTION_INVOKER_MODE}" != "public" ]]; then
+  echo "deploy-lead-intake: production must deploy the public production artifact" >&2
+  exit 1
+fi
+
+if [[ "${FUNCTION_INVOKER_MODE}" == "gateway" && -z "${GATEWAY_SERVICE_ACCOUNT_ID}" ]]; then
+  echo "deploy-lead-intake: YC_GATEWAY_SERVICE_ACCOUNT_ID is required for gateway mode" >&2
+  exit 1
+fi
+
+if [[ "${DEPLOYMENT_ENVIRONMENT_VALUE}" == "staging" && "${FUNCTION_INVOKER_MODE}" != "gateway" ]]; then
+  echo "deploy-lead-intake: staging must deploy the private staging artifact" >&2
+  exit 1
+fi
+
+if [[ -z "${LEAD_RATE_LIMIT_SECRET:-}" ]]; then
+  echo "deploy-lead-intake: set LEAD_RATE_LIMIT_SECRET" >&2
+  exit 1
+fi
+
+if [[ "${DEPLOYMENT_ENVIRONMENT_VALUE}" == "production" ]] &&
+  { [[ -z "${TELEGRAM_BOT_TOKEN:-}" ]] || [[ -z "${TELEGRAM_CHAT_ID:-}" ]]; }; then
+  echo "deploy-lead-intake: set TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID for production" >&2
   exit 1
 fi
 
@@ -95,26 +133,34 @@ npm --prefix "${ROOT_DIR}/functions/lead-intake" run migrate
 
 unset LEAD_YDB_IAM_TOKEN
 
+if [[ "${DEPLOYMENT_ENVIRONMENT_VALUE}" == "production" ]]; then
+  npm --prefix "${ROOT_DIR}/functions/lead-intake" run build
+  BUILD_DIR="${ROOT_DIR}/functions/lead-intake/build"
+  FUNCTION_ENTRYPOINT="index.handler"
+else
+  npm --prefix "${ROOT_DIR}/functions/lead-intake" run build:staging
+  BUILD_DIR="${ROOT_DIR}/functions/lead-intake/build-staging"
+  FUNCTION_ENTRYPOINT="entrypoints/staging.handler"
+fi
+
 if ! yc serverless function get --name="${FUNCTION_NAME}" >/dev/null 2>&1; then
+  if [[ "${FUNCTION_INVOKER_MODE}" == "gateway" ]]; then
+    echo "deploy-lead-intake: ${FUNCTION_NAME} must be provisioned before private gateway deploy" >&2
+    exit 1
+  fi
   yc serverless function create --name="${FUNCTION_NAME}"
 fi
 
-if ! yc serverless function list-access-bindings --name="${FUNCTION_NAME}" --format=json | node -e "
-const fs = require('fs');
-const bindings = JSON.parse(fs.readFileSync(0, 'utf8'));
-const publicInvoker = bindings.some(binding =>
-  binding.role_id === 'functions.functionInvoker' &&
-  binding.subject?.type === 'system' &&
-  binding.subject?.id === 'allUsers'
-);
-process.exit(publicInvoker ? 0 : 1);
-"; then
-  echo "deploy-lead-intake: ${FUNCTION_NAME} is missing the one-time public functionInvoker binding" >&2
-  echo "Run with an admin identity: yc serverless function allow-unauthenticated-invoke ${FUNCTION_NAME}" >&2
+if ! yc serverless function list-access-bindings --name="${FUNCTION_NAME}" --format=json |
+  node "${ROOT_DIR}/scripts/verify-function-invoker.cjs" \
+    "${FUNCTION_INVOKER_MODE}" \
+    "${GATEWAY_SERVICE_ACCOUNT_ID},${YC_LEAD_SERVICE_ACCOUNT_ID}"; then
+  echo "deploy-lead-intake: ${FUNCTION_NAME} has an invalid ${FUNCTION_INVOKER_MODE} functionInvoker policy" >&2
+  echo "Provision the required binding with an admin identity before deploy" >&2
   exit 1
 fi
 
-cp -R "${ROOT_DIR}/functions/lead-intake/build/." "${SOURCE_DIR}/"
+cp -R "${BUILD_DIR}/." "${SOURCE_DIR}/"
 cp \
   "${ROOT_DIR}/functions/lead-intake/package.json" \
   "${ROOT_DIR}/functions/lead-intake/package-lock.json" \
@@ -122,16 +168,14 @@ cp \
 
 npm pkg delete devDependencies --prefix "${SOURCE_DIR}"
 
-yc serverless function version create \
+VERSION_ARGS=(
   --function-name="${FUNCTION_NAME}" \
   --runtime="${RUNTIME}" \
-  --entrypoint=index.handler \
+  --entrypoint="${FUNCTION_ENTRYPOINT}" \
   --memory="${MEMORY}" \
   --execution-timeout="${TIMEOUT}" \
   --source-path="${SOURCE_DIR}" \
   --service-account-id="${YC_LEAD_SERVICE_ACCOUNT_ID}" \
-  --environment TELEGRAM_BOT_TOKEN="${TELEGRAM_BOT_TOKEN}" \
-  --environment TELEGRAM_CHAT_ID="${TELEGRAM_CHAT_ID}" \
   --environment ALLOWED_ORIGINS="${ALLOWED_ORIGINS}" \
   --environment YDB_CONNECTION_STRING="${YDB_CONNECTION_STRING}" \
   --environment YDB_LEADS_TABLE="${YDB_LEADS_TABLE}" \
@@ -139,9 +183,6 @@ yc serverless function version create \
   --environment LEAD_RATE_LIMIT_SECRET="${LEAD_RATE_LIMIT_SECRET}" \
   --environment LEAD_RATE_LIMIT_MAX="${LEAD_RATE_LIMIT_MAX}" \
   --environment LEAD_RATE_LIMIT_WINDOW_SECONDS="${LEAD_RATE_LIMIT_WINDOW_SECONDS}" \
-  --environment MAX_TELEGRAM_ATTEMPTS="${MAX_TELEGRAM_ATTEMPTS}" \
-  --environment TELEGRAM_RETRY_BATCH_SIZE="${TELEGRAM_RETRY_BATCH_SIZE}" \
-  --environment TELEGRAM_TIMEOUT_MS="${TELEGRAM_TIMEOUT_MS}" \
   --environment YDB_QUERY_TIMEOUT_MS="${YDB_QUERY_TIMEOUT_MS}" \
   --environment YDB_SLOW_OPERATION_MS="${YDB_SLOW_OPERATION_MS}" \
   --environment YDB_SESSION_POOL_SIZE="${YDB_SESSION_POOL_SIZE}" \
@@ -152,9 +193,26 @@ yc serverless function version create \
   --environment MONIUM_SERVICE="${MONIUM_SERVICE}" \
   --environment MONIUM_METRICS_TIMEOUT_MS="${MONIUM_METRICS_TIMEOUT_MS}" \
   --environment LOG_LEVEL="${LOG_LEVEL}" \
-  --environment NODE_ENV="${NODE_ENV:-production}"
+  --environment DEPLOYMENT_ENVIRONMENT="${DEPLOYMENT_ENVIRONMENT_VALUE}" \
+  --environment NODE_ENV="${DEPLOYMENT_ENVIRONMENT_VALUE}"
+)
 
-if yc serverless trigger get --name="${TRIGGER_NAME}" >/dev/null 2>&1; then
+if [[ "${DEPLOYMENT_ENVIRONMENT_VALUE}" == "production" ]]; then
+  VERSION_ARGS+=(
+    --environment TELEGRAM_BOT_TOKEN="${TELEGRAM_BOT_TOKEN}"
+    --environment TELEGRAM_CHAT_ID="${TELEGRAM_CHAT_ID}"
+    --environment MAX_TELEGRAM_ATTEMPTS="${MAX_TELEGRAM_ATTEMPTS}"
+    --environment TELEGRAM_RETRY_BATCH_SIZE="${TELEGRAM_RETRY_BATCH_SIZE}"
+    --environment TELEGRAM_TIMEOUT_MS="${TELEGRAM_TIMEOUT_MS}"
+  )
+fi
+if [[ "${FUNCTION_INVOKER_MODE}" == "gateway" ]]; then
+  VERSION_ARGS+=(--tags=staging-live)
+fi
+
+yc serverless function version create "${VERSION_ARGS[@]}"
+
+if [[ "${MANAGE_LEAD_RETRY_TRIGGER}" =~ ^(1|true)$ ]] && yc serverless trigger get --name="${TRIGGER_NAME}" >/dev/null 2>&1; then
   TRIGGER_ID="$(yc serverless trigger get --name="${TRIGGER_NAME}" --format=json | node -e "
 const fs = require('fs');
 const data = JSON.parse(fs.readFileSync(0, 'utf8'));
@@ -173,7 +231,7 @@ process.stdout.write(data.id || '');
     --new-invoke-function-service-account-id="${YC_LEAD_SERVICE_ACCOUNT_ID}" \
     --new-function-retry-attempts=2 \
     --new-function-retry-interval=30s
-else
+elif [[ "${MANAGE_LEAD_RETRY_TRIGGER}" =~ ^(1|true)$ ]]; then
   yc serverless trigger create timer \
     --name="${TRIGGER_NAME}" \
     --description="Retry pending ZvenFit lead notifications" \
@@ -198,8 +256,11 @@ if [[ -z "${INVOKE_URL}" ]]; then
   exit 0
 fi
 
+if [[ "${FUNCTION_INVOKER_MODE}" == "gateway" ]]; then
+  node "${ROOT_DIR}/scripts/assert-private-http.cjs" "${INVOKE_URL}"
+fi
+
 echo "deploy-lead-intake: OK"
 echo "YDB_DATABASE_NAME=${YDB_DATABASE_NAME}"
 echo "LEAD_RETRY_TRIGGER=${TRIGGER_NAME}"
 echo "LEAD_API_URL=${INVOKE_URL}"
-echo "Add LEAD_API_URL to GitHub Actions secrets and rebuild the site."

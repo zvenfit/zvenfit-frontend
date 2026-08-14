@@ -1,9 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import { createFitbaseProvider } from '../adapters/fitbase/provider';
 import { _private } from '../handler';
 
-import type { HttpEvent, JsonObject } from '../types';
+import type { HttpEvent, JsonObject, ScheduleProviderFactory } from '../types';
 
 interface CapturedLog {
   fields: JsonObject;
@@ -18,13 +19,22 @@ function getEvent(): HttpEvent {
   };
 }
 
-function createTestHandler(messages: CapturedLog[]) {
+function createTestHandler(
+  messages: CapturedLog[],
+  providerFactory: ScheduleProviderFactory = () => createFitbaseProvider(process.env),
+) {
   return _private.createHandler({
+    failurePolicy: {
+      misconfiguredEvent: 'fitbase_schedule_misconfigured',
+      unavailableError: 'fitbase_unreachable',
+      unavailableEvent: 'fitbase_schedule_error',
+    },
     loggerFactory: () => ({
       error(fields, message) {
         messages.push({ fields, message });
       },
     }),
+    providerFactory,
   });
 }
 
@@ -67,7 +77,7 @@ test('logs a structured event without an API response body when Fitbase fails', 
   }
 });
 
-test('logs a structured event when the Fitbase token is missing', async () => {
+test('keeps the production Fitbase misconfiguration event backward compatible', async () => {
   const originalToken = process.env.FITBASE_API_TOKEN;
   const messages: CapturedLog[] = [];
   const handler = createTestHandler(messages);
@@ -90,4 +100,85 @@ test('logs a structured event when the Fitbase token is missing', async () => {
       process.env.FITBASE_API_TOKEN = originalToken;
     }
   }
+});
+
+test('uses the injected failure policy without inspecting a provider subtype', async () => {
+  const messages: CapturedLog[] = [];
+  const handler = _private.createHandler({
+    failurePolicy: {
+      misconfiguredEvent: 'staging_schedule_misconfigured',
+      unavailableError: 'schedule_unavailable',
+      unavailableEvent: 'staging_schedule_error',
+    },
+    loggerFactory: () => ({
+      error(fields, message) {
+        messages.push({ fields, message });
+      },
+    }),
+    providerFactory: () => {
+      throw new Error('not configured');
+    },
+  });
+
+  const result = await handler(getEvent());
+
+  assert.equal(result.statusCode, 500);
+  assert.deepEqual(messages[0], {
+    message: 'staging_schedule_misconfigured',
+    fields: {
+      event: 'staging_schedule_misconfigured',
+      error_code: 'staging_schedule_misconfigured',
+      status: null,
+    },
+  });
+});
+
+test('serves the provider contract without requiring Fitbase credentials', async () => {
+  const messages: CapturedLog[] = [];
+  const handler = _private.createHandler({
+    failurePolicy: {
+      misconfiguredEvent: 'staging_schedule_misconfigured',
+      unavailableError: 'schedule_unavailable',
+      unavailableEvent: 'staging_schedule_error',
+    },
+    loggerFactory: () => ({
+      error(fields, message) {
+        messages.push({ fields, message });
+      },
+    }),
+    providerFactory: () => ({
+      async getSchedule(from, to) {
+        return [
+          {
+            id: 'fixture-item',
+            date: from,
+            timeStart: '09:00',
+            timeEnd: '10:00',
+            duration: 60,
+            title: 'Тестовое занятие',
+            description: '',
+            color: '#00d10e',
+            trainers: [],
+            place: '',
+            club: 'ZvenFit Staging',
+            type: 'group',
+            ageType: 'adult',
+            cancelled: false,
+            registrationClosed: false,
+            registrationRequired: false,
+            maxParticipants: null,
+            transfer: null,
+          },
+        ].filter(item => item.date <= to);
+      },
+    }),
+  });
+
+  const result = await handler(getEvent());
+  const payload = JSON.parse(result.body);
+
+  assert.equal(result.statusCode, 200);
+  assert.equal(payload.count, 1);
+  assert.equal(payload.items[0].id, 'fixture-item');
+  assert.deepEqual(messages, []);
 });

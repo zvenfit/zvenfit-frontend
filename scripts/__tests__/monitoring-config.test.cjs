@@ -9,9 +9,11 @@ const ROOT = path.resolve(__dirname, '../..');
 const config = JSON.parse(fs.readFileSync(path.join(ROOT, 'scripts/monitoring.config.json'), 'utf8'));
 const source = [
   'functions/lead-intake/src/handler.ts',
+  'functions/lead-intake/src/notification/delivery.ts',
   'functions/lead-intake/src/telegram/delivery.ts',
   'functions/lead-intake/src/observability/ydb.ts',
   'functions/fitbase-schedule/src/handler.ts',
+  'functions/fitbase-schedule/src/composition/production.ts',
   'functions/fitbase-schedule/src/observability/logger.ts',
 ]
   .map(file => fs.readFileSync(path.join(ROOT, file), 'utf8'))
@@ -20,11 +22,20 @@ const monitoringDocs = fs.readFileSync(path.join(ROOT, 'docs/monitoring.md'), 'u
 const smokeScript = fs.readFileSync(path.join(ROOT, 'scripts/test-monitoring-alerts.sh'), 'utf8');
 
 test('every monitored event exists in application code and documentation', () => {
-  for (const metric of config.logMetrics) {
+  for (const metric of config.logMetrics.filter(item => Array.isArray(item.events))) {
     for (const event of metric.events) {
       assert.match(source, new RegExp(`['\"]${event}['\"]`), `${event} is missing from code`);
       assert.match(monitoringDocs, new RegExp(`\\b${event}\\b`), `${event} is missing from docs`);
     }
+  }
+});
+
+test('every log metric declares an application event or an exact platform selector', () => {
+  for (const metric of config.logMetrics) {
+    const hasEvents = Array.isArray(metric.events) && metric.events.length > 0;
+    const hasPlatformSelector = metric.sourceType === 'platform-runtime' && typeof metric.selector === 'string';
+
+    assert.equal(hasEvents || hasPlatformSelector, true, `${metric.id} has no log source`);
   }
 });
 
@@ -53,14 +64,13 @@ test('every alert references a metric and is documented', () => {
     assert.equal(alert.noData, expectedNoData);
     assert.equal(typeof alert.warning, 'number', `${alert.id} has no Warning threshold`);
     assert.equal(typeof alert.alarm, 'number', `${alert.id} has no Alarm threshold`);
-    const alarmIsMoreSevere =
-      alert.operator === '<' ? alert.alarm < alert.warning : alert.alarm > alert.warning;
+    const alarmIsMoreSevere = alert.operator === '<' ? alert.alarm < alert.warning : alert.alarm > alert.warning;
     assert.equal(alarmIsMoreSevere, true, `${alert.id} has inverted Warning and Alarm thresholds`);
     assert.equal(typeof alert.delay, 'string', `${alert.id} has no evaluation delay`);
     alertIds.add(alert.id);
   }
 
-  assert.equal(alertIds.size, 13);
+  assert.equal(alertIds.size, 15);
 });
 
 test('anti-spam and accepted lead volume thresholds are explicit', () => {
@@ -79,11 +89,14 @@ test('anti-spam and accepted lead volume thresholds are explicit', () => {
   );
 });
 
-test('only the caught Fitbase application error depends on the log aggregate pipeline', () => {
+test('only application and platform errors requiring message filters use log aggregates', () => {
   const metricIds = new Set(config.logMetrics.map(metric => metric.id));
   const logAlerts = config.alerts.filter(alert => metricIds.has(alert.metricId));
 
-  assert.deepEqual(logAlerts.map(alert => alert.id), ['zvenfit_fitbase_errors']);
+  assert.deepEqual(
+    logAlerts.map(alert => alert.id),
+    ['zvenfit_fitbase_errors', 'zvenfit_schedule_runtime_errors', 'zvenfit_schedule_cancellations'],
+  );
 });
 
 test('YDB retry thresholds expose reachable Warning and Alarm states', () => {
@@ -127,12 +140,45 @@ test('YDB storage alert uses live database metrics and 70/85 percent thresholds'
   assert.equal(alert.noData, 'WARNING');
 });
 
-test('runtime alert covers both production functions', () => {
-  const runtimeAlert = config.alerts.find(alert => alert.id === 'zvenfit_function_runtime_errors');
+test('lead runtime errors remain critical while schedule client cancellations are isolated', () => {
+  const scheduleRuntimeMetric = config.logMetrics.find(metric => metric.id === 'zvenfit_schedule_runtime_errors_1m');
+  const cancellationMetric = config.logMetrics.find(metric => metric.id === 'zvenfit_schedule_client_cancellations_5m');
+  const leadRuntimeAlert = config.alerts.find(alert => alert.id === 'zvenfit_function_runtime_errors');
+  const scheduleRuntimeAlert = config.alerts.find(alert => alert.id === 'zvenfit_schedule_runtime_errors');
+  const cancellationAlert = config.alerts.find(alert => alert.id === 'zvenfit_schedule_cancellations');
 
-  assert.match(runtimeAlert.metricSelector, /name="functions_errors"/);
-  assert.match(runtimeAlert.metricSelector, /resource_id="zvenfit-telegram-lead\|zvenfit-fitbase-schedule"/);
-  assert.doesNotMatch(runtimeAlert.metricSelector, /resource_id="d4e/);
+  assert.match(leadRuntimeAlert.metricSelector, /name="functions_errors"/);
+  assert.match(leadRuntimeAlert.metricSelector, /resource_id="zvenfit-telegram-lead"/);
+  assert.doesNotMatch(leadRuntimeAlert.metricSelector, /zvenfit-fitbase-schedule/);
+  assert.equal(leadRuntimeAlert.delay, '30s');
+
+  assert.match(scheduleRuntimeMetric.selector, /resource_type="serverless\.function"/);
+  assert.match(scheduleRuntimeMetric.selector, /resource_id="d4e80noc1hjn2g8u0beq"/);
+  assert.doesNotMatch(scheduleRuntimeMetric.selector, /d4ea7c6tcac97hu62rab/);
+  assert.match(scheduleRuntimeMetric.selector, /level="ERROR"/);
+  assert.match(scheduleRuntimeMetric.selector, /message!=\*"Code: 499"/);
+  assert.match(cancellationMetric.selector, /message=\*"Code: 499"/);
+  assert.equal(scheduleRuntimeMetric.synthetic, false);
+  assert.equal(cancellationMetric.synthetic, false);
+
+  assert.equal(scheduleRuntimeAlert.metricId, scheduleRuntimeMetric.id);
+  assert.match(scheduleRuntimeAlert.metricSelector, /service="logging_aggregates"/);
+  assert.match(scheduleRuntimeAlert.metricSelector, /name="zvenfit_schedule_runtime_errors_1m"/);
+  assert.equal(scheduleRuntimeAlert.aggregation, 'max');
+  assert.equal(scheduleRuntimeAlert.delay, '3m');
+
+  assert.equal(cancellationAlert.metricId, cancellationMetric.id);
+  assert.match(cancellationAlert.metricSelector, /name="zvenfit_schedule_client_cancellations_5m"/);
+  assert.deepEqual(
+    {
+      warning: cancellationAlert.warning,
+      alarm: cancellationAlert.alarm,
+      aggregation: cancellationAlert.aggregation,
+      window: cancellationAlert.window,
+      delay: cancellationAlert.delay,
+    },
+    { warning: 0, alarm: 9.5, aggregation: 'sum', window: '10m', delay: '3m' },
+  );
   assert.doesNotMatch(monitoringDocs, /кнопк[^\n]*тестирован[^\n]*канал/i);
 });
 
@@ -170,7 +216,7 @@ test('Fitbase alert uses the application error aggregate because the handler cat
   assert.match(alert.metricSelector, /service="logging_aggregates"/);
   assert.match(alert.metricSelector, /name="zvenfit_fitbase_errors_5m"/);
   assert.equal(alert.delay, '3m');
-  assert.match(source, /catch \(error\)[\s\S]*fitbase_schedule_error[\s\S]*jsonResponse\(502/);
+  assert.match(source, /catch \(error\)[\s\S]*failurePolicy\.unavailableEvent[\s\S]*jsonResponse\(502/);
 });
 
 test('retry worker health covers missing heartbeats, delivery backlog, and trigger failures', () => {
@@ -181,10 +227,7 @@ test('retry worker health covers missing heartbeats, delivery backlog, and trigg
   assert.equal(heartbeat.noData, 'ALARM');
   assert.equal(heartbeat.aggregation, 'last');
   assert.equal(heartbeat.operator, '<');
-  assert.deepEqual(
-    { warning: heartbeat.warning, alarm: heartbeat.alarm },
-    { warning: 0.9, alarm: 0.5 },
-  );
+  assert.deepEqual({ warning: heartbeat.warning, alarm: heartbeat.alarm }, { warning: 0.9, alarm: 0.5 });
   assert.ok(heartbeat.alarm < heartbeat.warning);
   assert.match(heartbeat.metricSelector, /name="zvenfit_retry_worker_heartbeat"/);
   assert.deepEqual(
@@ -233,6 +276,8 @@ test('production log source and retention are explicit', () => {
 });
 
 test('every log selector is isolated by repository and environment', () => {
+  const platformMetrics = config.logMetrics.filter(metric => metric.sourceType === 'platform-runtime');
+
   assert.equal((monitoringDocs.match(/application="zvenfit-frontend"/g) || []).length >= 8, true);
   assert.equal((monitoringDocs.match(/environment="production"/g) || []).length >= 8, true);
   assert.match(smokeScript, /APPLICATION_NAME="zvenfit-frontend"/);
@@ -240,6 +285,14 @@ test('every log selector is isolated by repository and environment', () => {
   assert.match(monitoringDocs, /service="logging_aggregates"/);
   assert.doesNotMatch(monitoringDocs, /[,{]\s*application="zvenfit-frontend"/);
   assert.doesNotMatch(monitoringDocs, /[,{]\s*environment="production"/);
+
+  assert.equal(platformMetrics.length, 2);
+  for (const metric of platformMetrics) {
+    assert.match(metric.selector, /project="folder__b1ge1e4iopttj79hfdfm"/);
+    assert.match(metric.selector, /cluster="default"/);
+    assert.match(metric.selector, /service="default"/);
+    assert.match(metric.selector, /resource_type="serverless\.function"/);
+  }
 });
 
 test('manual provisioning and notification channel requirements are explicit', () => {
@@ -273,7 +326,7 @@ test('manual provisioning and notification channel requirements are explicit', (
 test('monitoring smoke script requires confirmation and covers every log metric', () => {
   assert.match(smokeScript, /\$\{1:-\}.*--confirm/);
 
-  for (const metric of config.logMetrics) {
+  for (const metric of config.logMetrics.filter(item => item.synthetic !== false)) {
     assert.equal(
       metric.events.some(event => new RegExp(`\\b${event}\\b`).test(smokeScript)),
       true,

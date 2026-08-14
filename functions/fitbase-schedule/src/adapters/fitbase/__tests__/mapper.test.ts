@@ -3,7 +3,7 @@ import test from 'node:test';
 
 import { mapScheduleItem, shouldIncludeItem, sortScheduleItems } from '../mapper';
 
-import type { ScheduleItem } from '../../types';
+import type { ScheduleItem } from '../../../types';
 
 test('maps Fitbase transport fields into the public schedule contract', () => {
   const mapped = mapScheduleItem({

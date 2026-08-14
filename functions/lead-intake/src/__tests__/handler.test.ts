@@ -24,7 +24,7 @@ type Call = [name: string, payload?: unknown];
 function postEvent(overrides: Record<string, unknown> = {}): HttpEvent {
   return {
     httpMethod: 'POST',
-    headers: { origin: 'https://zvenfit.ru' },
+    headers: { origin: 'https://zvenfit.ru', 'content-type': 'application/json' },
     body: JSON.stringify({
       submission_id: LEAD_ID,
       name: 'Анна',
@@ -51,7 +51,7 @@ function claimedLead(overrides: Partial<ClaimedLead> = {}): ClaimedLead {
   };
 }
 
-function dependencies(store: StoreMock, overrides: Partial<HandlerDependencies> = {}): Partial<HandlerDependencies> {
+function dependencies(store: StoreMock, overrides: Partial<HandlerDependencies> = {}): HandlerDependencies {
   return {
     loggerFactory: () => ({
       error(fields) {
@@ -59,15 +59,17 @@ function dependencies(store: StoreMock, overrides: Partial<HandlerDependencies> 
       },
     }),
     maxAttempts: () => 12,
+    metricsFactory: () => ({ addCounter() {}, recordGauge() {}, async flush() {} }),
+    notificationSender: async () => {},
     now: () => NOW,
     rateLimiter: async () => true,
+    retryBatchSize: () => 5,
     store: {
       async getTelegramQueueHealth() {
         return { pendingCount: 0, oldestPendingAgeSeconds: 0 };
       },
       ...store,
     } as LeadStore,
-    telegramSender: async () => {},
     uuid: () => DELIVERY_ID,
     ...overrides,
   };
@@ -98,7 +100,7 @@ test('POST persists a pending lead and returns before Telegram delivery', async 
   let telegramCalled = false;
   const handler = _private.createHandler(
     dependencies(store, {
-      async telegramSender() {
+      async notificationSender() {
         telegramCalled = true;
       },
     }),
@@ -168,7 +170,7 @@ test('timer keeps a persisted lead pending when Telegram is unavailable', async 
   };
   const handler = _private.createHandler(
     dependencies(store, {
-      async telegramSender() {
+      async notificationSender() {
         throw Object.assign(new Error('offline'), { code: 'telegram_unreachable' });
       },
     }),
@@ -207,7 +209,7 @@ test('timer marks the lead failed after the Telegram retry limit', async () => {
   };
   const handler = _private.createHandler(
     dependencies(store, {
-      async telegramSender() {
+      async notificationSender() {
         throw Object.assign(new Error('offline'), { code: 'telegram_unreachable' });
       },
     }),
@@ -275,7 +277,7 @@ test('POST returns 503 and does not call Telegram when durable storage fails', a
             metricFlushes += 1;
           },
         }) satisfies ApplicationMetrics,
-      async telegramSender() {
+      async notificationSender() {
         telegramCalled = true;
       },
     }),

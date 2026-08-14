@@ -32,6 +32,13 @@ function recordByEvent(records: LogRecord[], event: string): LogRecord {
   return record;
 }
 
+function abortError(): Error {
+  const error = new Error('The operation has been aborted');
+  error.name = 'AbortError';
+
+  return error;
+}
+
 test('records YDB latency and retry attempts', async () => {
   const logger = memoryLogger();
 
@@ -55,6 +62,69 @@ test('logs a safe error code without the database error message', async () => {
   const failure = recordByEvent(logger.records, 'ydb_operation_failed');
   assert.equal(failure.error_code, 'OVERLOADED');
   assert.equal(JSON.stringify(failure).includes('phone number'), false);
+});
+
+test('retries one AbortError for an explicitly safe read', async () => {
+  const logger = memoryLogger();
+  let attempts = 0;
+
+  const result = await observeYdbOperation(
+    'list_telegram_candidates',
+    logger,
+    async () => {
+      attempts += 1;
+      if (attempts === 1) {
+        throw abortError();
+      }
+
+      return 'ok';
+    },
+    { retryAbortOnce: true },
+  );
+
+  assert.equal(result, 'ok');
+  assert.equal(attempts, 2);
+  assert.equal(recordByEvent(logger.records, 'ydb_operation_completed').retry_attempts, 1);
+  assert.equal(recordByEvent(logger.records, 'ydb_retry').retry_attempts, 1);
+  assert.equal(
+    logger.records.some(record => record.event === 'ydb_operation_failed'),
+    false,
+  );
+});
+
+test('does not retry AbortError unless the operation opts in', async () => {
+  const logger = memoryLogger();
+  let attempts = 0;
+
+  await assert.rejects(() =>
+    observeYdbOperation('save_lead', logger, async () => {
+      attempts += 1;
+      throw abortError();
+    }),
+  );
+
+  assert.equal(attempts, 1);
+  assert.equal(recordByEvent(logger.records, 'ydb_operation_failed').error_code, 'AbortError');
+});
+
+test('stops after one AbortError retry', async () => {
+  const logger = memoryLogger();
+  let attempts = 0;
+
+  await assert.rejects(() =>
+    observeYdbOperation(
+      'get_telegram_queue_health',
+      logger,
+      async () => {
+        attempts += 1;
+        throw abortError();
+      },
+      { retryAbortOnce: true },
+    ),
+  );
+
+  assert.equal(attempts, 2);
+  assert.equal(recordByEvent(logger.records, 'ydb_operation_failed').retry_attempts, 1);
 });
 
 test('excludes client preparation from operation latency', async () => {

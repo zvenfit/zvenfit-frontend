@@ -1,0 +1,28 @@
+name: Deploy to Staging
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    uses: ./.github/workflows/_deploy-environment.yml
+    with:
+      deployment_environment: staging
+      site_url: https://staging.zvenfit.ru
+      s3_bucket: zvenfit-frontend-staging
+      lead_function_name: zvenfit-telegram-lead-staging
+      schedule_function_name: zvenfit-fitbase-schedule-staging
+      lead_retry_trigger_name: zvenfit-lead-telegram-retry-staging
+      ydb_database_name: zvenfit-leads-staging
+      allowed_origins: https://staging.zvenfit.ru
+      site_access_mode: authenticated-gateway
+      gateway_name: zvenfit-staging
+      authorizer_function_name: zvenfit-staging-authorizer

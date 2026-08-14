@@ -1,0 +1,538 @@
+name: Deploy Environment
+
+on:
+  workflow_call:
+    inputs:
+      deployment_environment:
+        description: GitHub Environment and runtime environment label
+        required: true
+        type: string
+      site_url:
+        description: Public site origin used by the read-only smoke test
+        required: true
+        type: string
+      s3_bucket:
+        description: Object Storage bucket containing the static site
+        required: true
+        type: string
+      lead_function_name:
+        description: Lead intake Cloud Function name
+        required: true
+        type: string
+      schedule_function_name:
+        description: Fitbase schedule Cloud Function name
+        required: true
+        type: string
+      lead_retry_trigger_name:
+        description: Telegram retry timer trigger name
+        required: true
+        type: string
+      ydb_database_name:
+        description: YDB database name used by lead intake
+        required: true
+        type: string
+      allowed_origins:
+        description: Comma-separated CORS origins
+        required: true
+        type: string
+      site_access_mode:
+        description: Public production or authenticated staging gateway
+        required: true
+        type: string
+      gateway_name:
+        description: Pre-provisioned API Gateway name or disabled
+        required: true
+        type: string
+      authorizer_function_name:
+        description: Pre-provisioned Basic authorizer function name or disabled
+        required: true
+        type: string
+    secrets:
+      FITBASE_API_TOKEN:
+        required: false
+      LEAD_RATE_LIMIT_SECRET:
+        required: false
+      MONIUM_API_KEY:
+        required: false
+      TELEGRAM_BOT_TOKEN:
+        required: false
+      TELEGRAM_CHAT_ID:
+        required: false
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  NODE_VERSION: '22'
+  LOG_LEVEL: info
+
+jobs:
+  validate-config:
+    runs-on: ubuntu-latest
+    env:
+      DEPLOYMENT_ENVIRONMENT: ${{ inputs.deployment_environment }}
+      SITE_URL: ${{ inputs.site_url }}
+      S3_BUCKET: ${{ inputs.s3_bucket }}
+      LEAD_FUNCTION_NAME: ${{ inputs.lead_function_name }}
+      SCHEDULE_FUNCTION_NAME: ${{ inputs.schedule_function_name }}
+      LEAD_RETRY_TRIGGER_NAME: ${{ inputs.lead_retry_trigger_name }}
+      YDB_DATABASE_NAME: ${{ inputs.ydb_database_name }}
+      ALLOWED_ORIGINS: ${{ inputs.allowed_origins }}
+      SITE_ACCESS_MODE: ${{ inputs.site_access_mode }}
+      GATEWAY_NAME: ${{ inputs.gateway_name }}
+      AUTHORIZER_FUNCTION_NAME: ${{ inputs.authorizer_function_name }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Validate environment isolation
+        run: node scripts/validate-deployment-config.cjs
+
+  quality-checks:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            functions/lead-intake/package-lock.json
+            functions/fitbase-schedule/package-lock.json
+            functions/staging-authorizer/package-lock.json
+
+      - name: Install dependencies
+        run: |
+          npm ci
+          npm ci --prefix functions/lead-intake
+          npm ci --prefix functions/fitbase-schedule
+          npm ci --prefix functions/staging-authorizer
+
+      - name: Run linters
+        run: |
+          npm run lint
+          npm run lint:public
+
+      - name: Run tests
+        run: |
+          npm run test:lead-fn
+          npm run test:schedule-fn
+          npm run test:lead-import
+          npm run test:monitoring
+          npm run test:staging-authorizer
+
+      - name: Verify static production-like build
+        env:
+          LEAD_API_URL: https://example.invalid/lead
+          SCHEDULE_API_URL: https://example.invalid/schedule
+          ASSET_VERSION: ci-${{ github.run_number }}
+        run: npm run test:build
+
+      - name: Verify protected staging build
+        run: npm run test:build:staging
+
+  deploy-function:
+    needs: [validate-config, quality-checks]
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.deployment_environment }}
+    outputs:
+      function_url: ${{ steps.get-url.outputs.url }}
+      function_id: ${{ steps.get-url.outputs.id }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install lead function dependencies
+        run: npm ci --prefix functions/lead-intake
+
+      - name: Install Yandex Cloud CLI
+        run: bash scripts/install-yc-cli.sh
+
+      - name: Authenticate with GitHub OIDC
+        env:
+          YC_FOLDER_ID: ${{ vars.YC_FOLDER_ID }}
+          YC_DEPLOY_SERVICE_ACCOUNT_ID: ${{ vars.YC_DEPLOY_SERVICE_ACCOUNT_ID }}
+          YC_WIF_AUDIENCE: https://github.com/zvenfit
+        run: bash scripts/auth-yc-wif.sh
+
+      - name: Deploy lead Cloud Function
+        env:
+          DEPLOYMENT_ENVIRONMENT: ${{ inputs.deployment_environment }}
+          NODE_ENV: ${{ inputs.deployment_environment }}
+          YC_FOLDER_ID: ${{ vars.YC_FOLDER_ID }}
+          YC_LEAD_FUNCTION_NAME: ${{ inputs.lead_function_name }}
+          YC_LEAD_RETRY_TRIGGER_NAME: ${{ inputs.lead_retry_trigger_name }}
+          YDB_DATABASE_NAME: ${{ inputs.ydb_database_name }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          MANAGE_LEAD_RETRY_TRIGGER: 'false'
+          LEAD_RATE_LIMIT_SECRET: ${{ secrets.LEAD_RATE_LIMIT_SECRET }}
+          ALLOWED_ORIGINS: ${{ inputs.allowed_origins }}
+          YC_LEAD_SERVICE_ACCOUNT_ID: ${{ vars.YC_LEAD_SERVICE_ACCOUNT_ID }}
+          FUNCTION_INVOKER_MODE: ${{ inputs.site_access_mode == 'authenticated-gateway' && 'gateway' || 'public' }}
+          YC_GATEWAY_SERVICE_ACCOUNT_ID: ${{ vars.YC_GATEWAY_SERVICE_ACCOUNT_ID }}
+          YC_LEAD_TIMEOUT: ${{ vars.YC_LEAD_TIMEOUT || '120s' }}
+          YDB_LEADS_TABLE: ${{ vars.YDB_LEADS_TABLE || 'leads' }}
+          YDB_RATE_LIMITS_TABLE: ${{ vars.YDB_RATE_LIMITS_TABLE || 'lead_rate_limits' }}
+          LEAD_RATE_LIMIT_MAX: ${{ vars.LEAD_RATE_LIMIT_MAX || '5' }}
+          LEAD_RATE_LIMIT_WINDOW_SECONDS: ${{ vars.LEAD_RATE_LIMIT_WINDOW_SECONDS || '600' }}
+          MAX_TELEGRAM_ATTEMPTS: ${{ vars.MAX_TELEGRAM_ATTEMPTS || '12' }}
+          TELEGRAM_RETRY_BATCH_SIZE: ${{ vars.TELEGRAM_RETRY_BATCH_SIZE || '5' }}
+          TELEGRAM_TIMEOUT_MS: ${{ vars.TELEGRAM_TIMEOUT_MS || '15000' }}
+          YDB_QUERY_TIMEOUT_MS: ${{ vars.YDB_QUERY_TIMEOUT_MS || '5000' }}
+          YDB_SLOW_OPERATION_MS: ${{ vars.YDB_SLOW_OPERATION_MS || '1000' }}
+          YDB_SESSION_POOL_SIZE: ${{ vars.YDB_SESSION_POOL_SIZE || '5' }}
+          MONIUM_METRICS_ENABLED: ${{ inputs.deployment_environment == 'production' && 'true' || 'false' }}
+          MONIUM_API_KEY: ${{ secrets.MONIUM_API_KEY }}
+          MONIUM_PROJECT: folder__${{ vars.YC_FOLDER_ID }}
+          MONIUM_CLUSTER: default
+          MONIUM_SERVICE: zvenfit-frontend
+          MONIUM_METRICS_TIMEOUT_MS: '1000'
+          LOG_LEVEL: ${{ env.LOG_LEVEL }}
+        run: bash scripts/deploy-lead-intake.sh
+
+      - name: Get lead function URL
+        id: get-url
+        env:
+          FUNCTION_NAME: ${{ inputs.lead_function_name }}
+        run: |
+          URL=$(yc serverless function get --name="$FUNCTION_NAME" --format=json | jq -r '.http_invoke_url // empty')
+          if [ -z "$URL" ]; then
+            echo "ERROR: Failed to get lead function URL" >&2
+            exit 1
+          fi
+          echo "url=${URL}" >> $GITHUB_OUTPUT
+          ID=$(yc serverless function get --name="$FUNCTION_NAME" --format=json | jq -r '.id // empty')
+          if [ -z "$ID" ]; then
+            echo "ERROR: Failed to get lead function ID" >&2
+            exit 1
+          fi
+          echo "id=${ID}" >> $GITHUB_OUTPUT
+          echo "Lead function URL: ${URL}"
+
+  deploy-schedule-function:
+    needs: [validate-config, quality-checks]
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.deployment_environment }}
+    outputs:
+      function_url: ${{ steps.get-schedule-url.outputs.url }}
+      function_id: ${{ steps.get-schedule-url.outputs.id }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install schedule function dependencies
+        run: npm ci --prefix functions/fitbase-schedule
+
+      - name: Install Yandex Cloud CLI
+        run: bash scripts/install-yc-cli.sh
+
+      - name: Authenticate with GitHub OIDC
+        env:
+          YC_FOLDER_ID: ${{ vars.YC_FOLDER_ID }}
+          YC_DEPLOY_SERVICE_ACCOUNT_ID: ${{ vars.YC_DEPLOY_SERVICE_ACCOUNT_ID }}
+          YC_WIF_AUDIENCE: https://github.com/zvenfit
+        run: bash scripts/auth-yc-wif.sh
+
+      - name: Deploy schedule Cloud Function
+        env:
+          DEPLOYMENT_ENVIRONMENT: ${{ inputs.deployment_environment }}
+          NODE_ENV: ${{ inputs.deployment_environment }}
+          YC_FOLDER_ID: ${{ vars.YC_FOLDER_ID }}
+          YC_SCHEDULE_FUNCTION_NAME: ${{ inputs.schedule_function_name }}
+          FUNCTION_INVOKER_MODE: ${{ inputs.site_access_mode == 'authenticated-gateway' && 'gateway' || 'public' }}
+          YC_GATEWAY_SERVICE_ACCOUNT_ID: ${{ vars.YC_GATEWAY_SERVICE_ACCOUNT_ID }}
+          FITBASE_API_TOKEN: ${{ secrets.FITBASE_API_TOKEN }}
+          FITBASE_DOMAIN: ${{ vars.FITBASE_DOMAIN || 'zvenfit' }}
+          FITBASE_CLUB_ID: ${{ vars.FITBASE_CLUB_ID }}
+          ALLOWED_ORIGINS: ${{ inputs.allowed_origins }}
+          LOG_LEVEL: ${{ env.LOG_LEVEL }}
+        run: bash scripts/deploy-fitbase-schedule.sh
+
+      - name: Get schedule function URL
+        id: get-schedule-url
+        env:
+          FUNCTION_NAME: ${{ inputs.schedule_function_name }}
+        run: |
+          URL=$(yc serverless function get --name="$FUNCTION_NAME" --format=json | jq -r '.http_invoke_url // empty')
+          if [ -z "$URL" ]; then
+            echo "ERROR: Failed to get schedule function URL" >&2
+            exit 1
+          fi
+          echo "url=${URL}" >> $GITHUB_OUTPUT
+          ID=$(yc serverless function get --name="$FUNCTION_NAME" --format=json | jq -r '.id // empty')
+          if [ -z "$ID" ]; then
+            echo "ERROR: Failed to get schedule function ID" >&2
+            exit 1
+          fi
+          echo "id=${ID}" >> $GITHUB_OUTPUT
+          echo "Schedule function URL: ${URL}"
+
+  deploy-authorizer:
+    needs: [validate-config, quality-checks]
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.deployment_environment }}
+    outputs:
+      function_id: ${{ steps.get-authorizer-id.outputs.id }}
+      previous_version_id: ${{ steps.deploy-authorizer.outputs.previous_version_id }}
+      candidate_version_id: ${{ steps.deploy-authorizer.outputs.candidate_version_id }}
+
+    steps:
+      - name: Production does not use a staging authorizer
+        if: inputs.site_access_mode == 'public'
+        id: disabled-authorizer
+        run: echo "Public production keeps its existing direct function access"
+
+      - name: Checkout repository
+        if: inputs.site_access_mode == 'authenticated-gateway'
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Set up Node.js
+        if: inputs.site_access_mode == 'authenticated-gateway'
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install authorizer dependencies
+        if: inputs.site_access_mode == 'authenticated-gateway'
+        run: npm ci --prefix functions/staging-authorizer
+
+      - name: Install Yandex Cloud CLI
+        if: inputs.site_access_mode == 'authenticated-gateway'
+        run: bash scripts/install-yc-cli.sh
+
+      - name: Authenticate with GitHub OIDC
+        if: inputs.site_access_mode == 'authenticated-gateway'
+        env:
+          YC_FOLDER_ID: ${{ vars.YC_FOLDER_ID }}
+          YC_DEPLOY_SERVICE_ACCOUNT_ID: ${{ vars.YC_DEPLOY_SERVICE_ACCOUNT_ID }}
+          YC_WIF_AUDIENCE: https://github.com/zvenfit
+        run: bash scripts/auth-yc-wif.sh
+
+      - name: Deploy private staging authorizer
+        if: inputs.site_access_mode == 'authenticated-gateway'
+        id: deploy-authorizer
+        env:
+          DEPLOYMENT_ENVIRONMENT: ${{ inputs.deployment_environment }}
+          YC_FOLDER_ID: ${{ vars.YC_FOLDER_ID }}
+          YC_STAGING_AUTHORIZER_FUNCTION_NAME: ${{ inputs.authorizer_function_name }}
+          YC_GATEWAY_SERVICE_ACCOUNT_ID: ${{ vars.YC_GATEWAY_SERVICE_ACCOUNT_ID }}
+          STAGING_BASIC_AUTH_USERNAME: ${{ secrets.STAGING_BASIC_AUTH_USERNAME }}
+          STAGING_BASIC_AUTH_PASSWORD: ${{ secrets.STAGING_BASIC_AUTH_PASSWORD }}
+        run: bash scripts/deploy-staging-authorizer.sh
+
+      - name: Get staging authorizer function ID
+        if: inputs.site_access_mode == 'authenticated-gateway'
+        id: get-authorizer-id
+        env:
+          FUNCTION_NAME: ${{ inputs.authorizer_function_name }}
+        run: |
+          ID=$(yc serverless function get --name="$FUNCTION_NAME" --format=json | jq -r '.id // empty')
+          if [ -z "$ID" ]; then
+            echo "ERROR: Failed to get staging authorizer function ID" >&2
+            exit 1
+          fi
+          echo "id=${ID}" >> $GITHUB_OUTPUT
+
+  deploy-site:
+    needs: [validate-config, deploy-function, deploy-schedule-function, deploy-authorizer]
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.deployment_environment }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build app
+        env:
+          NODE_ENV: ${{ inputs.deployment_environment }}
+          LEAD_API_URL: ${{ inputs.site_access_mode == 'authenticated-gateway' && format('{0}/api/lead', inputs.site_url) || needs.deploy-function.outputs.function_url }}
+          SCHEDULE_API_URL: ${{ inputs.site_access_mode == 'authenticated-gateway' && format('{0}/api/schedule', inputs.site_url) || needs.deploy-schedule-function.outputs.function_url }}
+          Y_MAPS_API_KEY: ${{ vars.Y_MAPS_API_KEY }}
+          ASSET_VERSION: ${{ vars.ASSET_VERSION || github.run_number }}
+        run: |
+          if [ -z "$LEAD_API_URL" ]; then
+            echo "ERROR: LEAD_API_URL is empty — deploy-function output was not passed" >&2
+            exit 1
+          fi
+          if [ -z "$SCHEDULE_API_URL" ]; then
+            echo "ERROR: SCHEDULE_API_URL is empty — deploy-schedule-function output was not passed" >&2
+            exit 1
+          fi
+          echo "Building environment: $NODE_ENV"
+          echo "Building with LEAD_API_URL: $LEAD_API_URL"
+          echo "Building with SCHEDULE_API_URL: $SCHEDULE_API_URL"
+          echo "Building with ASSET_VERSION: $ASSET_VERSION"
+          npm run build
+
+      - name: Install Yandex Cloud CLI
+        run: bash scripts/install-yc-cli.sh
+
+      - name: Authenticate with GitHub OIDC
+        env:
+          YC_FOLDER_ID: ${{ vars.YC_FOLDER_ID }}
+          YC_DEPLOY_SERVICE_ACCOUNT_ID: ${{ vars.YC_DEPLOY_SERVICE_ACCOUNT_ID }}
+          YC_WIF_AUDIENCE: https://github.com/zvenfit
+        run: bash scripts/auth-yc-wif.sh
+
+      - name: Issue ephemeral Object Storage credentials
+        env:
+          YC_DEPLOY_SERVICE_ACCOUNT_ID: ${{ vars.YC_DEPLOY_SERVICE_ACCOUNT_ID }}
+          OBJECT_STORAGE_BUCKET: ${{ inputs.s3_bucket }}
+        run: bash scripts/issue-ephemeral-storage-key.sh
+
+      - name: Verify AWS CLI
+        run: aws --version
+
+      - name: Preflight private staging storage boundary
+        if: inputs.site_access_mode == 'authenticated-gateway'
+        env:
+          STAGING_BUCKET: ${{ inputs.s3_bucket }}
+        run: |
+          yc storage bucket get --name "$STAGING_BUCKET" --format=json |
+            node scripts/verify-storage-access.cjs metadata
+          aws s3api get-bucket-acl --bucket "$STAGING_BUCKET" --output json |
+            node scripts/verify-storage-access.cjs acl
+          POLICY_FILE="${RUNNER_TEMP}/staging-bucket-policy.json"
+          POLICY_ERROR="${RUNNER_TEMP}/staging-bucket-policy.error"
+          if aws s3api get-bucket-policy --bucket "$STAGING_BUCKET" --output json > "$POLICY_FILE" 2> "$POLICY_ERROR"; then
+            node scripts/verify-storage-access.cjs policy < "$POLICY_FILE"
+          elif ! grep -q 'NoSuchBucketPolicy' "$POLICY_ERROR"; then
+            sed 's/.*/Object Storage policy lookup failed/' "$POLICY_ERROR" >&2
+            exit 1
+          fi
+          node scripts/assert-private-http.cjs \
+            "https://storage.yandexcloud.net/${STAGING_BUCKET}/index.html" \
+            --allow-missing
+
+      - name: Upload immutable assets to Yandex Object Storage
+        run: |
+          aws s3 sync ./dist s3://${{ inputs.s3_bucket }} \
+            --delete \
+            --exclude "*.html" \
+            --exclude "robots.txt" \
+            --exclude "sitemap.xml" \
+            --cache-control "public, max-age=31536000, immutable" \
+            --metadata-directive REPLACE
+
+      - name: Upload crawl metadata (no-cache)
+        run: |
+          aws s3 sync ./dist s3://${{ inputs.s3_bucket }} \
+            --delete \
+            --exclude "*" \
+            --include "robots.txt" \
+            --include "sitemap.xml" \
+            --cache-control "no-cache, must-revalidate" \
+            --metadata-directive REPLACE
+
+      - name: Upload HTML (no-cache)
+        run: |
+          aws s3 sync ./dist s3://${{ inputs.s3_bucket }} \
+            --delete \
+            --exclude "*" \
+            --include "*.html" \
+            --cache-control "no-cache, must-revalidate" \
+            --metadata-directive REPLACE
+
+      - name: Verify uploaded staging objects remain private
+        if: inputs.site_access_mode == 'authenticated-gateway'
+        env:
+          STAGING_BUCKET: ${{ inputs.s3_bucket }}
+        run: |
+          aws s3api get-object-acl --bucket "$STAGING_BUCKET" --key index.html --output json |
+            node scripts/verify-storage-access.cjs acl
+          node scripts/assert-private-http.cjs \
+            "https://storage.yandexcloud.net/${STAGING_BUCKET}/index.html"
+
+      - name: Deploy authenticated staging gateway
+        if: inputs.site_access_mode == 'authenticated-gateway'
+        env:
+          DEPLOYMENT_ENVIRONMENT: ${{ inputs.deployment_environment }}
+          YC_FOLDER_ID: ${{ vars.YC_FOLDER_ID }}
+          YC_STAGING_GATEWAY_NAME: ${{ inputs.gateway_name }}
+          YC_GATEWAY_SERVICE_ACCOUNT_ID: ${{ vars.YC_GATEWAY_SERVICE_ACCOUNT_ID }}
+          STAGING_BUCKET: ${{ inputs.s3_bucket }}
+          STAGING_AUTHORIZER_FUNCTION_ID: ${{ needs.deploy-authorizer.outputs.function_id }}
+          STAGING_LEAD_FUNCTION_ID: ${{ needs.deploy-function.outputs.function_id }}
+          STAGING_SCHEDULE_FUNCTION_ID: ${{ needs.deploy-schedule-function.outputs.function_id }}
+          STAGING_SWS_SECURITY_PROFILE_ID: ${{ vars.YC_SWS_SECURITY_PROFILE_ID }}
+        run: bash scripts/deploy-staging-gateway.sh
+
+      - name: Non-persisting environment smoke test
+        env:
+          SITE_URL: ${{ inputs.site_url }}
+          STAGING_BASIC_AUTH_USERNAME: ${{ inputs.site_access_mode == 'authenticated-gateway' && secrets.STAGING_BASIC_AUTH_USERNAME || '' }}
+          STAGING_BASIC_AUTH_PASSWORD: ${{ inputs.site_access_mode == 'authenticated-gateway' && secrets.STAGING_BASIC_AUTH_PASSWORD || '' }}
+        run: |
+          for attempt in 1 2 3 4 5 6; do
+            if npm run smoke:production -- --site "$SITE_URL"; then
+              exit 0
+            fi
+            if [ "$attempt" -lt 6 ]; then
+              echo "Site edge is not ready yet; retrying in 10 seconds"
+              sleep 10
+            fi
+          done
+          exit 1
+
+  rollback-staging-authorizer:
+    needs: [deploy-authorizer, deploy-site]
+    if: >-
+      ${{ always() && inputs.site_access_mode == 'authenticated-gateway' &&
+          needs.deploy-authorizer.result == 'success' && needs.deploy-site.result != 'success' }}
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.deployment_environment }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install Yandex Cloud CLI
+        run: bash scripts/install-yc-cli.sh
+
+      - name: Authenticate with GitHub OIDC
+        env:
+          YC_FOLDER_ID: ${{ vars.YC_FOLDER_ID }}
+          YC_DEPLOY_SERVICE_ACCOUNT_ID: ${{ vars.YC_DEPLOY_SERVICE_ACCOUNT_ID }}
+          YC_WIF_AUDIENCE: https://github.com/zvenfit
+        run: bash scripts/auth-yc-wif.sh
+
+      - name: Restore previous live authorizer version
+        env:
+          DEPLOYMENT_ENVIRONMENT: staging
+          PREVIOUS_VERSION_ID: ${{ needs.deploy-authorizer.outputs.previous_version_id }}
+          CANDIDATE_VERSION_ID: ${{ needs.deploy-authorizer.outputs.candidate_version_id }}
+        run: bash scripts/rollback-staging-authorizer.sh

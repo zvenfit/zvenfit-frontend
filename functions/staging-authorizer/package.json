@@ -1,0 +1,18 @@
+{
+  "name": "zvenfit-staging-authorizer",
+  "version": "1.0.0",
+  "private": true,
+  "description": "HTTP Basic authorizer for the private ZvenFit staging gateway",
+  "scripts": {
+    "build": "rm -rf build && tsc --project tsconfig.build.json",
+    "typecheck": "tsc --project tsconfig.json --noEmit",
+    "test": "npm run typecheck && npm run test:unit && npm run test:artifact",
+    "test:unit": "node --import tsx --test src/__tests__/*.test.ts",
+    "test:artifact": "npm run build && node --test src/__tests__/deployment.test.cjs"
+  },
+  "devDependencies": {
+    "@types/node": "22.15.3",
+    "tsx": "4.20.6",
+    "typescript": "5.9.3"
+  }
+}

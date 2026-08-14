@@ -133,6 +133,7 @@ module.exports = {
           './tsconfig.test.json',
           './functions/lead-intake/tsconfig.json',
           './functions/fitbase-schedule/tsconfig.json',
+          './functions/staging-authorizer/tsconfig.json',
         ],
         sourceType: 'module',
         ecmaFeatures: { jsx: true },

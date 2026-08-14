@@ -2,12 +2,9 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 
-const scheduleHandler = require('./functions/fitbase-schedule/build/index.js');
-
+const HOST = '127.0.0.1';
 const PORT = 3000;
 const rootDir = __dirname;
-const scheduleFixturePath = path.join(rootDir, 'scripts', 'fixtures', 'schedule.mock.json');
-const scheduleFixture = JSON.parse(fs.readFileSync(scheduleFixturePath, 'utf8'));
 
 function loadEnvFile(filename) {
   const filepath = path.join(rootDir, filename);
@@ -29,10 +26,7 @@ function loadEnvFile(filename) {
 
     const key = trimmed.slice(0, separatorIndex).trim();
     let value = trimmed.slice(separatorIndex + 1).trim();
-    if (
-      (value.startsWith('"') && value.endsWith('"')) ||
-      (value.startsWith("'") && value.endsWith("'"))
-    ) {
+    if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
       value = value.slice(1, -1);
     }
 
@@ -44,8 +38,14 @@ function loadEnvFile(filename) {
 
 loadEnvFile('.env.development');
 
-const useFitbaseSchedule =
-  Boolean(process.env.FITBASE_API_TOKEN) && process.env.USE_SCHEDULE_FIXTURE !== '1';
+const localScheduleProvider = (process.env.SCHEDULE_PROVIDER || 'fixture').trim();
+if (!['fitbase', 'fixture'].includes(localScheduleProvider)) {
+  throw new Error('SCHEDULE_PROVIDER must be fitbase or fixture');
+}
+
+const useFitbaseSchedule = localScheduleProvider === 'fitbase';
+const productionScheduleHandler = require('./functions/fitbase-schedule/build/index.js');
+const stagingScheduleHandler = require('./functions/fitbase-schedule/build-staging/entrypoints/staging.js');
 
 if (!process.env.FITBASE_DOMAIN) {
   process.env.FITBASE_DOMAIN = 'zvenfit';
@@ -69,10 +69,20 @@ function sendHandlerResponse(res, result) {
   res.end(result.body);
 }
 
+function getMoscowDateString(date = new Date()) {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Moscow' }).format(date);
+}
+
+function addDays(dateString, days) {
+  const [year, month, day] = dateString.split('-').map(Number);
+
+  return new Date(Date.UTC(year, month - 1, day + days)).toISOString().slice(0, 10);
+}
+
 async function handleScheduleRequest(req, res) {
-  const requestUrl = new URL(req.url, `http://localhost:${PORT}`);
-  const from = requestUrl.searchParams.get('from') || scheduleFixture.from;
-  const to = requestUrl.searchParams.get('to') || scheduleFixture.to;
+  const requestUrl = new URL(req.url, `http://${HOST}:${PORT}`);
+  const from = requestUrl.searchParams.get('from') || getMoscowDateString();
+  const to = requestUrl.searchParams.get('to') || addDays(from, 13);
 
   console.log(`\n📅 Schedule request: ${from} → ${to}`);
 
@@ -83,7 +93,7 @@ async function handleScheduleRequest(req, res) {
     }
 
     try {
-      const result = await scheduleHandler.handler({
+      const result = await productionScheduleHandler.handler({
         httpMethod: 'GET',
         headers: {
           origin: req.headers.origin || 'http://localhost:4173',
@@ -112,13 +122,12 @@ async function handleScheduleRequest(req, res) {
   }
 
   console.log('   Fixture mode (Fitbase unavailable)');
-
-  sendJson(res, 200, {
-    ...scheduleFixture,
-    from,
-    to,
-    count: scheduleFixture.items.length,
+  const result = await stagingScheduleHandler.handler({
+    httpMethod: 'GET',
+    headers: { origin: req.headers.origin || 'http://localhost:4173' },
+    queryStringParameters: { from, to },
   });
+  sendHandlerResponse(res, result);
 }
 
 http
@@ -167,8 +176,8 @@ http
     res.writeHead(404);
     res.end('Not Found');
   })
-  .listen(PORT, () => {
-    console.log(`🚀 Mock API сервер запущен: http://localhost:${PORT}`);
+  .listen(PORT, HOST, () => {
+    console.log(`🚀 Mock API сервер запущен: http://${HOST}:${PORT}`);
     console.log('  POST /          — lead form');
     if (useFitbaseSchedule) {
       console.log('  GET  /schedule  — Fitbase API (live)');
@@ -177,7 +186,7 @@ http
         console.log(`  club: ${process.env.FITBASE_CLUB_ID}`);
       }
     } else {
-      console.log('  GET  /schedule  — fixture (set FITBASE_API_TOKEN in .env.development for live data)');
+      console.log('  GET  /schedule  — dynamic fixture (set SCHEDULE_PROVIDER=fitbase for live data)');
     }
     console.log('');
   });

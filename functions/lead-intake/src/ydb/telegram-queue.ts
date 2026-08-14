@@ -2,6 +2,7 @@ import { dueIndexName, queueHealthIndexName, tableName } from './config';
 import {
   firstResultSet,
   observed,
+  observedReadOnly,
   rowToLead,
   stringValue,
   timed,
@@ -154,7 +155,7 @@ export async function listTelegramCandidates({
   limit: number;
   logger?: LoggerLike;
 }): Promise<string[]> {
-  return observed('list_telegram_candidates', logger, async sql => {
+  return observedReadOnly('list_telegram_candidates', logger, async sql => {
     const leadsTable = sql.identifier(tableName());
     const dueIndex = sql.identifier(dueIndexName());
     const safeLimit = Math.min(Math.max(Number(limit) || 1, 1), 100);
@@ -187,7 +188,7 @@ export async function getTelegramQueueHealth({
   now: Date;
   logger?: LoggerLike;
 }): Promise<TelegramQueueHealth> {
-  return observed('get_telegram_queue_health', logger, async sql => {
+  return observedReadOnly('get_telegram_queue_health', logger, async sql => {
     const leadsTable = sql.identifier(tableName());
     const queueHealthIndex = sql.identifier(queueHealthIndexName());
     const rows = firstResultSet(

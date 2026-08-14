@@ -29,10 +29,7 @@ function loadEnvFile(filename) {
 
     const key = trimmed.slice(0, separatorIndex).trim();
     let value = trimmed.slice(separatorIndex + 1).trim();
-    if (
-      (value.startsWith('"') && value.endsWith('"')) ||
-      (value.startsWith("'") && value.endsWith("'"))
-    ) {
+    if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
       value = value.slice(1, -1);
     }
 
@@ -50,21 +47,9 @@ const appDownloadDesktopMarker = '<!-- ZvenFit: app-download-links-desktop -->';
 const appDownloadMobileMarker = '<!-- ZvenFit: app-download-links-mobile -->';
 const appDownloadPlatformsMarker = '<!-- ZvenFit: app-download-platforms-section -->';
 const appDownloadPromoMarker = '<!-- ZvenFit: app-download-promo-section -->';
-const appDownloadBadgesSnippetPath = path.join(
-  __dirname,
-  'snippets',
-  'app-download-badges.html',
-);
-const appDownloadPlatformsSnippetPath = path.join(
-  __dirname,
-  'snippets',
-  'app-download-platforms-section.html',
-);
-const appDownloadPromoSnippetPath = path.join(
-  __dirname,
-  'snippets',
-  'app-download-promo-section.html',
-);
+const appDownloadBadgesSnippetPath = path.join(__dirname, 'snippets', 'app-download-badges.html');
+const appDownloadPlatformsSnippetPath = path.join(__dirname, 'snippets', 'app-download-platforms-section.html');
+const appDownloadPromoSnippetPath = path.join(__dirname, 'snippets', 'app-download-promo-section.html');
 const appLinksConfigPath = path.join(__dirname, 'app-links.config.json');
 const structuredDataConfigPath = path.join(__dirname, 'structured-data.config.json');
 const mapsConfigPath = path.join(__dirname, 'maps.config.json');
@@ -87,8 +72,7 @@ const CACHE_BUST_SCRIPTS = [
   'yandex-map.js',
 ];
 
-const MAP_IFRAME_RE =
-  /<div class="code-embed-4 w-embed w-iframe"><iframe[^>]*map-widget[^>]*>\s*<\/iframe><\/div>/g;
+const MAP_IFRAME_RE = /<div class="code-embed-4 w-embed w-iframe"><iframe[^>]*map-widget[^>]*>\s*<\/iframe><\/div>/g;
 
 function walkHtmlFiles(dir, files = []) {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -112,7 +96,7 @@ function getMapsConfig() {
 
 function getYandexMapUrl(location) {
   return (
-    location.sameAs?.find((url) => url.includes('yandex.ru/maps')) ||
+    location.sameAs?.find(url => url.includes('yandex.ru/maps')) ||
     `https://yandex.ru/maps/?ll=${location.longitude}%2C${location.latitude}&z=16&pt=${location.longitude},${location.latitude},pm2rdm`
   );
 }
@@ -135,11 +119,10 @@ function fetchYandexOrgPhotosFromPage(orgId) {
 
   try {
     const pageUrl = `https://yandex.ru/maps/org/zvenfit/${orgId}/`;
-    const result = spawnSync(
-      'curl',
-      ['-sSL', '-L', pageUrl, '-A', 'Mozilla/5.0', '-m', '25'],
-      { encoding: 'utf8', maxBuffer: 15 * 1024 * 1024 },
-    );
+    const result = spawnSync('curl', ['-sSL', '-L', pageUrl, '-A', 'Mozilla/5.0', '-m', '25'], {
+      encoding: 'utf8',
+      maxBuffer: 15 * 1024 * 1024,
+    });
 
     if (result.status !== 0 || !result.stdout) {
       return [];
@@ -175,9 +158,7 @@ function buildMapsRuntimeConfig(structuredDataConfig, mapsConfig) {
     const pinOverride = mapsConfig.locationPins?.[key];
     const orgId = mapsConfig.locationOrganizations?.[key] || '';
     const yandexPhotos = fetchYandexOrgPhotosFromPage(orgId);
-    const photos = yandexPhotos.length
-      ? yandexPhotos
-      : mapsConfig.locationPhotos?.[key] || [];
+    const photos = yandexPhotos.length ? yandexPhotos : mapsConfig.locationPhotos?.[key] || [];
     locations[key] = {
       name: location.name,
       streetAddress: location.streetAddress,
@@ -245,15 +226,13 @@ function writeMapsConfig(distDir, structuredDataConfig, mapsConfig) {
   const template = fs.readFileSync(mapsConfigPathDist, 'utf8');
   const placeholderCount = template.split(MAPS_CONFIG_PLACEHOLDER).length - 1;
   if (placeholderCount !== 1) {
-    throw new Error(`build-static: maps config template must contain exactly one placeholder; found ${placeholderCount}`);
+    throw new Error(
+      `build-static: maps config template must contain exactly one placeholder; found ${placeholderCount}`,
+    );
   }
 
   const output = template.replace(MAPS_CONFIG_PLACEHOLDER, JSON.stringify(runtimeConfig, null, 2));
-  fs.writeFileSync(
-    mapsConfigPathDist,
-    output,
-    'utf8',
-  );
+  fs.writeFileSync(mapsConfigPathDist, output, 'utf8');
 }
 
 function bustAssetUrls(html, assetVersion) {
@@ -266,10 +245,7 @@ function bustAssetUrls(html, assetVersion) {
   for (const scriptName of CDN_VENDOR_JS) {
     const localPath = `/js/${scriptName}`;
     const cdnPath = `${ASSETS_CDN_BASE}${localPath}`;
-    const pattern = new RegExp(
-      `(?:${escapeRegExp(cdnPath)}|${escapeRegExp(localPath)})(?:\\?v=[^"']*)?`,
-      'g',
-    );
+    const pattern = new RegExp(`(?:${escapeRegExp(cdnPath)}|${escapeRegExp(localPath)})(?:\\?v=[^"']*)?`, 'g');
     nextHtml = nextHtml.replace(pattern, `${cdnPath}?v=${assetVersion}`);
   }
 
@@ -328,9 +304,7 @@ function injectUtmHead(html, assetVersion) {
     return html;
   }
 
-  const snippet = fs
-    .readFileSync(utmSnippetPath, 'utf8')
-    .replaceAll('__ASSET_VERSION__', assetVersion);
+  const snippet = fs.readFileSync(utmSnippetPath, 'utf8').replaceAll('__ASSET_VERSION__', assetVersion);
   return html.replace('</head>', `${snippet}</head>`);
 }
 
@@ -343,15 +317,29 @@ function injectAnalyticsHead(html) {
   return html.replace('</head>', `${snippet}</head>`);
 }
 
-function injectHeadSnippets(html, assetVersion) {
-  return injectUtmHead(injectAnalyticsHead(html), assetVersion);
+function injectHeadSnippets(html, assetVersion, { includeAnalytics = true } = {}) {
+  const withAnalytics = includeAnalytics ? injectAnalyticsHead(html) : html;
+  return injectUtmHead(withAnalytics, assetVersion);
+}
+
+function injectStagingRobotsMeta(html) {
+  if (!html.includes('</head>')) {
+    return html;
+  }
+
+  const withoutExistingRobots = html.replace(/\s*<meta\s+name=["']robots["'][^>]*>/gi, '');
+  return withoutExistingRobots.replace('</head>', '  <meta name="robots" content="noindex, nofollow">\n</head>');
+}
+
+function stripGoogleTagManager(html) {
+  return html
+    .replace(/\s*<script\b[^>]*>[\s\S]*?googletagmanager\.com\/gtm\.js[\s\S]*?<\/script>/gi, '\n')
+    .replace(/\s*<noscript>[\s\S]*?googletagmanager\.com\/ns\.html[\s\S]*?<\/noscript>/gi, '\n')
+    .replace(/\s*<!--\s*(?:End )?Google Tag Manager(?: \(noscript\))?\s*-->/gi, '\n');
 }
 
 function escapeHtmlAttr(value) {
-  return String(value)
-    .replace(/&/g, '&amp;')
-    .replace(/"/g, '&quot;')
-    .replace(/</g, '&lt;');
+  return String(value).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
 }
 
 function extractCanonicalUrl(html, siteUrl, pagePath) {
@@ -376,23 +364,16 @@ function injectOpenGraphHead(html, pagePath, config) {
   const siteUrl = config.siteUrl.replace(/\/$/, '');
   const meta = extractPageMeta(html);
   const pageUrl = extractCanonicalUrl(html, siteUrl, pagePath);
-  const ogImage = resolveStructuredDataUrl(
-    siteUrl,
-    config.openGraph?.image || config.organization.logo,
-  );
+  const ogImage = resolveStructuredDataUrl(siteUrl, config.openGraph?.image || config.organization.logo);
   const ogSiteName = config.openGraph?.siteName || config.organization.name;
   const tags = [];
 
   if (!html.includes('property="og:title"') && meta.title) {
-    tags.push(
-      `<meta property="og:title" content="${escapeHtmlAttr(meta.title)}">`,
-    );
+    tags.push(`<meta property="og:title" content="${escapeHtmlAttr(meta.title)}">`);
   }
 
   if (!html.includes('property="og:description"') && meta.description) {
-    tags.push(
-      `<meta property="og:description" content="${escapeHtmlAttr(meta.description)}">`,
-    );
+    tags.push(`<meta property="og:description" content="${escapeHtmlAttr(meta.description)}">`);
   }
 
   if (!html.includes('property="og:url"')) {
@@ -408,9 +389,7 @@ function injectOpenGraphHead(html, pagePath, config) {
   }
 
   if (!html.includes('property="og:site_name"') && ogSiteName) {
-    tags.push(
-      `<meta property="og:site_name" content="${escapeHtmlAttr(ogSiteName)}">`,
-    );
+    tags.push(`<meta property="og:site_name" content="${escapeHtmlAttr(ogSiteName)}">`);
   }
 
   if (!html.includes('property="og:image"') && ogImage) {
@@ -422,15 +401,11 @@ function injectOpenGraphHead(html, pagePath, config) {
   }
 
   if (!html.includes('property="twitter:title"') && meta.title) {
-    tags.push(
-      `<meta property="twitter:title" content="${escapeHtmlAttr(meta.title)}">`,
-    );
+    tags.push(`<meta property="twitter:title" content="${escapeHtmlAttr(meta.title)}">`);
   }
 
   if (!html.includes('property="twitter:description"') && meta.description) {
-    tags.push(
-      `<meta property="twitter:description" content="${escapeHtmlAttr(meta.description)}">`,
-    );
+    tags.push(`<meta property="twitter:description" content="${escapeHtmlAttr(meta.description)}">`);
   }
 
   if (!tags.length) {
@@ -480,7 +455,7 @@ function buildOpeningHours(location) {
   }
 
   return {
-    openingHoursSpecification: location.openingHours.map((spec) => ({
+    openingHoursSpecification: location.openingHours.map(spec => ({
       '@type': 'OpeningHoursSpecification',
       dayOfWeek: spec.dayOfWeek,
       opens: spec.opens,
@@ -503,7 +478,7 @@ function buildOrganizationNode(config, siteUrl, { full = false } = {}) {
   }
 
   if (full) {
-    node.subOrganization = Object.values(config.locations).map((location) => ({
+    node.subOrganization = Object.values(config.locations).map(location => ({
       '@id': `${siteUrl}/#${location.id}`,
     }));
 
@@ -561,7 +536,7 @@ function buildBreadcrumbList(pagePath, siteUrl, config) {
     .replace(/^\/|\/$/g, '')
     .split('/')
     .filter(Boolean)
-    .filter((segment) => !skipSegments.has(segment));
+    .filter(segment => !skipSegments.has(segment));
   const items = [
     {
       '@type': 'ListItem',
@@ -629,9 +604,7 @@ function appendPromosStructuredData(pagePath, siteUrl, config, graph) {
     return null;
   }
 
-  const offerNodes = promosPage.offers.map((offer, index) =>
-    buildPromoOfferNode(offer, siteUrl, pagePath, index),
-  );
+  const offerNodes = promosPage.offers.map((offer, index) => buildPromoOfferNode(offer, siteUrl, pagePath, index));
 
   if (pagePath === '/promos/') {
     for (const offerNode of offerNodes) {
@@ -718,7 +691,7 @@ function buildStructuredData(pagePath, config, html) {
   }
 
   if (pagePath === '/contacts/platforms/') {
-    mainEntity = Object.values(config.locations).map((location) => ({
+    mainEntity = Object.values(config.locations).map(location => ({
       '@id': `${siteUrl}/#${location.id}`,
     }));
   }
@@ -766,12 +739,7 @@ function buildStructuredData(pagePath, config, html) {
     mainEntity = { '@id': personId };
   }
 
-  const promosMainEntity = appendPromosStructuredData(
-    pagePath,
-    siteUrl,
-    config,
-    graph,
-  );
+  const promosMainEntity = appendPromosStructuredData(pagePath, siteUrl, config, graph);
   if (promosMainEntity) {
     mainEntity = promosMainEntity;
   }
@@ -814,23 +782,20 @@ function injectStructuredData(html, pagePath, config) {
 }
 
 function applySlashPrefix(html) {
-  return html.replace(
-    /(<([a-zA-Z][\w-]*)([^>]*)>)\/\/([^<]+?)(<\/\2>)/g,
-    (match, _open, tag, attrs, text, close) => {
-      let newAttrs;
-      if (/class="([^"]*)"/.test(attrs)) {
-        newAttrs = attrs.replace(/class="([^"]*)"/, (_, classes) => {
-          if (classes.split(/\s+/).includes('slash-prefix')) {
-            return `class="${classes}"`;
-          }
-          return `class="${classes} slash-prefix"`;
-        });
-      } else {
-        newAttrs = `${attrs} class="slash-prefix"`;
-      }
-      return `<${tag}${newAttrs}>${text}${close}`;
-    },
-  );
+  return html.replace(/(<([a-zA-Z][\w-]*)([^>]*)>)\/\/([^<]+?)(<\/\2>)/g, (match, _open, tag, attrs, text, close) => {
+    let newAttrs;
+    if (/class="([^"]*)"/.test(attrs)) {
+      newAttrs = attrs.replace(/class="([^"]*)"/, (_, classes) => {
+        if (classes.split(/\s+/).includes('slash-prefix')) {
+          return `class="${classes}"`;
+        }
+        return `class="${classes} slash-prefix"`;
+      });
+    } else {
+      newAttrs = `${attrs} class="slash-prefix"`;
+    }
+    return `<${tag}${newAttrs}>${text}${close}`;
+  });
 }
 
 function loadAppLinksSnippet(snippetPath, appLinksConfig) {
@@ -892,16 +857,13 @@ function runBuild() {
   }
 
   const isDev = nodeEnv === 'development';
-  const leadApiUrl =
-    process.env.LEAD_API_URL || (isDev ? 'http://localhost:3000' : '');
-  const scheduleApiUrl =
-    process.env.SCHEDULE_API_URL || (isDev ? 'http://localhost:3000/schedule' : '');
+  const isStaging = nodeEnv === 'staging';
+  const leadApiUrl = process.env.LEAD_API_URL || (isDev ? 'http://localhost:3000' : '');
+  const scheduleApiUrl = process.env.SCHEDULE_API_URL || (isDev ? 'http://localhost:3000/schedule' : '');
   const assetVersion = process.env.ASSET_VERSION || '2';
   const appLinksConfig = getAppLinksConfig();
   const mapsConfig = getMapsConfig();
-  const structuredDataConfig = JSON.parse(
-    fs.readFileSync(structuredDataConfigPath, 'utf8'),
-  );
+  const structuredDataConfig = JSON.parse(fs.readFileSync(structuredDataConfigPath, 'utf8'));
 
   fs.rmSync(distDir, { recursive: true, force: true });
   fs.cpSync(publicDir, distDir, { recursive: true });
@@ -919,23 +881,19 @@ function runBuild() {
     const skipFooterAppBlock =
       htmlPath.includes(`${path.sep}contacts${path.sep}platforms${path.sep}`) ||
       htmlPath.includes(`${path.sep}promos${path.sep}apps${path.sep}`);
-    const withMapEmbeds = replaceMapEmbeds(html, pagePath, mapsConfig);
-    const withHeadSnippets = injectHeadSnippets(withMapEmbeds, assetVersion);
-    const withOpenGraph = injectOpenGraphHead(
-      withHeadSnippets,
-      pagePath,
-      structuredDataConfig,
-    );
-    const withStructuredData = injectStructuredData(
-      withOpenGraph,
-      pagePath,
-      structuredDataConfig,
-    );
+    const sourceHtml = isStaging ? stripGoogleTagManager(html) : html;
+    const withMapEmbeds = replaceMapEmbeds(sourceHtml, pagePath, mapsConfig);
+    const withHeadSnippets = injectHeadSnippets(withMapEmbeds, assetVersion, {
+      includeAnalytics: !isStaging,
+    });
+    const withOpenGraph = injectOpenGraphHead(withHeadSnippets, pagePath, structuredDataConfig);
+    const withStructuredData = injectStructuredData(withOpenGraph, pagePath, structuredDataConfig);
     const withMapScripts = injectMapScripts(
       injectAppDownloadLinks(withStructuredData, appLinksConfig, { skipFooterAppBlock }),
       assetVersion,
     );
-    const nextHtml = bustAssetUrls(applySlashPrefix(withMapScripts), assetVersion);
+    const environmentHtml = isStaging ? injectStagingRobotsMeta(withMapScripts) : withMapScripts;
+    const nextHtml = bustAssetUrls(applySlashPrefix(environmentHtml), assetVersion);
 
     if (nextHtml !== html) {
       fs.writeFileSync(htmlPath, nextHtml, 'utf8');
@@ -957,58 +915,46 @@ function runBuild() {
       structuredDataInjected += 1;
     }
 
-    if (
-      nextHtml.includes('class="app-download-block"') ||
-      nextHtml.includes('class="app-badges"')
-    ) {
+    if (nextHtml.includes('class="app-download-block"') || nextHtml.includes('class="app-badges"')) {
       appDownloadLinksInjected += 1;
     }
   }
 
   if (headSnippetsInjected > 0) {
     console.log(
-      `build-static: injected analytics + UTM attribution into ${headSnippetsInjected} HTML file(s)`,
+      `build-static: injected ${isStaging ? 'UTM attribution' : 'analytics + UTM attribution'} into ${headSnippetsInjected} HTML file(s)`,
     );
+  }
+
+  if (isStaging) {
+    fs.writeFileSync(path.join(distDir, 'robots.txt'), 'User-agent: *\nDisallow: /\n', 'utf8');
+    console.log('build-static: staging analytics disabled and robots set to noindex');
   }
 
   if (openGraphInjected > 0) {
-    console.log(
-      `build-static: injected Open Graph meta into ${openGraphInjected} HTML file(s)`,
-    );
+    console.log(`build-static: injected Open Graph meta into ${openGraphInjected} HTML file(s)`);
   }
 
   if (structuredDataInjected > 0) {
-    console.log(
-      `build-static: injected structured data into ${structuredDataInjected} HTML file(s)`,
-    );
+    console.log(`build-static: injected structured data into ${structuredDataInjected} HTML file(s)`);
   }
 
   if (appDownloadLinksInjected > 0) {
-    console.log(
-      `build-static: injected app download links into ${appDownloadLinksInjected} HTML file(s)`,
-    );
+    console.log(`build-static: injected app download links into ${appDownloadLinksInjected} HTML file(s)`);
   }
 
   const leadConfigPath = path.join(distDir, 'js', 'lead-config.js');
 
   if (fs.existsSync(leadConfigPath)) {
     const leadConfig = fs.readFileSync(leadConfigPath, 'utf8');
-    fs.writeFileSync(
-      leadConfigPath,
-      leadConfig.replaceAll('__LEAD_API_URL__', leadApiUrl),
-      'utf8',
-    );
+    fs.writeFileSync(leadConfigPath, leadConfig.replaceAll('__LEAD_API_URL__', leadApiUrl), 'utf8');
   }
 
   const scheduleConfigPath = path.join(distDir, 'js', 'schedule-config.js');
 
   if (fs.existsSync(scheduleConfigPath)) {
     const scheduleConfig = fs.readFileSync(scheduleConfigPath, 'utf8');
-    fs.writeFileSync(
-      scheduleConfigPath,
-      scheduleConfig.replaceAll('__SCHEDULE_API_URL__', scheduleApiUrl),
-      'utf8',
-    );
+    fs.writeFileSync(scheduleConfigPath, scheduleConfig.replaceAll('__SCHEDULE_API_URL__', scheduleApiUrl), 'utf8');
   }
 
   writeMapsConfig(distDir, structuredDataConfig, mapsConfig);
@@ -1019,9 +965,7 @@ function runBuild() {
 
   const yandexMapsApiKey = process.env.Y_MAPS_API_KEY || '';
   if (!yandexMapsApiKey) {
-    console.warn(
-      'build-static: Y_MAPS_API_KEY is empty — maps will show fallback links until it is set',
-    );
+    console.warn('build-static: Y_MAPS_API_KEY is empty — maps will show fallback links until it is set');
   } else {
     console.log('build-static: Y_MAPS_API_KEY is set');
   }
@@ -1033,9 +977,7 @@ function runBuild() {
   }
 
   if (!scheduleApiUrl) {
-    console.warn(
-      'build-static: SCHEDULE_API_URL is empty — schedule page will fail until it is set',
-    );
+    console.warn('build-static: SCHEDULE_API_URL is empty — schedule page will fail until it is set');
   } else {
     console.log(`build-static: SCHEDULE_API_URL=${scheduleApiUrl} (NODE_ENV=${nodeEnv})`);
   }
