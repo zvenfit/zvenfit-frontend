@@ -5,6 +5,7 @@
 - Инструкции для контрибьюторов и AI-агентов: [`AGENTS.md`](AGENTS.md)
 - Текущий backlog: [`TODO.md`](TODO.md)
 - Полная настройка инфраструктуры: [`docs/setup.md`](docs/setup.md)
+- Границы backend-слоёв и артефактов: [`docs/backend-architecture.md`](docs/backend-architecture.md)
 - Повторяемый production release checklist: [`docs/launch-checklist.md`](docs/launch-checklist.md)
 
 ## Быстрый старт
@@ -19,8 +20,9 @@ npm run dev:watch
 ```
 
 Локально сайт открывается на `http://localhost:4173`, mock API — на `http://localhost:3000`.
-Расписание использует динамический `fixture`, не зависящий от календарной даты. Для live Fitbase локально явно
-задай `SCHEDULE_PROVIDER=fitbase` и `FITBASE_API_TOKEN` в `.env.development`.
+Локальный mock-server использует staging-артефакт с динамическими синтетическими данными. Для live Fitbase локально
+явно задай `SCHEDULE_PROVIDER=fitbase` и `FITBASE_API_TOKEN` в `.env.development`; этот переключатель существует
+только в локальном сервере и не попадает в cloud runtime.
 
 ## Архитектура
 
@@ -30,9 +32,12 @@ Browser (zvenfit.ru) → public production functions
 Browser / Playwright
   └─ staging.zvenfit.ru (Basic-auth API Gateway)
        ├─ private Object Storage
-       ├─ private lead-intake → staging YDB → test Telegram
-       │                           ↑ retry timer
+       ├─ private lead-intake → staging YDB → fixture notification sink
+       │                           ↑ bootstrap-only retry timer
        └─ private fitbase-schedule → dynamic fixture
+
+Cloud Functions собираются из отдельных composition roots. Production-артефакты содержат Telegram/Fitbase
+адаптеры, staging-артефакты — только staging sink/fixtures; runtime-переключателей между ними нет.
 
 Local development
   ├─ mock-server :3000
@@ -70,7 +75,9 @@ npm run test:build
 npm run test:build:staging
 ```
 
-После production deploy выполни read-only smoke-test. Он проверяет страницы, runtime-конфиги, CORS lead API и ответ schedule API, но не отправляет форму и не создаёт заявку:
+После production deploy выполни read-only smoke-test. Он проверяет страницы,
+runtime-конфиги, CORS lead API и рабочую схему schedule API, но не отправляет
+форму и не создаёт заявку:
 
 ```bash
 npm run smoke:production

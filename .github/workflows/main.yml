@@ -10,6 +10,10 @@ concurrency:
   group: deploy-production
   cancel-in-progress: false
 
+permissions:
+  contents: read
+  id-token: write
+
 jobs:
   deploy:
     uses: ./.github/workflows/_deploy-environment.yml
@@ -19,11 +23,15 @@ jobs:
       s3_bucket: zvenfit-frontend
       lead_function_name: zvenfit-telegram-lead
       schedule_function_name: zvenfit-fitbase-schedule
-      schedule_provider: fitbase
       lead_retry_trigger_name: zvenfit-lead-telegram-retry
       ydb_database_name: zvenfit-leads
       allowed_origins: https://zvenfit.ru,https://www.zvenfit.ru,https://zvenigorod.zvenfit.ru
       site_access_mode: public
       gateway_name: disabled
       authorizer_function_name: disabled
-    secrets: inherit
+    secrets:
+      FITBASE_API_TOKEN: ${{ secrets.FITBASE_API_TOKEN }}
+      LEAD_RATE_LIMIT_SECRET: ${{ secrets.LEAD_RATE_LIMIT_SECRET }}
+      MONIUM_API_KEY: ${{ secrets.MONIUM_API_KEY }}
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}

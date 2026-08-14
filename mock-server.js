@@ -2,8 +2,6 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 
-const scheduleHandler = require('./functions/fitbase-schedule/build/index.js');
-
 const HOST = '127.0.0.1';
 const PORT = 3000;
 const rootDir = __dirname;
@@ -46,6 +44,8 @@ if (!['fitbase', 'fixture'].includes(localScheduleProvider)) {
 }
 
 const useFitbaseSchedule = localScheduleProvider === 'fitbase';
+const productionScheduleHandler = require('./functions/fitbase-schedule/build/index.js');
+const stagingScheduleHandler = require('./functions/fitbase-schedule/build-staging/entrypoints/staging.js');
 
 if (!process.env.FITBASE_DOMAIN) {
   process.env.FITBASE_DOMAIN = 'zvenfit';
@@ -93,7 +93,7 @@ async function handleScheduleRequest(req, res) {
     }
 
     try {
-      const result = await scheduleHandler.handler({
+      const result = await productionScheduleHandler.handler({
         httpMethod: 'GET',
         headers: {
           origin: req.headers.origin || 'http://localhost:4173',
@@ -122,16 +122,12 @@ async function handleScheduleRequest(req, res) {
   }
 
   console.log('   Fixture mode (Fitbase unavailable)');
-
-  const items = scheduleHandler.generateFixtureSchedule(from, to);
-
-  sendJson(res, 200, {
-    ok: true,
-    from,
-    to,
-    count: items.length,
-    items,
+  const result = await stagingScheduleHandler.handler({
+    httpMethod: 'GET',
+    headers: { origin: req.headers.origin || 'http://localhost:4173' },
+    queryStringParameters: { from, to },
   });
+  sendHandlerResponse(res, result);
 }
 
 http

@@ -1,6 +1,7 @@
 import { mapScheduleItem, shouldIncludeItem, sortScheduleItems } from './mapper';
 
-import type { FitbaseError, Headers, ScheduleItem } from '../types';
+import type { FitbaseError } from './types';
+import type { Headers, ScheduleItem } from '../../types';
 
 const FITBASE_API_BASE = 'https://api.fitbase.io/api/v2/schedule';
 const PAGE_SIZE = 100;

@@ -33,7 +33,9 @@ for (const htmlPath of htmlFiles) {
   if (
     html.includes('ZvenFit: VK + Yandex Metrika') ||
     html.includes('mc.yandex.ru/metrika') ||
-    html.includes('top-fwz1.mail.ru')
+    html.includes('top-fwz1.mail.ru') ||
+    html.includes('googletagmanager.com') ||
+    html.includes('GTM-')
   ) {
     throw new Error(`check-staging-build: ${relativePath} contains production analytics`);
   }

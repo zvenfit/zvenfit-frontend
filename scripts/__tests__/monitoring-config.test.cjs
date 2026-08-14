@@ -9,9 +9,11 @@ const ROOT = path.resolve(__dirname, '../..');
 const config = JSON.parse(fs.readFileSync(path.join(ROOT, 'scripts/monitoring.config.json'), 'utf8'));
 const source = [
   'functions/lead-intake/src/handler.ts',
+  'functions/lead-intake/src/notification/delivery.ts',
   'functions/lead-intake/src/telegram/delivery.ts',
   'functions/lead-intake/src/observability/ydb.ts',
   'functions/fitbase-schedule/src/handler.ts',
+  'functions/fitbase-schedule/src/composition/production.ts',
   'functions/fitbase-schedule/src/observability/logger.ts',
 ]
   .map(file => fs.readFileSync(path.join(ROOT, file), 'utf8'))
@@ -214,7 +216,7 @@ test('Fitbase alert uses the application error aggregate because the handler cat
   assert.match(alert.metricSelector, /service="logging_aggregates"/);
   assert.match(alert.metricSelector, /name="zvenfit_fitbase_errors_5m"/);
   assert.equal(alert.delay, '3m');
-  assert.match(source, /catch \(error\)[\s\S]*provider\.name[\s\S]*jsonResponse\(502/);
+  assert.match(source, /catch \(error\)[\s\S]*failurePolicy\.unavailableEvent[\s\S]*jsonResponse\(502/);
 });
 
 test('retry worker health covers missing heartbeats, delivery backlog, and trigger failures', () => {

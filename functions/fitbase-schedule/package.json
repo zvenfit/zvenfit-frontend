@@ -5,10 +5,11 @@
   "description": "Public schedule proxy for zvenfit.ru (Fitbase API v2)",
   "scripts": {
     "build": "rm -rf build && tsc --project tsconfig.build.json",
+    "build:staging": "rm -rf build-staging && tsc --project tsconfig.staging.json",
     "typecheck": "tsc --project tsconfig.json --noEmit",
     "test": "npm run typecheck && npm run test:unit && npm run test:artifact",
-    "test:unit": "node --import tsx --test src/__tests__/*.test.ts src/fitbase/__tests__/*.test.ts src/observability/__tests__/*.test.ts src/providers/__tests__/*.test.ts",
-    "test:artifact": "npm run build && node --test src/__tests__/deployment.test.cjs"
+    "test:unit": "node --import tsx --test src/__tests__/*.test.ts src/adapters/fitbase/__tests__/*.test.ts src/adapters/synthetic/__tests__/*.test.ts src/observability/__tests__/*.test.ts",
+    "test:artifact": "npm run build && npm run build:staging && node --test src/__tests__/deployment.test.cjs"
   },
   "dependencies": {
     "pino": "10.3.1"

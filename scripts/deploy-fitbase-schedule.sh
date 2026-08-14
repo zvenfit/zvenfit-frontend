@@ -11,16 +11,14 @@ TIMEOUT="${YC_SCHEDULE_TIMEOUT:-15s}"
 ALLOWED_ORIGINS="${ALLOWED_ORIGINS:-https://zvenfit.ru,https://www.zvenfit.ru,https://zvenigorod.zvenfit.ru}"
 FITBASE_DOMAIN="${FITBASE_DOMAIN:-zvenfit}"
 LOG_LEVEL="${LOG_LEVEL:-info}"
-NODE_ENV_VALUE="${NODE_ENV:-production}"
-DEPLOYMENT_ENVIRONMENT_VALUE="${DEPLOYMENT_ENVIRONMENT:-${NODE_ENV_VALUE}}"
-SCHEDULE_PROVIDER="${SCHEDULE_PROVIDER:-fitbase}"
+DEPLOYMENT_ENVIRONMENT_VALUE="${DEPLOYMENT_ENVIRONMENT:-}"
 FUNCTION_INVOKER_MODE="${FUNCTION_INVOKER_MODE:-public}"
 GATEWAY_SERVICE_ACCOUNT_ID="${YC_GATEWAY_SERVICE_ACCOUNT_ID:-}"
 
-case "${SCHEDULE_PROVIDER}" in
-  fitbase | fixture) ;;
+case "${DEPLOYMENT_ENVIRONMENT_VALUE}" in
+  production | staging) ;;
   *)
-    echo "deploy-fitbase-schedule: SCHEDULE_PROVIDER must be fitbase or fixture" >&2
+    echo "deploy-fitbase-schedule: DEPLOYMENT_ENVIRONMENT must be production or staging" >&2
     exit 1
     ;;
 esac
@@ -30,19 +28,23 @@ if [[ "${FUNCTION_INVOKER_MODE}" != "public" && "${FUNCTION_INVOKER_MODE}" != "g
   exit 1
 fi
 
+if [[ "${DEPLOYMENT_ENVIRONMENT_VALUE}" == "production" && "${FUNCTION_INVOKER_MODE}" != "public" ]]; then
+  echo "deploy-fitbase-schedule: production must deploy the public production artifact" >&2
+  exit 1
+fi
+
 if [[ "${FUNCTION_INVOKER_MODE}" == "gateway" && -z "${GATEWAY_SERVICE_ACCOUNT_ID}" ]]; then
   echo "deploy-fitbase-schedule: YC_GATEWAY_SERVICE_ACCOUNT_ID is required for gateway mode" >&2
   exit 1
 fi
 
-if [[ "${SCHEDULE_PROVIDER}" == "fixture" ]] &&
-  { [[ "${NODE_ENV_VALUE}" == "production" ]] || [[ "${DEPLOYMENT_ENVIRONMENT_VALUE}" == "production" ]]; }; then
-  echo "deploy-fitbase-schedule: fixture provider is forbidden in production" >&2
+if [[ "${DEPLOYMENT_ENVIRONMENT_VALUE}" == "staging" && "${FUNCTION_INVOKER_MODE}" != "gateway" ]]; then
+  echo "deploy-fitbase-schedule: staging must deploy the private staging artifact" >&2
   exit 1
 fi
 
-if [[ "${SCHEDULE_PROVIDER}" == "fitbase" ]] && [[ -z "${FITBASE_API_TOKEN:-}" ]]; then
-  echo "deploy-fitbase-schedule: set FITBASE_API_TOKEN for the fitbase provider" >&2
+if [[ "${DEPLOYMENT_ENVIRONMENT_VALUE}" == "production" && -z "${FITBASE_API_TOKEN:-}" ]]; then
+  echo "deploy-fitbase-schedule: set FITBASE_API_TOKEN for production" >&2
   exit 1
 fi
 
@@ -58,9 +60,17 @@ fi
 
 yc config set folder-id "${YC_FOLDER_ID}" >/dev/null
 
-npm --prefix "${ROOT_DIR}/functions/fitbase-schedule" run build
+if [[ "${DEPLOYMENT_ENVIRONMENT_VALUE}" == "production" ]]; then
+  npm --prefix "${ROOT_DIR}/functions/fitbase-schedule" run build
+  BUILD_DIR="${ROOT_DIR}/functions/fitbase-schedule/build"
+  FUNCTION_ENTRYPOINT="index.handler"
+else
+  npm --prefix "${ROOT_DIR}/functions/fitbase-schedule" run build:staging
+  BUILD_DIR="${ROOT_DIR}/functions/fitbase-schedule/build-staging"
+  FUNCTION_ENTRYPOINT="entrypoints/staging.handler"
+fi
 
-cp -R "${ROOT_DIR}/functions/fitbase-schedule/build/." "${SOURCE_DIR}/"
+cp -R "${BUILD_DIR}/." "${SOURCE_DIR}/"
 cp \
   "${ROOT_DIR}/functions/fitbase-schedule/package.json" \
   "${ROOT_DIR}/functions/fitbase-schedule/package-lock.json" \
@@ -84,14 +94,18 @@ if ! yc serverless function list-access-bindings --name="${FUNCTION_NAME}" --for
 fi
 
 ENV_ARGS=(
-  --environment "SCHEDULE_PROVIDER=${SCHEDULE_PROVIDER}"
   --environment "DEPLOYMENT_ENVIRONMENT=${DEPLOYMENT_ENVIRONMENT_VALUE}"
   --environment "ALLOWED_ORIGINS=${ALLOWED_ORIGINS}"
   --environment "LOG_LEVEL=${LOG_LEVEL}"
-  --environment "NODE_ENV=${NODE_ENV_VALUE}"
+  --environment "NODE_ENV=${DEPLOYMENT_ENVIRONMENT_VALUE}"
 )
 
-if [[ "${SCHEDULE_PROVIDER}" == "fitbase" ]]; then
+VERSION_TAG_ARGS=()
+if [[ "${FUNCTION_INVOKER_MODE}" == "gateway" ]]; then
+  VERSION_TAG_ARGS+=(--tags=staging-live)
+fi
+
+if [[ "${DEPLOYMENT_ENVIRONMENT_VALUE}" == "production" ]]; then
   ENV_ARGS+=(
     --environment "FITBASE_API_TOKEN=${FITBASE_API_TOKEN}"
     --environment "FITBASE_DOMAIN=${FITBASE_DOMAIN}"
@@ -105,10 +119,11 @@ fi
 yc serverless function version create \
   --function-name="${FUNCTION_NAME}" \
   --runtime="${RUNTIME}" \
-  --entrypoint=index.handler \
+  --entrypoint="${FUNCTION_ENTRYPOINT}" \
   --memory="${MEMORY}" \
   --execution-timeout="${TIMEOUT}" \
   --source-path="${SOURCE_DIR}" \
+  "${VERSION_TAG_ARGS[@]}" \
   "${ENV_ARGS[@]}"
 
 INVOKE_URL="$(yc serverless function get --name="${FUNCTION_NAME}" --format=json | node -e "
@@ -124,6 +139,9 @@ if [[ -z "${INVOKE_URL}" ]]; then
   exit 0
 fi
 
+if [[ "${FUNCTION_INVOKER_MODE}" == "gateway" ]]; then
+  node "${ROOT_DIR}/scripts/assert-private-http.cjs" "${INVOKE_URL}"
+fi
+
 echo "deploy-fitbase-schedule: OK"
 echo "SCHEDULE_API_URL=${INVOKE_URL}"
-echo "Add SCHEDULE_API_URL to GitHub Actions and rebuild the site."

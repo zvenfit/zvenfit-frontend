@@ -1,143 +1,165 @@
 # Staging environment
 
-Статус: deployment-контракт подготовлен, cloud bootstrap ещё не выполнен.
+Staging разворачивает тот же commit, что production, но физически отделён от
+него: отдельные Yandex Cloud folder, bucket, Functions, YDB, service accounts и
+GitHub Environment. Workflow запускается вручную из `main` через **Deploy to
+Staging**.
 
-Staging разворачивает тот же commit и те же бизнес-функции, что production, но
-использует отдельный GitHub Environment и отдельный Yandex Cloud folder.
-Workflow запускается только вручную через **Deploy to Staging**. Bucket и
-функции staging не публикуются напрямую: единственная внешняя точка входа —
-API Gateway с HTTP Basic authorizer.
+Единственная внешняя точка входа — API Gateway. Он защищает HTML, assets и оба
+`/api/*` одним HTTP Basic authorizer и Smart Web Security. Bucket и Functions
+остаются приватными и напрямую из интернета недоступны.
 
-## Зафиксированная карта ресурсов
+## Карта окружений
 
-| Ресурс            | Staging                               | Production                    |
-| ----------------- | ------------------------------------- | ----------------------------- |
-| Site              | `https://staging.zvenfit.ru`          | `https://zvenfit.ru`          |
-| Bucket            | `zvenfit-frontend-staging`            | `zvenfit-frontend`            |
-| API Gateway       | `zvenfit-staging`                     | не используется               |
-| Authorizer        | `zvenfit-staging-authorizer`          | не используется               |
-| Lead Function     | `zvenfit-telegram-lead-staging`       | `zvenfit-telegram-lead`       |
-| Schedule Function | `zvenfit-fitbase-schedule-staging`    | `zvenfit-fitbase-schedule`    |
-| Schedule provider | `fixture`                             | `fitbase`                     |
-| Retry trigger     | `zvenfit-lead-telegram-retry-staging` | `zvenfit-lead-telegram-retry` |
-| YDB               | `zvenfit-leads-staging`               | `zvenfit-leads`               |
-| Allowed origins   | `https://staging.zvenfit.ru`          | production domains            |
+| Ресурс | Staging | Production |
+| --- | --- | --- |
+| Site | `https://staging.zvenfit.ru` | `https://zvenfit.ru` |
+| Folder | `zvenfit-staging` | production folder |
+| Bucket | `zvenfit-frontend-staging` | `zvenfit-frontend` |
+| API Gateway | `zvenfit-staging` | не используется |
+| SWS / ARL | API protection + 120 req/min/IP | отдельно от staging |
+| Authorizer | `zvenfit-staging-authorizer` | не используется |
+| Lead Function | `zvenfit-telegram-lead-staging` | `zvenfit-telegram-lead` |
+| Lead artifact | staging sink без внешних вызовов | Telegram adapter |
+| Schedule Function | `zvenfit-fitbase-schedule-staging` | `zvenfit-fitbase-schedule` |
+| Schedule artifact | synthetic schedule | Fitbase adapter |
+| Retry trigger | bootstrap-only | bootstrap-only |
+| YDB | `zvenfit-leads-staging` | `zvenfit-leads` |
+| Allowed origins | только `https://staging.zvenfit.ru` | production domains |
 
-`scripts/validate-deployment-config.cjs` проверяет эту карту до установки `yc`
-и до чтения cloud credentials. Случайная подстановка production resource name в
-staging завершает workflow ошибкой.
+`scripts/validate-deployment-config.cjs` проверяет эту карту до cloud-команд.
+Staging не может получить production resource name или production backend artifact.
+
+## Аутентификация CI
+
+Постоянных JSON-ключей и S3 access keys в новом контуре нет.
+
+1. GitHub выдаёт job OIDC JWT с audience `https://github.com/zvenfit`.
+2. Отдельная Workload Identity Federation принимает только subject
+   `repo:zvenfit/zvenfit-frontend:environment:staging`.
+3. JWT обменивается на короткоживущий IAM token staging deploy SA.
+4. Для загрузки bucket CI выпускает ephemeral access key сроком на один час и
+   ограничивает session policy конкретным staging bucket.
+5. Ephemeral key наследует только доступ deploy SA к staging bucket.
+
+Production использует отдельные federation, subject и deploy SA. Staging
+wrapper не содержит `secrets: inherit`; production secrets передаются в
+reusable workflow явным allowlist только из production wrapper.
+
+Исполняемый файл YC CLI закреплён версией и SHA-256. GitHub Actions закреплены
+commit SHA; `curl | bash` и плавающие Docker tags не используются.
 
 ## GitHub Environment `staging`
 
-Создай отдельный environment `staging` со следующими secrets:
+Secrets:
 
-| Secret                        | Требование                                        |
-| ----------------------------- | ------------------------------------------------- |
-| `YC_FOLDER_ID`                | ID только staging folder                          |
-| `YC_SA_JSON_KEY`              | Ключ staging deploy SA                            |
-| `TELEGRAM_BOT_TOKEN`          | Отдельный staging bot                             |
-| `TELEGRAM_CHAT_ID`            | Отдельный test chat                               |
-| `LEAD_RATE_LIMIT_SECRET`      | Новое случайное значение, не production secret    |
-| `MONIUM_API_KEY`              | Ключ с доступом только к staging Monium project   |
-| `YC_ACCESS_KEY_ID`            | Статический ключ только staging bucket            |
-| `YC_SECRET_ACCESS_KEY`        | Пара staging access key                           |
-| `STAGING_BASIC_AUTH_USERNAME` | Printable ASCII без пробелов и `:`                |
-| `STAGING_BASIC_AUTH_PASSWORD` | Не менее 32 printable ASCII символов без пробелов |
+| Secret | Назначение |
+| --- | --- |
+| `STAGING_BASIC_AUTH_USERNAME` | логин без пробелов и `:` |
+| `STAGING_BASIC_AUTH_PASSWORD` | случайный пароль длиной не менее 32 символов |
+| `LEAD_RATE_LIMIT_SECRET` | отдельный HMAC secret для staging rate limiter |
 
-`FITBASE_API_TOKEN` в staging не нужен и не должен копироваться из production:
-workflow фиксирует `SCHEDULE_PROVIDER=fixture`, а deploy-скрипт не передаёт
-Fitbase credentials в окружение fixture-функции.
+В staging отсутствуют `FITBASE_API_TOKEN`, production Telegram credentials,
+Monium key и любые постоянные Yandex Cloud keys.
 
-Обязательная environment variable:
+Variables:
 
-| Variable                        | Требование                                          |
-| ------------------------------- | --------------------------------------------------- |
-| `YC_LEAD_SERVICE_ACCOUNT_ID`    | Runtime SA только staging Lead Function/YDB/trigger |
-| `YC_GATEWAY_SERVICE_ACCOUNT_ID` | SA Gateway для чтения bucket и вызова функций       |
+| Variable | Назначение |
+| --- | --- |
+| `YC_FOLDER_ID` | staging folder |
+| `YC_DEPLOY_SERVICE_ACCOUNT_ID` | SA, связанный только со staging WIF |
+| `YC_LEAD_SERVICE_ACCOUNT_ID` | runtime SA lead function |
+| `YC_GATEWAY_SERVICE_ACCOUNT_ID` | runtime SA API Gateway |
+| `YC_SWS_SECURITY_PROFILE_ID` | SWS profile с подключённым ARL |
+| `Y_MAPS_API_KEY` | browser key для staging build |
 
-Остальные variables повторяют production names (`YDB_LEADS_TABLE`,
-`YDB_RATE_LIMITS_TABLE`, timeouts и limits), но применяются внутри отдельной YDB.
+Environment должен разрешать deployment только из `main` и требовать
+подтверждение независимого reviewer с запрещённым self-review. Код PR не
+получает staging secrets.
 
-## Cloud bootstrap
+## Минимальная IAM-матрица
 
-Под административной identity в отдельном staging folder нужно один раз создать:
+Bootstrap выполняется административной identity один раз. Обычный CI не создаёт
+ресурсы, не меняет IAM и не управляет retry trigger.
 
-1. Serverless YDB `zvenfit-leads-staging` с deletion protection.
-2. Runtime SA lead function с `ydb.editor` только на staging YDB.
-3. Gateway SA с `storage.viewer` на staging bucket и
-   `functions.functionInvoker` на lead, schedule и authorizer functions. Lead
-   Runtime SA также получает `functions.functionInvoker` только на lead-функцию,
-   чтобы retry-trigger мог обработать очередь.
-4. Deploy SA с `functions.editor`, `api-gateway.editor` и resource-scoped
-   YDB/S3 permissions только в staging folder.
-5. Три приватные Cloud Functions без binding `allUsers`:
-   `zvenfit-telegram-lead-staging`, `zvenfit-fitbase-schedule-staging` и
-   `zvenfit-staging-authorizer`.
-6. Приватный bucket `zvenfit-frontend-staging`: anonymous read/list/config
-   выключены, static website hosting выключен.
-7. API Gateway `zvenfit-staging`, сертификат `staging.zvenfit.ru` и DNS CNAME на
-   default gateway domain.
-8. Staging Monium project/dashboard selectors с `environment=staging`.
+| Subject | Resource | Role / действие |
+| --- | --- | --- |
+| Deploy SA | сам Deploy SA | `iam.serviceAccounts.ephemeralAccessKeyAdmin` |
+| Deploy SA | три staging Functions | `functions.editor` |
+| Deploy SA | Lead runtime SA, Gateway SA | `iam.serviceAccounts.user` |
+| Deploy SA | staging YDB | `ydb.editor` |
+| Deploy SA | staging bucket | `storage.editor` + `storage.configViewer` только на bucket |
+| Deploy SA | staging API Gateway | `api-gateway.editor` |
+| Gateway SA | staging bucket | `storage.viewer` только на bucket |
+| Gateway SA | три staging Functions | `functions.functionInvoker` |
+| Lead runtime SA | staging YDB | read/write leads и rate limits |
+| Lead runtime SA | lead Function | timer invocation |
 
-Обычный deploy не меняет IAM, не создаёт YDB и не прикрепляет custom domain.
-Он только проверяет заранее выданные private bindings, обновляет версии функций
-и спецификацию существующего Gateway. Широкие bootstrap-права в CI не попадают.
+Folder/cloud bindings дополнительно проверяются административным
+`scripts/audit-staging-public-access.sh`. Он отклоняет публичные sensitive roles
+для `allUsers` и `allAuthenticatedUsers`. CI независимо выполняет эффективные
+anonymous probes прямых URL bucket/Functions.
 
-## Граница доступа
+## Безопасный deployment
 
-`staging.zvenfit.ru` разрешается публичным DNS, однако любая HTML-страница,
-статика и `/api/*` требуют HTTP Basic. Authorizer хранит только SHA-256 от
-`username:password`; исходные credentials существуют только в GitHub
-Environment и у разработчиков в password manager. Для совместимости с HTTP
-Basic логин не содержит `:`, а обе части ограничены printable ASCII. Пароль
-генерируется криптографически случайным и не переиспользуется ни в production,
-ни в других сервисах.
+Порядок staging deploy fail-closed:
 
-Gateway читает приватный bucket и вызывает приватные функции от собственного
-service account. Прямой URL bucket возвращает `403`, прямые URLs функций не
-принимают anonymous invoke. CORS и `robots.txt` не считаются авторизацией.
+1. Проверить статическую карту окружения и прогнать все тесты.
+2. Получить IAM token через WIF и ephemeral S3 session.
+3. До загрузки проверить bucket flags, website hosting, ACL, policy и anonymous
+   GET. При любой публичности deployment останавливается.
+4. Собрать staging без GTM, Метрики/VK analytics, с `noindex, nofollow` и
+   `robots.txt: Disallow /`.
+5. Загрузить объекты с default private ACL без права CI менять ACL, затем
+   повторно проверить object ACL и anonymous GET.
+6. Создать candidate-версию authorizer, напрямую проверить правильный и
+   неправильный Basic Auth, после чего переключить стабильный tag
+   `staging-live`.
+7. Обновить Gateway spec. Он ссылается только на `staging-live`, а не на
+   изменяемый `$latest`, и подключает SWS profile.
+8. Выполнить smoke. При ошибке вернуть tag authorizer на предыдущую версию.
 
-Staging-сборка дополнительно:
+Lead и schedule integrations также используют tag `staging-live`.
 
-- не содержит production analytics;
-- добавляет `noindex, nofollow` во все HTML;
-- публикует `robots.txt` с `Disallow: /`;
-- использует same-origin endpoints `/api/lead` и `/api/schedule`.
+## Заявки и внешние side effects
 
-## Расписание без production Fitbase
+Staging lead flow пишет только в staging YDB. Отдельный staging composition root
+считает уведомление доставленным через локальный sink без внешнего HTTP-запроса;
+Telegram adapter отсутствует в staging build, а production bot и chat ID — в
+окружении.
 
-Staging schedule-функция использует динамический `fixture`: даты считаются от
-параметра `from`, поэтому набор не устаревает с календарём. В него входят
-обычное и пересекающееся занятия, детская тренировка, отмена, закрытая запись,
-перенос и карточка без необязательных данных. Все названия и тренеры явно
-синтетические; production ответы и персональные данные не копируются.
+Lead endpoint принимает только `POST application/json` с Origin из allowlist.
+Отсутствующий/чужой Origin возвращает `403`, другой media type — `415`. Это
+защищает endpoint от CSRF даже если Basic credentials оказались в browser cache.
 
-Защита состоит из трёх независимых уровней:
+Smoke выполняет `POST {}` в same-origin `/api/lead` и требует контролируемый
+`400`. Payload не проходит валидацию, поэтому запись в YDB и уведомление не
+создаются. Schedule smoke требует ровно совместимую форму ответа:
+`{ "ok": true, "items": [...] }`.
 
-1. deployment validator требует `fitbase` для production и `fixture` для staging;
-2. deploy-скрипт отклоняет fixture при production environment до запуска `yc`;
-3. сама Cloud Function отклоняет fixture, если runtime environment — production.
+Полный Playwright E2E позже отправляет явно синтетическую валидную заявку в
+staging YDB и проверяет её через отдельный read-only test probe. Production
+smoke остаётся только GET/OPTIONS и никогда не создаёт лид.
 
-Неизвестный provider всегда считается ошибкой: автоматического fallback в
-облачных окружениях нет.
+## DNS и TLS
 
-## Первый безопасный запуск
+`staging.zvenfit.ru` должен указывать только на default domain staging Gateway.
+Managed certificate выпускается для этого hostname; DNS validation и CNAME
+создаются у текущего DNS provider. До активации сертификата и custom domain
+Gateway остаётся в deny-all bootstrap spec и не публикует staging content.
 
-Перед **Deploy to Staging**:
+## Release gate
 
-- все перечисленные ресурсы существуют;
-- GitHub Environment содержит только staging credentials;
-- `staging.zvenfit.ru` указывает только на API Gateway;
-- bucket приватный и static website hosting выключен;
-- функции не содержат `allUsers`: Gateway SA имеет точечные invoker bindings,
-  а Lead Runtime SA — дополнительный binding только на lead-функцию;
-- authorizer credentials заданы только в staging Environment;
-- Telegram bot/chat не используются менеджерами;
-- staging wrapper содержит `schedule_provider: fixture`;
-- production workflow и secrets не изменялись.
+Staging считается готовым, когда одновременно выполнены условия:
 
-После deploy read-only smoke сначала проверяет, что анонимный запрос получает
-`401` с HTTP Basic challenge, затем проходит те же страницы и API с корректными
-credentials. Секреты передаются через env и не печатаются в лог.
-Полный lead POST появится отдельным этапом в локальном Playwright-проекте и
-будет писать только синтетические данные в staging YDB.
+- environment защищён `main` + independent approval;
+- WIF subject и deploy SA отличаются от production;
+- административный parent-IAM audit зелёный;
+- прямые bucket/function URLs отвергают anonymous access;
+- неверный и отсутствующий Basic Auth дают `401`;
+- SWS и ARL подключены к Gateway;
+- smoke проверяет страницы, runtime configs, безопасный lead validation probe и
+  рабочую схему schedule;
+- artifact-тесты подтверждают, что staging build не содержит Fitbase/Telegram,
+  а production build — staging fixtures;
+- никакой staging путь не вызывает Fitbase или Telegram.

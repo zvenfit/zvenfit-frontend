@@ -15,44 +15,31 @@ function runDeploy(environment) {
   });
 }
 
-test('rejects fixture before any cloud command when either environment is production', () => {
-  for (const environment of [
-    { NODE_ENV: 'production', DEPLOYMENT_ENVIRONMENT: 'production', SCHEDULE_PROVIDER: 'fixture' },
-    { NODE_ENV: 'staging', DEPLOYMENT_ENVIRONMENT: 'production', SCHEDULE_PROVIDER: 'fixture' },
-  ]) {
-    const result = runDeploy(environment);
-
-    assert.equal(result.status, 1);
-    assert.match(result.stderr, /fixture provider is forbidden in production/);
-    assert.doesNotMatch(result.stderr, /FITBASE_API_TOKEN/);
-  }
-});
-
-test('requires a token only when the explicit provider is Fitbase', () => {
-  const fitbase = runDeploy({
-    NODE_ENV: 'staging',
-    DEPLOYMENT_ENVIRONMENT: 'staging',
-    SCHEDULE_PROVIDER: 'fitbase',
-  });
-  assert.equal(fitbase.status, 1);
-  assert.match(fitbase.stderr, /set FITBASE_API_TOKEN for the fitbase provider/);
-
-  const fixture = runDeploy({
-    NODE_ENV: 'staging',
-    DEPLOYMENT_ENVIRONMENT: 'staging',
-    SCHEDULE_PROVIDER: 'fixture',
-  });
-  assert.equal(fixture.status, 1);
-  assert.doesNotMatch(fixture.stderr, /FITBASE_API_TOKEN/);
-});
-
-test('rejects unknown providers without a fallback', () => {
-  const result = runDeploy({
-    NODE_ENV: 'staging',
-    DEPLOYMENT_ENVIRONMENT: 'staging',
-    SCHEDULE_PROVIDER: 'auto',
-  });
+test('rejects an unsupported deployment environment before any cloud command', () => {
+  const result = runDeploy({ DEPLOYMENT_ENVIRONMENT: 'preview' });
 
   assert.equal(result.status, 1);
-  assert.match(result.stderr, /SCHEDULE_PROVIDER must be fitbase or fixture/);
+  assert.match(result.stderr, /DEPLOYMENT_ENVIRONMENT must be production or staging/);
+});
+
+test('requires a Fitbase token only for the production artifact', () => {
+  const production = runDeploy({ DEPLOYMENT_ENVIRONMENT: 'production', FUNCTION_INVOKER_MODE: 'public' });
+  assert.equal(production.status, 1);
+  assert.match(production.stderr, /set FITBASE_API_TOKEN for production/);
+
+  const staging = runDeploy({
+    DEPLOYMENT_ENVIRONMENT: 'staging',
+    FUNCTION_INVOKER_MODE: 'gateway',
+    YC_GATEWAY_SERVICE_ACCOUNT_ID: 'gateway-service-account',
+  });
+  assert.equal(staging.status, 1);
+  assert.doesNotMatch(staging.stderr, /FITBASE_API_TOKEN/);
+});
+
+test('rejects environment and access-mode combinations that could select the wrong artifact', () => {
+  const publicStaging = runDeploy({ DEPLOYMENT_ENVIRONMENT: 'staging', FUNCTION_INVOKER_MODE: 'public' });
+  const privateProduction = runDeploy({ DEPLOYMENT_ENVIRONMENT: 'production', FUNCTION_INVOKER_MODE: 'gateway' });
+
+  assert.match(publicStaging.stderr, /staging must deploy the private staging artifact/);
+  assert.match(privateProduction.stderr, /production must deploy the public production artifact/);
 });

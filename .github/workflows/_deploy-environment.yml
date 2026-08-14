@@ -23,10 +23,6 @@ on:
         description: Fitbase schedule Cloud Function name
         required: true
         type: string
-      schedule_provider:
-        description: Explicit schedule provider (fitbase or fixture)
-        required: true
-        type: string
       lead_retry_trigger_name:
         description: Telegram retry timer trigger name
         required: true
@@ -51,6 +47,21 @@ on:
         description: Pre-provisioned Basic authorizer function name or disabled
         required: true
         type: string
+    secrets:
+      FITBASE_API_TOKEN:
+        required: false
+      LEAD_RATE_LIMIT_SECRET:
+        required: false
+      MONIUM_API_KEY:
+        required: false
+      TELEGRAM_BOT_TOKEN:
+        required: false
+      TELEGRAM_CHAT_ID:
+        required: false
+
+permissions:
+  contents: read
+  id-token: write
 
 env:
   NODE_VERSION: '22'
@@ -65,7 +76,6 @@ jobs:
       S3_BUCKET: ${{ inputs.s3_bucket }}
       LEAD_FUNCTION_NAME: ${{ inputs.lead_function_name }}
       SCHEDULE_FUNCTION_NAME: ${{ inputs.schedule_function_name }}
-      SCHEDULE_PROVIDER: ${{ inputs.schedule_provider }}
       LEAD_RETRY_TRIGGER_NAME: ${{ inputs.lead_retry_trigger_name }}
       YDB_DATABASE_NAME: ${{ inputs.ydb_database_name }}
       ALLOWED_ORIGINS: ${{ inputs.allowed_origins }}
@@ -75,7 +85,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
 
       - name: Validate environment isolation
         run: node scripts/validate-deployment-config.cjs
@@ -85,10 +95,10 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
 
       - name: Set up Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
@@ -126,11 +136,6 @@ jobs:
         run: npm run test:build
 
       - name: Verify protected staging build
-        env:
-          NODE_ENV: staging
-          LEAD_API_URL: https://staging.zvenfit.ru/api/lead
-          SCHEDULE_API_URL: https://staging.zvenfit.ru/api/schedule
-          ASSET_VERSION: staging-ci-${{ github.run_number }}
         run: npm run test:build:staging
 
   deploy-function:
@@ -143,10 +148,10 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
 
       - name: Set up Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: ${{ env.NODE_VERSION }}
 
@@ -154,31 +159,26 @@ jobs:
         run: npm ci --prefix functions/lead-intake
 
       - name: Install Yandex Cloud CLI
-        run: |
-          curl -sSL https://storage.yandexcloud.net/yandexcloud-yc/install.sh | bash
-          echo "$HOME/yandex-cloud/bin" >> $GITHUB_PATH
+        run: bash scripts/install-yc-cli.sh
 
-      - name: Authenticate with service account
+      - name: Authenticate with GitHub OIDC
         env:
-          YC_FOLDER_ID: ${{ secrets.YC_FOLDER_ID }}
-          YC_SA_KEY: ${{ secrets.YC_SA_JSON_KEY }}
-        run: |
-          echo "$YC_SA_KEY" > /tmp/sa-key.json
-          yc config profile create ci-profile
-          yc config set service-account-key /tmp/sa-key.json
-          yc config set folder-id "$YC_FOLDER_ID"
-          rm /tmp/sa-key.json
+          YC_FOLDER_ID: ${{ vars.YC_FOLDER_ID }}
+          YC_DEPLOY_SERVICE_ACCOUNT_ID: ${{ vars.YC_DEPLOY_SERVICE_ACCOUNT_ID }}
+          YC_WIF_AUDIENCE: https://github.com/zvenfit
+        run: bash scripts/auth-yc-wif.sh
 
       - name: Deploy lead Cloud Function
         env:
           DEPLOYMENT_ENVIRONMENT: ${{ inputs.deployment_environment }}
           NODE_ENV: ${{ inputs.deployment_environment }}
-          YC_FOLDER_ID: ${{ secrets.YC_FOLDER_ID }}
+          YC_FOLDER_ID: ${{ vars.YC_FOLDER_ID }}
           YC_LEAD_FUNCTION_NAME: ${{ inputs.lead_function_name }}
           YC_LEAD_RETRY_TRIGGER_NAME: ${{ inputs.lead_retry_trigger_name }}
           YDB_DATABASE_NAME: ${{ inputs.ydb_database_name }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          MANAGE_LEAD_RETRY_TRIGGER: 'false'
           LEAD_RATE_LIMIT_SECRET: ${{ secrets.LEAD_RATE_LIMIT_SECRET }}
           ALLOWED_ORIGINS: ${{ inputs.allowed_origins }}
           YC_LEAD_SERVICE_ACCOUNT_ID: ${{ vars.YC_LEAD_SERVICE_ACCOUNT_ID }}
@@ -195,9 +195,9 @@ jobs:
           YDB_QUERY_TIMEOUT_MS: ${{ vars.YDB_QUERY_TIMEOUT_MS || '5000' }}
           YDB_SLOW_OPERATION_MS: ${{ vars.YDB_SLOW_OPERATION_MS || '1000' }}
           YDB_SESSION_POOL_SIZE: ${{ vars.YDB_SESSION_POOL_SIZE || '5' }}
-          MONIUM_METRICS_ENABLED: 'true'
+          MONIUM_METRICS_ENABLED: ${{ inputs.deployment_environment == 'production' && 'true' || 'false' }}
           MONIUM_API_KEY: ${{ secrets.MONIUM_API_KEY }}
-          MONIUM_PROJECT: folder__${{ secrets.YC_FOLDER_ID }}
+          MONIUM_PROJECT: folder__${{ vars.YC_FOLDER_ID }}
           MONIUM_CLUSTER: default
           MONIUM_SERVICE: zvenfit-frontend
           MONIUM_METRICS_TIMEOUT_MS: '1000'
@@ -233,10 +233,10 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
 
       - name: Set up Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: ${{ env.NODE_VERSION }}
 
@@ -244,30 +244,23 @@ jobs:
         run: npm ci --prefix functions/fitbase-schedule
 
       - name: Install Yandex Cloud CLI
-        run: |
-          curl -sSL https://storage.yandexcloud.net/yandexcloud-yc/install.sh | bash
-          echo "$HOME/yandex-cloud/bin" >> $GITHUB_PATH
+        run: bash scripts/install-yc-cli.sh
 
-      - name: Authenticate with service account
+      - name: Authenticate with GitHub OIDC
         env:
-          YC_FOLDER_ID: ${{ secrets.YC_FOLDER_ID }}
-          YC_SA_KEY: ${{ secrets.YC_SA_JSON_KEY }}
-        run: |
-          echo "$YC_SA_KEY" > /tmp/sa-key.json
-          yc config profile create ci-profile-schedule
-          yc config set service-account-key /tmp/sa-key.json
-          yc config set folder-id "$YC_FOLDER_ID"
-          rm /tmp/sa-key.json
+          YC_FOLDER_ID: ${{ vars.YC_FOLDER_ID }}
+          YC_DEPLOY_SERVICE_ACCOUNT_ID: ${{ vars.YC_DEPLOY_SERVICE_ACCOUNT_ID }}
+          YC_WIF_AUDIENCE: https://github.com/zvenfit
+        run: bash scripts/auth-yc-wif.sh
 
       - name: Deploy schedule Cloud Function
         env:
           DEPLOYMENT_ENVIRONMENT: ${{ inputs.deployment_environment }}
           NODE_ENV: ${{ inputs.deployment_environment }}
-          YC_FOLDER_ID: ${{ secrets.YC_FOLDER_ID }}
+          YC_FOLDER_ID: ${{ vars.YC_FOLDER_ID }}
           YC_SCHEDULE_FUNCTION_NAME: ${{ inputs.schedule_function_name }}
           FUNCTION_INVOKER_MODE: ${{ inputs.site_access_mode == 'authenticated-gateway' && 'gateway' || 'public' }}
           YC_GATEWAY_SERVICE_ACCOUNT_ID: ${{ vars.YC_GATEWAY_SERVICE_ACCOUNT_ID }}
-          SCHEDULE_PROVIDER: ${{ inputs.schedule_provider }}
           FITBASE_API_TOKEN: ${{ secrets.FITBASE_API_TOKEN }}
           FITBASE_DOMAIN: ${{ vars.FITBASE_DOMAIN || 'zvenfit' }}
           FITBASE_CLUB_ID: ${{ vars.FITBASE_CLUB_ID }}
@@ -300,6 +293,8 @@ jobs:
     environment: ${{ inputs.deployment_environment }}
     outputs:
       function_id: ${{ steps.get-authorizer-id.outputs.id }}
+      previous_version_id: ${{ steps.deploy-authorizer.outputs.previous_version_id }}
+      candidate_version_id: ${{ steps.deploy-authorizer.outputs.candidate_version_id }}
 
     steps:
       - name: Production does not use a staging authorizer
@@ -309,11 +304,11 @@ jobs:
 
       - name: Checkout repository
         if: inputs.site_access_mode == 'authenticated-gateway'
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
 
       - name: Set up Node.js
         if: inputs.site_access_mode == 'authenticated-gateway'
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: ${{ env.NODE_VERSION }}
 
@@ -323,27 +318,22 @@ jobs:
 
       - name: Install Yandex Cloud CLI
         if: inputs.site_access_mode == 'authenticated-gateway'
-        run: |
-          curl -sSL https://storage.yandexcloud.net/yandexcloud-yc/install.sh | bash
-          echo "$HOME/yandex-cloud/bin" >> $GITHUB_PATH
+        run: bash scripts/install-yc-cli.sh
 
-      - name: Authenticate with service account
+      - name: Authenticate with GitHub OIDC
         if: inputs.site_access_mode == 'authenticated-gateway'
         env:
-          YC_FOLDER_ID: ${{ secrets.YC_FOLDER_ID }}
-          YC_SA_KEY: ${{ secrets.YC_SA_JSON_KEY }}
-        run: |
-          echo "$YC_SA_KEY" > /tmp/sa-key.json
-          yc config profile create ci-profile-authorizer
-          yc config set service-account-key /tmp/sa-key.json
-          yc config set folder-id "$YC_FOLDER_ID"
-          rm /tmp/sa-key.json
+          YC_FOLDER_ID: ${{ vars.YC_FOLDER_ID }}
+          YC_DEPLOY_SERVICE_ACCOUNT_ID: ${{ vars.YC_DEPLOY_SERVICE_ACCOUNT_ID }}
+          YC_WIF_AUDIENCE: https://github.com/zvenfit
+        run: bash scripts/auth-yc-wif.sh
 
       - name: Deploy private staging authorizer
         if: inputs.site_access_mode == 'authenticated-gateway'
+        id: deploy-authorizer
         env:
           DEPLOYMENT_ENVIRONMENT: ${{ inputs.deployment_environment }}
-          YC_FOLDER_ID: ${{ secrets.YC_FOLDER_ID }}
+          YC_FOLDER_ID: ${{ vars.YC_FOLDER_ID }}
           YC_STAGING_AUTHORIZER_FUNCTION_NAME: ${{ inputs.authorizer_function_name }}
           YC_GATEWAY_SERVICE_ACCOUNT_ID: ${{ vars.YC_GATEWAY_SERVICE_ACCOUNT_ID }}
           STAGING_BASIC_AUTH_USERNAME: ${{ secrets.STAGING_BASIC_AUTH_USERNAME }}
@@ -370,10 +360,10 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
 
       - name: Set up Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
@@ -403,16 +393,49 @@ jobs:
           echo "Building with ASSET_VERSION: $ASSET_VERSION"
           npm run build
 
-      - name: Upload immutable assets to Yandex Object Storage
-        uses: docker://amazon/aws-cli:2.25.1
+      - name: Install Yandex Cloud CLI
+        run: bash scripts/install-yc-cli.sh
+
+      - name: Authenticate with GitHub OIDC
         env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.YC_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.YC_SECRET_ACCESS_KEY }}
-          AWS_REGION: ru-1
-          AWS_ENDPOINT_URL: https://storage.yandexcloud.net
-        with:
-          args: >
-            s3 sync ./dist s3://${{ inputs.s3_bucket }}
+          YC_FOLDER_ID: ${{ vars.YC_FOLDER_ID }}
+          YC_DEPLOY_SERVICE_ACCOUNT_ID: ${{ vars.YC_DEPLOY_SERVICE_ACCOUNT_ID }}
+          YC_WIF_AUDIENCE: https://github.com/zvenfit
+        run: bash scripts/auth-yc-wif.sh
+
+      - name: Issue ephemeral Object Storage credentials
+        env:
+          YC_DEPLOY_SERVICE_ACCOUNT_ID: ${{ vars.YC_DEPLOY_SERVICE_ACCOUNT_ID }}
+          OBJECT_STORAGE_BUCKET: ${{ inputs.s3_bucket }}
+        run: bash scripts/issue-ephemeral-storage-key.sh
+
+      - name: Verify AWS CLI
+        run: aws --version
+
+      - name: Preflight private staging storage boundary
+        if: inputs.site_access_mode == 'authenticated-gateway'
+        env:
+          STAGING_BUCKET: ${{ inputs.s3_bucket }}
+        run: |
+          yc storage bucket get --name "$STAGING_BUCKET" --format=json |
+            node scripts/verify-storage-access.cjs metadata
+          aws s3api get-bucket-acl --bucket "$STAGING_BUCKET" --output json |
+            node scripts/verify-storage-access.cjs acl
+          POLICY_FILE="${RUNNER_TEMP}/staging-bucket-policy.json"
+          POLICY_ERROR="${RUNNER_TEMP}/staging-bucket-policy.error"
+          if aws s3api get-bucket-policy --bucket "$STAGING_BUCKET" --output json > "$POLICY_FILE" 2> "$POLICY_ERROR"; then
+            node scripts/verify-storage-access.cjs policy < "$POLICY_FILE"
+          elif ! grep -q 'NoSuchBucketPolicy' "$POLICY_ERROR"; then
+            sed 's/.*/Object Storage policy lookup failed/' "$POLICY_ERROR" >&2
+            exit 1
+          fi
+          node scripts/assert-private-http.cjs \
+            "https://storage.yandexcloud.net/${STAGING_BUCKET}/index.html" \
+            --allow-missing
+
+      - name: Upload immutable assets to Yandex Object Storage
+        run: >-
+          aws s3 sync ./dist s3://${{ inputs.s3_bucket }}
             --delete
             --exclude "*.html"
             --exclude "robots.txt"
@@ -421,15 +444,8 @@ jobs:
             --metadata-directive REPLACE
 
       - name: Upload crawl metadata (no-cache)
-        uses: docker://amazon/aws-cli:2.25.1
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.YC_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.YC_SECRET_ACCESS_KEY }}
-          AWS_REGION: ru-1
-          AWS_ENDPOINT_URL: https://storage.yandexcloud.net
-        with:
-          args: >
-            s3 sync ./dist s3://${{ inputs.s3_bucket }}
+        run: >-
+          aws s3 sync ./dist s3://${{ inputs.s3_bucket }}
             --delete
             --exclude "*"
             --include "robots.txt"
@@ -438,53 +454,39 @@ jobs:
             --metadata-directive REPLACE
 
       - name: Upload HTML (no-cache)
-        uses: docker://amazon/aws-cli:2.25.1
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.YC_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.YC_SECRET_ACCESS_KEY }}
-          AWS_REGION: ru-1
-          AWS_ENDPOINT_URL: https://storage.yandexcloud.net
-        with:
-          args: >
-            s3 sync ./dist s3://${{ inputs.s3_bucket }}
+        run: >-
+          aws s3 sync ./dist s3://${{ inputs.s3_bucket }}
             --delete
             --exclude "*"
             --include "*.html"
             --cache-control "no-cache, must-revalidate"
             --metadata-directive REPLACE
 
-      - name: Install Yandex Cloud CLI for staging gateway
-        if: inputs.site_access_mode == 'authenticated-gateway'
-        run: |
-          curl -sSL https://storage.yandexcloud.net/yandexcloud-yc/install.sh | bash
-          echo "$HOME/yandex-cloud/bin" >> $GITHUB_PATH
-
-      - name: Authenticate staging gateway deploy
+      - name: Verify uploaded staging objects remain private
         if: inputs.site_access_mode == 'authenticated-gateway'
         env:
-          YC_FOLDER_ID: ${{ secrets.YC_FOLDER_ID }}
-          YC_SA_KEY: ${{ secrets.YC_SA_JSON_KEY }}
+          STAGING_BUCKET: ${{ inputs.s3_bucket }}
         run: |
-          echo "$YC_SA_KEY" > /tmp/sa-key.json
-          yc config profile create ci-profile-gateway
-          yc config set service-account-key /tmp/sa-key.json
-          yc config set folder-id "$YC_FOLDER_ID"
-          rm /tmp/sa-key.json
+          aws s3api get-object-acl --bucket "$STAGING_BUCKET" --key index.html --output json |
+            node scripts/verify-storage-access.cjs acl
+          node scripts/assert-private-http.cjs \
+            "https://storage.yandexcloud.net/${STAGING_BUCKET}/index.html"
 
       - name: Deploy authenticated staging gateway
         if: inputs.site_access_mode == 'authenticated-gateway'
         env:
           DEPLOYMENT_ENVIRONMENT: ${{ inputs.deployment_environment }}
-          YC_FOLDER_ID: ${{ secrets.YC_FOLDER_ID }}
+          YC_FOLDER_ID: ${{ vars.YC_FOLDER_ID }}
           YC_STAGING_GATEWAY_NAME: ${{ inputs.gateway_name }}
           YC_GATEWAY_SERVICE_ACCOUNT_ID: ${{ vars.YC_GATEWAY_SERVICE_ACCOUNT_ID }}
           STAGING_BUCKET: ${{ inputs.s3_bucket }}
           STAGING_AUTHORIZER_FUNCTION_ID: ${{ needs.deploy-authorizer.outputs.function_id }}
           STAGING_LEAD_FUNCTION_ID: ${{ needs.deploy-function.outputs.function_id }}
           STAGING_SCHEDULE_FUNCTION_ID: ${{ needs.deploy-schedule-function.outputs.function_id }}
+          STAGING_SWS_SECURITY_PROFILE_ID: ${{ vars.YC_SWS_SECURITY_PROFILE_ID }}
         run: bash scripts/deploy-staging-gateway.sh
 
-      - name: Read-only environment smoke test
+      - name: Non-persisting environment smoke test
         env:
           SITE_URL: ${{ inputs.site_url }}
           STAGING_BASIC_AUTH_USERNAME: ${{ inputs.site_access_mode == 'authenticated-gateway' && secrets.STAGING_BASIC_AUTH_USERNAME || '' }}
@@ -500,3 +502,37 @@ jobs:
             fi
           done
           exit 1
+
+  rollback-staging-authorizer:
+    needs: [deploy-authorizer, deploy-site]
+    if: >-
+      ${{ always() && inputs.site_access_mode == 'authenticated-gateway' &&
+          needs.deploy-authorizer.result == 'success' && needs.deploy-site.result != 'success' }}
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.deployment_environment }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install Yandex Cloud CLI
+        run: bash scripts/install-yc-cli.sh
+
+      - name: Authenticate with GitHub OIDC
+        env:
+          YC_FOLDER_ID: ${{ vars.YC_FOLDER_ID }}
+          YC_DEPLOY_SERVICE_ACCOUNT_ID: ${{ vars.YC_DEPLOY_SERVICE_ACCOUNT_ID }}
+          YC_WIF_AUDIENCE: https://github.com/zvenfit
+        run: bash scripts/auth-yc-wif.sh
+
+      - name: Restore previous live authorizer version
+        env:
+          DEPLOYMENT_ENVIRONMENT: staging
+          PREVIOUS_VERSION_ID: ${{ needs.deploy-authorizer.outputs.previous_version_id }}
+          CANDIDATE_VERSION_ID: ${{ needs.deploy-authorizer.outputs.candidate_version_id }}
+        run: bash scripts/rollback-staging-authorizer.sh

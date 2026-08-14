@@ -38,7 +38,9 @@ npm run test:build
    npm run smoke:production
    ```
 
-   Он проверяет обе страницы, подставленные API URL, CORS lead API через `OPTIONS` и JSON-ответ schedule API. Запрос `POST` не выполняется, запись в YDB не создаётся, Telegram не вызывается.
+   Он проверяет обе страницы, подставленные API URL, CORS lead API через
+   `OPTIONS` и схему `{ ok: true, items: [...] }` schedule API. Запрос `POST` в
+   production не выполняется, запись в YDB не создаётся, Telegram не вызывается.
 
 3. Открой production dashboard из [`monitoring.md`](monitoring.md) и проверь:
 

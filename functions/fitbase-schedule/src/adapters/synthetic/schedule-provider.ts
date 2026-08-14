@@ -1,6 +1,6 @@
-import type { ScheduleItem, ScheduleProvider } from '../types';
+import type { ScheduleItem, ScheduleProvider } from '../../types';
 
-interface FixtureScenario extends Omit<ScheduleItem, 'id' | 'date' | 'transfer'> {
+interface SyntheticScenario extends Omit<ScheduleItem, 'id' | 'date' | 'transfer'> {
   key: string;
   dayOffset: number;
   transferDayOffset?: number;
@@ -8,7 +8,7 @@ interface FixtureScenario extends Omit<ScheduleItem, 'id' | 'date' | 'transfer'>
   transferTimeEnd?: string;
 }
 
-const FIXTURE_SCENARIOS: readonly FixtureScenario[] = [
+const SYNTHETIC_SCENARIOS: readonly SyntheticScenario[] = [
   {
     key: 'group-training',
     dayOffset: 0,
@@ -154,8 +154,8 @@ function addDays(dateString: string, days: number): string {
   return date.toISOString().slice(0, 10);
 }
 
-export function generateFixtureSchedule(from: string, to: string): ScheduleItem[] {
-  return FIXTURE_SCENARIOS.map(scenario => {
+export function generateSyntheticSchedule(from: string, to: string): ScheduleItem[] {
+  return SYNTHETIC_SCENARIOS.map(scenario => {
     const date = addDays(from, scenario.dayOffset);
     const transfer =
       scenario.transferDayOffset === undefined
@@ -189,11 +189,10 @@ export function generateFixtureSchedule(from: string, to: string): ScheduleItem[
   }).filter(item => item.date >= from && item.date <= to);
 }
 
-export function createFixtureProvider(): ScheduleProvider {
+export function createSyntheticScheduleProvider(): ScheduleProvider {
   return {
-    name: 'fixture',
     async getSchedule(from, to) {
-      return generateFixtureSchedule(from, to);
+      return generateSyntheticSchedule(from, to);
     },
   };
 }

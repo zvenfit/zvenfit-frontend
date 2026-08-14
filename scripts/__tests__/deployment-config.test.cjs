@@ -12,7 +12,6 @@ function environmentConfig(environment, values) {
     S3_BUCKET: values.s3Bucket,
     LEAD_FUNCTION_NAME: values.leadFunctionName,
     SCHEDULE_FUNCTION_NAME: values.scheduleFunctionName,
-    SCHEDULE_PROVIDER: values.scheduleProvider,
     LEAD_RETRY_TRIGGER_NAME: values.leadRetryTriggerName,
     YDB_DATABASE_NAME: values.ydbDatabaseName,
     ALLOWED_ORIGINS: values.allowedOrigins.join(','),
@@ -39,16 +38,6 @@ test('rejects a production origin accidentally passed to staging', () => {
   env.ALLOWED_ORIGINS = PRODUCTION.allowedOrigins.join(',');
 
   assert.throws(() => validateConfig(readConfig(env)), /staging ALLOWED_ORIGINS/);
-});
-
-test('requires Fitbase in production and fixture in staging', () => {
-  const productionFixture = environmentConfig('production', PRODUCTION);
-  productionFixture.SCHEDULE_PROVIDER = 'fixture';
-  assert.throws(() => validateConfig(readConfig(productionFixture)), /production scheduleProvider must be fitbase/);
-
-  const stagingFitbase = environmentConfig('staging', STAGING);
-  stagingFitbase.SCHEDULE_PROVIDER = 'fitbase';
-  assert.throws(() => validateConfig(readConfig(stagingFitbase)), /staging scheduleProvider must be fixture/);
 });
 
 test('requires authenticated gateway access only in staging', () => {

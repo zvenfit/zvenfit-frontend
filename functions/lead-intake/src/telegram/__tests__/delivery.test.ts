@@ -2,9 +2,22 @@ import assert from 'node:assert/strict';
 import { getDefaultResultOrder } from 'node:dns';
 import test from 'node:test';
 
-import { buildMessage, retryBatchSize, sendTelegram, telegramTimeoutMs } from '../delivery';
+import { buildMessage, sendTelegram, telegramTimeoutMs } from '../delivery';
 
 const LEAD_ID = '1cc32f4f-8f06-4dc8-915f-92955c829523';
+
+function testLead() {
+  return {
+    leadId: LEAD_ID,
+    createdAt: new Date('2026-08-08T12:00:00.000Z'),
+    name: 'Анна',
+    phone: '+7 (999) 111-22-33',
+    contactMethod: 'Позвонить',
+    telegramUsername: '',
+    utm: {},
+    telegramAttempts: 1,
+  };
+}
 
 test('Telegram networking prefers IPv4 for Yandex Cloud Functions', () => {
   assert.equal(getDefaultResultOrder(), 'ipv4first');
@@ -48,27 +61,6 @@ test('Telegram timeout is configurable and capped below the function timeout', (
   }
 });
 
-test('Telegram worker uses a small configurable retry batch', () => {
-  const previousBatchSize = process.env.TELEGRAM_RETRY_BATCH_SIZE;
-
-  try {
-    delete process.env.TELEGRAM_RETRY_BATCH_SIZE;
-    assert.equal(retryBatchSize(), 5);
-
-    process.env.TELEGRAM_RETRY_BATCH_SIZE = '10';
-    assert.equal(retryBatchSize(), 10);
-
-    process.env.TELEGRAM_RETRY_BATCH_SIZE = '999';
-    assert.equal(retryBatchSize(), 25);
-  } finally {
-    if (previousBatchSize === undefined) {
-      delete process.env.TELEGRAM_RETRY_BATCH_SIZE;
-    } else {
-      process.env.TELEGRAM_RETRY_BATCH_SIZE = previousBatchSize;
-    }
-  }
-});
-
 test('Telegram network failures preserve a safe diagnostic code', async () => {
   const previousToken = process.env.TELEGRAM_BOT_TOKEN;
   const previousChatId = process.env.TELEGRAM_CHAT_ID;
@@ -82,16 +74,7 @@ test('Telegram network failures preserve a safe diagnostic code', async () => {
 
   try {
     await assert.rejects(
-      sendTelegram({
-        leadId: LEAD_ID,
-        createdAt: new Date('2026-08-08T12:00:00.000Z'),
-        name: 'Анна',
-        phone: '+7 (999) 111-22-33',
-        contactMethod: 'Позвонить',
-        telegramUsername: '',
-        utm: {},
-        telegramAttempts: 1,
-      }),
+      sendTelegram(testLead()),
       (error: unknown) =>
         error instanceof Error &&
         'code' in error &&

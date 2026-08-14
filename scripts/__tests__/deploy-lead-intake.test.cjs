@@ -18,7 +18,6 @@ test('production wrapper keeps every existing production resource name', () => {
   assert.match(productionWorkflow, /s3_bucket: zvenfit-frontend(?:\n|$)/);
   assert.match(productionWorkflow, /lead_function_name: zvenfit-telegram-lead(?:\n|$)/);
   assert.match(productionWorkflow, /schedule_function_name: zvenfit-fitbase-schedule(?:\n|$)/);
-  assert.match(productionWorkflow, /schedule_provider: fitbase(?:\n|$)/);
   assert.match(productionWorkflow, /lead_retry_trigger_name: zvenfit-lead-telegram-retry(?:\n|$)/);
   assert.match(productionWorkflow, /ydb_database_name: zvenfit-leads(?:\n|$)/);
 });
@@ -40,14 +39,15 @@ test('staging wrapper is manual-only and uses isolated resource names', () => {
   }
 
   assert.match(stagingWorkflow, /allowed_origins: https:\/\/staging\.zvenfit\.ru/);
-  assert.match(stagingWorkflow, /schedule_provider: fixture(?:\n|$)/);
 });
 
-test('production and staging call the same reusable workflow with environment secrets', () => {
+test('production and staging call the same reusable workflow without secret inheritance', () => {
   for (const workflow of [productionWorkflow, stagingWorkflow]) {
     assert.match(workflow, /uses: \.\/\.github\/workflows\/_deploy-environment\.yml/);
-    assert.match(workflow, /secrets: inherit/);
+    assert.doesNotMatch(workflow, /secrets: inherit/);
   }
+  assert.match(productionWorkflow, /TELEGRAM_BOT_TOKEN: \$\{\{ secrets\.TELEGRAM_BOT_TOKEN \}\}/);
+  assert.doesNotMatch(stagingWorkflow, /TELEGRAM_BOT_TOKEN|FITBASE_API_TOKEN|MONIUM_API_KEY/);
 });
 
 test('reusable workflow validates config before cloud deploy jobs', () => {
@@ -92,7 +92,6 @@ test('reusable workflow passes resource identities explicitly instead of using p
   assert.match(reusableWorkflow, /YC_LEAD_FUNCTION_NAME: \$\{\{ inputs\.lead_function_name \}\}/);
   assert.match(reusableWorkflow, /YC_LEAD_RETRY_TRIGGER_NAME: \$\{\{ inputs\.lead_retry_trigger_name \}\}/);
   assert.match(reusableWorkflow, /YC_SCHEDULE_FUNCTION_NAME: \$\{\{ inputs\.schedule_function_name \}\}/);
-  assert.match(reusableWorkflow, /SCHEDULE_PROVIDER: \$\{\{ inputs\.schedule_provider \}\}/);
   assert.match(reusableWorkflow, /YDB_DATABASE_NAME: \$\{\{ inputs\.ydb_database_name \}\}/);
   assert.match(reusableWorkflow, /s3:\/\/\$\{\{ inputs\.s3_bucket \}\}/);
   assert.doesNotMatch(reusableWorkflow, /zvenfit-telegram-lead(?:\n|'|")/);
@@ -115,15 +114,20 @@ test('direct Monium metrics require and deploy the environment-scoped API key se
   assert.match(deployScript, /--environment MONIUM_API_KEY="\$\{MONIUM_API_KEY\}"/);
 });
 
-test('lead deployment package contains every runtime YDB module', () => {
-  assert.match(deployScript, /lead-intake\/build\/\./);
+test('lead deployment packages the environment-specific artifact with its own entrypoint', () => {
+  assert.match(deployScript, /run build:staging/);
+  assert.match(deployScript, /BUILD_DIR=.*lead-intake\/build-staging/);
+  assert.match(deployScript, /FUNCTION_ENTRYPOINT="entrypoints\/staging\.handler"/);
+  assert.match(deployScript, /BUILD_DIR=.*lead-intake\/build"/);
+  assert.match(deployScript, /FUNCTION_ENTRYPOINT="index\.handler"/);
   assert.match(deployScript, /cp -R/);
 });
 
-test('existing retry trigger is updated by resolved id', () => {
+test('regular CI keeps retry-trigger administration bootstrap-only', () => {
+  assert.match(deployScript, /MANAGE_LEAD_RETRY_TRIGGER/);
+  assert.match(reusableWorkflow, /MANAGE_LEAD_RETRY_TRIGGER: 'false'/);
   assert.match(deployScript, /TRIGGER_ID=.*serverless trigger get/);
   assert.match(deployScript, /serverless trigger update timer[\s\\]+--id="\$\{TRIGGER_ID\}"/);
-  assert.doesNotMatch(deployScript, /serverless trigger update timer[\s\\]+--name=/);
 });
 
 test('regular deploy verifies public access without mutating function IAM', () => {
@@ -147,14 +151,54 @@ test('staging deploy uses private gateway IAM while production remains public', 
   assert.match(scheduleDeployScript, /must be provisioned before private gateway deploy/);
 });
 
+test('deploy jobs use OIDC and ephemeral storage keys instead of long-lived cloud credentials', () => {
+  assert.match(reusableWorkflow, /id-token: write/);
+  assert.match(reusableWorkflow, /bash scripts\/auth-yc-wif\.sh/);
+  assert.match(reusableWorkflow, /bash scripts\/issue-ephemeral-storage-key\.sh/);
+  assert.match(reusableWorkflow, /OBJECT_STORAGE_BUCKET: \$\{\{ inputs\.s3_bucket \}\}/);
+  const ephemeralStorageKey = fs.readFileSync(path.join(ROOT, 'scripts/issue-ephemeral-storage-key.sh'), 'utf8');
+  assert.match(ephemeralStorageKey, /--policy "\$\{SESSION_POLICY\}"/);
+  assert.match(ephemeralStorageKey, /arn:aws:s3:::\$\{bucket\}\/\*/);
+  const workloadIdentityAuth = fs.readFileSync(path.join(ROOT, 'scripts/auth-yc-wif.sh'), 'utf8');
+  assert.doesNotMatch(workloadIdentityAuth, /config set token/);
+  assert.match(workloadIdentityAuth, /YC_IAM_TOKEN/);
+  assert.doesNotMatch(reusableWorkflow, /YC_SA_JSON_KEY|YC_ACCESS_KEY_ID|YC_SECRET_ACCESS_KEY/);
+  assert.doesNotMatch(reusableWorkflow, /curl -sSL[^\n]+install\.sh \| bash/);
+  assert.doesNotMatch(reusableWorkflow, /docker:\/\//);
+});
+
+test('staging checks bucket privacy before upload and rechecks object ACL afterwards', () => {
+  const preflight = reusableWorkflow.indexOf('Preflight private staging storage boundary');
+  const upload = reusableWorkflow.indexOf('Upload immutable assets');
+  const postflight = reusableWorkflow.indexOf('Verify uploaded staging objects remain private');
+
+  assert.equal(preflight >= 0, true);
+  assert.equal(upload > preflight, true);
+  assert.equal(postflight > upload, true);
+  assert.match(reusableWorkflow, /get-bucket-acl/);
+  assert.match(reusableWorkflow, /get-bucket-policy/);
+  assert.match(reusableWorkflow, /get-object-acl/);
+  assert.doesNotMatch(reusableWorkflow, /--acl (?:public|private)/);
+});
+
+test('staging uses isolated artifacts instead of runtime provider switches and keeps stable authorizer rollback', () => {
+  assert.doesNotMatch(reusableWorkflow, /lead_notification_mode|schedule_provider/i);
+  assert.doesNotMatch(deployScript, /TELEGRAM_DELIVERY_MODE/);
+  assert.doesNotMatch(scheduleDeployScript, /SCHEDULE_PROVIDER/);
+  assert.match(reusableWorkflow, /rollback-staging-authorizer:/);
+  assert.match(reusableWorkflow, /previous_version_id/);
+  assert.match(reusableWorkflow, /candidate_version_id/);
+});
+
 test('regular deploy requires a pre-provisioned database', () => {
   assert.match(deployScript, /must be provisioned before CI deploy/);
   assert.doesNotMatch(deployScript, /^\s*yc ydb database create/m);
 });
 
-test('schedule deploy has independent runtime and deploy-time production fixture guards', () => {
-  assert.match(scheduleDeployScript, /fixture provider is forbidden in production/);
-  assert.match(scheduleDeployScript, /SCHEDULE_PROVIDER=\$\{SCHEDULE_PROVIDER\}/);
+test('schedule deploy selects an immutable artifact and requires production credentials only for production', () => {
+  assert.match(scheduleDeployScript, /run build:staging/);
+  assert.match(scheduleDeployScript, /FUNCTION_ENTRYPOINT="entrypoints\/staging\.handler"/);
+  assert.match(scheduleDeployScript, /FUNCTION_ENTRYPOINT="index\.handler"/);
   assert.match(scheduleDeployScript, /DEPLOYMENT_ENVIRONMENT=\$\{DEPLOYMENT_ENVIRONMENT_VALUE\}/);
-  assert.match(scheduleDeployScript, /set FITBASE_API_TOKEN for the fitbase provider/);
+  assert.match(scheduleDeployScript, /set FITBASE_API_TOKEN for production/);
 });
