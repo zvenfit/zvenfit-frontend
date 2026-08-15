@@ -62,6 +62,21 @@ Production channels: `ZvenFit · production · Telegram` и
 `ZvenFit · production · Email`. Raw logs хранятся три дня. Для более старого
 инцидента сначала используются alert history, notification feed и metric series.
 
+## Desired-state drift
+
+Все шестнадцать alerts хранят человекочитаемые названия и taxonomy labels в
+`scripts/monitoring.config.json`. Канонический read-only snapshot live Monium
+сравнивается с Git командой:
+
+```bash
+npm run check:monitoring-drift -- --snapshot /path/to/monium-live.json
+```
+
+Команда не выполняет сетевых запросов и ничего не изменяет. Exit code `0`
+означает совпадение с Git, `1` перечисляет drift по resource ID и полю, `2`
+означает некорректный ввод. Экспорт live snapshot пока остаётся отдельной ручной
+read-only операцией.
+
 ## Готовые селекторы raw logs
 
 Все production-события ZvenFit:

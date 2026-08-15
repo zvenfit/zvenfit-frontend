@@ -79,6 +79,21 @@ test('every alert references a metric and is documented', () => {
   assert.equal(alertIds.size, 16);
 });
 
+test('every alert keeps the human-readable name and product taxonomy tracked in Git', () => {
+  for (const alert of config.alerts) {
+    assert.match(alert.displayName, /^ZvenFit · /, `${alert.id} has no canonical display name`);
+    assert.equal(alert.labels?.application, 'zvenfit-frontend', `${alert.id} has no application label`);
+    assert.equal(alert.labels?.environment, 'production', `${alert.id} has no environment label`);
+
+    if (alert.decomposeBy?.includes('resource_id')) {
+      continue;
+    }
+
+    assert.equal(typeof alert.labels?.service, 'string', `${alert.id} has no service label`);
+    assert.equal(typeof alert.labels?.resource_id, 'string', `${alert.id} has no resource_id label`);
+  }
+});
+
 test('anti-spam and accepted lead volume thresholds are explicit', () => {
   const rateMetric = config.logMetrics.find(metric => metric.id === 'zvenfit_lead_rate_limited_5m');
   const rateAlert = config.alerts.find(alert => alert.id === 'zvenfit_rate-limited_leads');

@@ -437,6 +437,28 @@ bash scripts/test-monitoring-alerts.sh --confirm
 селекторы проверяются по сохранённым platform logs. Намеренно ронять production-
 функции, обрывать клиентские запросы или заполнять production-базу нельзя.
 
+## Read-only drift check
+
+`scripts/monitoring.config.json` хранит Git desired state для log metrics,
+alerts, notification channels, policy и dashboard. Снимок live-конфигурации в
+том же каноническом JSON-формате сравнивается командой:
+
+```bash
+npm run check:monitoring-drift -- --snapshot /path/to/monium-live.json
+```
+
+Снимок также можно передать через stdin: `--snapshot -`. Проверка нормализует
+порядок коллекций и сравнивает операционные поля: имена, selectors, thresholds,
+labels, notification channels и структуру dashboard.
+
+- exit code `0` — snapshot совпадает с desired state;
+- exit code `1` — найден drift, отличия перечислены по resource ID и полю;
+- exit code `2` — snapshot или аргументы некорректны.
+
+Команда read-only: она не обращается к Monium самостоятельно, не меняет live
+ресурсы и не требует нового service account, IAM binding или Lockbox. Получение
+и нормализация live snapshot пока остаются отдельным ручным read-only шагом.
+
 ## Dashboard
 
 Для вызовов, runtime errors и latency используй готовые service dashboards
