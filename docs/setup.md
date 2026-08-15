@@ -48,6 +48,9 @@ yc config get folder-id
 ```
 
 Не создавай authorized JSON key для GitHub Actions. Deployment использует WIF.
+Production deploy identity называется `zvenfit-frontend-ci-sa`: application
+namespace в имени обязателен, потому что folder также содержит Estetika и
+reminder. GitHub хранит только неизменяемый service account ID.
 
 ## GitHub OIDC / WIF
 
@@ -75,7 +78,9 @@ yc iam workload-identity federated-credential create \
 Job получает OIDC JWT, обменивает его на короткоживущий IAM token и выпускает
 одночасовой ephemeral Object Storage key с session policy только для bucket
 выбранного environment. Постоянные `YC_SA_JSON_KEY`,
-`YC_ACCESS_KEY_ID` и `YC_SECRET_ACCESS_KEY` workflow не читает.
+`YC_ACCESS_KEY_ID` и `YC_SECRET_ACCESS_KEY` workflow не читает. После перехода
+на WIF эти GitHub Secrets и соответствующие authorized/access keys должны быть
+отозваны, а не оставлены как запасной путь.
 
 ## GitHub Environments
 
@@ -122,6 +127,8 @@ Staging не получает Fitbase, Telegram, Monium или production creden
 Важные границы:
 
 - deploy SA может менять версии только своих Functions и spec своего Gateway;
+- в общей production folder роли `functions.editor` и `ydb.editor` назначаются
+  на конкретные ресурсы, а не на folder целиком;
 - runtime lead SA имеет доступ только к своей YDB;
 - Gateway SA только читает свой bucket и вызывает свои Functions;
 - retry trigger создаётся/обновляется bootstrap-процессом, не обычным CI;

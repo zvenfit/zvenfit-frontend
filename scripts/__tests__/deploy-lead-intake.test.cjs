@@ -187,6 +187,35 @@ test('traffic deploy remains stateless and carries no paid secret or storage cha
 
 test('deploy jobs use OIDC and ephemeral storage keys instead of long-lived cloud credentials', () => {
   assert.match(reusableWorkflow, /id-token: write/);
+  assert.doesNotMatch(reusableWorkflow, /^  id-token: write$/m);
+  assert.equal((reusableWorkflow.match(/^      id-token: write$/gm) || []).length, 6);
+
+  for (const jobName of [
+    'deploy-function',
+    'deploy-schedule-function',
+    'deploy-traffic-function',
+    'deploy-authorizer',
+    'deploy-site',
+    'rollback-staging-authorizer',
+  ]) {
+    assert.match(
+      reusableWorkflow,
+      new RegExp(
+        `  ${jobName}:\\n[\\s\\S]*?    permissions:\\n      contents: read\\n      id-token: write`,
+      ),
+    );
+  }
+
+  for (const jobName of ['validate-config', 'quality-checks']) {
+    const jobStart = reusableWorkflow.indexOf(`  ${jobName}:`);
+    const nextJob = reusableWorkflow.slice(jobStart + 1).search(/\n  [a-z0-9-]+:\n/);
+    const jobBlock = reusableWorkflow.slice(
+      jobStart,
+      nextJob === -1 ? reusableWorkflow.length : jobStart + 1 + nextJob,
+    );
+    assert.doesNotMatch(jobBlock, /id-token: write/);
+  }
+
   assert.match(reusableWorkflow, /bash scripts\/auth-yc-wif\.sh/);
   assert.match(reusableWorkflow, /bash scripts\/issue-ephemeral-storage-key\.sh/);
   assert.match(reusableWorkflow, /OBJECT_STORAGE_BUCKET: \$\{\{ inputs\.s3_bucket \}\}/);
