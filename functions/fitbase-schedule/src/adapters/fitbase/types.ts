@@ -1,4 +1,5 @@
 export interface FitbaseError extends Error {
+  code?: string;
   payload?: unknown;
   status?: number;
 }

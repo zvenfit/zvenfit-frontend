@@ -47,7 +47,6 @@ test('stays inert when metrics are disabled', async () => {
     },
   });
 
-  metrics.addCounter('test_counter');
   metrics.recordGauge('test_gauge', 1);
   await metrics.flush();
 
@@ -89,7 +88,6 @@ test('lazily records metrics with Monium headers and flushes only once', async (
       transportOptions.push(options);
 
       return {
-        addCounter: (name, value, attributes) => calls.push({ kind: 'counter', name, value, attributes }),
         recordGauge: (name, value, attributes) => calls.push({ kind: 'gauge', name, value, attributes }),
         flush: async () => {
           flushCalls += 1;
@@ -99,7 +97,6 @@ test('lazily records metrics with Monium headers and flushes only once', async (
   });
 
   assert.equal(transportOptions.length, 0);
-  metrics.addCounter('lead_storage_errors', 2, { outcome: 'failed' });
   metrics.recordGauge('lead_pipeline_health', 1, {
     outcome: 'healthy',
     resource_id: 'must-not-override-function',
@@ -108,18 +105,6 @@ test('lazily records metrics with Monium headers and flushes only once', async (
   await metrics.flush();
 
   assert.deepEqual(calls, [
-    {
-      kind: 'counter',
-      name: 'lead_storage_errors',
-      value: 2,
-      attributes: {
-        application: 'zvenfit-frontend',
-        environment: 'production',
-        component: 'zvenfit-lead-intake',
-        resource_id: 'zvenfit-telegram-lead',
-        outcome: 'failed',
-      },
-    },
     {
       kind: 'gauge',
       name: 'lead_pipeline_health',
@@ -158,7 +143,7 @@ test('does not propagate initialization or export failures', async () => {
     },
   });
 
-  assert.doesNotThrow(() => initializationMetrics.addCounter('lead_storage_errors'));
+  assert.doesNotThrow(() => initializationMetrics.recordGauge('lead_pipeline_health', 0));
   assert.deepEqual(initializationLogger.errors, [
     { event: 'monium_metrics_init_error', error_code: 'collector_unavailable' },
   ]);
@@ -167,7 +152,6 @@ test('does not propagate initialization or export failures', async () => {
   const exportMetrics: InvocationMetrics = createInvocationMetrics(undefined, exportLogger, {
     env: enabledEnv(),
     transportFactory: () => ({
-      addCounter() {},
       recordGauge() {},
       flush: async () => {
         throw Object.assign(new Error('timeout'), { code: 'export_timeout' });
@@ -175,7 +159,7 @@ test('does not propagate initialization or export failures', async () => {
     }),
   });
 
-  exportMetrics.addCounter('lead_storage_errors');
+  exportMetrics.recordGauge('lead_pipeline_health', 0);
   await assert.doesNotReject(exportMetrics.flush());
   assert.deepEqual(exportLogger.errors, [{ event: 'monium_metrics_export_error', error_code: 'export_timeout' }]);
   assert.equal(JSON.stringify(exportLogger.errors).includes('monium-api-key'), false);
@@ -191,16 +175,16 @@ test('bounds the exporter timeout', () => {
       transportFactory: options => {
         observedTimeouts.push(options.timeoutMs);
 
-        return { addCounter() {}, recordGauge() {}, async flush() {} };
+        return { recordGauge() {}, async flush() {} };
       },
     });
-    metrics.addCounter('test_counter');
+    metrics.recordGauge('test_gauge', 1);
   }
 
   assert.deepEqual(observedTimeouts, [100, 5000]);
 });
 
-test('collects once and waits for the exporter callback before shutdown', async () => {
+test('collects a gauge once and waits for the exporter callback before shutdown', async () => {
   let exportedMetrics: ResourceMetrics | undefined;
   let callbackCompleted = false;
   let shutdownCalls = 0;
@@ -222,7 +206,7 @@ test('collects once and waits for the exporter callback before shutdown', async 
     () => exporter,
   );
 
-  transport.addCounter('zvenfit_test_events', 2, { outcome: 'stored' });
+  transport.recordGauge('zvenfit_test_health', 2, { outcome: 'stored' });
   const flushPromise = transport.flush();
   assert.equal(callbackCompleted, false);
   await flushPromise;
@@ -231,9 +215,9 @@ test('collects once and waits for the exporter callback before shutdown', async 
   assert.equal(shutdownCalls, 1);
   const metric = exportedMetrics?.scopeMetrics
     .flatMap(scope => scope.metrics)
-    .find(item => item.descriptor.name === 'zvenfit_test_events');
+    .find(item => item.descriptor.name === 'zvenfit_test_health');
   assert.ok(metric);
-  assert.equal(metric.aggregationTemporality, AggregationTemporality.DELTA);
+  assert.equal(metric.aggregationTemporality, AggregationTemporality.CUMULATIVE);
   assert.equal(metric.dataPoints[0]?.value, 2);
   assert.deepEqual(metric.dataPoints[0]?.attributes, { outcome: 'stored' });
 });
@@ -289,6 +273,6 @@ test('rejects when the exporter callback reports a failure', async () => {
     () => exporter,
   );
 
-  transport.addCounter('zvenfit_test_events', 1);
+  transport.recordGauge('zvenfit_test_health', 1);
   await assert.rejects(transport.flush(), { code: 'collector_rejected' });
 });

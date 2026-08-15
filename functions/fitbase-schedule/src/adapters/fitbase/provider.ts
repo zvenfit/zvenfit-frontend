@@ -5,7 +5,7 @@ import type { ScheduleProvider } from '../../types';
 export function createFitbaseProvider(environment: NodeJS.ProcessEnv): ScheduleProvider {
   const token = (environment.FITBASE_API_TOKEN || '').trim();
   if (!token) {
-    throw new Error('fitbase_token_missing');
+    throw Object.assign(new Error('fitbase_token_missing'), { code: 'fitbase_token_missing' });
   }
 
   const fitbaseHeaders = {

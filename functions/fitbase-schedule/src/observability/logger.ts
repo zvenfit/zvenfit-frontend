@@ -1,5 +1,7 @@
 import { destination, pino, stdTimeFunctions, type DestinationStream, type Logger } from 'pino';
 
+import { safeErrorFields } from './errors';
+
 import type { FunctionContext, LoggerLike } from '../types';
 
 const SERVICE = 'zvenfit-fitbase-schedule';
@@ -64,16 +66,16 @@ export function createInvocationLogger(context?: FunctionContext, destination?: 
   return context?.requestId ? invocationLogger.child({ request_id: context.requestId }) : invocationLogger;
 }
 
-export function logScheduleFailure(loggerInstance: LoggerLike, event: string, error?: unknown): void {
-  const message = error instanceof Error ? error.message : '';
-  const status =
-    error && typeof error === 'object' && 'status' in error && Number.isInteger(error.status) ? error.status : null;
-
+export function logScheduleFailure(
+  loggerInstance: LoggerLike,
+  event: string,
+  error: unknown,
+  retriable: boolean,
+): void {
   loggerInstance.error(
     {
       event,
-      error_code: message.slice(0, 64) || event,
-      status,
+      ...safeErrorFields(error, { fallbackCode: event, retriable }),
     },
     event,
   );

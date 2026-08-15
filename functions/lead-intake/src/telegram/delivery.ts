@@ -53,8 +53,8 @@ export function telegramTimeoutMs(): number {
   return Number.isInteger(value) && value > 0 ? Math.min(value, MAX_TELEGRAM_TIMEOUT_MS) : DEFAULT_TELEGRAM_TIMEOUT_MS;
 }
 
-function telegramError(message: string, code: string): Error & { code: string } {
-  return Object.assign(new Error(message), { code });
+function telegramError(message: string, code: string, status?: number): Error & { code: string; status?: number } {
+  return Object.assign(new Error(message), { code, name: 'TelegramError', status });
 }
 
 function telegramNetworkErrorCode(error: unknown): string {
@@ -106,6 +106,6 @@ export async function sendTelegram(payload: ClaimedLead): Promise<void> {
   const telegramOk =
     typeof responseBody === 'object' && responseBody !== null && 'ok' in responseBody && responseBody.ok === true;
   if (!response.ok || !telegramOk) {
-    throw telegramError('Telegram returned an error', 'telegram_error');
+    throw telegramError('Telegram returned an error', 'telegram_error', response.status);
   }
 }

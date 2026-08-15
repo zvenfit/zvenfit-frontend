@@ -15,6 +15,7 @@ ZvenFit. Техническое устройство метрик и ручна�
 | Event counts | Дискретные события считаются log-derived metrics |
 | Direct metrics | OTLP используется для heartbeat и состояния Telegram-очереди; direct series ограничивается полным набором `application`, `environment`, `component`, `resource_id` |
 | Platform signals | Runtime errors, throttling, queue, inflight, memory и duration берутся из managed Cloud Functions metrics |
+| SLO | Не внедряется по текущему решению владельца; paging остаётся на фактических потерях/сбоях и технических причинах |
 | No data | `Alarm` только для retry heartbeat, `Warning` для YDB storage, `OK` для событийных и runtime-error сигналов |
 | Traffic | Текущая схема stateless; маркетинговые конверсии остаются в маркетинговых счётчиках |
 | Новая инфраструктура | Bucket, service account, IAM binding, trigger, function, raw-log export, state storage и Lockbox создаются только после отдельного согласования |
@@ -74,8 +75,10 @@ npm run check:monitoring-drift -- --snapshot /path/to/monium-live.json
 
 Команда не выполняет сетевых запросов и ничего не изменяет. Exit code `0`
 означает совпадение с Git, `1` перечисляет drift по resource ID и полю, `2`
-означает некорректный ввод. Экспорт live snapshot пока остаётся отдельной ручной
-read-only операцией.
+означает некорректный ввод. Экспорт live snapshot остаётся отдельной ручной
+read-only операцией: deploy service account не имеет folder-level viewer role,
+а private UI API не используется. Автоматизация требует отдельного согласования
+read-only IAM и поддерживаемого полного export API.
 
 ## Готовые селекторы raw logs
 
@@ -130,7 +133,11 @@ Synthetic smoke records помечаются `meta.synthetic=true` и
 Runtime errors и throttling всех трёх функций покрывают два multialert-а,
 разложенных по `resource_id`; уведомление показывает конкретную функцию, а
 события одного вычисления отправляются группой. Queue, inflight, memory и duration
-также разделены по `resource_id`, но пока используются как диагностические графики.
+также разделены по `resource_id` и используются как диагностические графики.
+Основной latency-график строит p95 из managed `duration_ms_histogram`; max duration
+на production-борде заменён, чтобы единичный выброс не искажал основной сигнал. Log-derived
+`zvenfit_retry_worker_log_heartbeat_1m` отдельно подтверждает поставку structured
+events и не создаёт второй paging-сигнал.
 
 ## Разбор срабатывания
 
@@ -142,8 +149,9 @@ Runtime errors и throttling всех трёх функций покрывают
    component, затем сузить по `event`, `request_id`, `level` или `error_code`.
 4. Для log-derived alert сверить source selector/grouping и выходную series.
    Поставка log aggregates может занимать до трёх минут.
-5. Для direct gauges сопоставить heartbeat/backlog с событиями retry worker;
-   для managed metrics искать подтверждение на соседних platform-графиках.
+5. Для direct gauges сопоставить heartbeat/backlog с `retry_worker_completed` и
+   log-derived heartbeat; для managed metrics искать подтверждение на соседних
+   platform-графиках.
 6. После восстановления проверить переход `OK` и доставку в Telegram и email.
 
 Empty event graph при зелёном alert — нормальное состояние. Порог не ослабляется
@@ -155,6 +163,8 @@ delay, затем desired state, тесты и live drift.
 - Любое изменение сначала вносится в `scripts/monitoring.config.json` и
   документацию, затем проверяется тестами и live-конфигурацией.
 - Любой новый infrastructure element отдельно согласовывается с владельцем.
+- Deploy marker не добавляется без отдельного write-path: у deploy SA нет metric
+  writer, а расширять использование runtime `MONIUM_API_KEY` на CI нельзя молча.
 - Любое изменение KB проверяется на секреты и персональные данные до коммита.
-- Project KB публикуется только в Git remote этого репозитория и не
-  синхронизируется с отдельными KB-системами.
+- Project KB хранится только локально в `knowledge-base/` и не коммитится, не
+  публикуется и не синхронизируется с удалёнными KB-системами.

@@ -64,6 +64,20 @@
       "pagingAlert": true,
       "decomposeBy": ["resource_id"]
     },
+    "functionDurationP95": {
+      "title": "Cloud Functions: длительность p95",
+      "query": "histogram_percentile(95, {project=\"folder__b1ge1e4iopttj79hfdfm\", service=\"serverless-functions\", name=\"duration_ms_histogram\", resource_id=\"zvenfit-telegram-lead|zvenfit-fitbase-schedule|zvenfit-site-traffic\"})",
+      "unit": "milliseconds",
+      "pagingAlert": false,
+      "decomposeBy": ["resource_id"]
+    },
+    "logPipelineHeartbeat": {
+      "title": "Поставка событий: heartbeat retry-worker",
+      "source": "zvenfit_retry_worker_log_heartbeat_1m",
+      "query": "series_sum({project=\"folder__b1ge1e4iopttj79hfdfm\", cluster=\"default\", service=\"logging_aggregates\", name=\"zvenfit_retry_worker_log_heartbeat_1m\"})",
+      "visualization": "chart",
+      "pagingAlert": false
+    },
     "trafficWidgets": [
       "Cloud CDN: запросы",
       "Cloud CDN: HTTP-статусы",
@@ -79,7 +93,7 @@
     "logMetrics": "manual-console",
     "notificationChannels": "manual-console",
     "alerts": "manual-console",
-    "reason": "Yandex Monitoring does not expose these resources in the public YC CLI or Terraform provider"
+    "reason": "Log metrics, alert rules and notification channels remain console-managed; the repository stores the reviewed desired state and validates read-only snapshots"
   },
   "notificationChannels": [
     {
@@ -152,6 +166,16 @@
       "window": "5m"
     },
     {
+      "id": "zvenfit_retry_worker_log_heartbeat_1m",
+      "displayName": "ZvenFit · Retry-worker: поставка событий",
+      "events": ["retry_worker_completed"],
+      "filters": { "resource_id": "*" },
+      "aggregation": "count",
+      "window": "1m",
+      "grouping": ["meta.application", "meta.environment", "meta.service", "resource_id"],
+      "synthetic": false
+    },
+    {
       "id": "zvenfit_schedule_runtime_errors_1m",
       "sourceType": "platform-runtime",
       "selector": "{project=\"folder__b1ge1e4iopttj79hfdfm\", cluster=\"default\", service=\"default\", resource_type=\"serverless.function\", resource_id=\"d4e80noc1hjn2g8u0beq\", level=\"ERROR\", message!=*\"Code: 499\"}",
@@ -185,26 +209,28 @@
     {
       "id": "zvenfit_lead_storage_errors",
       "displayName": "ZvenFit · Заявки: ошибки сохранения",
-      "metricSelector": "{project=\"folder__b1ge1e4iopttj79hfdfm\", cluster=\"default\", service=\"zvenfit-frontend\", name=\"zvenfit_lead_storage_errors\"}",
+      "metricId": "zvenfit_lead_storage_errors_1m",
+      "metricSelector": "{project=\"folder__b1ge1e4iopttj79hfdfm\", cluster=\"default\", service=\"logging_aggregates\", name=\"zvenfit_lead_storage_errors_1m\", meta.application=\"zvenfit-frontend\", meta.environment=\"production\", meta.service=\"zvenfit-lead-intake\"}",
       "aggregation": "max",
       "operator": ">",
       "warning": 0,
       "alarm": 0.5,
       "window": "5m",
-      "delay": "30s",
+      "delay": "3m",
       "noData": "OK",
       "labels": { "application": "zvenfit-frontend", "environment": "production", "service": "zvenfit-lead-intake", "resource_id": "zvenfit-telegram-lead" }
     },
     {
       "id": "zvenfit_permanent_telegram_failures",
       "displayName": "ZvenFit · Telegram: окончательные сбои доставки",
-      "metricSelector": "{project=\"folder__b1ge1e4iopttj79hfdfm\", cluster=\"default\", service=\"zvenfit-frontend\", name=\"zvenfit_telegram_delivery_failed_1m\"}",
+      "metricId": "zvenfit_telegram_delivery_failed_1m",
+      "metricSelector": "{project=\"folder__b1ge1e4iopttj79hfdfm\", cluster=\"default\", service=\"logging_aggregates\", name=\"zvenfit_telegram_delivery_failed_1m\", meta.application=\"zvenfit-frontend\", meta.environment=\"production\", meta.service=\"zvenfit-lead-intake\"}",
       "aggregation": "max",
       "operator": ">",
       "warning": 0,
       "alarm": 0.5,
       "window": "5m",
-      "delay": "30s",
+      "delay": "3m",
       "noData": "OK",
       "labels": { "application": "zvenfit-frontend", "environment": "production", "service": "zvenfit-lead-intake", "resource_id": "zvenfit-telegram-lead" }
     },

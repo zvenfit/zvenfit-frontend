@@ -61,6 +61,10 @@ test('logs a safe error code without the database error message', async () => {
 
   const failure = recordByEvent(logger.records, 'ydb_operation_failed');
   assert.equal(failure.error_code, 'OVERLOADED');
+  assert.equal(failure.error_type, 'Error');
+  assert.equal(failure.retriable, true);
+  assert.equal(failure.upstream_status, null);
+  assert.match(String(failure.stack_fingerprint), /^[a-f0-9]{16}$/);
   assert.equal(JSON.stringify(failure).includes('phone number'), false);
 });
 

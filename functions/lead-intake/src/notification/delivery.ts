@@ -1,4 +1,5 @@
 import { sanitize } from '../lead-payload';
+import { safeErrorFields } from '../observability/errors';
 
 import type { HandlerDependencies, JsonObject, LoggerLike } from '../types';
 
@@ -24,10 +25,18 @@ export function logDeliveryFailure(
   logger: LoggerLike,
   event: string,
   leadId: string,
-  code: string,
-  attempts: number,
+  error: unknown,
+  options: { attempts: number; fallbackCode: string; retriable: boolean },
 ): void {
-  logger.error({ event, lead_id: leadId, error_code: code, attempts }, event);
+  logger.error(
+    {
+      event,
+      lead_id: leadId,
+      attempts: options.attempts,
+      ...safeErrorFields(error, { fallbackCode: options.fallbackCode, retriable: options.retriable }),
+    },
+    event,
+  );
 }
 
 function nextRetryAt(now: Date, attempts: number): Date {
@@ -76,8 +85,12 @@ export async function deliverLead(
       logger,
       terminal ? 'telegram_delivery_failed_permanently' : 'telegram_delivery_retry_scheduled',
       leadId,
-      code,
-      claimedLead.telegramAttempts,
+      error,
+      {
+        attempts: claimedLead.telegramAttempts,
+        fallbackCode: code,
+        retriable: !terminal,
+      },
     );
 
     return terminal ? 'failed' : 'pending';
@@ -97,7 +110,11 @@ export async function retryPendingLeads(dependencies: HandlerDependencies, logge
       summary[await deliverLead(leadId, dependencies, logger)] += 1;
     } catch (error) {
       summary.pending += 1;
-      logDeliveryFailure(logger, 'telegram_delivery_retry_error', leadId, errorCode(error, 'storage_error'), 0);
+      logDeliveryFailure(logger, 'telegram_delivery_retry_error', leadId, error, {
+        attempts: 0,
+        fallbackCode: 'storage_error',
+        retriable: true,
+      });
     }
   }
 
