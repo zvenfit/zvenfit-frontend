@@ -5,8 +5,9 @@
 ## Project-specific agent rule
 
 - Use only the project-local knowledge base in `knowledge-base/`.
-- Reading and writing this local knowledge base is allowed, but its contents must never be staged, committed, pushed, synchronized, uploaded, or copied to any remote surface.
+- The project-local knowledge base is version-controlled documentation: it may be staged, committed, and pushed only to this repository's configured Git remote after checking that it contains no secrets or personal data.
 - Do not use Stefania Wiki, DataCatalog, remote knowledge-base adapters, cross-project memory, or knowledge-base sync workflows for this project.
+- Do not synchronize, upload, or copy `knowledge-base/` to a separate knowledge-base surface; Git for this project is its only remote storage.
 - Work only with the repository and task-specific tools explicitly requested by the user.
 
 ## Stack

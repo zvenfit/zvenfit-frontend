@@ -4,6 +4,10 @@
 персональные данные; traffic log намеренно access-like и описан отдельно ниже.
 Машиночитаемый источник конфигурации: `scripts/monitoring.config.json`.
 
+Согласованные правила эксплуатации, единая taxonomy, прямые ссылки Monium,
+готовые log-селекторы и порядок разбора инцидента вынесены в
+[`monitoring-operations.md`](monitoring-operations.md).
+
 > [!IMPORTANT]
 > Обычные log metrics, notification channels и alerts Yandex Monitoring пока не представлены
 > как ресурсы публичного `yc` CLI или Terraform provider. Поэтому их создание — одноразовый шаг

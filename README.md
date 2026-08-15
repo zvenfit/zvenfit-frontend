@@ -3,6 +3,7 @@
 Статический сайт ZvenFit из Webflow-экспорта, serverless-функции и надёжное хранение заявок в YDB Serverless.
 
 - Инструкции для контрибьюторов и AI-агентов: [`AGENTS.md`](AGENTS.md)
+- Проектная база знаний: [`knowledge-base/_index.md`](knowledge-base/_index.md)
 - Текущий backlog: [`TODO.md`](TODO.md)
 - Полная настройка инфраструктуры: [`docs/setup.md`](docs/setup.md)
 - Границы backend-слоёв и артефактов: [`docs/backend-architecture.md`](docs/backend-architecture.md)
@@ -95,7 +96,8 @@ npm run smoke:production
 | [`docs/setup.md`](docs/setup.md)                                         | Yandex Cloud, YDB, Telegram, GitHub Secrets, локальная разработка и troubleshooting |
 | [`docs/launch-checklist.md`](docs/launch-checklist.md)                   | Повторяемая проверка каждого production-релиза                                      |
 | [`docs/monitoring.md`](docs/monitoring.md)                               | Логи, метрики, алерты, dashboard и synthetic tests                                  |
+| [`docs/monitoring-operations.md`](docs/monitoring-operations.md)         | Договорённости, ссылки, готовые log-селекторы и incident runbook                     |
 | [`docs/site-traffic-analytics.md`](docs/site-traffic-analytics.md)       | Stateless page views, traffic classes и dashboard Monium                            |
 | [`docs/utm-attribution-marketing.md`](docs/utm-attribution-marketing.md) | UTM-разметка для маркетинга                                                         |
 
-Секреты, реальные `.env*`, ключи сервисных аккаунтов и содержимое `knowledge-base/` нельзя коммитить или отправлять во внешние системы.
+`knowledge-base/` хранится вместе с кодом и может публиковаться только в Git-репозиторий этого проекта. Её нельзя синхронизировать с Wiki, DataCatalog или другой внешней базой знаний. Перед коммитом в ней не должно быть секретов, персональных данных, реальных `.env*` или ключей сервисных аккаунтов.
