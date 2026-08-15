@@ -99,6 +99,7 @@ Environment variables:
 | `YC_FOLDER_ID` | production folder | staging folder |
 | `YC_DEPLOY_SERVICE_ACCOUNT_ID` | production deploy SA | staging deploy SA |
 | `YC_LEAD_SERVICE_ACCOUNT_ID` | production runtime SA | staging runtime SA |
+| `YDB_DATABASE_ID` | production lead database ID | staging lead database ID |
 | `YC_GATEWAY_SERVICE_ACCOUNT_ID` | — | staging Gateway SA |
 | `YC_SWS_SECURITY_PROFILE_ID` | — | staging SWS profile |
 | `Y_MAPS_API_KEY` | browser maps key | browser maps key |
@@ -129,6 +130,8 @@ Staging не получает Fitbase, Telegram, Monium или production creden
 - deploy SA может менять версии только своих Functions и spec своего Gateway;
 - в общей production folder роли `functions.editor` и `ydb.editor` назначаются
   на конкретные ресурсы, а не на folder целиком;
+- CI получает YDB по `YDB_DATABASE_ID`, поэтому ему не нужна folder-level роль
+  `ydb.viewer`; lookup по имени остаётся только локальным fallback;
 - runtime lead SA имеет доступ только к своей YDB;
 - Gateway SA только читает свой bucket и вызывает свои Functions;
 - retry trigger создаётся/обновляется bootstrap-процессом, не обычным CI;

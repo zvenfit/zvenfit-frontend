@@ -102,6 +102,7 @@ test('reusable workflow passes resource identities explicitly instead of using p
   assert.match(reusableWorkflow, /YC_SCHEDULE_FUNCTION_NAME: \$\{\{ inputs\.schedule_function_name \}\}/);
   assert.match(reusableWorkflow, /YC_TRAFFIC_FUNCTION_NAME: \$\{\{ inputs\.traffic_function_name \}\}/);
   assert.match(reusableWorkflow, /YDB_DATABASE_NAME: \$\{\{ inputs\.ydb_database_name \}\}/);
+  assert.match(reusableWorkflow, /YDB_DATABASE_ID: \$\{\{ vars\.YDB_DATABASE_ID \}\}/);
   assert.match(reusableWorkflow, /s3:\/\/\$\{\{ inputs\.s3_bucket \}\}/);
   assert.doesNotMatch(reusableWorkflow, /zvenfit-telegram-lead(?:\n|'|")/);
   assert.doesNotMatch(reusableWorkflow, /zvenfit-fitbase-schedule(?:\n|'|")/);
@@ -283,6 +284,9 @@ test('staging uses isolated artifacts instead of runtime provider switches and k
 
 test('regular deploy requires a pre-provisioned database', () => {
   assert.match(deployScript, /must be provisioned before CI deploy/);
+  assert.match(deployScript, /set YDB_DATABASE_ID for resource-scoped CI access/);
+  assert.match(deployScript, /YDB_DATABASE_GET_ARGS=\(--id="\$\{YDB_DATABASE_ID\}"\)/);
+  assert.match(deployScript, /yc ydb database get "\$\{YDB_DATABASE_GET_ARGS\[@\]\}"/);
   assert.doesNotMatch(deployScript, /^\s*yc ydb database create/m);
 });
 

@@ -6,6 +6,7 @@ SOURCE_DIR="$(mktemp -d /tmp/zvenfit-lead.XXXXXX)"
 trap 'rm -rf -- "${SOURCE_DIR}"' EXIT
 FUNCTION_NAME="${YC_LEAD_FUNCTION_NAME:-zvenfit-telegram-lead}"
 TRIGGER_NAME="${YC_LEAD_RETRY_TRIGGER_NAME:-zvenfit-lead-telegram-retry}"
+YDB_DATABASE_ID="${YDB_DATABASE_ID:-}"
 YDB_DATABASE_NAME="${YDB_DATABASE_NAME:-zvenfit-leads}"
 YDB_LEADS_TABLE="${YDB_LEADS_TABLE:-leads}"
 YDB_RATE_LIMITS_TABLE="${YDB_RATE_LIMITS_TABLE:-lead_rate_limits}"
@@ -105,12 +106,24 @@ fi
 yc config set folder-id "${YC_FOLDER_ID}" >/dev/null
 
 if [[ -z "${YDB_CONNECTION_STRING:-}" ]]; then
-  if ! yc ydb database get --name="${YDB_DATABASE_NAME}" >/dev/null 2>&1; then
-    echo "deploy-lead-intake: YDB database ${YDB_DATABASE_NAME} must be provisioned before CI deploy" >&2
+  if [[ "${GITHUB_ACTIONS:-}" == "true" && -z "${YDB_DATABASE_ID}" ]]; then
+    echo "deploy-lead-intake: set YDB_DATABASE_ID for resource-scoped CI access" >&2
     exit 1
   fi
 
-  YDB_CONNECTION_STRING="$(yc ydb database get --name="${YDB_DATABASE_NAME}" --format=json | node -e "
+  YDB_DATABASE_GET_ARGS=(--name="${YDB_DATABASE_NAME}")
+  YDB_DATABASE_REFERENCE="${YDB_DATABASE_NAME}"
+  if [[ -n "${YDB_DATABASE_ID}" ]]; then
+    YDB_DATABASE_GET_ARGS=(--id="${YDB_DATABASE_ID}")
+    YDB_DATABASE_REFERENCE="${YDB_DATABASE_ID}"
+  fi
+
+  if ! yc ydb database get "${YDB_DATABASE_GET_ARGS[@]}" >/dev/null 2>&1; then
+    echo "deploy-lead-intake: YDB database ${YDB_DATABASE_REFERENCE} must be provisioned before CI deploy" >&2
+    exit 1
+  fi
+
+  YDB_CONNECTION_STRING="$(yc ydb database get "${YDB_DATABASE_GET_ARGS[@]}" --format=json | node -e "
 const fs = require('fs');
 const data = JSON.parse(fs.readFileSync(0, 'utf8'));
 process.stdout.write(data.endpoint || '');
