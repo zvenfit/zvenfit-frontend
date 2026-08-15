@@ -65,7 +65,6 @@ on:
 
 permissions:
   contents: read
-  id-token: write
 
 env:
   NODE_VERSION: '22'
@@ -151,6 +150,9 @@ jobs:
     needs: [validate-config, quality-checks]
     runs-on: ubuntu-latest
     environment: ${{ inputs.deployment_environment }}
+    permissions:
+      contents: read
+      id-token: write
     outputs:
       function_url: ${{ steps.get-url.outputs.url }}
       function_id: ${{ steps.get-url.outputs.id }}
@@ -240,6 +242,9 @@ jobs:
     needs: [validate-config, quality-checks]
     runs-on: ubuntu-latest
     environment: ${{ inputs.deployment_environment }}
+    permissions:
+      contents: read
+      id-token: write
     outputs:
       function_url: ${{ steps.get-schedule-url.outputs.url }}
       function_id: ${{ steps.get-schedule-url.outputs.id }}
@@ -304,6 +309,9 @@ jobs:
     needs: [validate-config, quality-checks]
     runs-on: ubuntu-latest
     environment: ${{ inputs.deployment_environment }}
+    permissions:
+      contents: read
+      id-token: write
     outputs:
       function_url: ${{ steps.get-traffic-url.outputs.url }}
       function_id: ${{ steps.get-traffic-url.outputs.id }}
@@ -365,6 +373,9 @@ jobs:
     needs: [validate-config, quality-checks]
     runs-on: ubuntu-latest
     environment: ${{ inputs.deployment_environment }}
+    permissions:
+      contents: read
+      id-token: write
     outputs:
       function_id: ${{ steps.get-authorizer-id.outputs.id }}
       previous_version_id: ${{ steps.deploy-authorizer.outputs.previous_version_id }}
@@ -431,6 +442,9 @@ jobs:
     needs: [validate-config, deploy-function, deploy-schedule-function, deploy-traffic-function, deploy-authorizer]
     runs-on: ubuntu-latest
     environment: ${{ inputs.deployment_environment }}
+    permissions:
+      contents: read
+      id-token: write
 
     steps:
       - name: Checkout repository
@@ -591,6 +605,9 @@ jobs:
           needs.deploy-authorizer.result == 'success' && needs.deploy-site.result != 'success' }}
     runs-on: ubuntu-latest
     environment: ${{ inputs.deployment_environment }}
+    permissions:
+      contents: read
+      id-token: write
 
     steps:
       - name: Checkout repository
