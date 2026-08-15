@@ -155,6 +155,26 @@ test('YDB storage alert uses live database metrics and 70/85 percent thresholds'
   assert.equal(alert.noData, 'WARNING');
 });
 
+test('direct lead health alerts select the same canonical taxonomy emitted by the function', () => {
+  const expectedLabels = {
+    application: 'zvenfit-frontend',
+    environment: 'production',
+    service: 'zvenfit-lead-intake',
+    resource_id: 'zvenfit-telegram-lead',
+  };
+
+  for (const id of ['zvenfit_retry_worker_heartbeat', 'zvenfit_telegram_delivery_backlog']) {
+    const alert = config.alerts.find(item => item.id === id);
+
+    assert.ok(alert, `${id} is missing`);
+    assert.match(alert.metricSelector, /application="zvenfit-frontend"/);
+    assert.match(alert.metricSelector, /environment="production"/);
+    assert.match(alert.metricSelector, /component="zvenfit-lead-intake"/);
+    assert.match(alert.metricSelector, /resource_id="zvenfit-telegram-lead"/);
+    assert.deepEqual(alert.labels, expectedLabels);
+  }
+});
+
 test('runtime multialert covers every production function and keeps schedule cancellations separate', () => {
   const generalRuntimeAlert = config.alerts.find(alert => alert.id === 'zvenfit_function_runtime_errors');
   const throttlesAlert = config.alerts.find(alert => alert.id === 'zvenfit_function_throttles');

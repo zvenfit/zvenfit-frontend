@@ -42,6 +42,9 @@ runtime errors и throttling реализованы multialert-ами, разл�
 Direct gauges выбираются полным набором `application`, `environment`,
 `component`, `resource_id`. Селектор только по имени может продолжить выбирать
 старую series без taxonomy-меток и дать ложный `No data` после изменения схемы.
+Emitter добавляет эти четыре метки ко всем direct-метрикам централизованно;
+reusable deploy workflow передаёт их явно. Изменение selector и emitter должно
+публиковаться одним коммитом и проверяется unit/config-тестами.
 
 ## Где смотреть
 

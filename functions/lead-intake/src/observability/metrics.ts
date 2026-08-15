@@ -6,6 +6,10 @@ import type { MetricAttributes } from '@opentelemetry/api';
 const DEFAULT_ENDPOINT = 'https://ingest.monium.yandex.cloud/otlp/v1/metrics';
 const DEFAULT_CLUSTER = 'default';
 const DEFAULT_SERVICE = 'zvenfit-frontend';
+const DEFAULT_APPLICATION = 'zvenfit-frontend';
+const DEFAULT_ENVIRONMENT = 'production';
+const DEFAULT_COMPONENT = 'zvenfit-lead-intake';
+const DEFAULT_RESOURCE_ID = 'zvenfit-telegram-lead';
 const DEFAULT_TIMEOUT_MS = 1000;
 const MIN_TIMEOUT_MS = 100;
 const MAX_TIMEOUT_MS = 5000;
@@ -30,23 +34,26 @@ class LazyInvocationMetrics implements InvocationMetrics {
   private readonly transportOptions: MetricsTransportOptions;
   private readonly transportFactory: MetricsTransportFactory;
   private readonly logger: LoggerLike;
+  private readonly defaultAttributes: MetricAttributes;
 
   public constructor(
     transportOptions: MetricsTransportOptions,
     transportFactory: MetricsTransportFactory,
     logger: LoggerLike,
+    defaultAttributes: MetricAttributes,
   ) {
     this.transportOptions = transportOptions;
     this.transportFactory = transportFactory;
     this.logger = logger;
+    this.defaultAttributes = defaultAttributes;
   }
 
   public addCounter(name: string, value = 1, attributes?: MetricAttributes): void {
-    this.record(transport => transport.addCounter(name, value, attributes));
+    this.record(transport => transport.addCounter(name, value, this.withDefaultAttributes(attributes)));
   }
 
   public recordGauge(name: string, value: number, attributes?: MetricAttributes): void {
-    this.record(transport => transport.recordGauge(name, value, attributes));
+    this.record(transport => transport.recordGauge(name, value, this.withDefaultAttributes(attributes)));
   }
 
   public async flush(): Promise<void> {
@@ -74,6 +81,13 @@ class LazyInvocationMetrics implements InvocationMetrics {
       this.initializationFailed = true;
       logMetricError(this.logger, 'monium_metrics_init_error', error);
     }
+  }
+
+  private withDefaultAttributes(attributes?: MetricAttributes): MetricAttributes {
+    return {
+      ...attributes,
+      ...this.defaultAttributes,
+    };
   }
 }
 
@@ -152,12 +166,22 @@ export function createInvocationMetrics(
     },
     options.transportFactory ?? createOtelTransport,
     logger,
+    {
+      application: env.MONIUM_APPLICATION?.trim() || DEFAULT_APPLICATION,
+      environment: env.MONIUM_ENVIRONMENT?.trim() || DEFAULT_ENVIRONMENT,
+      component: env.MONIUM_COMPONENT?.trim() || DEFAULT_COMPONENT,
+      resource_id: env.MONIUM_RESOURCE_ID?.trim() || DEFAULT_RESOURCE_ID,
+    },
   );
 }
 
 export const _private = {
+  DEFAULT_APPLICATION,
   DEFAULT_CLUSTER,
+  DEFAULT_COMPONENT,
   DEFAULT_ENDPOINT,
+  DEFAULT_ENVIRONMENT,
+  DEFAULT_RESOURCE_ID,
   DEFAULT_SERVICE,
   MAX_TIMEOUT_MS,
   MIN_TIMEOUT_MS,

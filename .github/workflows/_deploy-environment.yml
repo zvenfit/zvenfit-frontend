@@ -209,6 +209,10 @@ jobs:
           MONIUM_PROJECT: folder__${{ vars.YC_FOLDER_ID }}
           MONIUM_CLUSTER: default
           MONIUM_SERVICE: zvenfit-frontend
+          MONIUM_APPLICATION: zvenfit-frontend
+          MONIUM_ENVIRONMENT: ${{ inputs.deployment_environment }}
+          MONIUM_COMPONENT: zvenfit-lead-intake
+          MONIUM_RESOURCE_ID: ${{ inputs.lead_function_name }}
           MONIUM_METRICS_TIMEOUT_MS: '1000'
           LOG_LEVEL: ${{ env.LOG_LEVEL }}
         run: bash scripts/deploy-lead-intake.sh

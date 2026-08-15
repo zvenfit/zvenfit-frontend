@@ -6,6 +6,7 @@ import test from 'node:test';
 import { _private, createInvocationMetrics, type InvocationMetrics } from '../metrics';
 
 import type { JsonObject, LoggerLike } from '../../types';
+import type { MetricAttributes } from '@opentelemetry/api';
 
 interface TransportOptions {
   endpoint: string;
@@ -75,7 +76,7 @@ test('requires an explicit project and API key', () => {
 
 test('lazily records metrics with Monium headers and flushes only once', async () => {
   const logger = new TestLogger();
-  const calls: Array<{ kind: string; name: string; value: number }> = [];
+  const calls: Array<{ kind: string; name: string; value: number; attributes?: MetricAttributes }> = [];
   const transportOptions: TransportOptions[] = [];
   let flushCalls = 0;
   const metrics = createInvocationMetrics(undefined, logger, {
@@ -88,8 +89,8 @@ test('lazily records metrics with Monium headers and flushes only once', async (
       transportOptions.push(options);
 
       return {
-        addCounter: (name, value) => calls.push({ kind: 'counter', name, value }),
-        recordGauge: (name, value) => calls.push({ kind: 'gauge', name, value }),
+        addCounter: (name, value, attributes) => calls.push({ kind: 'counter', name, value, attributes }),
+        recordGauge: (name, value, attributes) => calls.push({ kind: 'gauge', name, value, attributes }),
         flush: async () => {
           flushCalls += 1;
         },
@@ -98,14 +99,39 @@ test('lazily records metrics with Monium headers and flushes only once', async (
   });
 
   assert.equal(transportOptions.length, 0);
-  metrics.addCounter('lead_storage_errors', 2);
-  metrics.recordGauge('lead_pipeline_health', 1);
+  metrics.addCounter('lead_storage_errors', 2, { outcome: 'failed' });
+  metrics.recordGauge('lead_pipeline_health', 1, {
+    outcome: 'healthy',
+    resource_id: 'must-not-override-function',
+  });
   await metrics.flush();
   await metrics.flush();
 
   assert.deepEqual(calls, [
-    { kind: 'counter', name: 'lead_storage_errors', value: 2 },
-    { kind: 'gauge', name: 'lead_pipeline_health', value: 1 },
+    {
+      kind: 'counter',
+      name: 'lead_storage_errors',
+      value: 2,
+      attributes: {
+        application: 'zvenfit-frontend',
+        environment: 'production',
+        component: 'zvenfit-lead-intake',
+        resource_id: 'zvenfit-telegram-lead',
+        outcome: 'failed',
+      },
+    },
+    {
+      kind: 'gauge',
+      name: 'lead_pipeline_health',
+      value: 1,
+      attributes: {
+        application: 'zvenfit-frontend',
+        environment: 'production',
+        component: 'zvenfit-lead-intake',
+        resource_id: 'zvenfit-telegram-lead',
+        outcome: 'healthy',
+      },
+    },
   ]);
   assert.equal(flushCalls, 1);
   assert.deepEqual(transportOptions, [

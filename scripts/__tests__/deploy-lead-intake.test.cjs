@@ -123,6 +123,22 @@ test('direct Monium metrics require and deploy the environment-scoped API key se
   assert.match(deployScript, /--environment MONIUM_API_KEY="\$\{MONIUM_API_KEY\}"/);
 });
 
+test('lead direct metrics deploy the canonical application and function taxonomy', () => {
+  assert.match(reusableWorkflow, /MONIUM_APPLICATION: zvenfit-frontend/);
+  assert.match(reusableWorkflow, /MONIUM_ENVIRONMENT: \$\{\{ inputs\.deployment_environment \}\}/);
+  assert.match(reusableWorkflow, /MONIUM_COMPONENT: zvenfit-lead-intake/);
+  assert.match(reusableWorkflow, /MONIUM_RESOURCE_ID: \$\{\{ inputs\.lead_function_name \}\}/);
+
+  for (const variable of [
+    'MONIUM_APPLICATION',
+    'MONIUM_ENVIRONMENT',
+    'MONIUM_COMPONENT',
+    'MONIUM_RESOURCE_ID',
+  ]) {
+    assert.match(deployScript, new RegExp(`--environment ${variable}="\\$\\{${variable}\\}"`));
+  }
+});
+
 test('lead deployment packages the environment-specific artifact with its own entrypoint', () => {
   assert.match(deployScript, /run build:staging/);
   assert.match(deployScript, /BUILD_DIR=.*lead-intake\/build-staging/);

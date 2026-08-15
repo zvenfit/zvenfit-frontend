@@ -332,25 +332,29 @@
     },
     {
       "id": "zvenfit_retry_worker_heartbeat",
-      "metricSelector": "{project=\"folder__b1ge1e4iopttj79hfdfm\", cluster=\"default\", service=\"zvenfit-frontend\", name=\"zvenfit_retry_worker_heartbeat\"}",
+      "displayName": "ZvenFit · Retry-worker: нет активности",
+      "metricSelector": "{project=\"folder__b1ge1e4iopttj79hfdfm\", cluster=\"default\", service=\"zvenfit-frontend\", name=\"zvenfit_retry_worker_heartbeat\", application=\"zvenfit-frontend\", environment=\"production\", component=\"zvenfit-lead-intake\", resource_id=\"zvenfit-telegram-lead\"}",
       "aggregation": "last",
       "operator": "<",
       "warning": 0.9,
       "alarm": 0.5,
       "window": "5m",
       "delay": "30s",
-      "noData": "ALARM"
+      "noData": "ALARM",
+      "labels": { "application": "zvenfit-frontend", "environment": "production", "service": "zvenfit-lead-intake", "resource_id": "zvenfit-telegram-lead" }
     },
     {
       "id": "zvenfit_telegram_delivery_backlog",
-      "metricSelector": "{project=\"folder__b1ge1e4iopttj79hfdfm\", cluster=\"default\", service=\"zvenfit-frontend\", name=\"zvenfit_telegram_oldest_pending_age_seconds\"}",
+      "displayName": "ZvenFit · Telegram: растёт очередь доставки",
+      "metricSelector": "{project=\"folder__b1ge1e4iopttj79hfdfm\", cluster=\"default\", service=\"zvenfit-frontend\", name=\"zvenfit_telegram_oldest_pending_age_seconds\", application=\"zvenfit-frontend\", environment=\"production\", component=\"zvenfit-lead-intake\", resource_id=\"zvenfit-telegram-lead\"}",
       "aggregation": "last",
       "operator": ">",
       "warning": 600,
       "alarm": 1800,
       "window": "5m",
       "delay": "30s",
-      "noData": "OK"
+      "noData": "OK",
+      "labels": { "application": "zvenfit-frontend", "environment": "production", "service": "zvenfit-lead-intake", "resource_id": "zvenfit-telegram-lead" }
     },
     {
       "id": "zvenfit_rate_limit_health_errors",
