@@ -61,7 +61,8 @@
     "runtimeErrors": {
       "title": "Ошибки Cloud Functions",
       "metricSelector": "{project=\"folder__b1ge1e4iopttj79hfdfm\", service=\"serverless-functions\", name=\"functions_errors\", resource_id=\"zvenfit-telegram-lead|zvenfit-fitbase-schedule|zvenfit-site-traffic\"}",
-      "pagingAlert": false
+      "pagingAlert": true,
+      "decomposeBy": ["resource_id"]
     },
     "trafficWidgets": [
       "Cloud CDN: запросы",
@@ -83,19 +84,20 @@
   "notificationChannels": [
     {
       "id": "zvenfit_telegram_alerts",
-      "name": "ZvenFit Telegram alerts",
+      "name": "ZvenFit · production · Telegram",
       "method": "telegram",
       "recipient": "cloud-account",
       "sendScreenshot": true
     },
     {
       "id": "zvenfit_email_alerts",
-      "name": "ZvenFit Email alerts",
+      "name": "ZvenFit · production · Email",
       "method": "email",
       "recipient": "cloud-account"
     }
   ],
   "notificationPolicy": {
+    "channelIds": ["zvenfit_telegram_alerts", "zvenfit_email_alerts"],
     "statuses": ["ALARM", "WARNING", "OK"],
     "repeatMinutes": 30
   },
@@ -216,15 +218,45 @@
     },
     {
       "id": "zvenfit_function_runtime_errors",
-      "scope": "lead-function",
-      "metricSelector": "{project=\"folder__b1ge1e4iopttj79hfdfm\", service=\"serverless-functions\", name=\"functions_errors\", resource_id=\"zvenfit-telegram-lead\"}",
+      "displayName": "ZvenFit · Cloud Functions: ошибки выполнения",
+      "scope": "production-functions",
+      "metricSelector": "{project=\"folder__b1ge1e4iopttj79hfdfm\", service=\"serverless-functions\", name=\"functions_errors\", resource_id=\"zvenfit-telegram-lead|zvenfit-fitbase-schedule|zvenfit-site-traffic\"}",
       "aggregation": "sum",
       "operator": ">",
       "warning": 0,
       "alarm": 0.5,
       "window": "5m",
       "delay": "30s",
-      "noData": "OK"
+      "noData": "OK",
+      "level": "CRITICAL",
+      "labels": {
+        "application": "zvenfit-frontend",
+        "environment": "production"
+      },
+      "decomposeBy": ["resource_id"],
+      "groupNotifications": true,
+      "notificationChannelIds": ["zvenfit_telegram_alerts", "zvenfit_email_alerts"]
+    },
+    {
+      "id": "zvenfit_function_throttles",
+      "displayName": "ZvenFit · Cloud Functions: ограничения запуска",
+      "scope": "production-functions",
+      "metricSelector": "{project=\"folder__b1ge1e4iopttj79hfdfm\", service=\"serverless-functions\", name=\"functions_throttles\", resource_id=\"zvenfit-telegram-lead|zvenfit-fitbase-schedule|zvenfit-site-traffic\"}",
+      "aggregation": "sum",
+      "operator": ">",
+      "warning": 0,
+      "alarm": 0.5,
+      "window": "5m",
+      "delay": "30s",
+      "noData": "OK",
+      "level": "CRITICAL",
+      "labels": {
+        "application": "zvenfit-frontend",
+        "environment": "production"
+      },
+      "decomposeBy": ["resource_id"],
+      "groupNotifications": true,
+      "notificationChannelIds": ["zvenfit_telegram_alerts", "zvenfit_email_alerts"]
     },
     {
       "id": "zvenfit_schedule_runtime_errors",

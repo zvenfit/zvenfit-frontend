@@ -17,13 +17,15 @@ updated: 2026-08-15
 - Dashboard: `ZvenFit · production`.
 - Labels: `application=zvenfit-frontend`, `environment=production`.
 - Global resources use `ZvenFit · <meaning>`; graph titles inside the dashboard do not repeat the product name.
-- Alert rows expose exact component `service` and function `resource_id`.
-- Function widgets expose `resource_id`; throttling is decomposed by `resource_id`.
+- Single-function alert rows expose exact component `service` and function
+  `resource_id`; Cloud Functions multialert subalerts expose `resource_id`.
+- Function widgets expose `resource_id`; runtime errors and throttling are
+  decomposed by `resource_id`.
 - Notification methods: `ZvenFit · production · Telegram` and `ZvenFit · production · Email`.
 
 ## Runtime visibility
 
-- Lead and schedule have paging runtime/application alerts.
+- All three production functions page through the shared runtime multialert.
 - All three functions are visible on the shared `functions_errors` graph.
-- `zvenfit-site-traffic` runtime failures remain diagnostic and do not page yet.
-- Throttling identifies each of the three functions through a `resource_id` subalert.
+- Schedule keeps its additional application and runtime log alerts.
+- Runtime errors and throttling identify each function through a `resource_id` subalert.

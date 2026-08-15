@@ -31,10 +31,13 @@ ZvenFit. Техническое устройство метрик и ручна�
 | Компонент | `service` / `meta.service` | `zvenfit-lead-intake`, `zvenfit-fitbase-schedule`, `zvenfit-site-traffic` |
 | Функция | `resource_id` | `zvenfit-telegram-lead`, `zvenfit-fitbase-schedule`, `zvenfit-site-traffic` |
 
-Alerts обязаны иметь `application`, `environment`, точный component `service` и
-человекочитаемый `resource_id`. Общий alert-list остаётся плоским и фильтруется
-по application/environment. Function-графики показывают `resource_id` в legend;
-throttling multialert разложен по `resource_id` и группирует уведомления.
+Alerts обязаны иметь `application` и `environment`. Однофункциональные alerts
+дополнительно имеют точный component `service` и человекочитаемый `resource_id`;
+в Cloud Functions multialert точная функция приходит через label subalert-а
+`resource_id`. Общий alert-list остаётся плоским и фильтруется по
+application/environment. Function-графики показывают `resource_id` в legend;
+runtime errors и throttling реализованы multialert-ами, разложены по
+`resource_id` и группируют уведомления.
 
 Direct gauges выбираются полным набором `application`, `environment`,
 `component`, `resource_id`. Селектор только по имени может продолжить выбирать
@@ -102,19 +105,14 @@ Synthetic smoke records помечаются `meta.synthetic=true` и
 
 | Функция | Runtime-сигнал | Где видна функция | Paging |
 | --- | --- | --- | --- |
-| `zvenfit-telegram-lead` | managed `functions_errors` | `resource_id=zvenfit-telegram-lead` | `zvenfit_function_runtime_errors` |
-| `zvenfit-fitbase-schedule` | `zvenfit_fitbase_errors_5m` для обработанных ошибок и `zvenfit_schedule_runtime_errors_1m` для необработанных | component/alert labels `zvenfit-fitbase-schedule` | два отдельных application/runtime alerts |
-| `zvenfit-site-traffic` | managed `functions_errors` | legend `resource_id=zvenfit-site-traffic` | отдельного runtime paging-alert сейчас нет |
+| `zvenfit-telegram-lead` | managed `functions_errors` | subalert `resource_id=zvenfit-telegram-lead` | `zvenfit_function_runtime_errors` |
+| `zvenfit-fitbase-schedule` | managed `functions_errors`; дополнительно `zvenfit_fitbase_errors_5m` для обработанных ошибок и `zvenfit_schedule_runtime_errors_1m` для необработанных | subalert `resource_id=zvenfit-fitbase-schedule` | общий runtime multialert плюс два schedule application/runtime alerts |
+| `zvenfit-site-traffic` | managed `functions_errors` | subalert `resource_id=zvenfit-site-traffic` | `zvenfit_function_runtime_errors` |
 
-Throttling всех трёх функций покрывает один multialert, разложенный по
-`resource_id`; уведомление показывает конкретную функцию. Queue, inflight,
-memory и duration также разделены по `resource_id`, но пока используются как
-диагностические графики.
-
-Текущее ограничение: необработанное падение `zvenfit-site-traffic` видно на
-dashboard, но само по себе не отправляет уведомление. Объединение managed
-`functions_errors` всех трёх функций в один multialert пока является
-предложением, а не внедрённой договорённостью.
+Runtime errors и throttling всех трёх функций покрывают два multialert-а,
+разложенных по `resource_id`; уведомление показывает конкретную функцию, а
+события одного вычисления отправляются группой. Queue, inflight, memory и duration
+также разделены по `resource_id`, но пока используются как диагностические графики.
 
 ## Разбор срабатывания
 

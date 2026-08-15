@@ -270,16 +270,18 @@ Lead/schedule автоматически скрывают известные п�
 Один раз создай два канала, потому что один канал Monium поддерживает только
 один метод доставки:
 
-- **ZvenFit Telegram alerts** (`zvenfit_telegram_alerts`) — primary: Telegram
+- **ZvenFit · production · Telegram** (`zvenfit_telegram_alerts`) — primary: Telegram
   через `@YandexCloudNotify_bot` в отдельную админскую группу, со скриншотом;
-- **ZvenFit Email alerts** (`zvenfit_email_alerts`) — backup: email;
+- **ZvenFit · production · Email** (`zvenfit_email_alerts`) — backup: email;
 - для обоих каналов включи статусы `Alarm`, `Warning`, `OK` и повтор каждые
   30 минут, пока алерт остаётся активным.
 
 Отдельный бот Yandex Cloud важен: он сможет сообщить о проблеме, даже если бот
 заявок потерял токен, доступ к чату или был заблокирован.
 
-Создай пятнадцать обычных алертов. Мгновенные critical/health-сигналы lead
+Создай шестнадцать алертов. Runtime errors и throttling сделаны multialert-ами,
+разложенными по `resource_id`; остальные — обычные алерты. Мгновенные
+critical/health-сигналы lead
 pipeline используют прямые OTLP-метрики приложения; сигналы, где пороги должны
 считать события, используют log aggregates. Fitbase также использует агрегат
 application logs, runtime и retry trigger — автоматические метрики Cloud
@@ -290,7 +292,8 @@ Functions, storage alert — две автоматические метрики 
 | `zvenfit_lead_storage_errors`         | direct `zvenfit_lead_storage_errors`         | `max`    |   `> 0` | `> 0.5` |     5m |   30s | OK      |
 | `zvenfit_permanent_telegram_failures` | direct `zvenfit_telegram_delivery_failed_1m` | `max`    |   `> 0` | `> 0.5` |     5m |   30s | OK      |
 | `zvenfit_fitbase_errors`              | log aggregate `zvenfit_fitbase_errors_5m`    | `max`    |   `> 0` | `> 0.5` |    10m |    3m | OK      |
-| `zvenfit_function_runtime_errors`     | `functions_errors` for lead function | `sum`   |   `> 0` | `> 0.5` |     5m |   30s | OK      |
+| `zvenfit_function_runtime_errors`     | `functions_errors` for three production functions | `sum` | `> 0` | `> 0.5` | 5m | 30s | OK |
+| `zvenfit_function_throttles`          | `functions_throttles` for three production functions | `sum` | `> 0` | `> 0.5` | 5m | 30s | OK |
 | `zvenfit_schedule_runtime_errors`     | log aggregate `zvenfit_schedule_runtime_errors_1m` | `max` |   `> 0` | `> 0.5` |     5m |    3m | OK      |
 | `zvenfit_schedule_cancellations`      | log aggregate `zvenfit_schedule_client_cancellations_5m` | `sum` | `> 0` | `> 9.5` |    10m |    3m | OK      |
 | `zvenfit_ydb_retries`                 | log aggregate `zvenfit_ydb_retries_5m`       | `sum`    | `> 4.5` | `> 5.5` |    10m |    3m | OK      |
@@ -364,10 +367,10 @@ Fitbase не использует `functions_errors` как основной app
 {project="folder__b1ge1e4iopttj79hfdfm", cluster="default", service="logging_aggregates", name="zvenfit_fitbase_errors_5m"}
 ```
 
-Селектор автоматической метрики runtime errors только для критичной lead-функции:
+Селектор автоматической метрики runtime errors охватывает все production-функции:
 
 ```text
-{project="folder__b1ge1e4iopttj79hfdfm", service="serverless-functions", name="functions_errors", resource_id="zvenfit-telegram-lead"}
+{project="folder__b1ge1e4iopttj79hfdfm", service="serverless-functions", name="functions_errors", resource_id="zvenfit-telegram-lead|zvenfit-fitbase-schedule|zvenfit-site-traffic"}
 ```
 
 Несмотря на название метки, live Monitoring API возвращает в `resource_id`
@@ -412,8 +415,10 @@ C: (A / B) * 100
 Для direct, runtime и diagnostic алертов отсутствие точек обычно считается `OK`.
 Исключение — heartbeat: отсутствие точек считается `Alarm`. Для storage отсутствие
 любой из двух platform metrics считается `Warning`: потеря данных о заполнении базы
-не должна выглядеть как исправное состояние. Во все пятнадцать алертов добавь оба
-канала: **ZvenFit Telegram alerts** и **ZvenFit Email alerts**.
+не должна выглядеть как исправное состояние. Во все шестнадцать алертов добавь
+оба канала: **ZvenFit · production · Telegram** и
+**ZvenFit · production · Email**. В обоих Cloud Functions multialert включи
+декомпозицию по `resource_id` и группировку уведомлений.
 
 ## Проверка доставки алертов
 
@@ -436,15 +441,16 @@ bash scripts/test-monitoring-alerts.sh --confirm
 
 Для вызовов, runtime errors и latency используй готовые service dashboards
 Cloud Functions. В отдельный компактный dashboard добавь ключевые error counters,
-heartbeat, размер и возраст Telegram-очереди, а также виджеты статуса пятнадцати
+heartbeat, размер и возраст Telegram-очереди, а также виджеты статуса шестнадцати
 алертов. Для YDB отдельно выведи количество `ydb_retry`, `ydb_slow_operation`
 и p95 поля `duration_ms` из `ydb_operation_completed`, а также `C` — процент
 использованного хранилища.
 
-Общий диагностический график **Ошибки Cloud Functions** считает встроенную
+Общий график **Ошибки Cloud Functions** считает встроенную
 `functions_errors` для `zvenfit-telegram-lead`, `zvenfit-fitbase-schedule` и
-`zvenfit-site-traffic`. Для `zvenfit-site-traffic` это только diagnostic-сигнал:
-он не входит в критичный `zvenfit_function_runtime_errors` и не создаёт paging.
+`zvenfit-site-traffic`. Все три входят в `zvenfit_function_runtime_errors`;
+multialert создаёт отдельный subalert по `resource_id`, поэтому уведомление сразу
+показывает конкретную функцию.
 Контролируемые HTTP `400/403/405/413` не являются runtime failures и в этот
 график не попадают.
 

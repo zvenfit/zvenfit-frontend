@@ -76,7 +76,7 @@ test('every alert references a metric and is documented', () => {
     alertIds.add(alert.id);
   }
 
-  assert.equal(alertIds.size, 15);
+  assert.equal(alertIds.size, 16);
 });
 
 test('anti-spam and accepted lead volume thresholds are explicit', () => {
@@ -155,8 +155,9 @@ test('YDB storage alert uses live database metrics and 70/85 percent thresholds'
   assert.equal(alert.noData, 'WARNING');
 });
 
-test('runtime alerts keep critical lead failures separate from schedule cancellations', () => {
+test('runtime multialert covers every production function and keeps schedule cancellations separate', () => {
   const generalRuntimeAlert = config.alerts.find(alert => alert.id === 'zvenfit_function_runtime_errors');
+  const throttlesAlert = config.alerts.find(alert => alert.id === 'zvenfit_function_throttles');
   const scheduleRuntimeAlert = config.alerts.find(alert => alert.id === 'zvenfit_schedule_runtime_errors');
   const cancellationAlert = config.alerts.find(alert => alert.id === 'zvenfit_schedule_cancellations');
   const scheduleRuntimeMetric = config.logMetrics.find(
@@ -167,11 +168,34 @@ test('runtime alerts keep critical lead failures separate from schedule cancella
   );
 
   assert.match(generalRuntimeAlert.metricSelector, /name="functions_errors"/);
-  assert.match(generalRuntimeAlert.metricSelector, /resource_id="zvenfit-telegram-lead"/);
-  assert.equal(generalRuntimeAlert.scope, 'lead-function');
+  assert.match(generalRuntimeAlert.metricSelector, /resource_id="zvenfit-telegram-lead\|/);
+  assert.match(generalRuntimeAlert.metricSelector, /zvenfit-fitbase-schedule/);
+  assert.match(generalRuntimeAlert.metricSelector, /zvenfit-site-traffic/);
+  assert.equal(generalRuntimeAlert.scope, 'production-functions');
+  assert.deepEqual(generalRuntimeAlert.decomposeBy, ['resource_id']);
+  assert.equal(generalRuntimeAlert.groupNotifications, true);
+  assert.deepEqual(generalRuntimeAlert.labels, {
+    application: 'zvenfit-frontend',
+    environment: 'production',
+  });
+  assert.deepEqual(
+    generalRuntimeAlert.notificationChannelIds,
+    config.notificationPolicy.channelIds,
+  );
   assert.doesNotMatch(generalRuntimeAlert.metricSelector, /cdn-analytics/);
-  assert.doesNotMatch(generalRuntimeAlert.metricSelector, /zvenfit-fitbase-schedule/);
   assert.doesNotMatch(generalRuntimeAlert.metricSelector, /resource_id="d4e/);
+
+  assert.match(throttlesAlert.metricSelector, /name="functions_throttles"/);
+  for (const resourceId of [
+    'zvenfit-telegram-lead',
+    'zvenfit-fitbase-schedule',
+    'zvenfit-site-traffic',
+  ]) {
+    assert.match(throttlesAlert.metricSelector, new RegExp(resourceId));
+  }
+  assert.deepEqual(throttlesAlert.decomposeBy, ['resource_id']);
+  assert.equal(throttlesAlert.groupNotifications, true);
+  assert.deepEqual(throttlesAlert.notificationChannelIds, config.notificationPolicy.channelIds);
 
   assert.match(scheduleRuntimeMetric.selector, /resource_id="d4e80noc1hjn2g8u0beq"/);
   assert.match(scheduleRuntimeMetric.selector, /resource_type="serverless\.function"/);
@@ -380,7 +404,7 @@ test('technical traffic analytics uses a stateless page-view log and built-in ed
   assert.doesNotMatch(monitoringDocs, /provision:cdn-raw-logs|Cloud CDN raw logs →/i);
 });
 
-test('traffic runtime errors stay diagnostic and legacy stateful widgets are removed', () => {
+test('traffic runtime errors page through the shared multialert and legacy stateful widgets are removed', () => {
   const runtimeErrors = config.dashboard.runtimeErrors;
   const criticalRuntimeAlert = config.alerts.find(alert => alert.id === 'zvenfit_function_runtime_errors');
 
@@ -389,8 +413,9 @@ test('traffic runtime errors stay diagnostic and legacy stateful widgets are rem
   assert.match(runtimeErrors.metricSelector, /zvenfit-telegram-lead/);
   assert.match(runtimeErrors.metricSelector, /zvenfit-fitbase-schedule/);
   assert.match(runtimeErrors.metricSelector, /zvenfit-site-traffic/);
-  assert.equal(runtimeErrors.pagingAlert, false);
-  assert.doesNotMatch(criticalRuntimeAlert.metricSelector, /zvenfit-site-traffic/);
+  assert.equal(runtimeErrors.pagingAlert, true);
+  assert.deepEqual(runtimeErrors.decomposeBy, ['resource_id']);
+  assert.match(criticalRuntimeAlert.metricSelector, /zvenfit-site-traffic/);
   assert.deepEqual(config.dashboard.trafficWidgets, [
     'Cloud CDN: запросы',
     'Cloud CDN: HTTP-статусы',
@@ -401,7 +426,7 @@ test('traffic runtime errors stay diagnostic and legacy stateful widgets are rem
     'Трафик: запросы по классам',
     'Трафик: технические сессии людей',
   ]);
-  assert.match(monitoringDocs, /zvenfit-site-traffic.*diagnostic.*functions_errors/is);
+  assert.match(monitoringDocs, /zvenfit-site-traffic.*zvenfit_function_runtime_errors/is);
 });
 
 test('every log selector is isolated by repository and environment', () => {
@@ -434,19 +459,20 @@ test('manual provisioning and notification channel requirements are explicit', (
   assert.deepEqual(config.notificationChannels, [
     {
       id: 'zvenfit_telegram_alerts',
-      name: 'ZvenFit Telegram alerts',
+      name: 'ZvenFit · production · Telegram',
       method: 'telegram',
       recipient: 'cloud-account',
       sendScreenshot: true,
     },
     {
       id: 'zvenfit_email_alerts',
-      name: 'ZvenFit Email alerts',
+      name: 'ZvenFit · production · Email',
       method: 'email',
       recipient: 'cloud-account',
     },
   ]);
   assert.deepEqual(config.notificationPolicy, {
+    channelIds: ['zvenfit_telegram_alerts', 'zvenfit_email_alerts'],
     statuses: ['ALARM', 'WARNING', 'OK'],
     repeatMinutes: 30,
   });

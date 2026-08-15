@@ -15,6 +15,7 @@ is the project entry point and intentionally does not duplicate every selector.
 - Scope: `application=zvenfit-frontend`, `environment=production`.
 - Components: `zvenfit-lead-intake`, `zvenfit-fitbase-schedule`, `zvenfit-site-traffic`.
 - Exact function: `resource_id`.
+- Runtime errors and throttling use grouped multialerts decomposed by `resource_id`.
 - Direct gauges require `application`, `environment`, `component`, and `resource_id`.
 - Raw logs retain three days.
 - No Lockbox or new monitoring infrastructure without separate approval.
