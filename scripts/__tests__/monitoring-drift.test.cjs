@@ -18,7 +18,7 @@ const ROOT = path.resolve(__dirname, '../..');
 test('normalizes the desired monitoring resources into a stable read-only contract', () => {
   const normalized = normalizeMonitoringState(config);
 
-  assert.equal(normalized.logMetrics.length, 12);
+  assert.equal(normalized.logMetrics.length, 13);
   assert.equal(normalized.alerts.length, 16);
   assert.equal(normalized.notificationChannels.length, 2);
   assert.equal(normalized.dashboard.runtimeErrors.title, 'Cloud Functions: ошибки');

@@ -164,6 +164,9 @@ Runtime errors и throttling всех трёх функций покрывают
 на production-борде заменён, чтобы единичный выброс не искажал основной сигнал. Log-derived
 `zvenfit_retry_worker_log_heartbeat_1m` отдельно подтверждает поставку structured
 events и не создаёт второй paging-сигнал.
+YDB SQL latency считается только по фазе `query_execute`; медленные
+`session_acquire` и `session_create` выводятся отдельным диагностическим
+графиком без paging-alert.
 
 ## Разбор срабатывания
 

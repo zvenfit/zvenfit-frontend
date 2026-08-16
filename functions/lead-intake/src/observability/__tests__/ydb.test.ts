@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { channel } from 'node:diagnostics_channel';
+import { channel, tracingChannel } from 'node:diagnostics_channel';
 import test from 'node:test';
 
 import { observeYdbOperation, prepareAndObserveYdbOperation } from '../ydb';
@@ -12,6 +12,8 @@ interface LogRecord extends JsonObject {
   retry_attempts?: number;
   error_code?: string;
 }
+
+type TestPhase = 'query.execute' | 'query.session.acquire' | 'query.session.create';
 
 function memoryLogger(): LoggerLike & { records: LogRecord[] } {
   const records: LogRecord[] = [];
@@ -37,6 +39,32 @@ function abortError(): Error {
   error.name = 'AbortError';
 
   return error;
+}
+
+async function tracePhase<T>(phase: TestPhase, callback: () => Promise<T>): Promise<T> {
+  let result: T | undefined;
+  await Promise.resolve(
+    tracingChannel(`tracing:ydb:${phase}`).tracePromise(async () => {
+      result = await callback();
+    }, {}),
+  );
+
+  return result as T;
+}
+
+async function withSlowThreshold<T>(value: string, callback: () => Promise<T>): Promise<T> {
+  const original = process.env.YDB_SLOW_OPERATION_MS;
+  process.env.YDB_SLOW_OPERATION_MS = value;
+
+  try {
+    return await callback();
+  } finally {
+    if (original === undefined) {
+      delete process.env.YDB_SLOW_OPERATION_MS;
+    } else {
+      process.env.YDB_SLOW_OPERATION_MS = original;
+    }
+  }
 }
 
 test('records YDB latency and retry attempts', async () => {
@@ -158,6 +186,99 @@ test('excludes client preparation from operation latency', async () => {
     assert.equal(recordByEvent(logger.records, 'ydb_operation_completed').duration_ms, 50);
     assert.equal(
       logger.records.some(record => record.event === 'ydb_slow_operation'),
+      false,
+    );
+  } finally {
+    Date.now = originalNow;
+  }
+});
+
+test('records query and session phase durations without logging SQL text', async () => {
+  const logger = memoryLogger();
+  const originalNow = Date.now;
+  let now = 1_000;
+  Date.now = () => now;
+
+  try {
+    await observeYdbOperation('list_telegram_candidates', logger, async () => {
+      await tracePhase('query.session.acquire', async () => {
+        await tracePhase('query.session.create', async () => {
+          now += 700;
+        });
+      });
+      await tracePhase('query.execute', async () => {
+        now += 80;
+      });
+    });
+
+    const completed = recordByEvent(logger.records, 'ydb_operation_completed');
+    assert.equal(completed.duration_ms, 780);
+    assert.equal(completed.query_execute_duration_ms, 80);
+    assert.equal(completed.query_execute_max_duration_ms, 80);
+    assert.equal(completed.session_acquire_duration_ms, 700);
+    assert.equal(completed.session_create_duration_ms, 700);
+    assert.equal(JSON.stringify(completed).includes('SELECT'), false);
+  } finally {
+    Date.now = originalNow;
+  }
+});
+
+test('slow session creation is diagnostic and does not trigger the slow-query event', async () => {
+  const logger = memoryLogger();
+  const originalNow = Date.now;
+  let now = 1_000;
+  Date.now = () => now;
+
+  try {
+    await withSlowThreshold('1000', () =>
+      observeYdbOperation('list_telegram_candidates', logger, async () => {
+        await tracePhase('query.session.acquire', async () => {
+          await tracePhase('query.session.create', async () => {
+            now += 7_600;
+          });
+        });
+        await tracePhase('query.execute', async () => {
+          now += 40;
+        });
+      }),
+    );
+
+    const diagnostic = recordByEvent(logger.records, 'ydb_slow_session_phase');
+    assert.equal(diagnostic.phase, 'session_create');
+    assert.equal(diagnostic.duration_ms, 7_600);
+    assert.equal(
+      logger.records.some(record => record.event === 'ydb_slow_operation'),
+      false,
+    );
+  } finally {
+    Date.now = originalNow;
+  }
+});
+
+test('slow ExecuteQuery triggers the existing paging event with query-only latency', async () => {
+  const logger = memoryLogger();
+  const originalNow = Date.now;
+  let now = 1_000;
+  Date.now = () => now;
+
+  try {
+    await withSlowThreshold('1000', () =>
+      observeYdbOperation('list_telegram_candidates', logger, async () => {
+        await tracePhase('query.session.acquire', async () => {
+          now += 60;
+        });
+        await tracePhase('query.execute', async () => {
+          now += 1_500;
+        });
+      }),
+    );
+
+    const slowQuery = recordByEvent(logger.records, 'ydb_slow_operation');
+    assert.equal(slowQuery.phase, 'query_execute');
+    assert.equal(slowQuery.duration_ms, 1_500);
+    assert.equal(slowQuery.total_duration_ms, 1_560);
+    assert.equal(
+      logger.records.some(record => record.event === 'ydb_slow_session_phase'),
       false,
     );
   } finally {

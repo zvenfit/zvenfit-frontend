@@ -112,6 +112,18 @@
         "heightRows": 8
       }
     },
+    "ydbSessionPhases": {
+      "title": "YDB: медленные фазы сессий",
+      "source": "zvenfit_ydb_slow_session_phases_5m",
+      "query": "series_sum({project=\"folder__b1ge1e4iopttj79hfdfm\", cluster=\"default\", service=\"logging_aggregates\", name=\"zvenfit_ydb_slow_session_phases_5m\", meta.application=\"zvenfit-frontend\", meta.environment=\"production\", meta.service=\"zvenfit-lead-intake\"})",
+      "visualization": "chart",
+      "decomposeBy": ["meta.phase"],
+      "pagingAlert": false,
+      "layout": {
+        "widthColumns": 36,
+        "heightRows": 8
+      }
+    },
     "trafficWidgets": [
       "Cloud CDN: запросы",
       "Cloud CDN: HTTP-статусы",
@@ -190,6 +202,16 @@
       "aggregation": "count",
       "window": "5m",
       "grouping": ["meta.application", "meta.environment", "meta.service", "resource_id"]
+    },
+    {
+      "id": "zvenfit_ydb_slow_session_phases_5m",
+      "displayName": "ZvenFit · YDB: медленные фазы сессий",
+      "events": ["ydb_slow_session_phase"],
+      "filters": { "meta.service": "zvenfit-lead-intake", "resource_id": "*" },
+      "aggregation": "count",
+      "window": "5m",
+      "grouping": ["meta.application", "meta.environment", "meta.service", "meta.phase", "resource_id"],
+      "synthetic": false
     },
     {
       "id": "zvenfit_rate_limit_errors_5m",

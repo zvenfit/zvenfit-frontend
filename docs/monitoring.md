@@ -134,10 +134,11 @@ Lead/schedule автоматически скрывают известные п�
 | `telegram_delivery_retry_scheduled`    | Telegram временно недоступен, будет retry                    | Log only   |
 | `telegram_delivery_failed_permanently` | Исчерпаны попытки Telegram                                   | Critical   |
 | `retry_worker_completed`               | Минутный retry pass и чтение состояния очереди завершены     | Diagnostic |
-| `ydb_operation_completed`              | Длительность SQL-операции и число retry, без запуска клиента | Diagnostic |
+| `ydb_operation_completed`              | Полная длительность и разбивка query/session-фаз              | Diagnostic |
 | `ydb_retry`                            | YDB-клиент повторил операцию после временной ошибки          | Warning    |
 | `site_page_view`                       | Beacon страницы принят и классифицирован                     | Diagnostic |
-| `ydb_slow_operation`                   | Операция YDB превысила `YDB_SLOW_OPERATION_MS`               | Warning    |
+| `ydb_slow_operation`                   | `ExecuteQuery` превысил `YDB_SLOW_OPERATION_MS`              | Warning    |
+| `ydb_slow_session_phase`               | Получение или создание YDB-сессии превысило порог            | Diagnostic |
 | `ydb_operation_failed`                 | Операция YDB завершилась ошибкой                             | Critical   |
 | `fitbase_schedule_error`               | Fitbase вернул ошибку или недоступен                         | Warning    |
 | `fitbase_schedule_misconfigured`       | Для production Fitbase provider отсутствует token            | Critical   |
@@ -196,6 +197,26 @@ Lead/schedule автоматически скрывают известные п�
 ```text
 {project="folder__b1ge1e4iopttj79hfdfm", cluster="default", service="default", meta.application="zvenfit-frontend", meta.environment="production", message=*"ydb_slow_operation"}
 ```
+
+Событие создаётся только по длительности фактического `ExecuteQuery`. Получение
+сессии из пула, создание новой сессии, retry/backoff и инициализация driver в
+этот сигнал не входят.
+
+### 5a. Slow YDB session phases
+
+- ID: `zvenfit_ydb_slow_session_phases_5m`
+- Window: 5 minutes
+- Group by: `meta.phase`
+- Paging alert: none
+- Selector:
+
+```text
+{project="folder__b1ge1e4iopttj79hfdfm", cluster="default", service="default", meta.application="zvenfit-frontend", meta.environment="production", message=*"ydb_slow_session_phase"}
+```
+
+Диагностический график различает `session_acquire` и `session_create`. Он не
+отправляет уведомления: пользовательское влияние продолжают покрывать slow SQL,
+YDB errors/retries, heartbeat retry-worker и очередь доставки.
 
 ### 6. Rate-limited submissions
 
@@ -276,7 +297,9 @@ heartbeat указывает на проблему Cloud Logging/log aggregate, 
 доказать, что заявка была сохранена до разрыва соединения.
 
 Каждая операция также пишет `ydb_operation_completed` с полями `operation`,
-`duration_ms` и `retry_attempts`. Значения заявки и текст SQL в эти события не попадают.
+`duration_ms`, `retry_attempts` и агрегатами `query_execute_*`,
+`session_acquire_*`, `session_create_*`. Значения заявки, параметры и текст SQL
+в эти события не попадают.
 
 Исходные логи читаются из `service="default"`, а созданные агрегаты
 записываются в отдельный `service="logging_aggregates"`. Текущий шард использует
@@ -349,8 +372,10 @@ serverless-инвокации мог нормализовать `DELTA` counter 
 за 155 мс, дала direct metric `6.4516129` (`1 / 0.155`) и ложный `Alarm` вместо
 `Warning`. Log aggregate сохраняет для неё значение `1`. Latency операции
 измеряется после готовности YDB-клиента, чтобы холодное создание driver не
-выглядело как медленный SQL-запрос. Порог `YDB_SLOW_OPERATION_MS` относится
-именно к выполнению операции после инициализации клиента.
+выглядело как медленный SQL-запрос. После эпизодов 2026-08-16/17 измерение также
+разделено на `session_acquire`, `session_create` и `query_execute`: paging-событие
+`ydb_slow_operation` относится только к последней фазе, а медленные сессионные
+фазы пишутся как непейджинговый `ydb_slow_session_phase`.
 
 Точный селектор агрегата ошибок сохранения:
 
@@ -509,7 +534,8 @@ heartbeat, размер и возраст Telegram-очереди, а также
 histogram `duration_ms_histogram`, функцию `histogram_percentile(95, ...)` и
 разбивку по `resource_id`. Он заменяет прежний max duration: p95 лучше отражает
 типичную деградацию и не поднимается от единственного выброса. Для YDB отдельно
-выведи количество `ydb_retry`, `ydb_slow_operation` и `C` — процент
+выведи количество `ydb_retry`, `ydb_slow_operation`, диагностический
+`ydb_slow_session_phase` с разбивкой по `meta.phase` и `C` — процент
 использованного хранилища.
 
 График **Поставка событий: heartbeat retry-worker** читает
