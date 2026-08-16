@@ -23,9 +23,14 @@ the current operational state and the shortest safe deployment path.
   configured reviewer approval, and permits self-review for the current
   single-maintainer workflow.
 - The latest full deploy and cross-repository Playwright verification succeeded
-  in [GitHub Actions run 31975391777](https://github.com/zvenfit/zvenfit-frontend/actions/runs/31975391777).
+  in [GitHub Actions run 31977617090](https://github.com/zvenfit/zvenfit-frontend/actions/runs/31977617090).
 - The verified reusable suite is pinned to
-  [`zvenfit-autotests@3c5a3b9`](https://github.com/zvenfit/zvenfit-autotests/commit/3c5a3b944a1a8906dd53ff6e505a272d7e8b0db2).
+  [`zvenfit-autotests@6bd13be`](https://github.com/zvenfit/zvenfit-autotests/commit/6bd13bef9d3e69a570f9fa2e7aadbd1fe179cd09).
+- The autotests default branch is protected by review and the required
+  `quality` status check; the repository keeps an administrator bypass for the
+  current single-maintainer workflow.
+- The latest full read-only production suite succeeded in
+  [GitHub Actions run 31978139884](https://github.com/zvenfit/zvenfit-autotests/actions/runs/31978139884).
 
 ## Manual deployment
 
@@ -46,8 +51,10 @@ the current operational state and the shortest safe deployment path.
   checkout input to the same immutable autotests commit SHA.
 - The suite receives only staging Basic Auth credentials. It receives no
   Fitbase, Telegram, Monium, Yandex Cloud, or production credentials.
-- The lead scenario submits an invalid browser form and asserts that no
-  `/api/lead` request is made.
+- Basic Auth credentials are scoped to the Playwright execution step and to the
+  exact staging origin. External document navigations are blocked.
+- The lead scenario submits an invalid browser form, aborts any attempted
+  `/api/lead` request, and asserts that the request count remains zero.
 - Schedule coverage reads the staging-only synthetic provider.
 - The synthetic User-Agent is classified separately from real visitors.
 
@@ -55,3 +62,7 @@ Every push to `main` also starts the production deployment workflow. Do not
 approve or mutate an unrelated production run while operating staging; use an
 explicit `[skip ci]` commit when the change is deployment-neutral and will be
 verified by a manual staging workflow.
+
+Deploy workflows derive `ASSET_VERSION` from the unique GitHub run number.
+Never restore a fixed Environment override: a stable query string can leave old
+CSS or JavaScript in CDN/browser caches after a successful upload.
