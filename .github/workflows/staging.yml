@@ -27,3 +27,7 @@ jobs:
       site_access_mode: authenticated-gateway
       gateway_name: zvenfit-staging
       authorizer_function_name: zvenfit-staging-authorizer
+    secrets:
+      LEAD_RATE_LIMIT_SECRET: ${{ secrets.LEAD_RATE_LIMIT_SECRET }}
+      STAGING_BASIC_AUTH_USERNAME: ${{ secrets.STAGING_BASIC_AUTH_USERNAME }}
+      STAGING_BASIC_AUTH_PASSWORD: ${{ secrets.STAGING_BASIC_AUTH_PASSWORD }}

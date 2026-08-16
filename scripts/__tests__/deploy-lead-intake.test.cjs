@@ -51,6 +51,11 @@ test('production and staging call the same reusable workflow without secret inhe
   }
   assert.match(productionWorkflow, /TELEGRAM_BOT_TOKEN: \$\{\{ secrets\.TELEGRAM_BOT_TOKEN \}\}/);
   assert.doesNotMatch(stagingWorkflow, /TELEGRAM_BOT_TOKEN|FITBASE_API_TOKEN|MONIUM_API_KEY/);
+  assert.match(stagingWorkflow, /LEAD_RATE_LIMIT_SECRET: \$\{\{ secrets\.LEAD_RATE_LIMIT_SECRET \}\}/);
+  assert.match(stagingWorkflow, /STAGING_BASIC_AUTH_USERNAME: \$\{\{ secrets\.STAGING_BASIC_AUTH_USERNAME \}\}/);
+  assert.match(stagingWorkflow, /STAGING_BASIC_AUTH_PASSWORD: \$\{\{ secrets\.STAGING_BASIC_AUTH_PASSWORD \}\}/);
+  assert.match(reusableWorkflow, /STAGING_BASIC_AUTH_USERNAME:\n\s+required: false/);
+  assert.match(reusableWorkflow, /STAGING_BASIC_AUTH_PASSWORD:\n\s+required: false/);
 });
 
 test('reusable workflow validates config before cloud deploy jobs', () => {
