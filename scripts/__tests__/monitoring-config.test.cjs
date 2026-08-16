@@ -20,6 +20,7 @@ const source = [
   .map(file => fs.readFileSync(path.join(ROOT, file), 'utf8'))
   .join('\n');
 const monitoringDocs = fs.readFileSync(path.join(ROOT, 'docs/monitoring.md'), 'utf8');
+const monitoringRunbook = fs.readFileSync(path.join(ROOT, 'knowledge-base/monitoring-runbook.md'), 'utf8');
 const smokeScript = fs.readFileSync(path.join(ROOT, 'scripts/test-monitoring-alerts.sh'), 'utf8');
 const directMetricsSource = [
   'functions/lead-intake/src/handler.ts',
@@ -28,6 +29,34 @@ const directMetricsSource = [
 ]
   .map(file => fs.readFileSync(path.join(ROOT, file), 'utf8'))
   .join('\n');
+
+test('dashboard exposes the canonical one-hour INFO and ERROR log links', () => {
+  const quickAccess = config.dashboard.quickLogAccess;
+
+  assert.equal(quickAccess.title, 'Быстрый доступ к логам');
+  assert.equal(quickAccess.position, 'top');
+  assert.deepEqual(quickAccess.layout, { widthColumns: 36, heightRows: 2 });
+  assert.deepEqual(
+    quickAccess.links.map(({ label, level, window }) => ({ label, level, window })),
+    [
+      { label: 'INFO за час', level: 'INFO', window: '1h' },
+      { label: 'ERROR за час', level: 'ERROR', window: '1h' },
+    ],
+  );
+
+  for (const link of quickAccess.links) {
+    const url = new URL(link.url);
+
+    assert.equal(url.hostname, 'monium.yandex.cloud');
+    assert.equal(url.pathname, `/projects/${config.project}/logs`);
+    assert.ok(url.searchParams.get('queries'), `${link.label} has no encoded log query`);
+    assert.equal(url.searchParams.get('from'), 'now-1h');
+    assert.equal(url.searchParams.get('to'), 'now');
+    assert.ok(monitoringRunbook.includes(link.url), `${link.label} is not tracked in the project runbook`);
+  }
+
+  assert.notEqual(quickAccess.links[0].url, quickAccess.links[1].url);
+});
 
 test('every monitored event exists in application code and documentation', () => {
   for (const metric of config.logMetrics) {

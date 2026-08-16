@@ -52,6 +52,7 @@ reusable deploy workflow передаёт их явно. Изменение sele
 | Вопрос | Раздел Monium |
 | --- | --- |
 | Что сломано сейчас | [Dashboard `ZvenFit · production`](https://monium.yandex.cloud/projects/folder__b1ge1e4iopttj79hfdfm/dashboards/zvenfit-production-monitoring) |
+| Быстро открыть production-логи | Ссылки `INFO за час` и `ERROR за час` в первой строке dashboard; канонические URL — в [project runbook](../knowledge-base/monitoring-runbook.md#quick-access) |
 | Какой alert сработал и для какой функции | [Alerts](https://monium.yandex.cloud/projects/folder__b1ge1e4iopttj79hfdfm/alerts) |
 | Какие уведомления реально отправились | [Notification feed](https://monium.yandex.cloud/projects/folder__b1ge1e4iopttj79hfdfm/notification-feed) |
 | Почему сработал application alert | [Raw logs](https://monium.yandex.cloud/projects/folder__b1ge1e4iopttj79hfdfm/logs) |

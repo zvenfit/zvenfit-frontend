@@ -1,7 +1,7 @@
 ---
 type: dashboard
 title: ZvenFit production monitoring
-updated: 2026-08-15
+updated: 2026-08-16
 ---
 
 # Production monitoring dashboard
@@ -9,6 +9,9 @@ updated: 2026-08-15
 - URL: https://monium.yandex.cloud/projects/folder__b1ge1e4iopttj79hfdfm/dashboards/zvenfit-production-monitoring
 - Purpose: production lead pipeline, Telegram delivery, Fitbase schedule, Cloud Functions, traffic, and YDB health.
 - Reading order: alert statuses, Telegram queue and heartbeat, then application and Cloud Functions diagnostics.
+- The first row contains one-click `INFO за час` and `ERROR за час` links to
+  production application logs. The same canonical URLs are tracked in the
+  monitoring runbook.
 - Empty event graphs are normal while the corresponding alert is green.
 - Refresh interval: one minute.
 
