@@ -1,6 +1,7 @@
 'use strict';
 
 const assert = require('node:assert/strict');
+const { spawnSync } = require('node:child_process');
 const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
@@ -13,6 +14,8 @@ const gatewayDeployScript = fs.readFileSync(path.join(ROOT, 'scripts/deploy-stag
 const productionWorkflow = fs.readFileSync(path.join(ROOT, '.github/workflows/main.yml'), 'utf8');
 const stagingWorkflow = fs.readFileSync(path.join(ROOT, '.github/workflows/staging.yml'), 'utf8');
 const reusableWorkflow = fs.readFileSync(path.join(ROOT, '.github/workflows/_deploy-environment.yml'), 'utf8');
+const stagingE2e = fs.readFileSync(path.join(ROOT, 'e2e/staging.spec.cjs'), 'utf8');
+const stagingPlaywrightConfigPath = path.join(ROOT, 'playwright.config.cjs');
 
 test('production wrapper keeps every existing production resource name', () => {
   assert.match(productionWorkflow, /deployment_environment: production/);
@@ -43,6 +46,44 @@ test('staging wrapper is manual-only and uses isolated resource names', () => {
   }
 
   assert.match(stagingWorkflow, /allowed_origins: https:\/\/staging\.zvenfit\.ru/);
+});
+
+test('staging E2E runs only after deploy and receives only staging credentials', () => {
+  const e2eJob = stagingWorkflow.slice(stagingWorkflow.indexOf('  e2e:'));
+
+  assert.match(e2eJob, /needs: deploy/);
+  assert.match(e2eJob, /environment: staging/);
+  assert.match(e2eJob, /STAGING_BASE_URL: https:\/\/staging\.zvenfit\.ru/);
+  assert.match(e2eJob, /STAGING_BASIC_AUTH_USERNAME: \$\{\{ secrets\.STAGING_BASIC_AUTH_USERNAME \}\}/);
+  assert.match(e2eJob, /STAGING_BASIC_AUTH_PASSWORD: \$\{\{ secrets\.STAGING_BASIC_AUTH_PASSWORD \}\}/);
+  assert.match(e2eJob, /npm run test:e2e:staging/);
+  assert.doesNotMatch(e2eJob, /TELEGRAM_BOT_TOKEN|FITBASE_API_TOKEN|MONIUM_API_KEY/);
+});
+
+test('Playwright refuses production and keeps lead coverage non-submitting', () => {
+  const commonEnvironment = {
+    ...process.env,
+    STAGING_BASIC_AUTH_USERNAME: 'test-user',
+    STAGING_BASIC_AUTH_PASSWORD: '01234567890123456789012345678901',
+  };
+  const valid = spawnSync(process.execPath, ['-e', `require(${JSON.stringify(stagingPlaywrightConfigPath)})`], {
+    env: { ...commonEnvironment, STAGING_BASE_URL: 'https://staging.zvenfit.ru' },
+    encoding: 'utf8',
+  });
+  const production = spawnSync(
+    process.execPath,
+    ['-e', `require(${JSON.stringify(stagingPlaywrightConfigPath)})`],
+    {
+      env: { ...commonEnvironment, STAGING_BASE_URL: 'https://zvenfit.ru' },
+      encoding: 'utf8',
+    },
+  );
+
+  assert.equal(valid.status, 0, valid.stderr);
+  assert.equal(production.status, 1);
+  assert.match(production.stderr, /restricted to https:\/\/staging\.zvenfit\.ru/);
+  assert.match(stagingE2e, /expect\(leadRequests\)\.toBe\(0\)/);
+  assert.doesNotMatch(stagingE2e, /page\.fill|locator\([^\n]+\)\.fill/);
 });
 
 test('production and staging call the same reusable workflow without secret inheritance', () => {

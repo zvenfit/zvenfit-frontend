@@ -138,9 +138,16 @@ Smoke выполняет `POST {}` в same-origin `/api/lead` и требует 
 создаются. Schedule smoke требует ровно совместимую форму ответа:
 `{ "ok": true, "items": [...] }`.
 
-Полный Playwright E2E позже отправляет явно синтетическую валидную заявку в
-staging YDB и проверяет её через отдельный read-only test probe. Production
-smoke остаётся только GET/OPTIONS и никогда не создаёт лид.
+Playwright E2E запускается только после успешного staging deploy. Конфиг жёстко
+разрешает единственный origin `https://staging.zvenfit.ru`, использует
+синтетический User-Agent и проверяет Basic Auth, `noindex`, отсутствие
+production analytics, synthetic schedule и browser validation формы. Текущий
+набор не отправляет валидную заявку и не вызывает `/api/lead`; сценарий записи
+в staging YDB появится только вместе с отдельным read-only test probe.
+
+Production smoke остаётся только GET/OPTIONS и никогда не создаёт лид. E2E не
+может быть направлен на production: любой другой origin отклоняется при загрузке
+Playwright config до запуска браузера.
 
 ## DNS и TLS
 
@@ -161,6 +168,8 @@ Staging считается готовым, когда одновременно �
 - SWS и ARL подключены к Gateway;
 - smoke проверяет страницы, runtime configs, безопасный lead validation probe и
   рабочую схему schedule;
+- Playwright после deploy проверяет authenticated UI и synthetic schedule без
+  создания лида;
 - artifact-тесты подтверждают, что staging build не содержит Fitbase/Telegram,
   а production build — staging fixtures;
 - никакой staging путь не вызывает Fitbase или Telegram.

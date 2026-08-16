@@ -6,6 +6,8 @@ dist/
 upload/
 functions/*/build/
 functions/*/build-staging/
+playwright-report/
+test-results/
 
 # Environment (keep .env.example tracked)
 .env
