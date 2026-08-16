@@ -1808,6 +1808,71 @@
         }
       },
       "widget": "multiSourceChart"
+    },
+    {
+      "position": {
+        "x": "0",
+        "y": "98",
+        "w": "36",
+        "h": "8"
+      },
+      "multiSourceChart": {
+        "id": "9765ee12-3dcd-49d3-bea9-7c1537bfc7e0",
+        "dataSources": [
+          {
+            "id": "5c55bf77-ca54-4b41-9da1-9a9e088026bd",
+            "type": "monitoring",
+            "downsampling": {
+              "gridAggregation": "GRID_AGGREGATION_UNSPECIFIED",
+              "gapFilling": "GAP_FILLING_UNSPECIFIED"
+            }
+          }
+        ],
+        "targets": [
+          {
+            "query": "{project=\"folder__b1ge1e4iopttj79hfdfm\", cluster=\"default\", service=\"logging_aggregates\", name=\"zvenfit_ydb_slow_session_phases_5m\", meta.application=\"zvenfit-frontend\", meta.environment=\"production\", meta.service=\"zvenfit-lead-intake\"}",
+            "hidden": false,
+            "name": "A",
+            "textMode": true,
+            "type": "monitoring",
+            "dataSourceId": "5c55bf77-ca54-4b41-9da1-9a9e088026bd",
+            "growDown": false
+          }
+        ],
+        "seriesOverrides": [],
+        "visualizationSettings": {
+          "type": "VISUALIZATION_TYPE_UNSPECIFIED",
+          "interpolate": "INTERPOLATE_UNSPECIFIED",
+          "yaxisSettings": {
+            "left": {
+              "type": "YAXIS_TYPE_LINEAR"
+            },
+            "right": {
+              "type": "YAXIS_TYPE_LINEAR"
+            }
+          },
+          "colorSchemeSettings": {
+            "automatic": {}
+          }
+        },
+        "thresholds": {
+          "items": [
+            {
+              "color": "#92db00",
+              "id": "753a491f-dc05-470f-b64f-1b8affe42022"
+            }
+          ],
+          "showMode": "CONSTANT_LINE"
+        },
+        "title": "YDB: медленные фазы сессий",
+        "legendSettings": {
+          "position": "POSITION_BOTTOM",
+          "list": {
+            "columnsCount": 0
+          },
+          "truncate": "TRUNCATE_END"
+        }
+      }
     }
   ],
   "links": [],

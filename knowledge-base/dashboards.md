@@ -1,7 +1,7 @@
 ---
 type: dashboard
 title: ZvenFit production monitoring
-updated: 2026-08-16
+updated: 2026-08-17
 ---
 
 # Production monitoring dashboard
@@ -14,6 +14,8 @@ updated: 2026-08-16
   production application logs. The same canonical URLs are tracked in the
   monitoring runbook.
 - Empty event graphs are normal while the corresponding alert is green.
+- Slow YDB SQL pages only from `query_execute`; session acquire/create spikes
+  use a separate diagnostic graph and do not page.
 - Refresh interval: one minute.
 - Layout grid: 36 columns. Paired charts use 18 columns each; when a section has
   an unpaired final chart, it spans all 36 columns so the section ends without

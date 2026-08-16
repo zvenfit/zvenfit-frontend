@@ -68,7 +68,7 @@ test('native dashboard JSON is restorable and matches critical desired-state inv
   });
   assert.equal(dashboardExport.title, 'ZvenFit · production');
   assert.equal(dashboardExport.name, 'zvenfit-production-monitoring');
-  assert.equal(dashboardExport.widgets.length, 24);
+  assert.equal(dashboardExport.widgets.length, 25);
 
   const quickAccessWidget = dashboardExport.widgets.find(
     widget => widget.widget === 'text' && widget.text?.text?.includes('Быстрый доступ к логам'),
@@ -87,7 +87,7 @@ test('native dashboard JSON is restorable and matches critical desired-state inv
   assert.match(alertList.alertList.selectors, /environment = "production"/);
 
   const chartTitles = dashboardExport.widgets
-    .filter(widget => widget.widget === 'multiSourceChart')
+    .filter(widget => widget.multiSourceChart)
     .map(widget => widget.multiSourceChart.title);
   assert.equal(
     chartTitles.some(title => title.startsWith('ZvenFit')),
@@ -95,15 +95,22 @@ test('native dashboard JSON is restorable and matches critical desired-state inv
   );
   assert.ok(chartTitles.includes('Cloud Functions: длительность p95'));
   assert.ok(chartTitles.includes('Поставка событий: heartbeat retry-worker'));
+  assert.ok(chartTitles.includes('YDB: медленные фазы сессий'));
 
   for (const title of [
     'Cloud Functions: длительность p95',
     'Поставка событий: heartbeat retry-worker',
+    'YDB: медленные фазы сессий',
   ]) {
     const widget = dashboardExport.widgets.find(item => item.multiSourceChart?.title === title);
     assert.deepEqual(widget.position, {
       x: '0',
-      y: title === 'Cloud Functions: длительность p95' ? '64' : '90',
+      y:
+        title === 'Cloud Functions: длительность p95'
+          ? '64'
+          : title === 'Поставка событий: heartbeat retry-worker'
+            ? '90'
+            : '98',
       w: '36',
       h: '8',
     });
@@ -299,6 +306,35 @@ test('slow YDB alert warns on one event and alarms on three events in ten minute
   assert.equal(alert.metricId, 'zvenfit_ydb_slow_operations_5m');
   assert.match(alert.metricSelector, /service="logging_aggregates"/);
   assert.equal(alert.delay, '3m');
+});
+
+test('slow YDB session phases are diagnostic and never page', () => {
+  const metric = config.logMetrics.find(item => item.id === 'zvenfit_ydb_slow_session_phases_5m');
+  const chart = config.dashboard.ydbSessionPhases;
+
+  assert.deepEqual(metric.events, ['ydb_slow_session_phase']);
+  assert.deepEqual(metric.grouping, [
+    'meta.application',
+    'meta.environment',
+    'meta.service',
+    'meta.phase',
+  ]);
+  assert.equal(metric.synthetic, false);
+  assert.equal(config.alerts.some(item => item.metricId === metric.id), false);
+  assert.equal(chart.source, metric.id);
+  assert.match(chart.query, /service=\"logging_aggregates\"/);
+  assert.match(chart.query, /name=\"zvenfit_ydb_slow_session_phases_5m\"/);
+  assert.deepEqual(chart.decomposeBy, ['meta.phase']);
+  assert.equal(chart.pagingAlert, false);
+});
+
+test('log metrics stay within the Monium four-label grouping limit', () => {
+  for (const metric of config.logMetrics) {
+    assert.ok(
+      metric.grouping.length <= 4,
+      `${metric.id} has ${metric.grouping.length} grouping labels; Monium allows at most 4`,
+    );
+  }
 });
 
 test('YDB storage alert uses live database metrics and 70/85 percent thresholds', () => {
