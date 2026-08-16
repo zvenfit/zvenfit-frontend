@@ -97,6 +97,15 @@ test('native dashboard JSON is restorable and matches critical desired-state inv
   assert.ok(chartTitles.includes('Поставка событий: heartbeat retry-worker'));
   assert.ok(chartTitles.includes('YDB: медленные фазы сессий'));
 
+  const ydbSessionPhasesWidget = dashboardExport.widgets.find(
+    item => item.multiSourceChart?.title === config.dashboard.ydbSessionPhases.title,
+  );
+  assert.equal(
+    ydbSessionPhasesWidget.multiSourceChart.targets[0].query,
+    config.dashboard.ydbSessionPhases.query,
+    'YDB session phases query differs between desired config and native dashboard export',
+  );
+
   for (const title of [
     'Cloud Functions: длительность p95',
     'Поставка событий: heartbeat retry-worker',

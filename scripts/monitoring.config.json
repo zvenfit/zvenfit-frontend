@@ -115,7 +115,7 @@
     "ydbSessionPhases": {
       "title": "YDB: медленные фазы сессий",
       "source": "zvenfit_ydb_slow_session_phases_5m",
-      "query": "series_sum({project=\"folder__b1ge1e4iopttj79hfdfm\", cluster=\"default\", service=\"logging_aggregates\", name=\"zvenfit_ydb_slow_session_phases_5m\", meta.application=\"zvenfit-frontend\", meta.environment=\"production\", meta.service=\"zvenfit-lead-intake\"})",
+      "query": "{project=\"folder__b1ge1e4iopttj79hfdfm\", cluster=\"default\", service=\"logging_aggregates\", name=\"zvenfit_ydb_slow_session_phases_5m\", meta.application=\"zvenfit-frontend\", meta.environment=\"production\", meta.service=\"zvenfit-lead-intake\"}",
       "visualization": "chart",
       "decomposeBy": ["meta.phase"],
       "pagingAlert": false,
