@@ -96,6 +96,19 @@ test('native dashboard JSON is restorable and matches critical desired-state inv
   assert.ok(chartTitles.includes('Cloud Functions: длительность p95'));
   assert.ok(chartTitles.includes('Поставка событий: heartbeat retry-worker'));
 
+  for (const title of [
+    'Cloud Functions: длительность p95',
+    'Поставка событий: heartbeat retry-worker',
+  ]) {
+    const widget = dashboardExport.widgets.find(item => item.multiSourceChart?.title === title);
+    assert.deepEqual(widget.position, {
+      x: '0',
+      y: title === 'Cloud Functions: длительность p95' ? '64' : '90',
+      w: '36',
+      h: '8',
+    });
+  }
+
   assert.doesNotMatch(dashboardExportText, /authorization|bearer\s|api[_-]?key|password|secret/i);
   assert.doesNotMatch(dashboardExportText, /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/i);
 });
@@ -504,11 +517,13 @@ test('dashboard includes diagnostic p95 duration and an independent log-pipeline
   assert.match(duration.query, /zvenfit-site-traffic/);
   assert.deepEqual(duration.decomposeBy, ['resource_id']);
   assert.equal(duration.pagingAlert, false);
+  assert.deepEqual(duration.layout, { widthColumns: 36, heightRows: 8 });
 
   assert.equal(logHeartbeat.source, 'zvenfit_retry_worker_log_heartbeat_1m');
   assert.match(logHeartbeat.query, /service="logging_aggregates"/);
   assert.match(logHeartbeat.query, /name="zvenfit_retry_worker_log_heartbeat_1m"/);
   assert.equal(logHeartbeat.pagingAlert, false);
+  assert.deepEqual(logHeartbeat.layout, { widthColumns: 36, heightRows: 8 });
 });
 
 test('rate limiter fail-open path has a count-based health alert', () => {
