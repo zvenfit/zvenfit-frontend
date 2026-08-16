@@ -68,7 +68,7 @@ test('native dashboard JSON is restorable and matches critical desired-state inv
   });
   assert.equal(dashboardExport.title, 'ZvenFit · production');
   assert.equal(dashboardExport.name, 'zvenfit-production-monitoring');
-  assert.equal(dashboardExport.widgets.length, 24);
+  assert.equal(dashboardExport.widgets.length, 25);
 
   const quickAccessWidget = dashboardExport.widgets.find(
     widget => widget.widget === 'text' && widget.text?.text?.includes('Быстрый доступ к логам'),
@@ -87,7 +87,7 @@ test('native dashboard JSON is restorable and matches critical desired-state inv
   assert.match(alertList.alertList.selectors, /environment = "production"/);
 
   const chartTitles = dashboardExport.widgets
-    .filter(widget => widget.widget === 'multiSourceChart')
+    .filter(widget => widget.multiSourceChart)
     .map(widget => widget.multiSourceChart.title);
   assert.equal(
     chartTitles.some(title => title.startsWith('ZvenFit')),
@@ -95,15 +95,22 @@ test('native dashboard JSON is restorable and matches critical desired-state inv
   );
   assert.ok(chartTitles.includes('Cloud Functions: длительность p95'));
   assert.ok(chartTitles.includes('Поставка событий: heartbeat retry-worker'));
+  assert.ok(chartTitles.includes('YDB: медленные фазы сессий'));
 
   for (const title of [
     'Cloud Functions: длительность p95',
     'Поставка событий: heartbeat retry-worker',
+    'YDB: медленные фазы сессий',
   ]) {
     const widget = dashboardExport.widgets.find(item => item.multiSourceChart?.title === title);
     assert.deepEqual(widget.position, {
       x: '0',
-      y: title === 'Cloud Functions: длительность p95' ? '64' : '90',
+      y:
+        title === 'Cloud Functions: длительность p95'
+          ? '64'
+          : title === 'Поставка событий: heartbeat retry-worker'
+            ? '90'
+            : '98',
       w: '36',
       h: '8',
     });
