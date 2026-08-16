@@ -22,8 +22,10 @@ the current operational state and the shortest safe deployment path.
 - GitHub Environment `staging` accepts deployments only from `main`, requires a
   configured reviewer approval, and permits self-review for the current
   single-maintainer workflow.
-- The latest full deploy and Playwright verification succeeded in
-  [GitHub Actions run 31974155448](https://github.com/zvenfit/zvenfit-frontend/actions/runs/31974155448).
+- The latest full deploy and cross-repository Playwright verification succeeded
+  in [GitHub Actions run 31975391777](https://github.com/zvenfit/zvenfit-frontend/actions/runs/31975391777).
+- The verified reusable suite is pinned to
+  [`zvenfit-autotests@3c5a3b9`](https://github.com/zvenfit/zvenfit-autotests/commit/3c5a3b944a1a8906dd53ff6e505a272d7e8b0db2).
 
 ## Manual deployment
 
