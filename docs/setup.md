@@ -88,7 +88,8 @@ Job получает OIDC JWT, обменивает его на короткож
 
 - production и staging variables/secrets хранятся раздельно;
 - deployment разрешён только из `main`;
-- staging требует независимого approval, self-review запрещён;
+- staging требует approval настроенного reviewer; в текущем single-maintainer
+  режиме self-review разрешён;
 - staging workflow не наследует repository secrets;
 - `pull_request_target` с checkout кода PR не используется.
 

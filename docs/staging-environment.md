@@ -75,8 +75,8 @@ Variables:
 | `Y_MAPS_API_KEY` | browser key для staging build |
 
 Environment должен разрешать deployment только из `main` и требовать
-подтверждение независимого reviewer с запрещённым self-review. Код PR не
-получает staging secrets.
+подтверждение настроенного reviewer. В текущем single-maintainer режиме
+self-review разрешён; код PR всё равно не получает staging secrets.
 
 ## Минимальная IAM-матрица
 

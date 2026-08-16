@@ -14,6 +14,7 @@ This directory is the version-controlled knowledge base for the ZvenFit project.
 
 ## Operations
 
+- [Staging deployment and E2E runbook](staging-runbook.md)
 - [Production monitoring dashboard](dashboards.md)
 - [Alerts, metrics and logs runbook](monitoring-runbook.md)
 - [Tracked operational documentation](../docs/monitoring-operations.md)
