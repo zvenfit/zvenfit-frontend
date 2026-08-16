@@ -210,7 +210,7 @@
       "filters": { "meta.service": "zvenfit-lead-intake", "resource_id": "*" },
       "aggregation": "count",
       "window": "5m",
-      "grouping": ["meta.application", "meta.environment", "meta.service", "meta.phase", "resource_id"],
+      "grouping": ["meta.application", "meta.environment", "meta.service", "meta.phase"],
       "synthetic": false
     },
     {

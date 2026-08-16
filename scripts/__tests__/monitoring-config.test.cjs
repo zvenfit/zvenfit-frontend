@@ -311,7 +311,6 @@ test('slow YDB session phases are diagnostic and never page', () => {
     'meta.environment',
     'meta.service',
     'meta.phase',
-    'resource_id',
   ]);
   assert.equal(metric.synthetic, false);
   assert.equal(config.alerts.some(item => item.metricId === metric.id), false);
@@ -320,6 +319,15 @@ test('slow YDB session phases are diagnostic and never page', () => {
   assert.match(chart.query, /name=\"zvenfit_ydb_slow_session_phases_5m\"/);
   assert.deepEqual(chart.decomposeBy, ['meta.phase']);
   assert.equal(chart.pagingAlert, false);
+});
+
+test('log metrics stay within the Monium four-label grouping limit', () => {
+  for (const metric of config.logMetrics) {
+    assert.ok(
+      metric.grouping.length <= 4,
+      `${metric.id} has ${metric.grouping.length} grouping labels; Monium allows at most 4`,
+    );
+  }
 });
 
 test('YDB storage alert uses live database metrics and 70/85 percent thresholds', () => {
