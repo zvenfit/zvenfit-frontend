@@ -21,6 +21,13 @@ const source = [
   .join('\n');
 const monitoringDocs = fs.readFileSync(path.join(ROOT, 'docs/monitoring.md'), 'utf8');
 const smokeScript = fs.readFileSync(path.join(ROOT, 'scripts/test-monitoring-alerts.sh'), 'utf8');
+const directMetricsSource = [
+  'functions/lead-intake/src/handler.ts',
+  'functions/lead-intake/src/observability/metrics.ts',
+  'functions/lead-intake/src/observability/otel-transport.ts',
+]
+  .map(file => fs.readFileSync(path.join(ROOT, file), 'utf8'))
+  .join('\n');
 
 test('every monitored event exists in application code and documentation', () => {
   for (const metric of config.logMetrics) {
@@ -115,6 +122,8 @@ test('count-sensitive and caught application alerts use the log aggregate pipeli
   const logAlerts = config.alerts.filter(alert => metricIds.has(alert.metricId));
 
   assert.deepEqual(logAlerts.map(alert => alert.id), [
+    'zvenfit_lead_storage_errors',
+    'zvenfit_permanent_telegram_failures',
     'zvenfit_fitbase_errors',
     'zvenfit_schedule_runtime_errors',
     'zvenfit_schedule_cancellations',
@@ -269,26 +278,33 @@ test('runtime multialert covers every production function and keeps schedule can
   assert.doesNotMatch(monitoringDocs, /кнопк[^\n]*тестирован[^\n]*канал/i);
 });
 
-test('lead storage alert uses the direct OTLP application metric', () => {
-  const alert = config.alerts.find(item => item.id === 'zvenfit_lead_storage_errors');
-
-  assert.match(alert.metricSelector, /service="zvenfit-frontend"/);
-  assert.match(alert.metricSelector, /name="zvenfit_lead_storage_errors"/);
+test('critical lead events use durable log aggregates with exact production selectors', () => {
+  for (const [id, metricId] of [
+    ['zvenfit_lead_storage_errors', 'zvenfit_lead_storage_errors_1m'],
+    ['zvenfit_permanent_telegram_failures', 'zvenfit_telegram_delivery_failed_1m'],
+  ]) {
+    const alert = config.alerts.find(item => item.id === id);
+    assert.equal(alert.metricId, metricId);
+    assert.match(alert.metricSelector, /service="logging_aggregates"/);
+    assert.match(alert.metricSelector, new RegExp(`name="${metricId}"`));
+    assert.match(alert.metricSelector, /meta\.application="zvenfit-frontend"/);
+    assert.match(alert.metricSelector, /meta\.environment="production"/);
+    assert.match(alert.metricSelector, /meta\.service="zvenfit-lead-intake"/);
+    assert.equal(alert.delay, '3m');
+  }
 });
 
-test('instant lead pipeline alerts use direct OTLP application metrics', () => {
-  const directIds = [
-    'zvenfit_lead_storage_errors',
-    'zvenfit_permanent_telegram_failures',
-    'zvenfit_retry_worker_heartbeat',
-    'zvenfit_telegram_delivery_backlog',
-  ];
+test('direct OTLP metrics are limited to current-state gauges', () => {
+  const directIds = ['zvenfit_retry_worker_heartbeat', 'zvenfit_telegram_delivery_backlog'];
 
   for (const id of directIds) {
     const alert = config.alerts.find(item => item.id === id);
     assert.match(alert.metricSelector, /service="zvenfit-frontend"/, `${id} is not direct`);
     assert.equal(alert.delay, '30s', `${id} should use direct metric latency`);
   }
+  assert.doesNotMatch(directMetricsSource, /addCounter/);
+  assert.doesNotMatch(directMetricsSource, /zvenfit_lead_storage_errors/);
+  assert.doesNotMatch(directMetricsSource, /zvenfit_telegram_delivery_failed_1m/);
 });
 
 test('count-sensitive lead pipeline alerts use true log counts', () => {
@@ -337,6 +353,38 @@ test('retry worker health covers missing heartbeats, delivery backlog, and trigg
   assert.match(trigger.metricSelector, /serverless\.triggers\.access_error_per_second/);
   assert.match(trigger.metricSelector, /serverless\.triggers\.error_per_second/);
   assert.match(trigger.metricSelector, /trigger="a1smkp9ng1f4g9vqgm7u"/);
+
+  const logHeartbeat = config.logMetrics.find(item => item.id === 'zvenfit_retry_worker_log_heartbeat_1m');
+  assert.deepEqual(logHeartbeat, {
+    id: 'zvenfit_retry_worker_log_heartbeat_1m',
+    displayName: 'ZvenFit · Retry-worker: поставка событий',
+    events: ['retry_worker_completed'],
+    filters: { resource_id: '*' },
+    aggregation: 'count',
+    window: '1m',
+    grouping: ['meta.application', 'meta.environment', 'meta.service', 'resource_id'],
+    synthetic: false,
+  });
+  assert.match(source, /['"]retry_worker_completed['"]/);
+});
+
+test('dashboard includes diagnostic p95 duration and an independent log-pipeline heartbeat', () => {
+  const duration = config.dashboard.functionDurationP95;
+  const logHeartbeat = config.dashboard.logPipelineHeartbeat;
+
+  assert.equal(duration.title, 'Cloud Functions: длительность p95');
+  assert.match(duration.query, /^histogram_percentile\(95,/);
+  assert.match(duration.query, /name="duration_ms_histogram"/);
+  assert.match(duration.query, /zvenfit-telegram-lead/);
+  assert.match(duration.query, /zvenfit-fitbase-schedule/);
+  assert.match(duration.query, /zvenfit-site-traffic/);
+  assert.deepEqual(duration.decomposeBy, ['resource_id']);
+  assert.equal(duration.pagingAlert, false);
+
+  assert.equal(logHeartbeat.source, 'zvenfit_retry_worker_log_heartbeat_1m');
+  assert.match(logHeartbeat.query, /service="logging_aggregates"/);
+  assert.match(logHeartbeat.query, /name="zvenfit_retry_worker_log_heartbeat_1m"/);
+  assert.equal(logHeartbeat.pagingAlert, false);
 });
 
 test('rate limiter fail-open path has a count-based health alert', () => {
@@ -489,7 +537,8 @@ test('manual provisioning and notification channel requirements are explicit', (
     logMetrics: 'manual-console',
     notificationChannels: 'manual-console',
     alerts: 'manual-console',
-    reason: 'Yandex Monitoring does not expose these resources in the public YC CLI or Terraform provider',
+    reason:
+      'Log metrics, alert rules and notification channels remain console-managed; the repository stores the reviewed desired state and validates read-only snapshots',
   });
   assert.deepEqual(config.notificationChannels, [
     {

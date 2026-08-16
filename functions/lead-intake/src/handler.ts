@@ -1,17 +1,8 @@
 import { allowedOrigins, corsHeaders, isAllowedOrigin, isJsonContentType, jsonResponse, readBody } from './http';
 import { createLead, hasHoneypotValue, validateLead } from './lead-payload';
-import { errorCode, logDeliveryFailure, retryPendingLeads, type RetrySummary } from './notification/delivery';
-import { withEventMetrics } from './observability/event-metrics';
+import { logDeliveryFailure, retryPendingLeads, type RetrySummary } from './notification/delivery';
 
-import type {
-  ApplicationMetrics,
-  FunctionContext,
-  HandlerDependencies,
-  HttpEvent,
-  HttpResponse,
-  JsonObject,
-  LoggerLike,
-} from './types';
+import type { FunctionContext, HandlerDependencies, HttpEvent, HttpResponse, JsonObject, LoggerLike } from './types';
 
 const TIMER_EVENT_TYPE = 'yandex.cloud.events.serverless.triggers.TimerMessage';
 const MAX_REQUEST_BODY_BYTES = 16 * 1024;
@@ -42,7 +33,6 @@ async function persistLead(
   body: JsonObject,
   dependencies: HandlerDependencies,
   logger: LoggerLike,
-  metrics: ApplicationMetrics,
   headers: Record<string, string>,
   sourceIp: string,
 ): Promise<HttpResponse> {
@@ -79,8 +69,11 @@ async function persistLead(
 
     return jsonResponse(202, { ok: true, lead_id: lead.leadId, notification: saved.telegramStatus }, headers);
   } catch (error) {
-    logDeliveryFailure(logger, 'lead_storage_error', lead.leadId, errorCode(error, 'storage_error'), 0);
-    metrics.addCounter('zvenfit_lead_storage_errors');
+    logDeliveryFailure(logger, 'lead_storage_error', lead.leadId, error, {
+      attempts: 0,
+      fallbackCode: 'storage_error',
+      retriable: true,
+    });
 
     return jsonResponse(503, { ok: false, error: 'storage_unavailable' }, headers);
   }
@@ -90,7 +83,7 @@ export function createHandler(dependencies: HandlerDependencies): CloudHandler {
   return async (event, context) => {
     const baseLogger = dependencies.loggerFactory(context);
     const metrics = dependencies.metricsFactory(context, baseLogger);
-    const logger = withEventMetrics(baseLogger, metrics);
+    const logger = baseLogger;
 
     try {
       if (isTimerEvent(event)) {
@@ -99,6 +92,16 @@ export function createHandler(dependencies: HandlerDependencies): CloudHandler {
         metrics.recordGauge('zvenfit_telegram_pending_leads', queueHealth.pendingCount);
         metrics.recordGauge('zvenfit_telegram_oldest_pending_age_seconds', queueHealth.oldestPendingAgeSeconds);
         metrics.recordGauge('zvenfit_retry_worker_heartbeat', 1);
+        const heartbeatEvent = 'retry_worker_completed';
+        logger.info?.(
+          {
+            event: heartbeatEvent,
+            ...retrySummary,
+            queue_pending: queueHealth.pendingCount,
+            oldest_pending_age_seconds: queueHealth.oldestPendingAgeSeconds,
+          },
+          heartbeatEvent,
+        );
 
         return retrySummary;
       }
@@ -149,7 +152,7 @@ export function createHandler(dependencies: HandlerDependencies): CloudHandler {
 
       const sourceIp = event.requestContext?.identity?.sourceIp?.trim() || '';
 
-      const response = await persistLead(body, dependencies, logger, metrics, headers, sourceIp);
+      const response = await persistLead(body, dependencies, logger, headers, sourceIp);
 
       return response;
     } finally {

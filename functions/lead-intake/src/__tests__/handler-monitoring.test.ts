@@ -7,11 +7,16 @@ import type { LeadStore } from '../types';
 
 test('timer exports queue health and heartbeat after a successful retry pass', async () => {
   const gauges: Array<{ name: string; value: number }> = [];
+  const infoLogs: Record<string, unknown>[] = [];
   const handler = _private.createHandler({
-    loggerFactory: () => ({ error() {} }),
+    loggerFactory: () => ({
+      error() {},
+      info(fields) {
+        infoLogs.push(fields);
+      },
+    }),
     maxAttempts: () => 12,
     metricsFactory: () => ({
-      addCounter() {},
       recordGauge(name, value) {
         gauges.push({ name, value });
       },
@@ -49,5 +54,17 @@ test('timer exports queue health and heartbeat after a successful retry pass', a
     { name: 'zvenfit_telegram_pending_leads', value: 2 },
     { name: 'zvenfit_telegram_oldest_pending_age_seconds', value: 901 },
     { name: 'zvenfit_retry_worker_heartbeat', value: 1 },
+  ]);
+  assert.deepEqual(infoLogs, [
+    {
+      event: 'retry_worker_completed',
+      processed: 0,
+      sent: 0,
+      pending: 0,
+      failed: 0,
+      skipped: 0,
+      queue_pending: 2,
+      oldest_pending_age_seconds: 901,
+    },
   ]);
 });

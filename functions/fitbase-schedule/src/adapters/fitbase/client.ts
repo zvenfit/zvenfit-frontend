@@ -29,6 +29,7 @@ async function fetchSchedulePage(params: URLSearchParams, headers: Headers): Pro
 
   if (!response.ok) {
     const error = new Error('fitbase_request_failed') as FitbaseError;
+    error.code = 'fitbase_request_failed';
     error.status = response.status;
     error.payload = payload;
     throw error;

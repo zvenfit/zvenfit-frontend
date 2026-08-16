@@ -32,7 +32,6 @@ export interface LoggerLike {
 }
 
 export interface ApplicationMetrics {
-  addCounter(name: string, value?: number): void;
   recordGauge(name: string, value: number): void;
   flush(): Promise<void>;
 }

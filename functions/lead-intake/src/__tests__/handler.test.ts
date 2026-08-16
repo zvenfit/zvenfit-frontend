@@ -59,7 +59,7 @@ function dependencies(store: StoreMock, overrides: Partial<HandlerDependencies> 
       },
     }),
     maxAttempts: () => 12,
-    metricsFactory: () => ({ addCounter() {}, recordGauge() {}, async flush() {} }),
+    metricsFactory: () => ({ recordGauge() {}, async flush() {} }),
     notificationSender: async () => {},
     now: () => NOW,
     rateLimiter: async () => true,
@@ -120,7 +120,7 @@ test('POST persists a pending lead and returns before Telegram delivery', async 
   assert.deepEqual(savedLead.utm, { utm_source: 'direct' });
 });
 
-test('flushes metrics after asynchronous POST events have been recorded', async () => {
+test('flushes metrics after asynchronous POST handling completes', async () => {
   const order: string[] = [];
   const store: StoreMock = {
     async saveLead() {
@@ -137,9 +137,6 @@ test('flushes metrics after asynchronous POST events have been recorded', async 
         info() {},
       }),
       metricsFactory: () => ({
-        addCounter(name) {
-          order.push(`metric:${name}`);
-        },
         recordGauge(name, value) {
           order.push(`gauge:${name}:${value}`);
         },
@@ -152,7 +149,7 @@ test('flushes metrics after asynchronous POST events have been recorded', async 
 
   await invokeHttp(handler);
 
-  assert.deepEqual(order, ['lead_saved', 'metric:zvenfit_leads_persisted_5m', 'metrics_flushed']);
+  assert.deepEqual(order, ['lead_saved', 'metrics_flushed']);
 });
 
 test('timer keeps a persisted lead pending when Telegram is unavailable', async () => {
@@ -226,12 +223,16 @@ test('timer marks the lead failed after the Telegram retry limit', async () => {
     assert.ok(failedDelivery);
     assert.equal(failedDelivery.terminal, true);
     assert.equal(failedDelivery.failedAt.toISOString(), NOW.toISOString());
-    assert.deepEqual(JSON.parse(errorLogs[0] ?? ''), {
-      event: 'telegram_delivery_failed_permanently',
-      lead_id: LEAD_ID,
-      error_code: 'telegram_unreachable',
-      attempts: 12,
-    });
+    const log = JSON.parse(errorLogs[0] ?? '') as Record<string, unknown>;
+    assert.equal(log.event, 'telegram_delivery_failed_permanently');
+    assert.equal(log.lead_id, LEAD_ID);
+    assert.equal(log.attempts, 12);
+    assert.equal(log.error_type, 'Error');
+    assert.equal(log.error_code, 'telegram_unreachable');
+    assert.equal(log.retriable, false);
+    assert.equal(log.upstream_status, null);
+    assert.match(String(log.stack_fingerprint), /^[a-f0-9]{16}$/);
+    assert.equal(errorLogs[0]?.includes('offline'), false);
   } finally {
     console.error = originalConsoleError;
   }
@@ -258,7 +259,6 @@ test('POST does not resend a lead already marked as sent', async () => {
 test('POST returns 503 and does not call Telegram when durable storage fails', async () => {
   let telegramCalled = false;
   let metricFlushes = 0;
-  const metricCounters: Array<{ name: string; value: number }> = [];
   const errorLogs: string[] = [];
   const store: StoreMock = {
     async saveLead() {
@@ -269,9 +269,6 @@ test('POST returns 503 and does not call Telegram when durable storage fails', a
     dependencies(store, {
       metricsFactory: () =>
         ({
-          addCounter(name, value = 1) {
-            metricCounters.push({ name, value });
-          },
           recordGauge() {},
           async flush() {
             metricFlushes += 1;
@@ -291,14 +288,17 @@ test('POST returns 503 and does not call Telegram when durable storage fails', a
     assert.equal(response.statusCode, 503);
     assert.deepEqual(readJson(response.body), { ok: false, error: 'storage_unavailable' });
     assert.equal(telegramCalled, false);
-    assert.deepEqual(metricCounters, [{ name: 'zvenfit_lead_storage_errors', value: 1 }]);
     assert.equal(metricFlushes, 1);
-    assert.deepEqual(JSON.parse(errorLogs[0] ?? ''), {
-      event: 'lead_storage_error',
-      lead_id: LEAD_ID,
-      error_code: 'storage_error',
-      attempts: 0,
-    });
+    const log = JSON.parse(errorLogs[0] ?? '') as Record<string, unknown>;
+    assert.equal(log.event, 'lead_storage_error');
+    assert.equal(log.lead_id, LEAD_ID);
+    assert.equal(log.attempts, 0);
+    assert.equal(log.error_type, 'Error');
+    assert.equal(log.error_code, 'storage_error');
+    assert.equal(log.retriable, true);
+    assert.equal(log.upstream_status, null);
+    assert.match(String(log.stack_fingerprint), /^[a-f0-9]{16}$/);
+    assert.equal(errorLogs[0]?.includes('database offline'), false);
   } finally {
     console.error = originalConsoleError;
   }

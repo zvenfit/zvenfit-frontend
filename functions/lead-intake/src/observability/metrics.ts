@@ -15,7 +15,6 @@ const MIN_TIMEOUT_MS = 100;
 const MAX_TIMEOUT_MS = 5000;
 
 export interface InvocationMetrics extends ApplicationMetrics {
-  addCounter(name: string, value?: number, attributes?: MetricAttributes): void;
   recordGauge(name: string, value: number, attributes?: MetricAttributes): void;
   flush(): Promise<void>;
 }
@@ -46,10 +45,6 @@ class LazyInvocationMetrics implements InvocationMetrics {
     this.transportFactory = transportFactory;
     this.logger = logger;
     this.defaultAttributes = defaultAttributes;
-  }
-
-  public addCounter(name: string, value = 1, attributes?: MetricAttributes): void {
-    this.record(transport => transport.addCounter(name, value, this.withDefaultAttributes(attributes)));
   }
 
   public recordGauge(name: string, value: number, attributes?: MetricAttributes): void {
@@ -92,7 +87,6 @@ class LazyInvocationMetrics implements InvocationMetrics {
 }
 
 const NOOP_METRICS: InvocationMetrics = {
-  addCounter() {},
   recordGauge() {},
   async flush() {},
 };

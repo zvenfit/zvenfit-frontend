@@ -11,6 +11,38 @@ interface CapturedLog {
   message?: string;
 }
 
+function assertSafeFailure(
+  log: CapturedLog | undefined,
+  expected: {
+    event: string;
+    errorCode: string;
+    retriable: boolean;
+    upstreamStatus: number | null;
+  },
+): void {
+  if (!log) {
+    assert.fail('expected a structured failure log');
+  }
+  assert.equal(log.message, expected.event);
+  assert.deepEqual(
+    {
+      event: log.fields.event,
+      error_type: log.fields.error_type,
+      error_code: log.fields.error_code,
+      retriable: log.fields.retriable,
+      upstream_status: log.fields.upstream_status,
+    },
+    {
+      event: expected.event,
+      error_type: 'Error',
+      error_code: expected.errorCode,
+      retriable: expected.retriable,
+      upstream_status: expected.upstreamStatus,
+    },
+  );
+  assert.match(String(log.fields.stack_fingerprint), /^[a-f0-9]{16}$/);
+}
+
 function getEvent(): HttpEvent {
   return {
     httpMethod: 'GET',
@@ -55,16 +87,12 @@ test('logs a structured event without an API response body when Fitbase fails', 
 
     assert.equal(result.statusCode, 502);
     assert.deepEqual(JSON.parse(result.body), { ok: false, error: 'fitbase_unreachable' });
-    assert.deepEqual(messages, [
-      {
-        message: 'fitbase_schedule_error',
-        fields: {
-          event: 'fitbase_schedule_error',
-          error_code: 'fitbase_request_failed',
-          status: 503,
-        },
-      },
-    ]);
+    assertSafeFailure(messages[0], {
+      event: 'fitbase_schedule_error',
+      errorCode: 'fitbase_request_failed',
+      retriable: true,
+      upstreamStatus: 503,
+    });
     assert.doesNotMatch(JSON.stringify(messages[0]), /must-not-be-logged/);
   } finally {
     globalThis.fetch = originalFetch;
@@ -87,13 +115,11 @@ test('keeps the production Fitbase misconfiguration event backward compatible', 
     const result = await handler(getEvent());
 
     assert.equal(result.statusCode, 500);
-    assert.deepEqual(messages[0], {
-      message: 'fitbase_schedule_misconfigured',
-      fields: {
-        event: 'fitbase_schedule_misconfigured',
-        error_code: 'fitbase_schedule_misconfigured',
-        status: null,
-      },
+    assertSafeFailure(messages[0], {
+      event: 'fitbase_schedule_misconfigured',
+      errorCode: 'fitbase_token_missing',
+      retriable: false,
+      upstreamStatus: null,
     });
   } finally {
     if (originalToken !== undefined) {
@@ -123,13 +149,11 @@ test('uses the injected failure policy without inspecting a provider subtype', a
   const result = await handler(getEvent());
 
   assert.equal(result.statusCode, 500);
-  assert.deepEqual(messages[0], {
-    message: 'staging_schedule_misconfigured',
-    fields: {
-      event: 'staging_schedule_misconfigured',
-      error_code: 'staging_schedule_misconfigured',
-      status: null,
-    },
+  assertSafeFailure(messages[0], {
+    event: 'staging_schedule_misconfigured',
+    errorCode: 'staging_schedule_misconfigured',
+    retriable: false,
+    upstreamStatus: null,
   });
 });
 

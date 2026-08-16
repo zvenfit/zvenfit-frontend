@@ -27,8 +27,8 @@ export function createHandler(dependencies: HandlerDependencies): CloudHandler {
     let provider: ScheduleProvider;
     try {
       provider = dependencies.providerFactory();
-    } catch {
-      logScheduleFailure(logger, dependencies.failurePolicy.misconfiguredEvent);
+    } catch (error) {
+      logScheduleFailure(logger, dependencies.failurePolicy.misconfiguredEvent, error, false);
 
       return jsonResponse(500, { ok: false, error: 'server_misconfigured' }, headers, false);
     }
@@ -38,7 +38,7 @@ export function createHandler(dependencies: HandlerDependencies): CloudHandler {
 
       return jsonResponse(200, { ok: true, from: range.from, to: range.to, count: items.length, items }, headers);
     } catch (error) {
-      logScheduleFailure(logger, dependencies.failurePolicy.unavailableEvent, error);
+      logScheduleFailure(logger, dependencies.failurePolicy.unavailableEvent, error, true);
 
       return jsonResponse(502, { ok: false, error: dependencies.failurePolicy.unavailableError }, headers, false);
     }

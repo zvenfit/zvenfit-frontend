@@ -9,9 +9,9 @@
 [`monitoring-operations.md`](monitoring-operations.md).
 
 > [!IMPORTANT]
-> Обычные log metrics, notification channels и alerts Yandex Monitoring пока не представлены
-> как ресурсы публичного `yc` CLI или Terraform provider. Поэтому их создание — одноразовый шаг
-> в management console. `scripts/monitoring.config.json` фиксирует точный desired state, а
+> Log metrics, notification channels и alert rules остаются console-managed: для полного
+> набора этих ресурсов нет поддерживаемого export/import workflow в используемых публичных
+> инструментах. `scripts/monitoring.config.json` фиксирует точный desired state, а
 > `scripts/test-monitoring-alerts.sh` проверяет application log metrics синтетическими событиями.
 > Метрики platform runtime проверяются только по реальным техническим логам: намеренно ронять
 > production-функции для теста нельзя.
@@ -115,6 +115,11 @@ Lead/schedule автоматически скрывают известные п�
 секретами. Traffic logger сохраняет согласованные access-like поля, но по-прежнему
 редактирует authorization headers. Уровень задаёт `LOG_LEVEL`, по умолчанию `info`.
 
+Ошибки lead/schedule содержат только безопасные диагностические поля:
+`error_type`, `error_code`, `retriable`, `upstream_status` и короткий
+`stack_fingerprint`. Исходные `message`, stack trace, request/response body и
+персональные данные в structured event не добавляются.
+
 | Event                                  | Meaning                                                      | Severity   |
 | -------------------------------------- | ------------------------------------------------------------ | ---------- |
 | `lead_storage_error`                   | Новую заявку не удалось сохранить в YDB                      | Critical   |
@@ -124,6 +129,7 @@ Lead/schedule автоматически скрывают известные п�
 | `telegram_delivery_retry_error`        | Retry-задача не смогла обработать заявку                     | Critical   |
 | `telegram_delivery_retry_scheduled`    | Telegram временно недоступен, будет retry                    | Log only   |
 | `telegram_delivery_failed_permanently` | Исчерпаны попытки Telegram                                   | Critical   |
+| `retry_worker_completed`               | Минутный retry pass и чтение состояния очереди завершены     | Diagnostic |
 | `ydb_operation_completed`              | Длительность SQL-операции и число retry, без запуска клиента | Diagnostic |
 | `ydb_retry`                            | YDB-клиент повторил операцию после временной ошибки          | Warning    |
 | `site_page_view`                       | Beacon страницы принят и классифицирован                     | Diagnostic |
@@ -220,7 +226,21 @@ Lead/schedule автоматически скрывают известные п�
 {project="folder__b1ge1e4iopttj79hfdfm", cluster="default", service="default", meta.application="zvenfit-frontend", meta.environment="production", message=*"lead_rate_limit_error"}
 ```
 
-### 9. Schedule runtime errors
+### 9. Retry-worker log heartbeat
+
+- ID: `zvenfit_retry_worker_log_heartbeat_1m`
+- Window: 1 minute
+- Selector:
+
+```text
+{project="folder__b1ge1e4iopttj79hfdfm", cluster="default", service="default", meta.application="zvenfit-frontend", meta.environment="production", meta.service="zvenfit-lead-intake", message="retry_worker_completed", resource_id="*"}
+```
+
+Это независимая диагностическая проверка поставки structured events. Она не
+заменяет paging-alert на direct heartbeat: пустой log-heartbeat при живом direct
+heartbeat указывает на проблему Cloud Logging/log aggregate, а не retry worker.
+
+### 10. Schedule runtime errors
 
 - ID: `zvenfit_schedule_runtime_errors_1m`
 - Window: 1 minute
@@ -235,7 +255,7 @@ Lead/schedule автоматически скрывают известные п�
 закрыл соединение; для read-only `GET` расписания это не исключение handler и
 не может привести к потере заявки.
 
-### 10. Schedule client cancellations
+### 11. Schedule client cancellations
 
 - ID: `zvenfit_schedule_client_cancellations_5m`
 - Window: 5 minutes
@@ -280,17 +300,17 @@ Lead/schedule автоматически скрывают известные п�
 заявок потерял токен, доступ к чату или был заблокирован.
 
 Создай шестнадцать алертов. Runtime errors и throttling сделаны multialert-ами,
-разложенными по `resource_id`; остальные — обычные алерты. Мгновенные
-critical/health-сигналы lead
-pipeline используют прямые OTLP-метрики приложения; сигналы, где пороги должны
-считать события, используют log aggregates. Fitbase также использует агрегат
+разложенными по `resource_id`; остальные — обычные алерты. Все дискретные
+application events, включая критические ошибки сохранения и окончательные сбои
+Telegram, считаются через долговечные log aggregates. Direct OTLP оставлен
+только для gauges текущего состояния retry worker и очереди. Fitbase использует агрегат
 application logs, runtime и retry trigger — автоматические метрики Cloud
 Functions, storage alert — две автоматические метрики YDB:
 
 | Alert ID                              | Metric / signal                              | Function | Warning |   Alarm | Window | Delay | No data |
 | ------------------------------------- | -------------------------------------------- | -------- | ------: | ------: | -----: | ----: | ------- |
-| `zvenfit_lead_storage_errors`         | direct `zvenfit_lead_storage_errors`         | `max`    |   `> 0` | `> 0.5` |     5m |   30s | OK      |
-| `zvenfit_permanent_telegram_failures` | direct `zvenfit_telegram_delivery_failed_1m` | `max`    |   `> 0` | `> 0.5` |     5m |   30s | OK      |
+| `zvenfit_lead_storage_errors`         | log aggregate `zvenfit_lead_storage_errors_1m` | `max`  |   `> 0` | `> 0.5` |     5m |    3m | OK      |
+| `zvenfit_permanent_telegram_failures` | log aggregate `zvenfit_telegram_delivery_failed_1m` | `max` | `> 0` | `> 0.5` | 5m | 3m | OK |
 | `zvenfit_fitbase_errors`              | log aggregate `zvenfit_fitbase_errors_5m`    | `max`    |   `> 0` | `> 0.5` |    10m |    3m | OK      |
 | `zvenfit_function_runtime_errors`     | `functions_errors` for three production functions | `sum` | `> 0` | `> 0.5` | 5m | 30s | OK |
 | `zvenfit_function_throttles`          | `functions_throttles` for three production functions | `sum` | `> 0` | `> 0.5` | 5m | 30s | OK |
@@ -312,16 +332,14 @@ Monium требует `Alarm > Warning`. Для целочисленных сч�
 даёт `Warning`, а `Alarm` требует минимум три превышения за 10 минут. Для
 клиентских отмен первая точка даёт только `Warning`, а `Alarm` требует десять
 отмен за 10 минут. Heartbeat в норме всегда равен `1`; его основная проверка —
-политика `No data = Alarm`. Прямые и platform metrics используют задержку
+политика `No data = Alarm`. Direct gauges и platform metrics используют задержку
 вычисления `30s`, а все log aggregates — `3m`, чтобы дождаться поставки логов.
 
-Приложение экспортирует event counters с `DELTA` temporality. Каждая инвокация
-serverless-функции создаёт отдельный одноразовый MeterProvider, а Monium
-нормализует такую точку до rate за короткий интервал жизни provider. Поэтому
-прямые event counters подходят для условия «событие было» (`max > 0`), но не для
-порогов, которые должны считать события через `sum`: единичная точка может стать
-значением больше `1`. Все count-sensitive alerts выше намеренно читают log
-aggregates с настоящей агрегацией `count`.
+Прямые event counters удалены из приложения. Одноразовый MeterProvider в
+serverless-инвокации мог нормализовать `DELTA` counter до rate за короткий
+интервал жизни provider: единичная точка может стать значением больше `1`.
+Теперь все event alerts читают log aggregates с настоящей агрегацией `count`,
+а OTLP exporter публикует только cumulative gauges состояния.
 
 Это подтверждено инцидентом 2026-08-14: одна `ydb_slow_operation`, экспортированная
 за 155 мс, дала direct metric `6.4516129` (`1 / 0.155`) и ложный `Alarm` вместо
@@ -330,16 +348,15 @@ aggregates с настоящей агрегацией `count`.
 выглядело как медленный SQL-запрос. Порог `YDB_SLOW_OPERATION_MS` относится
 именно к выполнению операции после инициализации клиента.
 
-Селектор прямой метрики ошибки сохранения:
+Точный селектор агрегата ошибок сохранения:
 
 ```text
-{project="folder__b1ge1e4iopttj79hfdfm", cluster="default", service="zvenfit-frontend", name="zvenfit_lead_storage_errors"}
+{project="folder__b1ge1e4iopttj79hfdfm", cluster="default", service="logging_aggregates", name="zvenfit_lead_storage_errors_1m", meta.application="zvenfit-frontend", meta.environment="production", meta.service="zvenfit-lead-intake"}
 ```
 
-Lead-функция продолжает отправлять девять диагностических event-метрик и одну
-dashboard-метрику напрямую в Monium по OTLP с `service="zvenfit-frontend"`.
-Алерты ошибок хранения и permanent Telegram failure используют direct-сигналы
-для минимальной задержки; count-sensitive alerts используют log aggregates.
+Lead-функция отправляет напрямую в Monium только gauges текущего состояния с
+`service="zvenfit-frontend"`. Критические event alerts используют log aggregates;
+максимальная штатная задержка поставки учтена evaluation delay `3m`.
 Health-сигналы:
 
 - `zvenfit_retry_worker_heartbeat` — успешное завершение минутного retry pass;
@@ -352,6 +369,11 @@ Heartbeat записывается только после retry pass и read-on
 точки исчезнут и heartbeat alert перейдёт в `Alarm`. Для записи используется
 GitHub Secret `MONIUM_API_KEY`: API key runtime SA с ролью
 `monium.metrics.writer` и scope `yc.monium.metrics.write`.
+
+После того же прохода событие `retry_worker_completed` создаёт log-derived
+heartbeat для диагностики самой поставки логов. На него paging не настроен:
+основной heartbeat уже ловит недоступность worker, а второй сигнал помогает
+отличить отсутствие ошибок от поломки log aggregate pipeline.
 
 Read-only операции `list_telegram_candidates` и `get_telegram_queue_health`
 один раз повторяют `AbortError` через новую query и свежую YDB session. Успешное
@@ -457,16 +479,29 @@ labels, notification channels и структуру dashboard.
 
 Команда read-only: она не обращается к Monium самостоятельно, не меняет live
 ресурсы и не требует нового service account, IAM binding или Lockbox. Получение
-и нормализация live snapshot пока остаются отдельным ручным read-only шагом.
+и нормализация live snapshot остаются ручным read-only шагом: deploy service
+account не имеет folder-level viewer role, а неподдерживаемый private UI API в CI
+не используется. Автоматизация возможна только после отдельного согласования
+нового read-only доступа и поддерживаемого полного export API.
 
 ## Dashboard
 
 Для вызовов, runtime errors и latency используй готовые service dashboards
 Cloud Functions. В отдельный компактный dashboard добавь ключевые error counters,
 heartbeat, размер и возраст Telegram-очереди, а также виджеты статуса шестнадцати
-алертов. Для YDB отдельно выведи количество `ydb_retry`, `ydb_slow_operation`
-и p95 поля `duration_ms` из `ydb_operation_completed`, а также `C` — процент
+алертов. Диагностический график **Cloud Functions: длительность p95** использует managed
+histogram `duration_ms_histogram`, функцию `histogram_percentile(95, ...)` и
+разбивку по `resource_id`. Он заменяет прежний max duration: p95 лучше отражает
+типичную деградацию и не поднимается от единственного выброса. Для YDB отдельно
+выведи количество `ydb_retry`, `ydb_slow_operation` и `C` — процент
 использованного хранилища.
+
+График **Поставка событий: heartbeat retry-worker** читает
+`zvenfit_retry_worker_log_heartbeat_1m` и не имеет paging-alert. Маркер последнего
+деплоя пока не добавляется: текущий deploy service account не имеет прав записи
+метрик, а использование runtime `MONIUM_API_KEY` в дополнительном CI job
+расширило бы доступ к секрету. Историю production-деплоев смотри в GitHub Actions;
+отдельный marker можно добавить только после согласования write-path и IAM.
 
 Общий график **Ошибки Cloud Functions** считает встроенную
 `functions_errors` для `zvenfit-telegram-lead`, `zvenfit-fitbase-schedule` и
@@ -490,17 +525,17 @@ multialert создаёт отдельный subalert по `resource_id`, поэ
 ## Cost estimate
 
 - Automatic Yandex Cloud metrics and service dashboards: free.
-- Eleven log-derived metrics at one point per window: well below `1 RUB/month`
+- Twelve log-derived metrics at one point per window: well below `1 RUB/month`
   at the current cardinality.
-- Fifteen continuously evaluated alerts: about `16.20 RUB/month` at the current
+- Sixteen continuously evaluated alerts: about `17.30 RUB/month` at the current
   tariff of `1.5 RUB / 1000 alert-hours`.
 - Telegram and email notification channels: no separate charge; SMS and calls
   are not enabled.
 - Cloud Functions and Cloud Logging should remain within their shared billing-
   account free tiers at the current traffic. The log group retains three days.
 - Paid CDN log export, Query and DataLens are not used.
-- No runtime service account, Object Storage trigger, Lockbox secret, HMAC,
-  session state or custom metric writes are required.
+- No new service account, IAM binding, Object Storage trigger, Lockbox secret,
+  HMAC, session state or custom deploy-marker write is introduced.
 
 ## Verification
 

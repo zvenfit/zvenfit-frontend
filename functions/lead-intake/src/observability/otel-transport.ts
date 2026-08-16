@@ -2,7 +2,6 @@ import { ExportResultCode } from '@opentelemetry/core';
 import { OTLPMetricExporter } from '@opentelemetry/exporter-metrics-otlp-proto';
 import {
   AggregationTemporality,
-  InstrumentType,
   MeterProvider,
   MetricReader,
   type PushMetricExporter,
@@ -15,7 +14,6 @@ const METER_NAME = 'zvenfit-lead-intake';
 const METER_VERSION = '1';
 
 export interface MetricsTransport {
-  addCounter(name: string, value: number, attributes?: MetricAttributes): void;
   recordGauge(name: string, value: number, attributes?: MetricAttributes): void;
   flush(): Promise<void>;
 }
@@ -35,7 +33,6 @@ class OneShotMetricReader extends MetricReader {
 }
 
 class OtelMetricsTransport implements MetricsTransport {
-  private readonly counters = new Map<string, ReturnType<Meter['createCounter']>>();
   private readonly gauges = new Map<string, ReturnType<Meter['createGauge']>>();
   private readonly provider: MeterProvider;
   private readonly reader: MetricReader;
@@ -55,15 +52,6 @@ class OtelMetricsTransport implements MetricsTransport {
     this.exporter = exporter;
     this.meter = meter;
     this.timeoutMs = timeoutMs;
-  }
-
-  public addCounter(name: string, value: number, attributes?: MetricAttributes): void {
-    let counter = this.counters.get(name);
-    if (!counter) {
-      counter = this.meter.createCounter(name);
-      this.counters.set(name, counter);
-    }
-    counter.add(value, attributes);
   }
 
   public recordGauge(name: string, value: number, attributes?: MetricAttributes): void {
@@ -168,22 +156,8 @@ function createOtelExporter(options: MetricsTransportOptions): PushMetricExporte
     url: options.endpoint,
     headers: options.headers,
     timeoutMillis: options.timeoutMs,
-    // Each Cloud Function invocation owns a one-shot meter provider. DELTA
-    // preserves event counts across those short-lived providers; CUMULATIVE
-    // made every invocation restart the same series at 1.
-    temporalityPreference: AggregationTemporality.DELTA,
+    temporalityPreference: AggregationTemporality.CUMULATIVE,
   });
-}
-
-function selectAggregationTemporality(instrumentType: InstrumentType): AggregationTemporality {
-  switch (instrumentType) {
-    case InstrumentType.COUNTER:
-    case InstrumentType.OBSERVABLE_COUNTER:
-    case InstrumentType.HISTOGRAM:
-      return AggregationTemporality.DELTA;
-    default:
-      return AggregationTemporality.CUMULATIVE;
-  }
 }
 
 export function createOtelTransport(
@@ -192,10 +166,8 @@ export function createOtelTransport(
 ): MetricsTransport {
   const exporter = exporterFactory(options);
   const reader = new OneShotMetricReader({
-    // Event counters are deltas for each short-lived function invocation.
-    // Gauges are cumulative instant values so an explicit zero remains a
-    // real sample instead of looking like missing telemetry in Monium.
-    aggregationTemporalitySelector: selectAggregationTemporality,
+    // An explicit zero is a real queue-health sample, not missing telemetry.
+    aggregationTemporalitySelector: () => AggregationTemporality.CUMULATIVE,
   });
   const provider = new MeterProvider({ readers: [reader] });
 
