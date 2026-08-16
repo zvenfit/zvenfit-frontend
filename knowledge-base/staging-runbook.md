@@ -31,13 +31,17 @@ the current operational state and the shortest safe deployment path.
 2. Approve the Environment gate for the isolated Function jobs after validation
    and quality checks are green.
 3. Approve the site deployment gate after all Function jobs succeed.
-4. Approve the E2E gate after the site smoke test succeeds.
-5. Require the complete workflow, including the Playwright job, to finish green.
+4. Approve the E2E gate after the site smoke test succeeds. This gate belongs
+   to the cross-repository reusable workflow executed in the frontend run.
+5. Require the complete workflow, including the external Playwright job, to
+   finish green.
 
 ## E2E safety invariants
 
-- `playwright.config.cjs` rejects every origin except the exact
-  `https://staging.zvenfit.ru` origin before a browser starts.
+- `playwright.staging.config.ts` in `zvenfit-autotests` rejects every origin
+  except the exact `https://staging.zvenfit.ru` origin before a browser starts.
+- `.github/workflows/staging.yml` pins both the reusable workflow call and its
+  checkout input to the same immutable autotests commit SHA.
 - The suite receives only staging Basic Auth credentials. It receives no
   Fitbase, Telegram, Monium, Yandex Cloud, or production credentials.
 - The lead scenario submits an invalid browser form and asserts that no
@@ -46,5 +50,6 @@ the current operational state and the shortest safe deployment path.
 - The synthetic User-Agent is classified separately from real visitors.
 
 Every push to `main` also starts the production deployment workflow. Do not
-approve or mutate an unrelated production run while operating staging; use a
-`[skip ci]` documentation-only commit when no deploy workflow should run.
+approve or mutate an unrelated production run while operating staging; use an
+explicit `[skip ci]` commit when the change is deployment-neutral and will be
+verified by a manual staging workflow.

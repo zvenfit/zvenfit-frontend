@@ -31,7 +31,7 @@ npm run dev:watch
 ```text
 Browser (zvenfit.ru) → public production functions
 
-Browser / Playwright
+Browser / Playwright (suite: zvenfit-autotests)
   └─ staging.zvenfit.ru (Basic-auth API Gateway)
        ├─ private Object Storage
        ├─ private lead-intake → staging YDB → fixture notification sink
@@ -64,6 +64,11 @@ Local development
 | Build и HTML-инъекции     | `scripts/build-static.cjs`, `scripts/snippets/`        |
 | Production workflow       | `.github/workflows/main.yml`                           |
 | Private staging workflow  | `.github/workflows/staging.yml`                        |
+
+Staging Playwright tests and their fail-closed config live in
+[`zvenfit-autotests`](https://github.com/zvenfit/zvenfit-autotests). The
+frontend staging workflow calls that repository's reusable workflow at an
+immutable commit SHA after deploy.
 
 `dist/` генерируется и не редактируется вручную. После изменений HTML, CSS, JS или build-конфигурации запускай `npm run build` либо используй `npm run dev:watch`.
 

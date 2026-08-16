@@ -138,16 +138,19 @@ Smoke выполняет `POST {}` в same-origin `/api/lead` и требует 
 создаются. Schedule smoke требует ровно совместимую форму ответа:
 `{ "ok": true, "items": [...] }`.
 
-Playwright E2E запускается только после успешного staging deploy. Конфиг жёстко
-разрешает единственный origin `https://staging.zvenfit.ru`, использует
-синтетический User-Agent и проверяет Basic Auth, `noindex`, отсутствие
-production analytics, synthetic schedule и browser validation формы. Текущий
-набор не отправляет валидную заявку и не вызывает `/api/lead`; сценарий записи
-в staging YDB появится только вместе с отдельным read-only test probe.
+Playwright E2E принадлежит репозиторию
+[`zvenfit-autotests`](https://github.com/zvenfit/zvenfit-autotests) и запускается
+после успешного staging deploy через reusable workflow, закреплённый полным
+commit SHA. Его отдельный config жёстко разрешает единственный origin
+`https://staging.zvenfit.ru`, использует синтетический User-Agent и проверяет
+Basic Auth, `noindex`, отсутствие production analytics, synthetic schedule и
+browser validation формы. Текущий набор не отправляет валидную заявку и не
+вызывает `/api/lead`; сценарий записи в staging YDB появится только вместе с
+отдельным read-only test probe.
 
 Production smoke остаётся только GET/OPTIONS и никогда не создаёт лид. E2E не
 может быть направлен на production: любой другой origin отклоняется при загрузке
-Playwright config до запуска браузера.
+Playwright config в `zvenfit-autotests` до запуска браузера.
 
 ## DNS и TLS
 
