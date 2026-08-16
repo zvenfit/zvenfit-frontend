@@ -15,6 +15,9 @@ updated: 2026-08-16
   monitoring runbook.
 - Empty event graphs are normal while the corresponding alert is green.
 - Refresh interval: one minute.
+- Layout grid: 36 columns. Paired charts use 18 columns each; when a section has
+  an unpaired final chart, it spans all 36 columns so the section ends without
+  a ragged empty area.
 
 ## Backup and restore
 

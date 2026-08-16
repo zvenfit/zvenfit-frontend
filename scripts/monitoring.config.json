@@ -95,14 +95,22 @@
       "query": "histogram_percentile(95, {project=\"folder__b1ge1e4iopttj79hfdfm\", service=\"serverless-functions\", name=\"duration_ms_histogram\", resource_id=\"zvenfit-telegram-lead|zvenfit-fitbase-schedule|zvenfit-site-traffic\"})",
       "unit": "milliseconds",
       "pagingAlert": false,
-      "decomposeBy": ["resource_id"]
+      "decomposeBy": ["resource_id"],
+      "layout": {
+        "widthColumns": 36,
+        "heightRows": 8
+      }
     },
     "logPipelineHeartbeat": {
       "title": "Поставка событий: heartbeat retry-worker",
       "source": "zvenfit_retry_worker_log_heartbeat_1m",
       "query": "series_sum({project=\"folder__b1ge1e4iopttj79hfdfm\", cluster=\"default\", service=\"logging_aggregates\", name=\"zvenfit_retry_worker_log_heartbeat_1m\"})",
       "visualization": "chart",
-      "pagingAlert": false
+      "pagingAlert": false,
+      "layout": {
+        "widthColumns": 36,
+        "heightRows": 8
+      }
     },
     "trafficWidgets": [
       "Cloud CDN: запросы",
