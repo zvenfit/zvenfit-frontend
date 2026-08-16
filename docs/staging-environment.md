@@ -70,6 +70,7 @@ Variables:
 | `YC_DEPLOY_SERVICE_ACCOUNT_ID` | SA, связанный только со staging WIF |
 | `YC_LEAD_SERVICE_ACCOUNT_ID` | runtime SA lead function |
 | `YC_GATEWAY_SERVICE_ACCOUNT_ID` | runtime SA API Gateway |
+| `YC_STAGING_GATEWAY_ID` | pre-provisioned staging API Gateway; CI обращается по ID без folder-wide list access |
 | `YC_SWS_SECURITY_PROFILE_ID` | SWS profile с подключённым ARL |
 | `Y_MAPS_API_KEY` | browser key для staging build |
 

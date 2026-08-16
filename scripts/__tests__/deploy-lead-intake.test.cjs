@@ -9,6 +9,7 @@ const ROOT = path.resolve(__dirname, '../..');
 const deployScript = fs.readFileSync(path.join(ROOT, 'scripts/deploy-lead-intake.sh'), 'utf8');
 const scheduleDeployScript = fs.readFileSync(path.join(ROOT, 'scripts/deploy-fitbase-schedule.sh'), 'utf8');
 const trafficDeployScript = fs.readFileSync(path.join(ROOT, 'scripts/deploy-site-traffic.sh'), 'utf8');
+const gatewayDeployScript = fs.readFileSync(path.join(ROOT, 'scripts/deploy-staging-gateway.sh'), 'utf8');
 const productionWorkflow = fs.readFileSync(path.join(ROOT, '.github/workflows/main.yml'), 'utf8');
 const stagingWorkflow = fs.readFileSync(path.join(ROOT, '.github/workflows/staging.yml'), 'utf8');
 const reusableWorkflow = fs.readFileSync(path.join(ROOT, '.github/workflows/_deploy-environment.yml'), 'utf8');
@@ -108,9 +109,17 @@ test('reusable workflow passes resource identities explicitly instead of using p
   assert.match(reusableWorkflow, /YC_TRAFFIC_FUNCTION_NAME: \$\{\{ inputs\.traffic_function_name \}\}/);
   assert.match(reusableWorkflow, /YDB_DATABASE_NAME: \$\{\{ inputs\.ydb_database_name \}\}/);
   assert.match(reusableWorkflow, /YDB_DATABASE_ID: \$\{\{ vars\.YDB_DATABASE_ID \}\}/);
+  assert.match(reusableWorkflow, /YC_STAGING_GATEWAY_ID: \$\{\{ vars\.YC_STAGING_GATEWAY_ID \}\}/);
   assert.match(reusableWorkflow, /s3:\/\/\$\{\{ inputs\.s3_bucket \}\}/);
   assert.doesNotMatch(reusableWorkflow, /zvenfit-telegram-lead(?:\n|'|")/);
   assert.doesNotMatch(reusableWorkflow, /zvenfit-fitbase-schedule(?:\n|'|")/);
+});
+
+test('staging gateway deploy uses the resource ID when CI cannot list gateways in the folder', () => {
+  assert.match(gatewayDeployScript, /GATEWAY_ID="\$\{YC_STAGING_GATEWAY_ID:-\}"/);
+  assert.match(gatewayDeployScript, /GATEWAY_REF_ARGS=\(--id="\$\{GATEWAY_ID\}"\)/);
+  assert.match(gatewayDeployScript, /api-gateway get "\$\{GATEWAY_REF_ARGS\[@\]\}"/);
+  assert.match(gatewayDeployScript, /api-gateway update \\\n+  "\$\{GATEWAY_REF_ARGS\[@\]\}"/);
 });
 
 test('lead deploy verifies YDB, migrates schema, and only then creates a function version', () => {

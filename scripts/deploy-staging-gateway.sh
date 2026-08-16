@@ -6,6 +6,7 @@ SPEC_FILE="$(mktemp /tmp/zvenfit-staging-gateway.XXXXXX.json)"
 trap 'rm -f -- "${SPEC_FILE}"' EXIT
 
 GATEWAY_NAME="${YC_STAGING_GATEWAY_NAME:-zvenfit-staging}"
+GATEWAY_ID="${YC_STAGING_GATEWAY_ID:-}"
 STAGING_BUCKET="${STAGING_BUCKET:-zvenfit-frontend-staging}"
 
 if [[ "${DEPLOYMENT_ENVIRONMENT:-}" != "staging" ]]; then
@@ -22,7 +23,12 @@ done
 
 yc config set folder-id "${YC_FOLDER_ID}" >/dev/null
 
-if ! yc serverless api-gateway get --name="${GATEWAY_NAME}" >/dev/null 2>&1; then
+GATEWAY_REF_ARGS=(--name="${GATEWAY_NAME}")
+if [[ -n "${GATEWAY_ID}" ]]; then
+  GATEWAY_REF_ARGS=(--id="${GATEWAY_ID}")
+fi
+
+if ! yc serverless api-gateway get "${GATEWAY_REF_ARGS[@]}" >/dev/null 2>&1; then
   echo "deploy-staging-gateway: ${GATEWAY_NAME} must be provisioned and bound to staging.zvenfit.ru before CI deploy" >&2
   exit 1
 fi
@@ -36,7 +42,7 @@ STAGING_BUCKET="${STAGING_BUCKET}" \
   --output "${SPEC_FILE}"
 
 yc serverless api-gateway update \
-  --name="${GATEWAY_NAME}" \
+  "${GATEWAY_REF_ARGS[@]}" \
   --spec="${SPEC_FILE}" \
   --description="Private authenticated ZvenFit staging gateway" \
   --min-log-level=info

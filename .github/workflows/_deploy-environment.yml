@@ -577,6 +577,7 @@ jobs:
           DEPLOYMENT_ENVIRONMENT: ${{ inputs.deployment_environment }}
           YC_FOLDER_ID: ${{ vars.YC_FOLDER_ID }}
           YC_STAGING_GATEWAY_NAME: ${{ inputs.gateway_name }}
+          YC_STAGING_GATEWAY_ID: ${{ vars.YC_STAGING_GATEWAY_ID }}
           YC_GATEWAY_SERVICE_ACCOUNT_ID: ${{ vars.YC_GATEWAY_SERVICE_ACCOUNT_ID }}
           STAGING_BUCKET: ${{ inputs.s3_bucket }}
           STAGING_AUTHORIZER_FUNCTION_ID: ${{ needs.deploy-authorizer.outputs.function_id }}
