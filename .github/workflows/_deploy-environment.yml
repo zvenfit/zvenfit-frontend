@@ -471,7 +471,7 @@ jobs:
           SCHEDULE_API_URL: ${{ inputs.site_access_mode == 'authenticated-gateway' && format('{0}/api/schedule', inputs.site_url) || needs.deploy-schedule-function.outputs.function_url }}
           TRAFFIC_API_URL: ${{ inputs.site_access_mode == 'authenticated-gateway' && format('{0}/api/traffic', inputs.site_url) || needs.deploy-traffic-function.outputs.function_url }}
           Y_MAPS_API_KEY: ${{ vars.Y_MAPS_API_KEY }}
-          ASSET_VERSION: ${{ vars.ASSET_VERSION || github.run_number }}
+          ASSET_VERSION: ${{ github.run_number }}
         run: |
           if [ -z "$LEAD_API_URL" ]; then
             echo "ERROR: LEAD_API_URL is empty — deploy-function output was not passed" >&2

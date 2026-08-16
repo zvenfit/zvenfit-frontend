@@ -50,7 +50,7 @@ Agent guide: [`AGENTS.md`](AGENTS.md)
   `body` 14px/1.43 → prefer 16px/1.5 on mobile. Arial in fallback stack.
 
 - [ ] **Отзывы для группового зала** (`/gruppovye-trenirovki/`)  
-  Секция `#reviews` и пункт меню скрыты CSS (`data-wf-page="69b540f958c9c44d220bcf1a"`) — сейчас там копипаста с тренажёрного. Нужны реальные отзывы про групповые → заменить контент, убрать hide-rule.
+  Секция `#reviews` и пункт меню скрыты CSS через `data-zvenfit-page="group-fitness"` — сейчас там копипаста с тренажёрного. Нужны реальные отзывы про групповые → заменить контент, убрать hide-rule.
 
 - [x] **Lead form (`forma-dlya-zayavki`)**
   Native select, уникальные labels, `method="post"`, aria-live feedback и понятные ошибки.

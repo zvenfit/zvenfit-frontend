@@ -163,7 +163,7 @@ Gateway остаётся в deny-all bootstrap spec и не публикует s
 
 Staging считается готовым, когда одновременно выполнены условия:
 
-- environment защищён `main` + independent approval;
+- environment разрешает deploy только из `main` и требует явного approval назначенного reviewer;
 - WIF subject и deploy SA отличаются от production;
 - административный parent-IAM audit зелёный;
 - прямые bucket/function URLs отвергают anonymous access;

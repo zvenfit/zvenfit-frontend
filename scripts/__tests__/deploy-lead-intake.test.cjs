@@ -3,6 +3,7 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const { execFileSync } = require('node:child_process');
 const test = require('node:test');
 
 const ROOT = path.resolve(__dirname, '../..');
@@ -69,20 +70,42 @@ test('frontend does not own Playwright code or dependencies', () => {
     ...packageJson.peerDependencies,
   };
 
-  assert.equal(packageJson.scripts['test:e2e:staging'], undefined);
+  for (const [name, command] of Object.entries(packageJson.scripts ?? {})) {
+    assert.doesNotMatch(name, /playwright|e2e/i, `${name} belongs in zvenfit-autotests`);
+    assert.doesNotMatch(command, /playwright|tests?[:/]e2e|tests?[:/]staging/i, `${name} belongs in zvenfit-autotests`);
+  }
   for (const dependency of ['@playwright/test', 'playwright', 'playwright-core']) {
     assert.equal(allDependencies[dependency], undefined, `${dependency} belongs in zvenfit-autotests`);
   }
-  for (const relativePath of [
-    'playwright.config.cjs',
-    'playwright.config.js',
-    'playwright.config.mjs',
-    'playwright.config.ts',
-    'playwright.staging.config.ts',
-  ]) {
-    assert.equal(fs.existsSync(path.join(ROOT, relativePath)), false, `${relativePath} belongs in zvenfit-autotests`);
-  }
-  for (const relativeDirectory of ['e2e', 'tests/e2e']) {
+  const trackedFiles = execFileSync('git', ['ls-files', '-z'], {
+    cwd: ROOT,
+    encoding: 'utf8',
+  })
+    .split('\0')
+    .filter(Boolean);
+  const forbiddenPaths = trackedFiles.filter(
+    relativePath =>
+      /^(?:e2e|tests\/(?:e2e|staging))(?:\/|$)/.test(relativePath) ||
+      /(?:^|\/)playwright(?:\.[^/]+)*\.config\.[cm]?[jt]s$/.test(relativePath),
+  );
+  assert.deepEqual(forbiddenPaths, [], `browser-test files belong in zvenfit-autotests: ${forbiddenPaths.join(', ')}`);
+
+  const sourceExtensions = new Set(['.cjs', '.js', '.jsx', '.mjs', '.ts', '.tsx']);
+  const guardPath = path.relative(ROOT, __filename);
+  const playwrightImports = trackedFiles.filter(relativePath => {
+    if (relativePath === guardPath || !sourceExtensions.has(path.extname(relativePath))) return false;
+    const source = fs.readFileSync(path.join(ROOT, relativePath), 'utf8');
+    return /(?:from\s*|require\(\s*|import\(\s*)['"](?:@playwright\/test|playwright(?:-core)?)(?:\/[^'"]*)?['"]/.test(
+      source,
+    );
+  });
+  assert.deepEqual(
+    playwrightImports,
+    [],
+    `Playwright imports belong in zvenfit-autotests: ${playwrightImports.join(', ')}`,
+  );
+
+  for (const relativeDirectory of ['e2e', 'tests/e2e', 'tests/staging']) {
     const directory = path.join(ROOT, relativeDirectory);
     const files = fs.existsSync(directory) ? fs.readdirSync(directory, { recursive: true }) : [];
     assert.deepEqual(files, [], `${relativeDirectory} browser tests belong in zvenfit-autotests`);
@@ -101,6 +124,11 @@ test('production and staging call the same reusable workflow without secret inhe
   assert.match(stagingWorkflow, /STAGING_BASIC_AUTH_PASSWORD: \$\{\{ secrets\.STAGING_BASIC_AUTH_PASSWORD \}\}/);
   assert.match(reusableWorkflow, /STAGING_BASIC_AUTH_USERNAME:\n\s+required: false/);
   assert.match(reusableWorkflow, /STAGING_BASIC_AUTH_PASSWORD:\n\s+required: false/);
+});
+
+test('every deploy gets a unique asset cache version from its workflow run', () => {
+  assert.match(reusableWorkflow, /ASSET_VERSION: \$\{\{ github\.run_number \}\}/);
+  assert.doesNotMatch(reusableWorkflow, /vars\.ASSET_VERSION/);
 });
 
 test('reusable workflow validates config before cloud deploy jobs', () => {

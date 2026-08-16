@@ -1,9 +1,14 @@
 'use strict';
 
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 const test = require('node:test');
 
 const { analyzeWebflowPage, checkWebflowLayouts } = require('../check-webflow-layout.cjs');
+
+const ROOT = path.resolve(__dirname, '../..');
+const siteCss = fs.readFileSync(path.join(ROOT, 'public/css/zvenfit.webflow.css'), 'utf8');
 
 function page({ pageId = '69b540f958c9c44d220bcf1a', ids = [] } = {}) {
   return `<html data-wf-page="${pageId}"><body>${ids.map(id => `<div id="${id}"></div>`).join('')}</body></html>`;
@@ -64,4 +69,14 @@ test('rejects duplicate element ids that can collapse layout behavior', () => {
   });
 
   assert.match(result.errors.join('\n'), /contains duplicate ids/);
+});
+
+test('review visibility is scoped by a semantic page marker, not a shared Webflow id', () => {
+  const groupFitnessHtml = fs.readFileSync(path.join(ROOT, 'public/gruppovye-trenirovki/index.html'), 'utf8');
+  const miniGroupsHtml = fs.readFileSync(path.join(ROOT, 'public/trenazhernyj-zal/mini-gruppy/index.html'), 'utf8');
+
+  assert.match(groupFitnessHtml, /data-zvenfit-page="group-fitness"/);
+  assert.match(miniGroupsHtml, /data-zvenfit-page="mini-groups"/);
+  assert.match(siteCss, /html\[data-zvenfit-page="group-fitness"\] #reviews/);
+  assert.doesNotMatch(siteCss, /html\[data-wf-page=[^\]]+\] #reviews/);
 });
