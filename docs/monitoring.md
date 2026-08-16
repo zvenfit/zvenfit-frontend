@@ -2,17 +2,20 @@
 
 Минимальный мониторинг production-функций. Lead/schedule logs не содержат
 персональные данные; traffic log намеренно access-like и описан отдельно ниже.
-Машиночитаемый источник конфигурации: `scripts/monitoring.config.json`.
+Машиночитаемый semantic desired state: `scripts/monitoring.config.json`.
+Полный восстанавливаемый JSON production-борды: `scripts/monitoring.dashboard.json`.
 
 Согласованные правила эксплуатации, единая taxonomy, прямые ссылки Monium,
 готовые log-селекторы и порядок разбора инцидента вынесены в
 [`monitoring-operations.md`](monitoring-operations.md).
 
 > [!IMPORTANT]
-> Log metrics, notification channels и alert rules остаются console-managed: для полного
-> набора этих ресурсов нет поддерживаемого export/import workflow в используемых публичных
-> инструментах. `scripts/monitoring.config.json` фиксирует точный desired state, а
-> `scripts/test-monitoring-alerts.sh` проверяет application log metrics синтетическими событиями.
+> Dashboard поддерживает штатный JSON export/import через **Настройки → JSON**.
+> Этот JSON охватывает только саму борду: виджеты, запросы, заголовки и layout.
+> Log metrics, notification channels и alert rules остаются console-managed, потому что
+> dashboard JSON их не содержит. `scripts/monitoring.config.json` фиксирует их точный
+> desired state, а `scripts/test-monitoring-alerts.sh` проверяет application log metrics
+> синтетическими событиями.
 > Метрики platform runtime проверяются только по реальным техническим логам: намеренно ронять
 > production-функции для теста нельзя.
 
@@ -70,7 +73,7 @@ event `site_page_view` в Cloud Logging. Monium считает page views пря
 | Metric | Что считается |
 | --- | --- |
 | `edge.requests` | Все CDN-запросы, включая HTML, assets и роботов |
-| `zvenfit_site_page_views_by_class_5m` | Валидные browser beacon events по `traffic_class` и `host` |
+| `zvenfit_site_page_views_by_class_5m` | Валидные browser beacon events по `traffic_class`; taxonomy сохраняет приложение, компонент и функцию |
 | `edge.requests_status` | Встроенная разбивка CDN по HTTP status |
 | `edge.requests_cache_status` | Встроенная разбивка CDN по cache status |
 | `edge.bytes_sent` | Встроенная скорость отдачи CDN |
@@ -89,19 +92,20 @@ edge.request_time_seconds{service="yccdn", resource="bc8rubabuwzpqqp7rifz"}
 Access-like event сохраняет IP, полный User-Agent, полный URL с query,
 referrer, `page_view_id` и признак `webdriver`. Это осознанный диагностический
 лог с общей retention Cloud Logging 3 дня. Сырые поля нельзя добавлять в labels
-метрики: grouping ограничен `traffic_class` и `host` — максимум 12 штатных
-рядов. Нормализованный `page` остаётся полем лога, потому что произвольные 404
-пути сделали бы его небезопасной высококардинальной label.
+метрики: grouping ограничен `traffic_class` и фиксированной taxonomy
+`application` / `service` / `resource_id` — четыре штатных production-ряда.
+`host` и нормализованный `page` остаются полями лога: произвольные хосты и 404
+пути сделали бы их небезопасными высококардинальными labels.
 
 Отдельного client state нет: функция не использует HMAC, Lockbox, YDB, Object
 Storage, cookies или session timeout. `page_view_id` нужен только для поиска
 повторной доставки в логах; sessions и unique visitors не считаются.
 
-Настройка функции, log-based metric и карточки **Последний page view** описана в
+Настройка функции, log-based metric и графиков page views описана в
 [`site-traffic-analytics.md`](site-traffic-analytics.md). Карточка freshness
-диагностическая, без paging-alert. Пользовательский dashboard Monium не встраивает
-raw-log строки, поэтому плитка показывает последнее значение объединённой
-пятиминутной метрики; точный timestamp события смотри в Cloud Logging.
+не используется: пользовательский dashboard Monium не встраивает raw-log строки,
+а последнее значение bucket не является временем события. Точный timestamp
+последнего `site_page_view` смотри в Cloud Logging.
 
 ## События приложения
 
@@ -461,9 +465,9 @@ bash scripts/test-monitoring-alerts.sh --confirm
 
 ## Read-only drift check
 
-`scripts/monitoring.config.json` хранит Git desired state для log metrics,
-alerts, notification channels, policy и dashboard. Снимок live-конфигурации в
-том же каноническом JSON-формате сравнивается командой:
+`scripts/monitoring.config.json` хранит semantic desired state для log metrics,
+alerts, notification channels, policy и dashboard. Снимок полного набора live-
+ресурсов в каноническом формате drift-check сравнивается командой:
 
 ```bash
 npm run check:monitoring-drift -- --snapshot /path/to/monium-live.json
@@ -478,13 +482,25 @@ labels, notification channels и структуру dashboard.
 - exit code `2` — snapshot или аргументы некорректны.
 
 Команда read-only: она не обращается к Monium самостоятельно, не меняет live
-ресурсы и не требует нового service account, IAM binding или Lockbox. Получение
-и нормализация live snapshot остаются ручным read-only шагом: deploy service
-account не имеет folder-level viewer role, а неподдерживаемый private UI API в CI
-не используется. Автоматизация возможна только после отдельного согласования
-нового read-only доступа и поддерживаемого полного export API.
+ресурсы и не требует нового service account, IAM binding или Lockbox. Нативный
+`scripts/monitoring.dashboard.json` нельзя передавать этой команде: он описывает
+только dashboard и имеет другую схему. Получение и нормализация полного live
+snapshot остаются ручным read-only шагом: deploy service account не имеет
+folder-level viewer role, а неподдерживаемый private UI API в CI не используется.
+Автоматизация возможна только после отдельного согласования нового read-only
+доступа и поддерживаемого полного export API для всех monitoring-ресурсов.
 
 ## Dashboard
+
+Канонический full-fidelity snapshot борды хранится в
+`scripts/monitoring.dashboard.json`. Он получен штатной командой Monium
+**Настройки → JSON → Без diff** и может быть вставлен в тот же диалог для
+восстановления или переноса борды. Перед **Применить** обязательно проверить
+встроенный diff: import изменяет live-борду целиком. После согласованного ручного
+изменения live-борды JSON экспортируется повторно, проверяется на секреты и
+персональные данные и коммитится вместе с соответствующим изменением
+`scripts/monitoring.config.json`. Экспорт не включает alerts, log metrics и
+notification channels.
 
 Для вызовов, runtime errors и latency используй готовые service dashboards
 Cloud Functions. В отдельный компактный dashboard добавь ключевые error counters,
@@ -511,16 +527,16 @@ multialert создаёт отдельный subalert по `resource_id`, поэ
 Контролируемые HTTP `400/403/405/413` не являются runtime failures и в этот
 график не попадают.
 
-Для сайта используй компактный dashboard Monium: `edge.requests`, page views,
-доли `browser_like` / `known_bot` / `synthetic` / `unknown` и карточку
-**Последний page view**. Sessions пока не считаются. Cache/status/bytes/latency
+Для сайта используй компактный dashboard Monium: `edge.requests`, page views за
+пять минут и разбивку `browser_like` / `known_bot` / `synthetic` / `unknown`.
+Sessions пока не считаются. Cache/status/bytes/latency
 оставь на встроенных `edge.*` графиках Monitoring. Маркетинговые конверсии и
 источники кампаний остаются в маркетинговых счётчиках.
 
-Плитка **Последний page view** использует `series_sum` для объединения рядов
-`traffic_class × host` и агрегацию `last`. Она показывает последнее значение
-пятиминутного bucket в выбранном диапазоне, а не timestamp raw-log записи. Это
-намеренная диагностическая аппроксимация без новой метрики, state и alert.
+График **Просмотры страниц за 5 минут** использует `series_sum` для объединения
+рядов taxonomy и показывает count пятиминутного bucket. График **Просмотры
+страниц по классам трафика** сохраняет разбивку по `traffic_class`. Ни один из
+них не является paging-alert.
 
 ## Cost estimate
 

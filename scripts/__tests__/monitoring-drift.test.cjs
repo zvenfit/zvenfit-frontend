@@ -21,7 +21,7 @@ test('normalizes the desired monitoring resources into a stable read-only contra
   assert.equal(normalized.logMetrics.length, 12);
   assert.equal(normalized.alerts.length, 16);
   assert.equal(normalized.notificationChannels.length, 2);
-  assert.equal(normalized.dashboard.runtimeErrors.title, 'Ошибки Cloud Functions');
+  assert.equal(normalized.dashboard.runtimeErrors.title, 'Cloud Functions: ошибки');
   assert.deepEqual(diffMonitoringState(config, liveSnapshot()), []);
 });
 
