@@ -1,0 +1,17 @@
+---
+description: Enforce ownership of Playwright and browser E2E across ZvenFit repositories
+alwaysApply: true
+---
+
+# Browser test repository boundary
+
+- `zvenfit-autotests` exclusively owns Playwright, browser E2E specs, configs,
+  fixtures, and reusable browser-test workflows.
+- Never add Playwright dependencies, configs, or browser E2E source files to
+  `zvenfit-frontend`.
+- Frontend may contain unit, integration, build, deployment, and static contract
+  tests. Its staging workflow only calls the autotests reusable workflow.
+- Pin the reusable workflow and `autotests_ref` to the same full commit SHA.
+- Change and validate E2E in `zvenfit-autotests` first, then update the frontend
+  SHA pin.
+- See `AGENTS.md` → “Cross-repository test ownership”.

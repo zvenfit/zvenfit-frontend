@@ -10,6 +10,15 @@
 - Do not synchronize, upload, or copy `knowledge-base/` to a separate knowledge-base surface; Git for this project is its only remote storage.
 - Work only with the repository and task-specific tools explicitly requested by the user.
 
+## Cross-repository test ownership
+
+- `zvenfit-autotests` is the only repository that owns Playwright, browser E2E specs, Playwright configs, fixtures, and reusable browser-test workflows.
+- Never add `@playwright/test`, `playwright`, `playwright-core`, `playwright*.config.*`, or browser E2E source files to `zvenfit-frontend`.
+- This repository may own unit, integration, build, deployment, and static contract tests. Its staging workflow may only call the reusable E2E workflow from `zvenfit-autotests`.
+- Pin both the cross-repository reusable workflow reference and its checkout input to the same full immutable commit SHA.
+- Publish and validate browser-test changes in `zvenfit-autotests` first; only then update the pinned SHA here.
+- If a task asks to add Playwright or browser E2E while working in this repository, implement that part in `zvenfit-autotests` instead of crossing the boundary.
+
 ## Stack
 
 - **Frontend:** static HTML (Webflow export) in `public/`

@@ -62,10 +62,31 @@ test('staging E2E delegates to an immutable autotests revision after deploy', ()
 });
 
 test('frontend does not own Playwright code or dependencies', () => {
+  const allDependencies = {
+    ...packageJson.dependencies,
+    ...packageJson.devDependencies,
+    ...packageJson.optionalDependencies,
+    ...packageJson.peerDependencies,
+  };
+
   assert.equal(packageJson.scripts['test:e2e:staging'], undefined);
-  assert.equal(packageJson.devDependencies?.['@playwright/test'], undefined);
-  assert.equal(fs.existsSync(path.join(ROOT, 'e2e/staging.spec.cjs')), false);
-  assert.equal(fs.existsSync(path.join(ROOT, 'playwright.config.cjs')), false);
+  for (const dependency of ['@playwright/test', 'playwright', 'playwright-core']) {
+    assert.equal(allDependencies[dependency], undefined, `${dependency} belongs in zvenfit-autotests`);
+  }
+  for (const relativePath of [
+    'playwright.config.cjs',
+    'playwright.config.js',
+    'playwright.config.mjs',
+    'playwright.config.ts',
+    'playwright.staging.config.ts',
+  ]) {
+    assert.equal(fs.existsSync(path.join(ROOT, relativePath)), false, `${relativePath} belongs in zvenfit-autotests`);
+  }
+  for (const relativeDirectory of ['e2e', 'tests/e2e']) {
+    const directory = path.join(ROOT, relativeDirectory);
+    const files = fs.existsSync(directory) ? fs.readdirSync(directory, { recursive: true }) : [];
+    assert.deepEqual(files, [], `${relativeDirectory} browser tests belong in zvenfit-autotests`);
+  }
 });
 
 test('production and staging call the same reusable workflow without secret inheritance', () => {
