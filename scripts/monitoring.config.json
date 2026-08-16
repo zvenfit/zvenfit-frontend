@@ -58,6 +58,28 @@
     }
   },
   "dashboard": {
+    "quickLogAccess": {
+      "title": "Быстрый доступ к логам",
+      "position": "top",
+      "layout": {
+        "widthColumns": 36,
+        "heightRows": 2
+      },
+      "links": [
+        {
+          "label": "INFO за час",
+          "level": "INFO",
+          "window": "1h",
+          "url": "https://monium.yandex.cloud/projects/folder__b1ge1e4iopttj79hfdfm/logs?tab=logs&queries=NobwRAdghgtgpmAXGAgmANGAblANgVwWRAAcAnAewCs4BjAFwAIBeRgHTADMLcATOMgH1BAIwCMAczhi4AFgCWFEvXpUA7AE4AFp16cYHdIwDOArPNpwW7MP05R8ueoca44WOLmscAkgDkAMQB5F3h6KAA6KBISXAsoekUIbzAALw8ITnl6AFpOSgh6OAheULhwiOLzAvhClPIKXnwGJI4AXwwwLXlefggke1xTTF55YygRN14BvGGwIoAPegBZRqJB0zaAXSA&from=now-1h&to=now&columns=level%2Ctime%2Cmessage%2Chost&groupByField=level&chartType=column&linesMode=single&refresh=off"
+        },
+        {
+          "label": "ERROR за час",
+          "level": "ERROR",
+          "window": "1h",
+          "url": "https://monium.yandex.cloud/projects/folder__b1ge1e4iopttj79hfdfm/logs?tab=logs&queries=NobwRAdghgtgpmAXGAgmANGAblANgVwWRAAcAnAewCs4BjAFwAIBeRgHTADMLcATOMgH1BAIwCMAczhi4AFgCWFEvXpUA7AE4AFp16cYHdIwDOArPNpwW7MP05R8ueoca44WOLmscAogCU-AHk-F3h6KAA6KBISXAsoekUIbzAALw8ITnl6AFpOSgh6OAheULhwiOLzAvhClPIKXnwGJI4AXwwwLXlefggke1xTTF55YygRN14BvGGwIoAPegBZRqJB0zaAXSA&from=now-1h&to=now&columns=level%2Ctime%2Cmessage%2Chost&groupByField=level&chartType=column&linesMode=single&refresh=off"
+        }
+      ]
+    },
     "runtimeErrors": {
       "title": "Ошибки Cloud Functions",
       "metricSelector": "{project=\"folder__b1ge1e4iopttj79hfdfm\", service=\"serverless-functions\", name=\"functions_errors\", resource_id=\"zvenfit-telegram-lead|zvenfit-fitbase-schedule|zvenfit-site-traffic\"}",
