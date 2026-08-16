@@ -1,0 +1,1816 @@
+{
+  "title": "ZvenFit · production",
+  "name": "zvenfit-production-monitoring",
+  "description": "",
+  "parametrization": null,
+  "eventSources": {
+    "infra": []
+  },
+  "widgets": [
+    {
+      "links": [],
+      "position": {
+        "x": "0",
+        "y": "0",
+        "w": "36",
+        "h": "2"
+      },
+      "text": {
+        "text": "**Быстрый доступ к логам:** [INFO за час](https://monium.yandex.cloud/projects/folder__b1ge1e4iopttj79hfdfm/logs?tab=logs&queries=NobwRAdghgtgpmAXGAgmANGAblANgVwWRAAcAnAewCs4BjAFwAIBeRgHTADMLcATOMgH1BAIwCMAczhi4AFgCWFEvXpUA7AE4AFp16cYHdIwDOArPNpwW7MP05R8ueoca44WOLmscAkgDkAMQB5F3h6KAA6KBISXAsoekUIbzAALw8ITnl6AFpOSgh6OAheULhwiOLzAvhClPIKXnwGJI4AXwwwLXlefggke1xTTF55YygRN14BvGGwIoAPegBZRqJB0zaAXSA&from=now-1h&to=now&columns=level%2Ctime%2Cmessage%2Chost&groupByField=level&chartType=column&linesMode=single&refresh=off) · [ERROR за час](https://monium.yandex.cloud/projects/folder__b1ge1e4iopttj79hfdfm/logs?tab=logs&queries=NobwRAdghgtgpmAXGAgmANGAblANgVwWRAAcAnAewCs4BjAFwAIBeRgHTADMLcATOMgH1BAIwCMAczhi4AFgCWFEvXpUA7AE4AFp16cYHdIwDOArPNpwW7MP05R8ueoca44WOLmscAogCU-AHk-F3h6KAA6KBISXAsoekUIbzAALw8ITnl6AFpOSgh6OAheULhwiOLzAvhClPIKXnwGJI4AXwwwLXlefggke1xTTF55YygRN14BvGGwIoAPegBZRqJB0zaAXSA&from=now-1h&to=now&columns=level%2Ctime%2Cmessage%2Chost&groupByField=level&chartType=column&linesMode=single&refresh=off)"
+      },
+      "widget": "text"
+    },
+    {
+      "links": [],
+      "position": {
+        "x": "0",
+        "y": "2",
+        "w": "36",
+        "h": "5"
+      },
+      "text": {
+        "text": "Как читать дашборд\n\n1. Статусы: красный — реагировать; жёлтый — проверить; зелёный — норма.\n2. Доставка: очередь заявок → возраст старейшей → heartbeat retry-worker.\n3. Диагностика: ошибки, ограничения и ресурсы каждой Cloud Function различаются по resource_id.\n\nПустой событийный график при зелёном статусе означает, что ошибок не было. Обновление — раз в минуту."
+      },
+      "widget": "text"
+    },
+    {
+      "links": [],
+      "position": {
+        "x": "0",
+        "y": "7",
+        "w": "36",
+        "h": "2"
+      },
+      "title": {
+        "text": "Поток заявок и доставка",
+        "size": "TITLE_SIZE_L"
+      },
+      "widget": "title"
+    },
+    {
+      "links": [],
+      "position": {
+        "x": "0",
+        "y": "9",
+        "w": "36",
+        "h": "5"
+      },
+      "alertList": {
+        "annotationNames": [],
+        "groupByLabels": [],
+        "selectors": "{application = \"zvenfit-frontend\", environment = \"production\"}",
+        "showAllAnnotations": false,
+        "title": "Состояние production",
+        "pageSize": 100,
+        "groupMultiAlert": true,
+        "allLabelsGrouping": false,
+        "projectId": "folder__b1ge1e4iopttj79hfdfm",
+        "widgetScope": "projectId",
+        "orderByStatus": "ASC",
+        "orderBy": "orderByStatus",
+        "manualLayout": false,
+        "_manualLayout": "manualLayout"
+      },
+      "widget": "alertList"
+    },
+    {
+      "links": [],
+      "position": {
+        "x": "0",
+        "y": "14",
+        "w": "18",
+        "h": "8"
+      },
+      "multiSourceChart": {
+        "targets": [
+          {
+            "dataSourceId": "37bb817c-c972-46ed-8087-d7d2517bac05",
+            "query": "{project = \"folder__b1ge1e4iopttj79hfdfm\", service = \"serverless-functions\", name = \"functions_errors\", resource_id = \"zvenfit-telegram-lead|zvenfit-fitbase-schedule|zvenfit-site-traffic\"}",
+            "textMode": true,
+            "hidden": false,
+            "name": "A",
+            "type": "monitoring"
+          }
+        ],
+        "dataSources": [
+          {
+            "id": "37bb817c-c972-46ed-8087-d7d2517bac05",
+            "downsampling": {
+              "gridAggregation": "GRID_AGGREGATION_UNSPECIFIED",
+              "gapFilling": "GAP_FILLING_UNSPECIFIED"
+            },
+            "type": "monitoring"
+          }
+        ],
+        "seriesOverrides": [],
+        "overlays": [],
+        "id": "Oo3SMsveeKkr0DBMFATBF",
+        "visualizationSettings": {
+          "type": "VISUALIZATION_TYPE_UNSPECIFIED",
+          "normalize": false,
+          "interpolate": "INTERPOLATE_UNSPECIFIED",
+          "aggregation": "SERIES_AGGREGATION_UNSPECIFIED",
+          "colorSchemeSettings": {
+            "automatic": {},
+            "scheme": "automatic"
+          },
+          "heatmapSettings": null,
+          "yaxisSettings": {
+            "left": {
+              "type": "YAXIS_TYPE_LINEAR",
+              "title": "Ошибок",
+              "min": "",
+              "max": "",
+              "unitFormat": "UNIT_FORMAT_UNSPECIFIED",
+              "precision": null
+            },
+            "right": {
+              "type": "YAXIS_TYPE_LINEAR",
+              "title": "",
+              "min": "",
+              "max": "",
+              "unitFormat": "UNIT_FORMAT_UNSPECIFIED",
+              "precision": null
+            }
+          },
+          "title": "",
+          "showLabels": true,
+          "tilesSettings": null,
+          "hidePartialData": false
+        },
+        "nameHidingSettings": null,
+        "description": "",
+        "title": "Cloud Functions: ошибки",
+        "displayLegend": true,
+        "freeze": "FREEZE_DURATION_UNSPECIFIED",
+        "repeat": null,
+        "thresholds": {
+          "items": [
+            {
+              "color": "#92db00",
+              "id": "c19f1e44-d054-463a-a1c1-e33102a6c5de"
+            }
+          ],
+          "showMode": "CONSTANT_LINE"
+        },
+        "eventSources": null,
+        "legendSettings": {
+          "sortRules": [],
+          "position": "POSITION_BOTTOM",
+          "truncate": "TRUNCATE_END",
+          "size": null,
+          "list": {
+            "columnsCount": 0
+          },
+          "view": "list"
+        }
+      },
+      "widget": "multiSourceChart"
+    },
+    {
+      "links": [],
+      "position": {
+        "x": "18",
+        "y": "14",
+        "w": "18",
+        "h": "8"
+      },
+      "multiSourceChart": {
+        "targets": [
+          {
+            "dataSourceId": "37bb817c-c972-46ed-8087-d7d2517bac05",
+            "query": "{project = \"folder__b1ge1e4iopttj79hfdfm\", cluster = \"default\", service = \"logging_aggregates\", name = \"zvenfit_ydb_retries_5m|zvenfit_ydb_slow_operations_5m\", meta.application = \"zvenfit-frontend\", meta.environment = \"production\", meta.service = \"zvenfit-lead-intake\"}",
+            "textMode": true,
+            "hidden": false,
+            "name": "A",
+            "type": "monitoring"
+          }
+        ],
+        "dataSources": [
+          {
+            "id": "37bb817c-c972-46ed-8087-d7d2517bac05",
+            "downsampling": {
+              "gridAggregation": "GRID_AGGREGATION_UNSPECIFIED",
+              "gapFilling": "GAP_FILLING_UNSPECIFIED"
+            },
+            "type": "monitoring"
+          }
+        ],
+        "seriesOverrides": [],
+        "overlays": [],
+        "id": "1tXoGDglimXdBSIO5JKuL",
+        "visualizationSettings": {
+          "type": "VISUALIZATION_TYPE_UNSPECIFIED",
+          "normalize": false,
+          "interpolate": "INTERPOLATE_UNSPECIFIED",
+          "aggregation": "SERIES_AGGREGATION_UNSPECIFIED",
+          "colorSchemeSettings": {
+            "automatic": {},
+            "scheme": "automatic"
+          },
+          "heatmapSettings": null,
+          "yaxisSettings": {
+            "left": {
+              "type": "YAXIS_TYPE_LINEAR",
+              "title": "Событий / 5 мин",
+              "min": "",
+              "max": "",
+              "unitFormat": "UNIT_FORMAT_UNSPECIFIED",
+              "precision": null
+            },
+            "right": {
+              "type": "YAXIS_TYPE_LINEAR",
+              "title": "",
+              "min": "",
+              "max": "",
+              "unitFormat": "UNIT_FORMAT_UNSPECIFIED",
+              "precision": null
+            }
+          },
+          "title": "",
+          "showLabels": false,
+          "tilesSettings": null,
+          "hidePartialData": false
+        },
+        "nameHidingSettings": null,
+        "description": "",
+        "title": "YDB: повторы и медленные операции",
+        "displayLegend": false,
+        "freeze": "FREEZE_DURATION_UNSPECIFIED",
+        "repeat": null,
+        "thresholds": {
+          "items": [
+            {
+              "color": "#92db00",
+              "id": "b605e200-719c-4964-9fe0-9e3d4920a097"
+            }
+          ],
+          "showMode": "CONSTANT_LINE"
+        },
+        "eventSources": null,
+        "legendSettings": {
+          "sortRules": [],
+          "position": "POSITION_BOTTOM",
+          "truncate": "TRUNCATE_END",
+          "size": null,
+          "list": {
+            "columnsCount": 0
+          },
+          "view": "list"
+        }
+      },
+      "widget": "multiSourceChart"
+    },
+    {
+      "links": [],
+      "position": {
+        "x": "0",
+        "y": "22",
+        "w": "18",
+        "h": "8"
+      },
+      "multiSourceChart": {
+        "targets": [
+          {
+            "dataSourceId": "37bb817c-c972-46ed-8087-d7d2517bac05",
+            "query": "{project = \"folder__b1ge1e4iopttj79hfdfm\", cluster = \"default\", service = \"logging_aggregates\", name = \"zvenfit_telegram_delivery_failed_1m|zvenfit_lead_storage_errors_1m\", meta.application = \"zvenfit-frontend\", meta.environment = \"production\", meta.service = \"zvenfit-lead-intake\"}",
+            "textMode": true,
+            "hidden": false,
+            "name": "A",
+            "type": "monitoring"
+          }
+        ],
+        "dataSources": [
+          {
+            "id": "37bb817c-c972-46ed-8087-d7d2517bac05",
+            "downsampling": {
+              "gridAggregation": "GRID_AGGREGATION_UNSPECIFIED",
+              "gapFilling": "GAP_FILLING_UNSPECIFIED"
+            },
+            "type": "monitoring"
+          }
+        ],
+        "seriesOverrides": [],
+        "overlays": [],
+        "id": "A5A87xN1JSqcz999mk5Qx",
+        "visualizationSettings": {
+          "type": "VISUALIZATION_TYPE_UNSPECIFIED",
+          "normalize": false,
+          "interpolate": "INTERPOLATE_UNSPECIFIED",
+          "aggregation": "SERIES_AGGREGATION_UNSPECIFIED",
+          "colorSchemeSettings": {
+            "automatic": {},
+            "scheme": "automatic"
+          },
+          "heatmapSettings": null,
+          "yaxisSettings": {
+            "left": {
+              "type": "YAXIS_TYPE_LINEAR",
+              "title": "Ошибок",
+              "min": "",
+              "max": "",
+              "unitFormat": "UNIT_FORMAT_UNSPECIFIED",
+              "precision": null
+            },
+            "right": {
+              "type": "YAXIS_TYPE_LINEAR",
+              "title": "",
+              "min": "",
+              "max": "",
+              "unitFormat": "UNIT_FORMAT_UNSPECIFIED",
+              "precision": null
+            }
+          },
+          "title": "",
+          "showLabels": false,
+          "tilesSettings": null,
+          "hidePartialData": false
+        },
+        "nameHidingSettings": null,
+        "description": "",
+        "title": "Заявки и Telegram: ошибки",
+        "displayLegend": false,
+        "freeze": "FREEZE_DURATION_UNSPECIFIED",
+        "repeat": null,
+        "thresholds": {
+          "items": [
+            {
+              "color": "#92db00",
+              "id": "0ddb4a0a-ccd1-4c9f-84a7-23a2fda52227"
+            }
+          ],
+          "showMode": "CONSTANT_LINE"
+        },
+        "eventSources": null,
+        "legendSettings": {
+          "sortRules": [],
+          "position": "POSITION_BOTTOM",
+          "truncate": "TRUNCATE_END",
+          "size": null,
+          "list": {
+            "columnsCount": 0
+          },
+          "view": "list"
+        }
+      },
+      "widget": "multiSourceChart"
+    },
+    {
+      "links": [],
+      "position": {
+        "x": "18",
+        "y": "22",
+        "w": "18",
+        "h": "8"
+      },
+      "multiSourceChart": {
+        "targets": [
+          {
+            "dataSourceId": "37bb817c-c972-46ed-8087-d7d2517bac05",
+            "query": "{project = \"folder__b1ge1e4iopttj79hfdfm\", cluster = \"default\", service = \"logging_aggregates\", name = \"zvenfit_leads_persisted_5m\", meta.application = \"zvenfit-frontend\", meta.environment = \"production\", meta.service = \"zvenfit-lead-intake\"}",
+            "textMode": true,
+            "hidden": false,
+            "name": "A",
+            "type": "monitoring"
+          }
+        ],
+        "dataSources": [
+          {
+            "id": "37bb817c-c972-46ed-8087-d7d2517bac05",
+            "downsampling": {
+              "gridAggregation": "GRID_AGGREGATION_UNSPECIFIED",
+              "gapFilling": "GAP_FILLING_UNSPECIFIED"
+            },
+            "type": "monitoring"
+          }
+        ],
+        "seriesOverrides": [],
+        "overlays": [],
+        "id": "6121b627-b009-4bfd-b233-12e0f4dda6e3",
+        "visualizationSettings": {
+          "type": "VISUALIZATION_TYPE_UNSPECIFIED",
+          "normalize": false,
+          "interpolate": "INTERPOLATE_UNSPECIFIED",
+          "aggregation": "SERIES_AGGREGATION_UNSPECIFIED",
+          "colorSchemeSettings": {
+            "automatic": {},
+            "scheme": "automatic"
+          },
+          "heatmapSettings": null,
+          "yaxisSettings": {
+            "left": {
+              "type": "YAXIS_TYPE_LINEAR",
+              "title": "Заявок / 5 мин",
+              "min": "",
+              "max": "",
+              "unitFormat": "UNIT_FORMAT_UNSPECIFIED",
+              "precision": null
+            },
+            "right": {
+              "type": "YAXIS_TYPE_LINEAR",
+              "title": "",
+              "min": "",
+              "max": "",
+              "unitFormat": "UNIT_FORMAT_UNSPECIFIED",
+              "precision": null
+            }
+          },
+          "title": "",
+          "showLabels": false,
+          "tilesSettings": null,
+          "hidePartialData": false
+        },
+        "nameHidingSettings": null,
+        "description": "",
+        "title": "Сохранённые заявки за 5 минут",
+        "displayLegend": false,
+        "freeze": "FREEZE_DURATION_UNSPECIFIED",
+        "repeat": null,
+        "thresholds": {
+          "items": [
+            {
+              "color": "#92db00",
+              "id": "48043cf9-f5aa-4795-b0d3-2496981215cc"
+            }
+          ],
+          "showMode": "CONSTANT_LINE"
+        },
+        "eventSources": null,
+        "legendSettings": {
+          "sortRules": [],
+          "position": "POSITION_BOTTOM",
+          "truncate": "TRUNCATE_END",
+          "size": null,
+          "list": {
+            "columnsCount": 0
+          },
+          "view": "list"
+        }
+      },
+      "widget": "multiSourceChart"
+    },
+    {
+      "links": [],
+      "position": {
+        "x": "0",
+        "y": "30",
+        "w": "18",
+        "h": "8"
+      },
+      "multiSourceChart": {
+        "targets": [
+          {
+            "dataSourceId": "7921d8fb-90cf-4c3f-9be6-6eed90bc8503",
+            "query": "{project=\"folder__b1ge1e4iopttj79hfdfm\", cluster=\"default\", service=\"zvenfit-frontend\", name=\"zvenfit_telegram_oldest_pending_age_seconds\"}",
+            "textMode": true,
+            "hidden": false,
+            "name": "A",
+            "type": "monitoring"
+          }
+        ],
+        "dataSources": [
+          {
+            "id": "7921d8fb-90cf-4c3f-9be6-6eed90bc8503",
+            "downsampling": {
+              "gridAggregation": "GRID_AGGREGATION_UNSPECIFIED",
+              "gapFilling": "GAP_FILLING_UNSPECIFIED"
+            },
+            "type": "monitoring"
+          }
+        ],
+        "seriesOverrides": [],
+        "overlays": [],
+        "id": "d2a9d728-3afc-4e26-8557-9b73859988d2",
+        "visualizationSettings": {
+          "type": "VISUALIZATION_TYPE_UNSPECIFIED",
+          "normalize": false,
+          "interpolate": "INTERPOLATE_UNSPECIFIED",
+          "aggregation": "SERIES_AGGREGATION_UNSPECIFIED",
+          "colorSchemeSettings": {
+            "automatic": {},
+            "scheme": "automatic"
+          },
+          "heatmapSettings": null,
+          "yaxisSettings": {
+            "left": {
+              "type": "YAXIS_TYPE_LINEAR",
+              "title": "",
+              "min": "",
+              "max": "",
+              "unitFormat": "UNIT_FORMAT_UNSPECIFIED",
+              "precision": null
+            },
+            "right": {
+              "type": "YAXIS_TYPE_LINEAR",
+              "title": "",
+              "min": "",
+              "max": "",
+              "unitFormat": "UNIT_FORMAT_UNSPECIFIED",
+              "precision": null
+            }
+          },
+          "title": "",
+          "showLabels": false,
+          "tilesSettings": null,
+          "hidePartialData": false
+        },
+        "nameHidingSettings": null,
+        "description": "",
+        "title": "Telegram: возраст старейшей заявки, сек.",
+        "displayLegend": false,
+        "freeze": "FREEZE_DURATION_UNSPECIFIED",
+        "repeat": null,
+        "thresholds": {
+          "items": [
+            {
+              "color": "#92db00",
+              "id": "21b5dee0-a37c-4171-87b1-2f9b3763f3a7"
+            }
+          ],
+          "showMode": "CONSTANT_LINE"
+        },
+        "eventSources": null,
+        "legendSettings": {
+          "sortRules": [],
+          "position": "POSITION_BOTTOM",
+          "truncate": "TRUNCATE_END",
+          "size": null,
+          "list": {
+            "columnsCount": 0
+          },
+          "view": "list"
+        }
+      },
+      "widget": "multiSourceChart"
+    },
+    {
+      "links": [],
+      "position": {
+        "x": "18",
+        "y": "30",
+        "w": "18",
+        "h": "8"
+      },
+      "multiSourceChart": {
+        "targets": [
+          {
+            "dataSourceId": "11af2c1e-d95e-46c1-9baf-5c2eb228d3a8",
+            "query": "{project=\"folder__b1ge1e4iopttj79hfdfm\", cluster=\"default\", service=\"zvenfit-frontend\", name=\"zvenfit_telegram_pending_leads\"}",
+            "textMode": true,
+            "hidden": false,
+            "name": "A",
+            "type": "monitoring"
+          }
+        ],
+        "dataSources": [
+          {
+            "id": "11af2c1e-d95e-46c1-9baf-5c2eb228d3a8",
+            "downsampling": {
+              "gridAggregation": "GRID_AGGREGATION_UNSPECIFIED",
+              "gapFilling": "GAP_FILLING_UNSPECIFIED"
+            },
+            "type": "monitoring"
+          }
+        ],
+        "seriesOverrides": [],
+        "overlays": [],
+        "id": "050bd969-d926-462b-8ecd-fcfcf3349899",
+        "visualizationSettings": {
+          "type": "VISUALIZATION_TYPE_UNSPECIFIED",
+          "normalize": false,
+          "interpolate": "INTERPOLATE_UNSPECIFIED",
+          "aggregation": "SERIES_AGGREGATION_UNSPECIFIED",
+          "colorSchemeSettings": {
+            "automatic": {},
+            "scheme": "automatic"
+          },
+          "heatmapSettings": null,
+          "yaxisSettings": {
+            "left": {
+              "type": "YAXIS_TYPE_LINEAR",
+              "title": "",
+              "min": "",
+              "max": "",
+              "unitFormat": "UNIT_FORMAT_UNSPECIFIED",
+              "precision": null
+            },
+            "right": {
+              "type": "YAXIS_TYPE_LINEAR",
+              "title": "",
+              "min": "",
+              "max": "",
+              "unitFormat": "UNIT_FORMAT_UNSPECIFIED",
+              "precision": null
+            }
+          },
+          "title": "",
+          "showLabels": false,
+          "tilesSettings": null,
+          "hidePartialData": false
+        },
+        "nameHidingSettings": null,
+        "description": "",
+        "title": "Telegram: очередь доставки",
+        "displayLegend": false,
+        "freeze": "FREEZE_DURATION_UNSPECIFIED",
+        "repeat": null,
+        "thresholds": {
+          "items": [
+            {
+              "color": "#92db00",
+              "id": "ffbbe16a-91a3-4ff3-8183-9675b0725640"
+            }
+          ],
+          "showMode": "CONSTANT_LINE"
+        },
+        "eventSources": null,
+        "legendSettings": {
+          "sortRules": [],
+          "position": "POSITION_BOTTOM",
+          "truncate": "TRUNCATE_END",
+          "size": null,
+          "list": {
+            "columnsCount": 0
+          },
+          "view": "list"
+        }
+      },
+      "widget": "multiSourceChart"
+    },
+    {
+      "links": [],
+      "position": {
+        "x": "0",
+        "y": "38",
+        "w": "18",
+        "h": "8"
+      },
+      "multiSourceChart": {
+        "targets": [
+          {
+            "dataSourceId": "e80d6c98-db14-4012-b801-76702c53482d",
+            "query": "{project=\"folder__b1ge1e4iopttj79hfdfm\", cluster=\"default\", service=\"zvenfit-frontend\", name=\"zvenfit_retry_worker_heartbeat\"}",
+            "textMode": true,
+            "hidden": false,
+            "name": "A",
+            "type": "monitoring"
+          }
+        ],
+        "dataSources": [
+          {
+            "id": "e80d6c98-db14-4012-b801-76702c53482d",
+            "downsampling": {
+              "gridAggregation": "GRID_AGGREGATION_UNSPECIFIED",
+              "gapFilling": "GAP_FILLING_UNSPECIFIED"
+            },
+            "type": "monitoring"
+          }
+        ],
+        "seriesOverrides": [],
+        "overlays": [],
+        "id": "6473dbc7-80bc-4d00-9b73-69afa48acf3b",
+        "visualizationSettings": {
+          "type": "VISUALIZATION_TYPE_UNSPECIFIED",
+          "normalize": false,
+          "interpolate": "INTERPOLATE_UNSPECIFIED",
+          "aggregation": "SERIES_AGGREGATION_UNSPECIFIED",
+          "colorSchemeSettings": {
+            "automatic": {},
+            "scheme": "automatic"
+          },
+          "heatmapSettings": null,
+          "yaxisSettings": {
+            "left": {
+              "type": "YAXIS_TYPE_LINEAR",
+              "title": "",
+              "min": "",
+              "max": "",
+              "unitFormat": "UNIT_FORMAT_UNSPECIFIED",
+              "precision": null
+            },
+            "right": {
+              "type": "YAXIS_TYPE_LINEAR",
+              "title": "",
+              "min": "",
+              "max": "",
+              "unitFormat": "UNIT_FORMAT_UNSPECIFIED",
+              "precision": null
+            }
+          },
+          "title": "",
+          "showLabels": false,
+          "tilesSettings": null,
+          "hidePartialData": false
+        },
+        "nameHidingSettings": null,
+        "description": "",
+        "title": "Retry-worker: активность",
+        "displayLegend": false,
+        "freeze": "FREEZE_DURATION_UNSPECIFIED",
+        "repeat": null,
+        "thresholds": {
+          "items": [
+            {
+              "color": "#92db00",
+              "id": "9b7d6bfe-e730-4570-bdec-291a3f64d850"
+            }
+          ],
+          "showMode": "CONSTANT_LINE"
+        },
+        "eventSources": null,
+        "legendSettings": {
+          "sortRules": [],
+          "position": "POSITION_BOTTOM",
+          "truncate": "TRUNCATE_END",
+          "size": null,
+          "list": {
+            "columnsCount": 0
+          },
+          "view": "list"
+        }
+      },
+      "widget": "multiSourceChart"
+    },
+    {
+      "links": [],
+      "position": {
+        "x": "18",
+        "y": "38",
+        "w": "18",
+        "h": "8"
+      },
+      "multiSourceChart": {
+        "targets": [
+          {
+            "dataSourceId": "2ea57e72-f82e-4475-bcc1-7bc7d03390ef",
+            "query": "{project = \"folder__b1ge1e4iopttj79hfdfm\", cluster = \"default\", service = \"logging_aggregates\", name = \"zvenfit_rate_limit_errors_5m\", meta.application = \"zvenfit-frontend\", meta.environment = \"production\", meta.service = \"zvenfit-lead-intake\"}",
+            "textMode": true,
+            "hidden": false,
+            "name": "A",
+            "type": "monitoring"
+          },
+          {
+            "dataSourceId": "2ea57e72-f82e-4475-bcc1-7bc7d03390ef",
+            "query": "{project=\"folder__b1ge1e4iopttj79hfdfm\", service=\"serverless-functions\", name=\"serverless.triggers.access_error_per_second|serverless.triggers.error_per_second\", trigger=\"a1smkp9ng1f4g9vqgm7u\", type=\"request\"}",
+            "textMode": true,
+            "hidden": false,
+            "name": "B",
+            "type": "monitoring"
+          }
+        ],
+        "dataSources": [
+          {
+            "id": "2ea57e72-f82e-4475-bcc1-7bc7d03390ef",
+            "downsampling": {
+              "gridAggregation": "GRID_AGGREGATION_UNSPECIFIED",
+              "gapFilling": "GAP_FILLING_UNSPECIFIED"
+            },
+            "type": "monitoring"
+          }
+        ],
+        "seriesOverrides": [],
+        "overlays": [],
+        "id": "6fd34538-b51b-47c3-b3ad-cdf39c3b9c88",
+        "visualizationSettings": {
+          "type": "VISUALIZATION_TYPE_UNSPECIFIED",
+          "normalize": false,
+          "interpolate": "INTERPOLATE_UNSPECIFIED",
+          "aggregation": "SERIES_AGGREGATION_UNSPECIFIED",
+          "colorSchemeSettings": {
+            "automatic": {},
+            "scheme": "automatic"
+          },
+          "heatmapSettings": null,
+          "yaxisSettings": {
+            "left": {
+              "type": "YAXIS_TYPE_LINEAR",
+              "title": "",
+              "min": "",
+              "max": "",
+              "unitFormat": "UNIT_FORMAT_UNSPECIFIED",
+              "precision": null
+            },
+            "right": {
+              "type": "YAXIS_TYPE_LINEAR",
+              "title": "",
+              "min": "",
+              "max": "",
+              "unitFormat": "UNIT_FORMAT_UNSPECIFIED",
+              "precision": null
+            }
+          },
+          "title": "",
+          "showLabels": false,
+          "tilesSettings": null,
+          "hidePartialData": false
+        },
+        "nameHidingSettings": null,
+        "description": "",
+        "title": "Retry-trigger и rate limiter: ошибки",
+        "displayLegend": false,
+        "freeze": "FREEZE_DURATION_UNSPECIFIED",
+        "repeat": null,
+        "thresholds": {
+          "items": [
+            {
+              "color": "#92db00",
+              "id": "ff80611f-358e-45a3-8f23-d51c1c56206d"
+            }
+          ],
+          "showMode": "CONSTANT_LINE"
+        },
+        "eventSources": null,
+        "legendSettings": {
+          "sortRules": [],
+          "position": "POSITION_BOTTOM",
+          "truncate": "TRUNCATE_END",
+          "size": null,
+          "list": {
+            "columnsCount": 0
+          },
+          "view": "list"
+        }
+      },
+      "widget": "multiSourceChart"
+    },
+    {
+      "links": [],
+      "position": {
+        "x": "0",
+        "y": "46",
+        "w": "36",
+        "h": "2"
+      },
+      "title": {
+        "text": "Cloud Functions: лимиты и ресурсы",
+        "size": "TITLE_SIZE_L"
+      },
+      "widget": "title"
+    },
+    {
+      "links": [],
+      "position": {
+        "x": "0",
+        "y": "48",
+        "w": "18",
+        "h": "8"
+      },
+      "multiSourceChart": {
+        "targets": [
+          {
+            "dataSourceId": "37bb817c-c972-46ed-8087-d7d2517bac05",
+            "query": "{project = \"folder__b1ge1e4iopttj79hfdfm\", service = \"serverless-functions\", name = \"functions_throttles\", resource_id = \"zvenfit-telegram-lead|zvenfit-fitbase-schedule|zvenfit-site-traffic\"}",
+            "textMode": true,
+            "hidden": false,
+            "name": "A",
+            "type": "monitoring"
+          }
+        ],
+        "dataSources": [
+          {
+            "id": "37bb817c-c972-46ed-8087-d7d2517bac05",
+            "downsampling": {
+              "gridAggregation": "GRID_AGGREGATION_UNSPECIFIED",
+              "gapFilling": "GAP_FILLING_UNSPECIFIED"
+            },
+            "type": "monitoring"
+          }
+        ],
+        "seriesOverrides": [],
+        "overlays": [],
+        "id": "zvenfit-functions-throttles",
+        "visualizationSettings": {
+          "type": "VISUALIZATION_TYPE_UNSPECIFIED",
+          "normalize": false,
+          "interpolate": "INTERPOLATE_UNSPECIFIED",
+          "aggregation": "SERIES_AGGREGATION_UNSPECIFIED",
+          "colorSchemeSettings": {
+            "automatic": {},
+            "scheme": "automatic"
+          },
+          "heatmapSettings": null,
+          "yaxisSettings": {
+            "left": {
+              "type": "YAXIS_TYPE_LINEAR",
+              "title": "Ограничений",
+              "min": "",
+              "max": "",
+              "unitFormat": "UNIT_FORMAT_UNSPECIFIED",
+              "precision": null
+            },
+            "right": {
+              "type": "YAXIS_TYPE_LINEAR",
+              "title": "",
+              "min": "",
+              "max": "",
+              "unitFormat": "UNIT_FORMAT_UNSPECIFIED",
+              "precision": null
+            }
+          },
+          "title": "",
+          "showLabels": true,
+          "tilesSettings": null,
+          "hidePartialData": false
+        },
+        "nameHidingSettings": null,
+        "description": "",
+        "title": "Cloud Functions: ограничения запуска",
+        "displayLegend": true,
+        "freeze": "FREEZE_DURATION_UNSPECIFIED",
+        "repeat": null,
+        "thresholds": {
+          "items": [
+            {
+              "color": "#92db00",
+              "id": "b605e22a-44ef-4ab8-adf0-0f035811bdce"
+            }
+          ],
+          "showMode": "CONSTANT_LINE"
+        },
+        "eventSources": null,
+        "legendSettings": {
+          "sortRules": [],
+          "position": "POSITION_BOTTOM",
+          "truncate": "TRUNCATE_END",
+          "size": null,
+          "list": {
+            "columnsCount": 0
+          },
+          "view": "list"
+        }
+      },
+      "widget": "multiSourceChart"
+    },
+    {
+      "links": [],
+      "position": {
+        "x": "18",
+        "y": "48",
+        "w": "18",
+        "h": "8"
+      },
+      "multiSourceChart": {
+        "targets": [
+          {
+            "dataSourceId": "37bb817c-c972-46ed-8087-d7d2517bac05",
+            "query": "{project = \"folder__b1ge1e4iopttj79hfdfm\", service = \"serverless-functions\", name = \"functions_max_queue_duration\", resource_id = \"zvenfit-telegram-lead|zvenfit-fitbase-schedule|zvenfit-site-traffic\"}",
+            "textMode": true,
+            "hidden": false,
+            "name": "A",
+            "type": "monitoring"
+          }
+        ],
+        "dataSources": [
+          {
+            "id": "37bb817c-c972-46ed-8087-d7d2517bac05",
+            "downsampling": {
+              "gridAggregation": "GRID_AGGREGATION_UNSPECIFIED",
+              "gapFilling": "GAP_FILLING_UNSPECIFIED"
+            },
+            "type": "monitoring"
+          }
+        ],
+        "seriesOverrides": [],
+        "overlays": [],
+        "id": "zvenfit-functions-queue",
+        "visualizationSettings": {
+          "type": "VISUALIZATION_TYPE_UNSPECIFIED",
+          "normalize": false,
+          "interpolate": "INTERPOLATE_UNSPECIFIED",
+          "aggregation": "SERIES_AGGREGATION_UNSPECIFIED",
+          "colorSchemeSettings": {
+            "automatic": {},
+            "scheme": "automatic"
+          },
+          "heatmapSettings": null,
+          "yaxisSettings": {
+            "left": {
+              "type": "YAXIS_TYPE_LINEAR",
+              "title": "мс",
+              "min": "",
+              "max": "",
+              "unitFormat": "UNIT_FORMAT_UNSPECIFIED",
+              "precision": null
+            },
+            "right": {
+              "type": "YAXIS_TYPE_LINEAR",
+              "title": "",
+              "min": "",
+              "max": "",
+              "unitFormat": "UNIT_FORMAT_UNSPECIFIED",
+              "precision": null
+            }
+          },
+          "title": "",
+          "showLabels": true,
+          "tilesSettings": null,
+          "hidePartialData": false
+        },
+        "nameHidingSettings": null,
+        "description": "",
+        "title": "Cloud Functions: максимум ожидания в очереди",
+        "displayLegend": true,
+        "freeze": "FREEZE_DURATION_UNSPECIFIED",
+        "repeat": null,
+        "thresholds": {
+          "items": [
+            {
+              "color": "#92db00",
+              "id": "f824595c-be28-4a2f-8451-2638e56b0676"
+            }
+          ],
+          "showMode": "CONSTANT_LINE"
+        },
+        "eventSources": null,
+        "legendSettings": {
+          "sortRules": [],
+          "position": "POSITION_BOTTOM",
+          "truncate": "TRUNCATE_END",
+          "size": null,
+          "list": {
+            "columnsCount": 0
+          },
+          "view": "list"
+        }
+      },
+      "widget": "multiSourceChart"
+    },
+    {
+      "links": [],
+      "position": {
+        "x": "0",
+        "y": "56",
+        "w": "18",
+        "h": "8"
+      },
+      "multiSourceChart": {
+        "targets": [
+          {
+            "dataSourceId": "37bb817c-c972-46ed-8087-d7d2517bac05",
+            "query": "{project = \"folder__b1ge1e4iopttj79hfdfm\", service = \"serverless-functions\", name = \"functions_inflight\", resource_id = \"zvenfit-telegram-lead|zvenfit-fitbase-schedule|zvenfit-site-traffic\"}",
+            "textMode": true,
+            "hidden": false,
+            "name": "A",
+            "type": "monitoring"
+          }
+        ],
+        "dataSources": [
+          {
+            "id": "37bb817c-c972-46ed-8087-d7d2517bac05",
+            "downsampling": {
+              "gridAggregation": "GRID_AGGREGATION_UNSPECIFIED",
+              "gapFilling": "GAP_FILLING_UNSPECIFIED"
+            },
+            "type": "monitoring"
+          }
+        ],
+        "seriesOverrides": [],
+        "overlays": [],
+        "id": "zvenfit-functions-inflight",
+        "visualizationSettings": {
+          "type": "VISUALIZATION_TYPE_UNSPECIFIED",
+          "normalize": false,
+          "interpolate": "INTERPOLATE_UNSPECIFIED",
+          "aggregation": "SERIES_AGGREGATION_UNSPECIFIED",
+          "colorSchemeSettings": {
+            "automatic": {},
+            "scheme": "automatic"
+          },
+          "heatmapSettings": null,
+          "yaxisSettings": {
+            "left": {
+              "type": "YAXIS_TYPE_LINEAR",
+              "title": "Вызовов",
+              "min": "",
+              "max": "",
+              "unitFormat": "UNIT_FORMAT_UNSPECIFIED",
+              "precision": null
+            },
+            "right": {
+              "type": "YAXIS_TYPE_LINEAR",
+              "title": "",
+              "min": "",
+              "max": "",
+              "unitFormat": "UNIT_FORMAT_UNSPECIFIED",
+              "precision": null
+            }
+          },
+          "title": "",
+          "showLabels": true,
+          "tilesSettings": null,
+          "hidePartialData": false
+        },
+        "nameHidingSettings": null,
+        "description": "",
+        "title": "Cloud Functions: одновременные вызовы",
+        "displayLegend": true,
+        "freeze": "FREEZE_DURATION_UNSPECIFIED",
+        "repeat": null,
+        "thresholds": {
+          "items": [
+            {
+              "color": "#92db00",
+              "id": "60efc3bb-3384-4c8a-aecc-39e2e112c15a"
+            }
+          ],
+          "showMode": "CONSTANT_LINE"
+        },
+        "eventSources": null,
+        "legendSettings": {
+          "sortRules": [],
+          "position": "POSITION_BOTTOM",
+          "truncate": "TRUNCATE_END",
+          "size": null,
+          "list": {
+            "columnsCount": 0
+          },
+          "view": "list"
+        }
+      },
+      "widget": "multiSourceChart"
+    },
+    {
+      "links": [],
+      "position": {
+        "x": "18",
+        "y": "56",
+        "w": "18",
+        "h": "8"
+      },
+      "multiSourceChart": {
+        "targets": [
+          {
+            "dataSourceId": "37bb817c-c972-46ed-8087-d7d2517bac05",
+            "query": "{project = \"folder__b1ge1e4iopttj79hfdfm\", service = \"serverless-functions\", name = \"functions_max_memory\", resource_id = \"zvenfit-telegram-lead|zvenfit-fitbase-schedule|zvenfit-site-traffic\"}",
+            "textMode": true,
+            "hidden": false,
+            "name": "A",
+            "type": "monitoring"
+          }
+        ],
+        "dataSources": [
+          {
+            "id": "37bb817c-c972-46ed-8087-d7d2517bac05",
+            "downsampling": {
+              "gridAggregation": "GRID_AGGREGATION_UNSPECIFIED",
+              "gapFilling": "GAP_FILLING_UNSPECIFIED"
+            },
+            "type": "monitoring"
+          }
+        ],
+        "seriesOverrides": [],
+        "overlays": [],
+        "id": "zvenfit-functions-memory",
+        "visualizationSettings": {
+          "type": "VISUALIZATION_TYPE_UNSPECIFIED",
+          "normalize": false,
+          "interpolate": "INTERPOLATE_UNSPECIFIED",
+          "aggregation": "SERIES_AGGREGATION_UNSPECIFIED",
+          "colorSchemeSettings": {
+            "automatic": {},
+            "scheme": "automatic"
+          },
+          "heatmapSettings": null,
+          "yaxisSettings": {
+            "left": {
+              "type": "YAXIS_TYPE_LINEAR",
+              "title": "Байт",
+              "min": "",
+              "max": "",
+              "unitFormat": "UNIT_FORMAT_UNSPECIFIED",
+              "precision": null
+            },
+            "right": {
+              "type": "YAXIS_TYPE_LINEAR",
+              "title": "",
+              "min": "",
+              "max": "",
+              "unitFormat": "UNIT_FORMAT_UNSPECIFIED",
+              "precision": null
+            }
+          },
+          "title": "",
+          "showLabels": true,
+          "tilesSettings": null,
+          "hidePartialData": false
+        },
+        "nameHidingSettings": null,
+        "description": "",
+        "title": "Cloud Functions: максимум памяти",
+        "displayLegend": true,
+        "freeze": "FREEZE_DURATION_UNSPECIFIED",
+        "repeat": null,
+        "thresholds": {
+          "items": [
+            {
+              "color": "#92db00",
+              "id": "82fcf8ed-076b-45ca-8f23-4803b5ca612d"
+            }
+          ],
+          "showMode": "CONSTANT_LINE"
+        },
+        "eventSources": null,
+        "legendSettings": {
+          "sortRules": [],
+          "position": "POSITION_BOTTOM",
+          "truncate": "TRUNCATE_END",
+          "size": null,
+          "list": {
+            "columnsCount": 0
+          },
+          "view": "list"
+        }
+      },
+      "widget": "multiSourceChart"
+    },
+    {
+      "links": [],
+      "position": {
+        "x": "0",
+        "y": "64",
+        "w": "18",
+        "h": "8"
+      },
+      "multiSourceChart": {
+        "targets": [
+          {
+            "dataSourceId": "37bb817c-c972-46ed-8087-d7d2517bac05",
+            "query": "histogram_percentile(95, {project=\"folder__b1ge1e4iopttj79hfdfm\", service=\"serverless-functions\", name=\"duration_ms_histogram\", resource_id=\"zvenfit-telegram-lead|zvenfit-fitbase-schedule|zvenfit-site-traffic\"})",
+            "textMode": true,
+            "hidden": false,
+            "name": "A",
+            "type": "monitoring"
+          }
+        ],
+        "dataSources": [
+          {
+            "id": "37bb817c-c972-46ed-8087-d7d2517bac05",
+            "downsampling": {
+              "gridAggregation": "GRID_AGGREGATION_UNSPECIFIED",
+              "gapFilling": "GAP_FILLING_UNSPECIFIED"
+            },
+            "type": "monitoring"
+          }
+        ],
+        "seriesOverrides": [],
+        "overlays": [],
+        "id": "zvenfit-functions-duration",
+        "visualizationSettings": {
+          "type": "VISUALIZATION_TYPE_UNSPECIFIED",
+          "normalize": false,
+          "interpolate": "INTERPOLATE_UNSPECIFIED",
+          "aggregation": "SERIES_AGGREGATION_UNSPECIFIED",
+          "colorSchemeSettings": {
+            "automatic": {},
+            "scheme": "automatic"
+          },
+          "heatmapSettings": null,
+          "yaxisSettings": {
+            "left": {
+              "type": "YAXIS_TYPE_LINEAR",
+              "title": "мс",
+              "min": "",
+              "max": "",
+              "unitFormat": "UNIT_FORMAT_UNSPECIFIED",
+              "precision": null
+            },
+            "right": {
+              "type": "YAXIS_TYPE_LINEAR",
+              "title": "",
+              "min": "",
+              "max": "",
+              "unitFormat": "UNIT_FORMAT_UNSPECIFIED",
+              "precision": null
+            }
+          },
+          "title": "",
+          "showLabels": true,
+          "tilesSettings": null,
+          "hidePartialData": false
+        },
+        "nameHidingSettings": null,
+        "description": "",
+        "title": "Cloud Functions: длительность p95",
+        "displayLegend": true,
+        "freeze": "FREEZE_DURATION_UNSPECIFIED",
+        "repeat": null,
+        "thresholds": {
+          "items": [
+            {
+              "color": "#92db00",
+              "id": "f6581c99-442c-4846-9277-a4684c2d06bb"
+            }
+          ],
+          "showMode": "CONSTANT_LINE"
+        },
+        "eventSources": null,
+        "legendSettings": {
+          "sortRules": [],
+          "position": "POSITION_BOTTOM",
+          "truncate": "TRUNCATE_END",
+          "size": null,
+          "list": {
+            "columnsCount": 0
+          },
+          "view": "list"
+        }
+      },
+      "widget": "multiSourceChart"
+    },
+    {
+      "links": [],
+      "position": {
+        "x": "0",
+        "y": "72",
+        "w": "36",
+        "h": "2"
+      },
+      "title": {
+        "text": "Технический трафик сайта",
+        "size": "TITLE_SIZE_L"
+      },
+      "widget": "title"
+    },
+    {
+      "links": [],
+      "position": {
+        "x": "0",
+        "y": "74",
+        "w": "18",
+        "h": "8"
+      },
+      "multiSourceChart": {
+        "targets": [
+          {
+            "dataSourceId": "1ec81c70-e1f4-4509-bff1-af9b94941c1c",
+            "query": "edge.requests{service=\"yccdn\",resource=\"bc8rubabuwzpqqp7rifz\"}",
+            "textMode": true,
+            "hidden": false,
+            "name": "A",
+            "type": "monitoring"
+          }
+        ],
+        "dataSources": [
+          {
+            "id": "1ec81c70-e1f4-4509-bff1-af9b94941c1c",
+            "downsampling": {
+              "gridAggregation": "GRID_AGGREGATION_UNSPECIFIED",
+              "gapFilling": "GAP_FILLING_UNSPECIFIED"
+            },
+            "type": "monitoring"
+          }
+        ],
+        "seriesOverrides": [],
+        "overlays": [],
+        "id": "e060e81c-0fbd-46df-9986-a57e07915f7f",
+        "visualizationSettings": {
+          "type": "VISUALIZATION_TYPE_UNSPECIFIED",
+          "normalize": false,
+          "interpolate": "INTERPOLATE_UNSPECIFIED",
+          "aggregation": "SERIES_AGGREGATION_UNSPECIFIED",
+          "colorSchemeSettings": {
+            "automatic": {},
+            "scheme": "automatic"
+          },
+          "heatmapSettings": null,
+          "yaxisSettings": {
+            "left": {
+              "type": "YAXIS_TYPE_LINEAR",
+              "title": "",
+              "min": "",
+              "max": "",
+              "unitFormat": "UNIT_FORMAT_UNSPECIFIED",
+              "precision": null
+            },
+            "right": {
+              "type": "YAXIS_TYPE_LINEAR",
+              "title": "",
+              "min": "",
+              "max": "",
+              "unitFormat": "UNIT_FORMAT_UNSPECIFIED",
+              "precision": null
+            }
+          },
+          "title": "",
+          "showLabels": false,
+          "tilesSettings": null,
+          "hidePartialData": false
+        },
+        "nameHidingSettings": null,
+        "description": "",
+        "title": "Cloud CDN: запросы",
+        "displayLegend": false,
+        "freeze": "FREEZE_DURATION_UNSPECIFIED",
+        "repeat": null,
+        "thresholds": {
+          "items": [
+            {
+              "color": "#92db00",
+              "id": "8c0d1e08-ded2-4230-a45e-7c0ae7dfb598"
+            }
+          ],
+          "showMode": "CONSTANT_LINE"
+        },
+        "eventSources": null,
+        "legendSettings": {
+          "sortRules": [],
+          "position": "POSITION_BOTTOM",
+          "truncate": "TRUNCATE_END",
+          "size": null,
+          "list": {
+            "columnsCount": 0
+          },
+          "view": "list"
+        }
+      },
+      "widget": "multiSourceChart"
+    },
+    {
+      "links": [],
+      "position": {
+        "x": "18",
+        "y": "74",
+        "w": "18",
+        "h": "8"
+      },
+      "multiSourceChart": {
+        "targets": [
+          {
+            "dataSourceId": "8ebd4104-6f61-4889-b122-ee2be60c8f5c",
+            "query": "edge.requests_status{service=\"yccdn\",resource=\"bc8rubabuwzpqqp7rifz\"}",
+            "textMode": true,
+            "hidden": false,
+            "name": "A",
+            "type": "monitoring"
+          }
+        ],
+        "dataSources": [
+          {
+            "id": "8ebd4104-6f61-4889-b122-ee2be60c8f5c",
+            "downsampling": {
+              "gridAggregation": "GRID_AGGREGATION_UNSPECIFIED",
+              "gapFilling": "GAP_FILLING_UNSPECIFIED"
+            },
+            "type": "monitoring"
+          }
+        ],
+        "seriesOverrides": [],
+        "overlays": [],
+        "id": "eeccc03f-4944-47ea-a9a7-038e3c0dfa9e",
+        "visualizationSettings": {
+          "type": "VISUALIZATION_TYPE_UNSPECIFIED",
+          "normalize": false,
+          "interpolate": "INTERPOLATE_UNSPECIFIED",
+          "aggregation": "SERIES_AGGREGATION_UNSPECIFIED",
+          "colorSchemeSettings": {
+            "automatic": {},
+            "scheme": "automatic"
+          },
+          "heatmapSettings": null,
+          "yaxisSettings": {
+            "left": {
+              "type": "YAXIS_TYPE_LINEAR",
+              "title": "",
+              "min": "",
+              "max": "",
+              "unitFormat": "UNIT_FORMAT_UNSPECIFIED",
+              "precision": null
+            },
+            "right": {
+              "type": "YAXIS_TYPE_LINEAR",
+              "title": "",
+              "min": "",
+              "max": "",
+              "unitFormat": "UNIT_FORMAT_UNSPECIFIED",
+              "precision": null
+            }
+          },
+          "title": "",
+          "showLabels": false,
+          "tilesSettings": null,
+          "hidePartialData": false
+        },
+        "nameHidingSettings": null,
+        "description": "",
+        "title": "Cloud CDN: HTTP-статусы",
+        "displayLegend": false,
+        "freeze": "FREEZE_DURATION_UNSPECIFIED",
+        "repeat": null,
+        "thresholds": {
+          "items": [
+            {
+              "color": "#92db00",
+              "id": "3ab3ef85-e192-42f8-a079-cfdaa67d7605"
+            }
+          ],
+          "showMode": "CONSTANT_LINE"
+        },
+        "eventSources": null,
+        "legendSettings": {
+          "sortRules": [],
+          "position": "POSITION_BOTTOM",
+          "truncate": "TRUNCATE_END",
+          "size": null,
+          "list": {
+            "columnsCount": 0
+          },
+          "view": "list"
+        }
+      },
+      "widget": "multiSourceChart"
+    },
+    {
+      "links": [],
+      "position": {
+        "x": "0",
+        "y": "82",
+        "w": "18",
+        "h": "8"
+      },
+      "multiSourceChart": {
+        "targets": [
+          {
+            "dataSourceId": "474294b5-603d-4d2e-88dd-e0c74ee9305b",
+            "query": "{project=\"folder__b1ge1e4iopttj79hfdfm\", service=\"logging_aggregates\", cluster=\"default\", name=\"zvenfit_site_page_views_by_class_5m\"}",
+            "textMode": true,
+            "hidden": false,
+            "name": "A",
+            "type": "monitoring"
+          }
+        ],
+        "dataSources": [
+          {
+            "id": "474294b5-603d-4d2e-88dd-e0c74ee9305b",
+            "downsampling": {
+              "gridAggregation": "GRID_AGGREGATION_UNSPECIFIED",
+              "gapFilling": "GAP_FILLING_UNSPECIFIED",
+              "maxPoints": "100",
+              "mode": "maxPoints"
+            },
+            "type": "monitoring"
+          }
+        ],
+        "seriesOverrides": [],
+        "overlays": [],
+        "id": "7pHUyXLujL-taqAdWUXqh",
+        "visualizationSettings": {
+          "type": "VISUALIZATION_TYPE_TILES",
+          "normalize": false,
+          "interpolate": "INTERPOLATE_UNSPECIFIED",
+          "aggregation": "SERIES_AGGREGATION_LAST",
+          "colorSchemeSettings": {
+            "automatic": {},
+            "scheme": "automatic"
+          },
+          "heatmapSettings": null,
+          "yaxisSettings": {
+            "left": {
+              "type": "YAXIS_TYPE_LINEAR",
+              "title": "",
+              "min": "",
+              "max": "",
+              "unitFormat": "UNIT_FORMAT_UNSPECIFIED",
+              "precision": null
+            },
+            "right": {
+              "type": "YAXIS_TYPE_LINEAR",
+              "title": "",
+              "min": "",
+              "max": "",
+              "unitFormat": "UNIT_FORMAT_UNSPECIFIED",
+              "precision": null
+            }
+          },
+          "title": "",
+          "showLabels": false,
+          "tilesSettings": {
+            "sortOrder": "ASC",
+            "sortField": "VALUE",
+            "showTitle": false,
+            "showValue": true,
+            "showSparkline": false
+          },
+          "hidePartialData": false
+        },
+        "nameHidingSettings": null,
+        "description": "",
+        "title": "Просмотры страниц за 5 минут",
+        "displayLegend": false,
+        "freeze": "FREEZE_DURATION_UNSPECIFIED",
+        "repeat": null,
+        "thresholds": {
+          "items": [
+            {
+              "color": "#92db00",
+              "id": "6b21c1c1-415e-4ccf-b2a0-762838ab7fb0"
+            }
+          ],
+          "showMode": "CONSTANT_LINE"
+        },
+        "eventSources": null,
+        "legendSettings": {
+          "sortRules": [],
+          "position": "POSITION_BOTTOM",
+          "truncate": "TRUNCATE_END",
+          "size": null,
+          "list": {
+            "columnsCount": 0
+          },
+          "view": "list"
+        }
+      },
+      "widget": "multiSourceChart"
+    },
+    {
+      "links": [],
+      "position": {
+        "x": "18",
+        "y": "82",
+        "w": "18",
+        "h": "8"
+      },
+      "multiSourceChart": {
+        "targets": [
+          {
+            "dataSourceId": "474294b5-603d-4d2e-88dd-e0c74ee9305b",
+            "query": "{project = \"folder__b1ge1e4iopttj79hfdfm\", service = \"logging_aggregates\", cluster = \"default\", name = \"zvenfit_site_page_views_by_class_5m\"}",
+            "textMode": false,
+            "hidden": false,
+            "name": "A",
+            "type": "monitoring"
+          }
+        ],
+        "dataSources": [
+          {
+            "id": "474294b5-603d-4d2e-88dd-e0c74ee9305b",
+            "downsampling": {
+              "gridAggregation": "GRID_AGGREGATION_UNSPECIFIED",
+              "gapFilling": "GAP_FILLING_UNSPECIFIED"
+            },
+            "type": "monitoring"
+          }
+        ],
+        "seriesOverrides": [],
+        "overlays": [],
+        "id": "4d3c58ca-2fe4-4618-a8ab-c11d4b3e474b",
+        "visualizationSettings": {
+          "type": "VISUALIZATION_TYPE_UNSPECIFIED",
+          "normalize": false,
+          "interpolate": "INTERPOLATE_UNSPECIFIED",
+          "aggregation": "SERIES_AGGREGATION_UNSPECIFIED",
+          "colorSchemeSettings": {
+            "automatic": {},
+            "scheme": "automatic"
+          },
+          "heatmapSettings": null,
+          "yaxisSettings": {
+            "left": {
+              "type": "YAXIS_TYPE_LINEAR",
+              "title": "",
+              "min": "",
+              "max": "",
+              "unitFormat": "UNIT_FORMAT_UNSPECIFIED",
+              "precision": null
+            },
+            "right": {
+              "type": "YAXIS_TYPE_LINEAR",
+              "title": "",
+              "min": "",
+              "max": "",
+              "unitFormat": "UNIT_FORMAT_UNSPECIFIED",
+              "precision": null
+            }
+          },
+          "title": "",
+          "showLabels": false,
+          "tilesSettings": null,
+          "hidePartialData": false
+        },
+        "nameHidingSettings": null,
+        "description": "",
+        "title": "Просмотры страниц по классам трафика",
+        "displayLegend": false,
+        "freeze": "FREEZE_DURATION_UNSPECIFIED",
+        "repeat": null,
+        "thresholds": {
+          "items": [
+            {
+              "color": "#92db00",
+              "id": "13d140a6-fbad-444c-9c2f-6e215bc5d816"
+            }
+          ],
+          "showMode": "CONSTANT_LINE"
+        },
+        "eventSources": null,
+        "legendSettings": {
+          "sortRules": [],
+          "position": "POSITION_BOTTOM",
+          "truncate": "TRUNCATE_END",
+          "size": null,
+          "list": {
+            "columnsCount": 0
+          },
+          "view": "list"
+        }
+      },
+      "widget": "multiSourceChart"
+    },
+    {
+      "links": [],
+      "position": {
+        "x": "0",
+        "y": "90",
+        "w": "12",
+        "h": "8"
+      },
+      "multiSourceChart": {
+        "targets": [
+          {
+            "dataSourceId": "0d8766d6-efce-4a88-8da7-a88632f980a7",
+            "query": "series_sum({project=\"folder__b1ge1e4iopttj79hfdfm\", cluster=\"default\", service=\"logging_aggregates\", name=\"zvenfit_retry_worker_log_heartbeat_1m\"})",
+            "textMode": true,
+            "hidden": false,
+            "name": "A",
+            "type": "monitoring"
+          }
+        ],
+        "dataSources": [
+          {
+            "id": "0d8766d6-efce-4a88-8da7-a88632f980a7",
+            "downsampling": {
+              "gridAggregation": "GRID_AGGREGATION_UNSPECIFIED",
+              "gapFilling": "GAP_FILLING_UNSPECIFIED"
+            },
+            "type": "monitoring"
+          }
+        ],
+        "seriesOverrides": [],
+        "overlays": [],
+        "id": "00b84d7f-b989-43bc-9bf4-f80506c13970",
+        "visualizationSettings": {
+          "type": "VISUALIZATION_TYPE_UNSPECIFIED",
+          "normalize": false,
+          "interpolate": "INTERPOLATE_UNSPECIFIED",
+          "aggregation": "SERIES_AGGREGATION_UNSPECIFIED",
+          "colorSchemeSettings": {
+            "automatic": {},
+            "scheme": "automatic"
+          },
+          "heatmapSettings": null,
+          "yaxisSettings": {
+            "left": {
+              "type": "YAXIS_TYPE_LINEAR",
+              "title": "",
+              "min": "",
+              "max": "",
+              "unitFormat": "UNIT_FORMAT_UNSPECIFIED",
+              "precision": null
+            },
+            "right": {
+              "type": "YAXIS_TYPE_LINEAR",
+              "title": "",
+              "min": "",
+              "max": "",
+              "unitFormat": "UNIT_FORMAT_UNSPECIFIED",
+              "precision": null
+            }
+          },
+          "title": "",
+          "showLabels": false,
+          "tilesSettings": null,
+          "hidePartialData": false
+        },
+        "nameHidingSettings": null,
+        "description": "",
+        "title": "Поставка событий: heartbeat retry-worker",
+        "displayLegend": false,
+        "freeze": "FREEZE_DURATION_UNSPECIFIED",
+        "repeat": null,
+        "thresholds": {
+          "items": [
+            {
+              "color": "#92db00",
+              "id": "1366f24c-2666-40c2-95e8-8f9ec88ee03b"
+            }
+          ],
+          "showMode": "CONSTANT_LINE"
+        },
+        "eventSources": null,
+        "legendSettings": {
+          "sortRules": [],
+          "position": "POSITION_BOTTOM",
+          "truncate": "TRUNCATE_END",
+          "size": null,
+          "list": {
+            "columnsCount": 0
+          },
+          "view": "list"
+        }
+      },
+      "widget": "multiSourceChart"
+    }
+  ],
+  "links": [],
+  "overlays": [],
+  "presetItems": []
+}

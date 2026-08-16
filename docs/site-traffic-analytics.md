@@ -69,42 +69,40 @@ Object Storage и отдельного lifecycle. Повторный `page_view_
 - source: production logs с `meta.application="zvenfit-frontend"`,
   `meta.environment="production"`, `meta.service="zvenfit-site-traffic"`;
 - filter/event: `meta.event="site_page_view"`, `meta.traffic_class="*"`,
-  `host="*"`; existence-фильтры для полей группировки обязательны в
+  `host="*"`, `resource_id="*"`; existence-фильтры для полей группировки обязательны в
   Preview-конструкторе Monium;
 - aggregation: count, window 5 minutes;
-- grouping: `meta.traffic_class`, `host` (в Monium `host` — системное поле, не `meta.host`).
+- grouping: `meta.traffic_class`, `meta.application`, `meta.service`,
+  `resource_id`. `host` остаётся полем raw log и не становится metric label.
 
 На dashboard добавь:
 
-1. stacked bars page views по `traffic_class`;
-2. долю `known_bot` и `synthetic`;
-3. плитку **Последний page view** с запросом
-   `series_sum({..., name="zvenfit_site_page_views_by_class_5m"})` и агрегацией `last`;
-4. при ручном разборе — top `meta.page` непосредственно в трёхдневных логах,
+1. график **Просмотры страниц за 5 минут** с запросом
+   `series_sum({..., name="zvenfit_site_page_views_by_class_5m"})`;
+2. stacked bars page views по `traffic_class`, включая долю `known_bot` и
+   `synthetic`;
+3. при ручном разборе — top `meta.page` непосредственно в трёхдневных логах,
    не как metric label;
-5. рядом встроенные `edge.requests`, `edge.requests_status`,
+4. рядом встроенные `edge.requests`, `edge.requests_status`,
    `edge.requests_cache_status`, `edge.bytes_sent` и
    `edge.request_time_seconds` для CDN resource `bc8rubabuwzpqqp7rifz`.
-6. в общий диагностический график `functions_errors` добавь
+5. в общий диагностический график `functions_errors` добавь
    `resource_id="zvenfit-site-traffic"`, но не создавай для аналитики paging-alert.
 
 Старые виджеты **Трафик: запросы по классам** и
 **Трафик: технические сессии людей** относятся к удалённой stateful-схеме
 и должны быть удалены с dashboard.
 
-Freshness-card не является paging-alert: задержка или потеря технической
-аналитики не должна попадать в критичный lead alert.
-
-Пользовательский dashboard Monium не поддерживает raw-log widget. Поэтому плитка
-показывает последнее значение объединённого пятиминутного bucket, а не точный
-timestamp строки лога. Для точного времени последнего `site_page_view` используй
+Эти графики не являются paging-alert: задержка или потеря технической аналитики
+не должна попадать в критичный lead alert. Пользовательский dashboard Monium не
+поддерживает raw-log widget. Для точного времени последнего `site_page_view` используй
 Cloud Logging с тем же event selector. Добавлять ради этого отдельную timestamp-
 метрику или application state не нужно.
 
 ## Стоимость и ограничения
 
 При масштабе ZvenFit вызовы функции и объём трёхдневных логов должны помещаться
-в общие free tiers billing account. Log-derived metric с тремя ограниченными
+в общие free tiers billing account. Log-derived metric с четырьмя ограниченными
 labels стоит пренебрежимо мало. Проверяй фактическое потребление в billing:
 free tiers разделяются с другими ресурсами аккаунта.
 

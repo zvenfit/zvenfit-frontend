@@ -2,8 +2,10 @@
 
 Этот документ фиксирует согласованные правила эксплуатации production-monitoring
 ZvenFit. Техническое устройство метрик и ручная настройка ресурсов описаны в
-[`monitoring.md`](monitoring.md), а машиночитаемый desired state — в
-[`scripts/monitoring.config.json`](../scripts/monitoring.config.json).
+[`monitoring.md`](monitoring.md), машиночитаемый semantic desired state — в
+[`scripts/monitoring.config.json`](../scripts/monitoring.config.json), а полный
+восстанавливаемый snapshot самой борды — в
+[`scripts/monitoring.dashboard.json`](../scripts/monitoring.dashboard.json).
 
 ## Зафиксированные решения
 
@@ -74,8 +76,10 @@ Monium не выполняет запрос и показывает пустой
 ## Desired-state drift
 
 Все шестнадцать alerts хранят человекочитаемые названия и taxonomy labels в
-`scripts/monitoring.config.json`. Канонический read-only snapshot live Monium
-сравнивается с Git командой:
+`scripts/monitoring.config.json`. Полный native JSON dashboard хранится отдельно
+в `scripts/monitoring.dashboard.json`; он не содержит alerts, log metrics или
+notification channels и не является входом для drift-check. Канонический
+read-only snapshot полного набора live Monium ресурсов сравнивается с Git командой:
 
 ```bash
 npm run check:monitoring-drift -- --snapshot /path/to/monium-live.json
@@ -86,7 +90,21 @@ npm run check:monitoring-drift -- --snapshot /path/to/monium-live.json
 означает некорректный ввод. Экспорт live snapshot остаётся отдельной ручной
 read-only операцией: deploy service account не имеет folder-level viewer role,
 а private UI API не используется. Автоматизация требует отдельного согласования
-read-only IAM и поддерживаемого полного export API.
+read-only IAM и поддерживаемого полного export API для всех monitoring-ресурсов.
+
+Для самой борды поддерживается штатный путь **Настройки → JSON**:
+
+1. Для резервной копии выбрать **Без diff**, скопировать JSON и сохранить его в
+   `scripts/monitoring.dashboard.json`.
+2. Для восстановления вставить Git-версию в этот же редактор и сначала проверить
+   **Встроенный diff**.
+3. Нажимать **Применить** только для согласованного изменения live-борды.
+4. После применения повторно экспортировать сервер-нормализованный JSON, проверить
+   отсутствие секретов/персональных данных и обновить Git-файл.
+
+Monium может перегенерировать внутренние UUID элементов при import; поэтому
+источником полного layout служит последний повторный export, а смысловые ожидания
+и taxonomy по-прежнему фиксируются в `monitoring.config.json` и тестах.
 
 ## Готовые селекторы raw logs
 
@@ -169,7 +187,9 @@ delay, затем desired state, тесты и live drift.
 ## Правила изменения
 
 - Любое изменение сначала вносится в `scripts/monitoring.config.json` и
-  документацию, затем проверяется тестами и live-конфигурацией.
+  документацию, затем проверяется тестами и live-конфигурацией. Изменение самой
+  борды дополнительно завершается повторным export в
+  `scripts/monitoring.dashboard.json`.
 - Любой новый infrastructure element отдельно согласовывается с владельцем.
 - Deploy marker не добавляется без отдельного write-path: у deploy SA нет metric
   writer, а расширять использование runtime `MONIUM_API_KEY` на CI нельзя молча.

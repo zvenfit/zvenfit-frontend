@@ -33,13 +33,12 @@
     ],
     "measures": ["edge_requests", "page_views"],
     "pageViewMetricId": "zvenfit_site_page_views_by_class_5m",
-    "freshnessCard": {
-      "title": "Последний page view",
+    "pageViewsChart": {
+      "title": "Просмотры страниц за 5 минут",
       "source": "zvenfit_site_page_views_by_class_5m",
       "query": "series_sum({project=\"folder__b1ge1e4iopttj79hfdfm\", cluster=\"default\", service=\"logging_aggregates\", name=\"zvenfit_site_page_views_by_class_5m\"})",
-      "visualization": "tile",
-      "aggregation": "last",
-      "exactLogTimestamp": false,
+      "visualization": "chart",
+      "bucket": "5m",
       "pagingAlert": false
     },
     "monitoringSelectors": {
@@ -58,6 +57,11 @@
     }
   },
   "dashboard": {
+    "nativeJson": {
+      "artifact": "scripts/monitoring.dashboard.json",
+      "scope": "dashboard-only",
+      "workflow": "settings-json-export-import"
+    },
     "quickLogAccess": {
       "title": "Быстрый доступ к логам",
       "position": "top",
@@ -81,7 +85,7 @@
       ]
     },
     "runtimeErrors": {
-      "title": "Ошибки Cloud Functions",
+      "title": "Cloud Functions: ошибки",
       "metricSelector": "{project=\"folder__b1ge1e4iopttj79hfdfm\", service=\"serverless-functions\", name=\"functions_errors\", resource_id=\"zvenfit-telegram-lead|zvenfit-fitbase-schedule|zvenfit-site-traffic\"}",
       "pagingAlert": true,
       "decomposeBy": ["resource_id"]
@@ -103,8 +107,8 @@
     "trafficWidgets": [
       "Cloud CDN: запросы",
       "Cloud CDN: HTTP-статусы",
-      "Трафик: просмотры страниц по классам",
-      "Последний page view"
+      "Просмотры страниц за 5 минут",
+      "Просмотры страниц по классам трафика"
     ],
     "removeTrafficWidgets": [
       "Трафик: запросы по классам",
@@ -112,10 +116,11 @@
     ]
   },
   "provisioning": {
+    "dashboard": "native-json-import",
     "logMetrics": "manual-console",
     "notificationChannels": "manual-console",
     "alerts": "manual-console",
-    "reason": "Log metrics, alert rules and notification channels remain console-managed; the repository stores the reviewed desired state and validates read-only snapshots"
+    "reason": "The dashboard uses Monium native JSON export/import; log metrics, alert rules and notification channels remain console-managed"
   },
   "notificationChannels": [
     {
@@ -140,58 +145,73 @@
   "logMetrics": [
     {
       "id": "zvenfit_lead_storage_errors_1m",
-      "events": ["lead_storage_error", "telegram_delivery_retry_error"],
+      "events": ["lead_storage_error"],
+      "filters": { "meta.service": "zvenfit-lead-intake", "resource_id": "*" },
       "aggregation": "count",
-      "window": "1m"
+      "window": "1m",
+      "grouping": ["meta.application", "meta.environment", "meta.service", "resource_id"]
     },
     {
       "id": "zvenfit_telegram_delivery_failed_1m",
       "events": ["telegram_delivery_failed_permanently"],
+      "filters": { "meta.service": "zvenfit-lead-intake", "resource_id": "*" },
       "aggregation": "count",
-      "window": "1m"
+      "window": "1m",
+      "grouping": ["meta.application", "meta.environment", "meta.service", "resource_id"]
     },
     {
       "id": "zvenfit_fitbase_errors_5m",
       "events": ["fitbase_schedule_error", "fitbase_schedule_misconfigured"],
+      "filters": { "meta.service": "zvenfit-fitbase-schedule", "resource_id": "*" },
       "aggregation": "count",
-      "window": "5m"
+      "window": "5m",
+      "grouping": ["meta.application", "meta.environment", "meta.service", "resource_id"]
     },
     {
       "id": "zvenfit_ydb_retries_5m",
       "events": ["ydb_retry"],
+      "filters": { "meta.service": "zvenfit-lead-intake", "resource_id": "*" },
       "aggregation": "count",
-      "window": "5m"
+      "window": "5m",
+      "grouping": ["meta.application", "meta.environment", "meta.service", "resource_id"]
     },
     {
       "id": "zvenfit_ydb_slow_operations_5m",
       "events": ["ydb_slow_operation"],
+      "filters": { "meta.service": "zvenfit-lead-intake", "resource_id": "*" },
       "aggregation": "count",
-      "window": "5m"
+      "window": "5m",
+      "grouping": ["meta.application", "meta.environment", "meta.service", "resource_id"]
     },
     {
       "id": "zvenfit_rate_limit_errors_5m",
       "events": ["lead_rate_limit_error"],
+      "filters": { "meta.service": "zvenfit-lead-intake", "resource_id": "*" },
       "aggregation": "count",
-      "window": "5m"
+      "window": "5m",
+      "grouping": ["meta.application", "meta.environment", "meta.service", "resource_id"]
     },
     {
       "id": "zvenfit_lead_rate_limited_5m",
       "events": ["lead_submission_blocked"],
-      "filters": { "meta.reason": "rate_limit" },
+      "filters": { "meta.service": "zvenfit-lead-intake", "meta.reason": "rate_limit", "resource_id": "*" },
       "aggregation": "count",
-      "window": "5m"
+      "window": "5m",
+      "grouping": ["meta.application", "meta.environment", "meta.service", "resource_id"]
     },
     {
       "id": "zvenfit_leads_persisted_5m",
       "events": ["lead_persisted"],
+      "filters": { "meta.service": "zvenfit-lead-intake", "resource_id": "*" },
       "aggregation": "count",
-      "window": "5m"
+      "window": "5m",
+      "grouping": ["meta.application", "meta.environment", "meta.service", "resource_id"]
     },
     {
       "id": "zvenfit_retry_worker_log_heartbeat_1m",
       "displayName": "ZvenFit · Retry-worker: поставка событий",
       "events": ["retry_worker_completed"],
-      "filters": { "resource_id": "*" },
+      "filters": { "meta.service": "zvenfit-lead-intake", "resource_id": "*" },
       "aggregation": "count",
       "window": "1m",
       "grouping": ["meta.application", "meta.environment", "meta.service", "resource_id"],
@@ -203,6 +223,7 @@
       "selector": "{project=\"folder__b1ge1e4iopttj79hfdfm\", cluster=\"default\", service=\"default\", resource_type=\"serverless.function\", resource_id=\"d4e80noc1hjn2g8u0beq\", level=\"ERROR\", message!=*\"Code: 499\"}",
       "aggregation": "count",
       "window": "1m",
+      "grouping": ["resource_id"],
       "synthetic": false
     },
     {
@@ -211,6 +232,7 @@
       "selector": "{project=\"folder__b1ge1e4iopttj79hfdfm\", cluster=\"default\", service=\"default\", resource_type=\"serverless.function\", resource_id=\"d4e80noc1hjn2g8u0beq\", level=\"ERROR\", message=*\"Code: 499\"}",
       "aggregation": "count",
       "window": "5m",
+      "grouping": ["resource_id"],
       "synthetic": false
     },
     {
@@ -219,11 +241,12 @@
       "filters": {
         "meta.service": "zvenfit-site-traffic",
         "meta.traffic_class": "*",
-        "host": "*"
+        "host": "*",
+        "resource_id": "*"
       },
       "aggregation": "count",
       "window": "5m",
-      "grouping": ["meta.traffic_class", "host"],
+      "grouping": ["meta.traffic_class", "meta.application", "meta.service", "resource_id"],
       "synthetic": false
     }
   ],

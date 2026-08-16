@@ -7,6 +7,8 @@ const test = require('node:test');
 
 const ROOT = path.resolve(__dirname, '../..');
 const config = JSON.parse(fs.readFileSync(path.join(ROOT, 'scripts/monitoring.config.json'), 'utf8'));
+const dashboardExportText = fs.readFileSync(path.join(ROOT, 'scripts/monitoring.dashboard.json'), 'utf8');
+const dashboardExport = JSON.parse(dashboardExportText);
 const source = [
   'functions/lead-intake/src/handler.ts',
   'functions/lead-intake/src/notification/delivery.ts',
@@ -56,6 +58,95 @@ test('dashboard exposes the canonical one-hour INFO and ERROR log links', () => 
   }
 
   assert.notEqual(quickAccess.links[0].url, quickAccess.links[1].url);
+});
+
+test('native dashboard JSON is restorable and matches critical desired-state invariants', () => {
+  assert.deepEqual(config.dashboard.nativeJson, {
+    artifact: 'scripts/monitoring.dashboard.json',
+    scope: 'dashboard-only',
+    workflow: 'settings-json-export-import',
+  });
+  assert.equal(dashboardExport.title, 'ZvenFit · production');
+  assert.equal(dashboardExport.name, 'zvenfit-production-monitoring');
+  assert.equal(dashboardExport.widgets.length, 24);
+
+  const quickAccessWidget = dashboardExport.widgets.find(
+    widget => widget.widget === 'text' && widget.text?.text?.includes('Быстрый доступ к логам'),
+  );
+  assert.ok(quickAccessWidget, 'native dashboard export has no quick log access widget');
+  assert.deepEqual(quickAccessWidget.position, { x: '0', y: '0', w: '36', h: '2' });
+  for (const link of config.dashboard.quickLogAccess.links) {
+    assert.ok(
+      quickAccessWidget.text.text.includes(`[${link.label}](${link.url})`),
+      `${link.label} is missing from native dashboard export`,
+    );
+  }
+
+  const alertList = dashboardExport.widgets.find(widget => widget.widget === 'alertList');
+  assert.match(alertList.alertList.selectors, /application = "zvenfit-frontend"/);
+  assert.match(alertList.alertList.selectors, /environment = "production"/);
+
+  const chartTitles = dashboardExport.widgets
+    .filter(widget => widget.widget === 'multiSourceChart')
+    .map(widget => widget.multiSourceChart.title);
+  assert.equal(
+    chartTitles.some(title => title.startsWith('ZvenFit')),
+    false,
+  );
+  assert.ok(chartTitles.includes('Cloud Functions: длительность p95'));
+  assert.ok(chartTitles.includes('Поставка событий: heartbeat retry-worker'));
+
+  assert.doesNotMatch(dashboardExportText, /authorization|bearer\s|api[_-]?key|password|secret/i);
+  assert.doesNotMatch(dashboardExportText, /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/i);
+});
+
+test('dashboard log-aggregate filters are preserved by each metric grouping', () => {
+  const metricsById = new Map(config.logMetrics.map(metric => [metric.id, metric]));
+
+  for (const widget of dashboardExport.widgets.filter(item => item.widget === 'multiSourceChart')) {
+    for (const target of widget.multiSourceChart.targets || []) {
+      if (!target.query?.includes('service = "logging_aggregates"')) continue;
+
+      const metricNames = target.query.match(/name = "([^"]+)"/)?.[1].split('|') || [];
+      const filteredMetadata = [...target.query.matchAll(/(meta\.[a-z_]+) = /g)].map(match => match[1]);
+
+      for (const metricName of metricNames) {
+        const metric = metricsById.get(metricName);
+        assert.ok(metric, `${widget.multiSourceChart.title} references unknown log metric ${metricName}`);
+        for (const label of filteredMetadata) {
+          assert.ok(
+            metric.grouping?.includes(label),
+            `${metricName} filters by ${label}, but the log metric does not preserve it in grouping`,
+          );
+        }
+      }
+    }
+  }
+});
+
+test('log metrics preserve the live taxonomy required to isolate products and functions', () => {
+  const applicationGrouping = ['meta.application', 'meta.environment', 'meta.service', 'resource_id'];
+  const applicationMetricIds = [
+    'zvenfit_lead_storage_errors_1m',
+    'zvenfit_telegram_delivery_failed_1m',
+    'zvenfit_fitbase_errors_5m',
+    'zvenfit_ydb_retries_5m',
+    'zvenfit_ydb_slow_operations_5m',
+    'zvenfit_rate_limit_errors_5m',
+    'zvenfit_lead_rate_limited_5m',
+    'zvenfit_leads_persisted_5m',
+    'zvenfit_retry_worker_log_heartbeat_1m',
+  ];
+
+  for (const metricId of applicationMetricIds) {
+    const metric = config.logMetrics.find(item => item.id === metricId);
+    assert.deepEqual(metric.grouping, applicationGrouping, `${metricId} has stale taxonomy grouping`);
+  }
+
+  for (const metricId of ['zvenfit_schedule_runtime_errors_1m', 'zvenfit_schedule_client_cancellations_5m']) {
+    const metric = config.logMetrics.find(item => item.id === metricId);
+    assert.deepEqual(metric.grouping, ['resource_id']);
+  }
 });
 
 test('every monitored event exists in application code and documentation', () => {
@@ -135,7 +226,11 @@ test('anti-spam and accepted lead volume thresholds are explicit', () => {
   const rateAlert = config.alerts.find(alert => alert.id === 'zvenfit_rate-limited_leads');
   const volumeAlert = config.alerts.find(alert => alert.id === 'zvenfit_persisted_leads_volume');
 
-  assert.deepEqual(rateMetric.filters, { 'meta.reason': 'rate_limit' });
+  assert.deepEqual(rateMetric.filters, {
+    'meta.service': 'zvenfit-lead-intake',
+    'meta.reason': 'rate_limit',
+    resource_id: '*',
+  });
   assert.deepEqual(
     { warning: rateAlert.warning, alarm: rateAlert.alarm, window: rateAlert.window },
     { warning: 0, alarm: 5, window: '10m' },
@@ -388,7 +483,7 @@ test('retry worker health covers missing heartbeats, delivery backlog, and trigg
     id: 'zvenfit_retry_worker_log_heartbeat_1m',
     displayName: 'ZvenFit · Retry-worker: поставка событий',
     events: ['retry_worker_completed'],
-    filters: { resource_id: '*' },
+    filters: { 'meta.service': 'zvenfit-lead-intake', resource_id: '*' },
     aggregation: 'count',
     window: '1m',
     grouping: ['meta.application', 'meta.environment', 'meta.service', 'resource_id'],
@@ -433,7 +528,9 @@ test('transient Telegram retries remain log-only', () => {
   const monitoredEvents = config.logMetrics.flatMap(metric => metric.events || []);
 
   assert.equal(monitoredEvents.includes('telegram_delivery_retry_scheduled'), false);
+  assert.equal(monitoredEvents.includes('telegram_delivery_retry_error'), false);
   assert.match(monitoringDocs, /`telegram_delivery_retry_scheduled`\s+\| Telegram временно недоступен/);
+  assert.match(monitoringDocs, /`telegram_delivery_retry_error`\s+\| Retry-задача не смогла обработать заявку/);
 });
 
 test('production log source and retention are explicit', () => {
@@ -472,14 +569,13 @@ test('technical traffic analytics uses a stateless page-view log and built-in ed
     'unknown',
   ]);
   assert.deepEqual(config.trafficAnalytics.measures, ['edge_requests', 'page_views']);
-  assert.equal(config.trafficAnalytics.freshnessCard.title, 'Последний page view');
-  assert.equal(config.trafficAnalytics.freshnessCard.source, 'zvenfit_site_page_views_by_class_5m');
-  assert.match(config.trafficAnalytics.freshnessCard.query, /^series_sum\(/);
-  assert.match(config.trafficAnalytics.freshnessCard.query, /name="zvenfit_site_page_views_by_class_5m"/);
-  assert.equal(config.trafficAnalytics.freshnessCard.visualization, 'tile');
-  assert.equal(config.trafficAnalytics.freshnessCard.aggregation, 'last');
-  assert.equal(config.trafficAnalytics.freshnessCard.exactLogTimestamp, false);
-  assert.equal(config.trafficAnalytics.freshnessCard.pagingAlert, false);
+  assert.equal(config.trafficAnalytics.pageViewsChart.title, 'Просмотры страниц за 5 минут');
+  assert.equal(config.trafficAnalytics.pageViewsChart.source, 'zvenfit_site_page_views_by_class_5m');
+  assert.match(config.trafficAnalytics.pageViewsChart.query, /^series_sum\(/);
+  assert.match(config.trafficAnalytics.pageViewsChart.query, /name="zvenfit_site_page_views_by_class_5m"/);
+  assert.equal(config.trafficAnalytics.pageViewsChart.visualization, 'chart');
+  assert.equal(config.trafficAnalytics.pageViewsChart.bucket, '5m');
+  assert.equal(config.trafficAnalytics.pageViewsChart.pagingAlert, false);
   assert.deepEqual(metric, {
     id: 'zvenfit_site_page_views_by_class_5m',
     events: ['site_page_view'],
@@ -487,10 +583,11 @@ test('technical traffic analytics uses a stateless page-view log and built-in ed
       'meta.service': 'zvenfit-site-traffic',
       'meta.traffic_class': '*',
       host: '*',
+      resource_id: '*',
     },
     aggregation: 'count',
     window: '5m',
-    grouping: ['meta.traffic_class', 'host'],
+    grouping: ['meta.traffic_class', 'meta.application', 'meta.service', 'resource_id'],
     synthetic: false,
   });
   for (const metricName of [
@@ -520,7 +617,7 @@ test('traffic runtime errors page through the shared multialert and legacy state
   const runtimeErrors = config.dashboard.runtimeErrors;
   const criticalRuntimeAlert = config.alerts.find(alert => alert.id === 'zvenfit_function_runtime_errors');
 
-  assert.equal(runtimeErrors.title, 'Ошибки Cloud Functions');
+  assert.equal(runtimeErrors.title, 'Cloud Functions: ошибки');
   assert.match(runtimeErrors.metricSelector, /name="functions_errors"/);
   assert.match(runtimeErrors.metricSelector, /zvenfit-telegram-lead/);
   assert.match(runtimeErrors.metricSelector, /zvenfit-fitbase-schedule/);
@@ -531,8 +628,8 @@ test('traffic runtime errors page through the shared multialert and legacy state
   assert.deepEqual(config.dashboard.trafficWidgets, [
     'Cloud CDN: запросы',
     'Cloud CDN: HTTP-статусы',
-    'Трафик: просмотры страниц по классам',
-    'Последний page view',
+    'Просмотры страниц за 5 минут',
+    'Просмотры страниц по классам трафика',
   ]);
   assert.deepEqual(config.dashboard.removeTrafficWidgets, [
     'Трафик: запросы по классам',
@@ -561,13 +658,14 @@ test('every log selector is isolated by repository and environment', () => {
   }
 });
 
-test('manual provisioning and notification channel requirements are explicit', () => {
+test('native dashboard import and manual resource provisioning are explicit', () => {
   assert.deepEqual(config.provisioning, {
+    dashboard: 'native-json-import',
     logMetrics: 'manual-console',
     notificationChannels: 'manual-console',
     alerts: 'manual-console',
     reason:
-      'Log metrics, alert rules and notification channels remain console-managed; the repository stores the reviewed desired state and validates read-only snapshots',
+      'The dashboard uses Monium native JSON export/import; log metrics, alert rules and notification channels remain console-managed',
   });
   assert.deepEqual(config.notificationChannels, [
     {
