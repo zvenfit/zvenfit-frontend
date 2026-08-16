@@ -8,18 +8,16 @@ const STAGING_ORIGIN = 'https://staging.zvenfit.ru';
 
 test.describe.configure({ mode: 'serial' });
 
-test('rejects unauthenticated access at the gateway', async ({ playwright }) => {
-  const anonymous = await playwright.request.newContext({
-    baseURL: STAGING_ORIGIN,
-    userAgent: 'ZvenFit-Playwright-E2E/1.0',
+test('rejects unauthenticated access at the gateway', async () => {
+  const response = await fetch(`${STAGING_ORIGIN}/`, {
+    redirect: 'manual',
+    headers: {
+      'Cache-Control': 'no-store',
+      'User-Agent': 'ZvenFit-Playwright-E2E/1.0',
+    },
   });
 
-  try {
-    const response = await anonymous.get('/');
-    expect(response.status()).toBe(401);
-  } finally {
-    await anonymous.dispose();
-  }
+  expect(response.status).toBe(401);
 });
 
 test('serves an authenticated noindex build without production analytics', async ({ page }) => {
