@@ -63,6 +63,13 @@ Production channels: `ZvenFit · production · Telegram` и
 `ZvenFit · production · Email`. Raw logs хранятся три дня. Для более старого
 инцидента сначала используются alert history, notification feed и metric series.
 
+Если раздел Logs открыт только с `project=folder__b1ge1e4iopttj79hfdfm`,
+Monium не выполняет запрос и показывает пустой экран: для raw logs обязательна
+метка `service`. Сначала добавь `service=default` и выполни запрос, затем сузь
+результат по `meta.application`, `meta.environment`, `meta.service`,
+`resource_id`, `meta.event` или `level`. Пустая таблица после выполненного
+полного селектора уже означает отсутствие подходящих записей в выбранном окне.
+
 ## Desired-state drift
 
 Все шестнадцать alerts хранят человекочитаемые названия и taxonomy labels в
@@ -166,5 +173,6 @@ delay, затем desired state, тесты и live drift.
 - Deploy marker не добавляется без отдельного write-path: у deploy SA нет metric
   writer, а расширять использование runtime `MONIUM_API_KEY` на CI нельзя молча.
 - Любое изменение KB проверяется на секреты и персональные данные до коммита.
-- Project KB хранится только локально в `knowledge-base/` и не коммитится, не
-  публикуется и не синхронизируется с удалёнными KB-системами.
+- Project KB в `knowledge-base/` — version-controlled документация: она
+  коммитится и публикуется только в настроенный Git remote этого проекта.
+  Отдельная синхронизация в Wiki, DataCatalog или другие KB-системы запрещена.
