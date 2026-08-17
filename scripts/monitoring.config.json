@@ -517,9 +517,9 @@
       "metricSelector": "{project=\"folder__b1ge1e4iopttj79hfdfm\", cluster=\"default\", service=\"logging_aggregates\", name=\"zvenfit_monium_metrics_failures_5m\", meta.application=\"zvenfit-frontend\", meta.environment=\"production\", meta.service=\"zvenfit-lead-intake\"}",
       "aggregation": "sum",
       "operator": ">",
-      "warning": 0,
-      "alarm": 2.5,
-      "window": "10m",
+      "warning": 2,
+      "alarm": 5,
+      "window": "30m",
       "delay": "3m",
       "noData": "OK",
       "labels": { "application": "zvenfit-frontend", "environment": "production", "service": "zvenfit-lead-intake", "resource_id": "zvenfit-telegram-lead" }

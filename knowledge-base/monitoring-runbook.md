@@ -19,6 +19,8 @@ is the project entry point and intentionally does not duplicate every selector.
 - Direct gauges require `application`, `environment`, `component`, and `resource_id`.
 - OTLP export has a bounded `3s` timeout; exporter failures are counted through
   the independent `zvenfit_monium_metrics_failures_5m` log aggregate.
+- Exporter alert evaluates `30m`, warns after three failures, and alarms after
+  six; isolated timeouts remain graph-only diagnostics.
 - Raw logs retain three days.
 - No Lockbox or new monitoring infrastructure without separate approval.
 - CDN query masking remains out of scope while no separate raw CDN pipeline is created.

@@ -166,6 +166,8 @@ Runtime errors и throttling всех трёх функций покрывают
 events и не создаёт второй paging-сигнал.
 `zvenfit_monium_metrics_failures_5m` считает ошибки инициализации/экспорта OTLP
 по Cloud Logging, поэтому alert на него не зависит от контролируемого export path.
+Alert использует окно `30m` и пороги `>2`/`>5`: одиночный сетевой таймаут
+остаётся диагностикой, а paging начинается только при устойчивой деградации.
 YDB SQL latency считается только по фазе `query_execute`; медленные
 `session_acquire` и `session_create` выводятся отдельным диагностическим
 графиком без paging-alert.

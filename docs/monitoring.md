@@ -279,8 +279,10 @@ heartbeat указывает на проблему Cloud Logging/log aggregate, 
 ```
 
 Метрика строится по Cloud Logging и не зависит от того же OTLP export path,
-который она контролирует. Одна ошибка за десять минут даёт `Warning`, три —
-`Alarm`; alert использует стандартную задержку log aggregates `3m`.
+который она контролирует. Три ошибки за 30 минут дают `Warning`, шесть —
+`Alarm`; одиночные сетевые таймауты остаются диагностическими точками на графике
+и не создают цикл `Warning → OK`. Alert использует стандартную задержку log
+aggregates `3m`.
 
 ### 10. Schedule runtime errors
 
@@ -367,7 +369,7 @@ Functions, storage alert — две автоматические метрики 
 | `zvenfit_retry_worker_heartbeat`      | direct `zvenfit_retry_worker_heartbeat`      | `last`   | `< 0.9` | `< 0.5` |     5m |   30s | Alarm   |
 | `zvenfit_telegram_delivery_backlog`   | direct oldest pending age, seconds           | `last`   | `> 600` | `> 1800` |    5m |   30s | OK      |
 | `zvenfit_rate_limit_health_errors`    | log aggregate `zvenfit_rate_limit_errors_5m` | `sum`    |   `> 0` |   `> 2` |    10m |    3m | OK      |
-| `zvenfit_monium_metrics_failures`     | log aggregate `zvenfit_monium_metrics_failures_5m` | `sum` | `> 0` | `> 2.5` | 10m | 3m | OK |
+| `zvenfit_monium_metrics_failures`     | log aggregate `zvenfit_monium_metrics_failures_5m` | `sum` | `> 2` | `> 5` | 30m | 3m | OK |
 | `zvenfit_retry_trigger_errors`        | trigger access and invocation errors         | `max`    |   `> 0` | `> 0.5` |     5m |   30s | OK      |
 | `zvenfit_ydb_storage_usage`           | query `C`, storage used percent              | `last`   | `>= 70` | `>= 85` |    15m |   30s | Warning |
 

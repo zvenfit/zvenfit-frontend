@@ -599,8 +599,10 @@ test('metrics exporter failures use logs so the alert survives a broken OTLP pat
   assert.match(alert.metricSelector, /service="logging_aggregates"/);
   assert.deepEqual(
     { warning: alert.warning, alarm: alert.alarm, window: alert.window, delay: alert.delay },
-    { warning: 0, alarm: 2.5, window: '10m', delay: '3m' },
+    { warning: 2, alarm: 5, window: '30m', delay: '3m' },
   );
+  assert.match(monitoringDocs, /Три ошибки за 30 минут дают `Warning`/);
+  assert.match(monitoringDocs, /шесть —\s+`Alarm`/);
   assert.equal(chart.source, metric.id);
   assert.equal(chart.query, widget.multiSourceChart.targets[0].query);
   assert.equal(chart.pagingAlert, true);
