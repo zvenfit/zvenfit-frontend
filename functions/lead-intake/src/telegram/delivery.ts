@@ -1,14 +1,20 @@
-import { setDefaultResultOrder } from 'node:dns';
+import { request as httpsRequest } from 'node:https';
 
 import { TRACKED_UTM_PARAMS } from '../lead-payload';
+import {
+  invalidateTelegramRoute,
+  selectTelegramRoute,
+  telegramError,
+  telegramNetworkErrorCode,
+  type RequestFactory,
+} from './routes';
 
 import type { ClaimedLead, UtmKey } from '../types';
 
 const DEFAULT_TELEGRAM_TIMEOUT_MS = 15_000;
 const MAX_TELEGRAM_TIMEOUT_MS = 25_000;
-
-// Yandex Cloud Functions has public IPv4 egress only, while Telegram DNS returns IPv6 first.
-setDefaultResultOrder('ipv4first');
+const MAX_TELEGRAM_RESPONSE_BYTES = 64 * 1024;
+const TELEGRAM_API_HOST = 'api.telegram.org';
 
 const UTM_LABELS: Record<UtmKey, string> = {
   utm_source: 'source',
@@ -53,30 +59,7 @@ export function telegramTimeoutMs(): number {
   return Number.isInteger(value) && value > 0 ? Math.min(value, MAX_TELEGRAM_TIMEOUT_MS) : DEFAULT_TELEGRAM_TIMEOUT_MS;
 }
 
-function telegramError(message: string, code: string, status?: number): Error & { code: string; status?: number } {
-  return Object.assign(new Error(message), { code, name: 'TelegramError', status });
-}
-
-function telegramNetworkErrorCode(error: unknown): string {
-  if (error && typeof error === 'object' && 'name' in error && error.name === 'TimeoutError') {
-    return 'telegram_timeout';
-  }
-
-  const cause = error && typeof error === 'object' && 'cause' in error ? error.cause : null;
-  const causeCode = cause && typeof cause === 'object' && 'code' in cause ? cause.code : null;
-  if (typeof causeCode !== 'string') {
-    return 'telegram_unreachable';
-  }
-
-  const normalizedCode = causeCode
-    .toLowerCase()
-    .replace(/[^a-z0-9_]/g, '_')
-    .slice(0, 40);
-
-  return normalizedCode ? `telegram_${normalizedCode}` : 'telegram_unreachable';
-}
-
-export async function sendTelegram(payload: ClaimedLead): Promise<void> {
+export async function sendTelegram(payload: ClaimedLead, requestFactory: RequestFactory = httpsRequest): Promise<void> {
   const token = process.env.TELEGRAM_BOT_TOKEN;
   const chatId = process.env.TELEGRAM_CHAT_ID;
 
@@ -84,28 +67,57 @@ export async function sendTelegram(payload: ClaimedLead): Promise<void> {
     throw telegramError('Telegram is not configured', 'telegram_misconfigured');
   }
 
-  let response: Response;
+  const route = await selectTelegramRoute(requestFactory);
+  const body = JSON.stringify({ chat_id: chatId, text: buildMessage(payload) });
+  let response: { body: string; statusCode: number };
   try {
-    response = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      signal: AbortSignal.timeout(telegramTimeoutMs()),
-      body: JSON.stringify({ chat_id: chatId, text: buildMessage(payload) }),
+    response = await new Promise((resolve, reject) => {
+      const request = requestFactory(
+        new URL(`https://${TELEGRAM_API_HOST}/bot${token}/sendMessage`),
+        {
+          method: 'POST',
+          family: 4,
+          ...(route.lookup ? { lookup: route.lookup } : {}),
+          headers: {
+            'Content-Type': 'application/json',
+            'Content-Length': Buffer.byteLength(body),
+          },
+          signal: AbortSignal.timeout(telegramTimeoutMs()),
+        },
+        incoming => {
+          let responseBody = '';
+          incoming.setEncoding('utf8');
+          incoming.on('data', (chunk: string) => {
+            if (responseBody.length < MAX_TELEGRAM_RESPONSE_BYTES) {
+              responseBody += chunk.slice(0, MAX_TELEGRAM_RESPONSE_BYTES - responseBody.length);
+            }
+          });
+          incoming.on('end', () => {
+            resolve({ body: responseBody, statusCode: incoming.statusCode || 0 });
+          });
+          incoming.on('error', reject);
+        },
+      );
+      request.on('error', reject);
+      request.end(body);
     });
   } catch (error) {
+    invalidateTelegramRoute(route);
     throw telegramError('Telegram is unreachable', telegramNetworkErrorCode(error));
   }
 
   let responseBody: unknown = null;
   try {
-    responseBody = await response.json();
+    responseBody = JSON.parse(response.body);
   } catch {
     responseBody = null;
   }
 
   const telegramOk =
     typeof responseBody === 'object' && responseBody !== null && 'ok' in responseBody && responseBody.ok === true;
-  if (!response.ok || !telegramOk) {
-    throw telegramError('Telegram returned an error', 'telegram_error', response.status);
+  if (response.statusCode < 200 || response.statusCode >= 300 || !telegramOk) {
+    throw telegramError('Telegram returned an error', 'telegram_error', response.statusCode);
   }
 }
+
+export { _private } from './routes';
