@@ -12,6 +12,7 @@ const dashboardExport = JSON.parse(dashboardExportText);
 const source = [
   'functions/lead-intake/src/handler.ts',
   'functions/lead-intake/src/notification/delivery.ts',
+  'functions/lead-intake/src/observability/metrics.ts',
   'functions/lead-intake/src/telegram/delivery.ts',
   'functions/lead-intake/src/observability/ydb.ts',
   'functions/fitbase-schedule/src/handler.ts',
@@ -68,7 +69,7 @@ test('native dashboard JSON is restorable and matches critical desired-state inv
   });
   assert.equal(dashboardExport.title, 'ZvenFit · production');
   assert.equal(dashboardExport.name, 'zvenfit-production-monitoring');
-  assert.equal(dashboardExport.widgets.length, 25);
+  assert.equal(dashboardExport.widgets.length, 26);
 
   const quickAccessWidget = dashboardExport.widgets.find(
     widget => widget.widget === 'text' && widget.text?.text?.includes('Быстрый доступ к логам'),
@@ -96,6 +97,7 @@ test('native dashboard JSON is restorable and matches critical desired-state inv
   assert.ok(chartTitles.includes('Cloud Functions: длительность p95'));
   assert.ok(chartTitles.includes('Поставка событий: heartbeat retry-worker'));
   assert.ok(chartTitles.includes('YDB: медленные фазы сессий'));
+  assert.ok(chartTitles.includes('Monium: сбои экспорта метрик'));
 
   const ydbSessionPhasesWidget = dashboardExport.widgets.find(
     item => item.multiSourceChart?.title === config.dashboard.ydbSessionPhases.title,
@@ -165,6 +167,7 @@ test('log metrics preserve the live taxonomy required to isolate products and fu
     'zvenfit_lead_rate_limited_5m',
     'zvenfit_leads_persisted_5m',
     'zvenfit_retry_worker_log_heartbeat_1m',
+    'zvenfit_monium_metrics_failures_5m',
   ];
 
   for (const metricId of applicationMetricIds) {
@@ -232,7 +235,7 @@ test('every alert references a metric and is documented', () => {
     alertIds.add(alert.id);
   }
 
-  assert.equal(alertIds.size, 16);
+  assert.equal(alertIds.size, 17);
 });
 
 test('every alert keeps the human-readable name and product taxonomy tracked in Git', () => {
@@ -285,6 +288,7 @@ test('count-sensitive and caught application alerts use the log aggregate pipeli
     'zvenfit_rate-limited_leads',
     'zvenfit_persisted_leads_volume',
     'zvenfit_rate_limit_health_errors',
+    'zvenfit_monium_metrics_failures',
   ]);
 });
 
@@ -569,6 +573,38 @@ test('dashboard includes diagnostic p95 duration and an independent log-pipeline
   assert.match(logHeartbeat.query, /name="zvenfit_retry_worker_log_heartbeat_1m"/);
   assert.equal(logHeartbeat.pagingAlert, false);
   assert.deepEqual(logHeartbeat.layout, { widthColumns: 36, heightRows: 8 });
+});
+
+test('metrics exporter failures use logs so the alert survives a broken OTLP path', () => {
+  const metric = config.logMetrics.find(item => item.id === 'zvenfit_monium_metrics_failures_5m');
+  const alert = config.alerts.find(item => item.id === 'zvenfit_monium_metrics_failures');
+  const chart = config.dashboard.metricsExporterFailures;
+  const widget = dashboardExport.widgets.find(
+    item => item.multiSourceChart?.title === 'Monium: сбои экспорта метрик',
+  );
+
+  assert.deepEqual(metric.events, [
+    'monium_metrics_export_error',
+    'monium_metrics_init_error',
+    'monium_metrics_misconfigured',
+  ]);
+  assert.deepEqual(metric.grouping, [
+    'meta.application',
+    'meta.environment',
+    'meta.service',
+    'resource_id',
+  ]);
+  assert.equal(metric.synthetic, false);
+  assert.equal(alert.metricId, metric.id);
+  assert.match(alert.metricSelector, /service="logging_aggregates"/);
+  assert.deepEqual(
+    { warning: alert.warning, alarm: alert.alarm, window: alert.window, delay: alert.delay },
+    { warning: 0, alarm: 2.5, window: '10m', delay: '3m' },
+  );
+  assert.equal(chart.source, metric.id);
+  assert.equal(chart.query, widget.multiSourceChart.targets[0].query);
+  assert.equal(chart.pagingAlert, true);
+  assert.deepEqual(widget.position, { x: '0', y: '106', w: '36', h: '8' });
 });
 
 test('rate limiter fail-open path has a count-based health alert', () => {

@@ -2,6 +2,7 @@
 
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
+const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const test = require('node:test');
@@ -10,7 +11,12 @@ const config = require('../monitoring.config.json');
 const { diffMonitoringState, normalizeMonitoringState } = require('../check-monitoring-drift.cjs');
 
 function liveSnapshot() {
-  return JSON.parse(JSON.stringify(config));
+  const snapshot = JSON.parse(JSON.stringify(config));
+  for (const alert of snapshot.alerts) {
+    alert.notificationChannelIds ??= [...snapshot.notificationPolicy.channelIds];
+  }
+
+  return snapshot;
 }
 
 const ROOT = path.resolve(__dirname, '../..');
@@ -18,11 +24,22 @@ const ROOT = path.resolve(__dirname, '../..');
 test('normalizes the desired monitoring resources into a stable read-only contract', () => {
   const normalized = normalizeMonitoringState(config);
 
-  assert.equal(normalized.logMetrics.length, 13);
-  assert.equal(normalized.alerts.length, 16);
+  assert.equal(normalized.logMetrics.length, 14);
+  assert.equal(normalized.alerts.length, 17);
   assert.equal(normalized.notificationChannels.length, 2);
   assert.equal(normalized.dashboard.runtimeErrors.title, 'Cloud Functions: ошибки');
   assert.deepEqual(diffMonitoringState(config, liveSnapshot()), []);
+});
+
+test('reports a live alert whose notification channels are omitted', () => {
+  const snapshot = liveSnapshot();
+  const alert = snapshot.alerts.find(item => item.id === 'zvenfit_schedule_runtime_errors');
+  delete alert.notificationChannelIds;
+
+  assert.match(
+    diffMonitoringState(config, snapshot).join('\n'),
+    /alerts\.zvenfit_schedule_runtime_errors\.notificationChannelIds/,
+  );
 });
 
 test('reports taxonomy, channel and dashboard drift in addition to metric thresholds', () => {
@@ -73,15 +90,22 @@ test('ignores ordering-only differences in label and channel collections', () =>
 });
 
 test('CLI reads a canonical snapshot without modifying it', () => {
-  const snapshotPath = path.join(ROOT, 'scripts/monitoring.config.json');
-  const before = fs.readFileSync(snapshotPath, 'utf8');
-  const result = spawnSync(
-    process.execPath,
-    [path.join(ROOT, 'scripts/check-monitoring-drift.cjs'), '--snapshot', snapshotPath],
-    { encoding: 'utf8' },
-  );
+  const temporaryDirectory = fs.mkdtempSync(path.join(os.tmpdir(), 'zvenfit-monitoring-drift-'));
+  const snapshotPath = path.join(temporaryDirectory, 'monium-live.json');
 
-  assert.equal(result.status, 0, result.stderr);
-  assert.match(result.stdout, /live snapshot matches/);
-  assert.equal(fs.readFileSync(snapshotPath, 'utf8'), before);
+  try {
+    fs.writeFileSync(snapshotPath, JSON.stringify(liveSnapshot()), 'utf8');
+    const before = fs.readFileSync(snapshotPath, 'utf8');
+    const result = spawnSync(
+      process.execPath,
+      [path.join(ROOT, 'scripts/check-monitoring-drift.cjs'), '--snapshot', snapshotPath],
+      { encoding: 'utf8' },
+    );
+
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stdout, /live snapshot matches/);
+    assert.equal(fs.readFileSync(snapshotPath, 'utf8'), before);
+  } finally {
+    fs.rmSync(temporaryDirectory, { recursive: true, force: true });
+  }
 });

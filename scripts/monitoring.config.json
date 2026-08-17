@@ -112,6 +112,17 @@
         "heightRows": 8
       }
     },
+    "metricsExporterFailures": {
+      "title": "Monium: сбои экспорта метрик",
+      "source": "zvenfit_monium_metrics_failures_5m",
+      "query": "series_sum({project=\"folder__b1ge1e4iopttj79hfdfm\", cluster=\"default\", service=\"logging_aggregates\", name=\"zvenfit_monium_metrics_failures_5m\", meta.application=\"zvenfit-frontend\", meta.environment=\"production\", meta.service=\"zvenfit-lead-intake\"})",
+      "visualization": "chart",
+      "pagingAlert": true,
+      "layout": {
+        "widthColumns": 36,
+        "heightRows": 8
+      }
+    },
     "ydbSessionPhases": {
       "title": "YDB: медленные фазы сессий",
       "source": "zvenfit_ydb_slow_session_phases_5m",
@@ -244,6 +255,16 @@
       "filters": { "meta.service": "zvenfit-lead-intake", "resource_id": "*" },
       "aggregation": "count",
       "window": "1m",
+      "grouping": ["meta.application", "meta.environment", "meta.service", "resource_id"],
+      "synthetic": false
+    },
+    {
+      "id": "zvenfit_monium_metrics_failures_5m",
+      "displayName": "ZvenFit · Monium: сбои экспорта метрик",
+      "events": ["monium_metrics_export_error", "monium_metrics_init_error", "monium_metrics_misconfigured"],
+      "filters": { "meta.service": "zvenfit-lead-intake", "resource_id": "*" },
+      "aggregation": "count",
+      "window": "5m",
       "grouping": ["meta.application", "meta.environment", "meta.service", "resource_id"],
       "synthetic": false
     },
@@ -484,6 +505,20 @@
       "operator": ">",
       "warning": 0,
       "alarm": 2,
+      "window": "10m",
+      "delay": "3m",
+      "noData": "OK",
+      "labels": { "application": "zvenfit-frontend", "environment": "production", "service": "zvenfit-lead-intake", "resource_id": "zvenfit-telegram-lead" }
+    },
+    {
+      "id": "zvenfit_monium_metrics_failures",
+      "displayName": "ZvenFit · Monium: сбои экспорта метрик",
+      "metricId": "zvenfit_monium_metrics_failures_5m",
+      "metricSelector": "{project=\"folder__b1ge1e4iopttj79hfdfm\", cluster=\"default\", service=\"logging_aggregates\", name=\"zvenfit_monium_metrics_failures_5m\", meta.application=\"zvenfit-frontend\", meta.environment=\"production\", meta.service=\"zvenfit-lead-intake\"}",
+      "aggregation": "sum",
+      "operator": ">",
+      "warning": 0,
+      "alarm": 2.5,
       "window": "10m",
       "delay": "3m",
       "noData": "OK",
