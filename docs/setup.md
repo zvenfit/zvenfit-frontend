@@ -104,6 +104,7 @@ Environment variables:
 | `YC_GATEWAY_SERVICE_ACCOUNT_ID` | — | staging Gateway SA |
 | `YC_SWS_SECURITY_PROFILE_ID` | — | staging SWS profile |
 | `Y_MAPS_API_KEY` | browser maps key | browser maps key |
+| `TELEGRAM_API_FALLBACK_IPV4S` | 1–5 резервных IPv4 Bot API через запятую | — |
 
 Production secrets:
 
@@ -120,6 +121,12 @@ Staging secrets:
 - отдельный `LEAD_RATE_LIMIT_SECRET`.
 
 Staging не получает Fitbase, Telegram, Monium или production credentials.
+
+Telegram-функция всегда предпочитает обычный DNS. Перед отправкой она параллельно
+проверяет DNS и резервные IPv4 безопасными `HEAD`-запросами, выбирает первый
+здоровый маршрут в порядке конфигурации и кэширует его на 5 минут. После
+неоднозначного таймаута `sendMessage` второй POST в тот же вызов не выполняется,
+чтобы не создать дубль; повтор остаётся ответственностью сохранённой YDB-очереди.
 
 ## Infrastructure bootstrap
 

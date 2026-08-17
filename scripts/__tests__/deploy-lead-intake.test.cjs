@@ -212,6 +212,14 @@ test('direct Monium metrics require and deploy the environment-scoped API key se
   assert.match(deployScript, /--environment MONIUM_API_KEY="\$\{MONIUM_API_KEY\}"/);
 });
 
+test('production deploy requires and passes bounded Telegram fallback routes', () => {
+  assert.match(reusableWorkflow, /TELEGRAM_API_FALLBACK_IPV4S: \$\{\{ vars\.TELEGRAM_API_FALLBACK_IPV4S \}\}/);
+  assert.match(deployScript, /TELEGRAM_API_FALLBACK_IPV4S="\$\{TELEGRAM_API_FALLBACK_IPV4S:-\}"/);
+  assert.match(deployScript, /must contain 1-5 IPv4 addresses/);
+  assert.match(deployScript, /--environment TELEGRAM_API_FALLBACK_IPV4S=/);
+  assert.match(envExample, /^TELEGRAM_API_FALLBACK_IPV4S=$/m);
+});
+
 test('lead direct metrics deploy the canonical application and function taxonomy', () => {
   assert.match(reusableWorkflow, /MONIUM_APPLICATION: zvenfit-frontend/);
   assert.match(reusableWorkflow, /MONIUM_ENVIRONMENT: \$\{\{ inputs\.deployment_environment \}\}/);

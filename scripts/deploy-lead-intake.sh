@@ -15,6 +15,7 @@ LEAD_RATE_LIMIT_WINDOW_SECONDS="${LEAD_RATE_LIMIT_WINDOW_SECONDS:-600}"
 MAX_TELEGRAM_ATTEMPTS="${MAX_TELEGRAM_ATTEMPTS:-12}"
 TELEGRAM_RETRY_BATCH_SIZE="${TELEGRAM_RETRY_BATCH_SIZE:-5}"
 TELEGRAM_TIMEOUT_MS="${TELEGRAM_TIMEOUT_MS:-15000}"
+TELEGRAM_API_FALLBACK_IPV4S="${TELEGRAM_API_FALLBACK_IPV4S:-}"
 MANAGE_LEAD_RETRY_TRIGGER="${MANAGE_LEAD_RETRY_TRIGGER:-false}"
 YDB_QUERY_TIMEOUT_MS="${YDB_QUERY_TIMEOUT_MS:-5000}"
 YDB_SLOW_OPERATION_MS="${YDB_SLOW_OPERATION_MS:-1000}"
@@ -73,6 +74,14 @@ fi
 if [[ "${DEPLOYMENT_ENVIRONMENT_VALUE}" == "production" ]] &&
   { [[ -z "${TELEGRAM_BOT_TOKEN:-}" ]] || [[ -z "${TELEGRAM_CHAT_ID:-}" ]]; }; then
   echo "deploy-lead-intake: set TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID for production" >&2
+  exit 1
+fi
+
+if [[ "${DEPLOYMENT_ENVIRONMENT_VALUE}" == "production" ]] && ! node -e '
+const values = process.argv[1].split(/[\s,]+/).filter(Boolean);
+process.exit(values.length > 0 && values.length <= 5 && values.every(require("node:net").isIPv4) ? 0 : 1);
+' "${TELEGRAM_API_FALLBACK_IPV4S}"; then
+  echo "deploy-lead-intake: TELEGRAM_API_FALLBACK_IPV4S must contain 1-5 IPv4 addresses" >&2
   exit 1
 fi
 
@@ -228,6 +237,7 @@ if [[ "${DEPLOYMENT_ENVIRONMENT_VALUE}" == "production" ]]; then
     --environment MAX_TELEGRAM_ATTEMPTS="${MAX_TELEGRAM_ATTEMPTS}"
     --environment TELEGRAM_RETRY_BATCH_SIZE="${TELEGRAM_RETRY_BATCH_SIZE}"
     --environment TELEGRAM_TIMEOUT_MS="${TELEGRAM_TIMEOUT_MS}"
+    --environment TELEGRAM_API_FALLBACK_IPV4S="${TELEGRAM_API_FALLBACK_IPV4S}"
   )
 fi
 if [[ "${FUNCTION_INVOKER_MODE}" == "gateway" ]]; then
