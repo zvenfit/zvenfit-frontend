@@ -1,7 +1,7 @@
 ---
 type: runbook
 title: ZvenFit alerts, metrics and logs runbook
-updated: 2026-08-16
+updated: 2026-08-17
 ---
 
 # Alerts, metrics and logs runbook
@@ -17,6 +17,10 @@ is the project entry point and intentionally does not duplicate every selector.
 - Exact function: `resource_id`.
 - Runtime errors and throttling use grouped multialerts decomposed by `resource_id`.
 - Direct gauges require `application`, `environment`, `component`, and `resource_id`.
+- OTLP export has a bounded `3s` timeout; exporter failures are counted through
+  the independent `zvenfit_monium_metrics_failures_5m` log aggregate.
+- Exporter alert evaluates `30m`, warns after three failures, and alarms after
+  six; isolated timeouts remain graph-only diagnostics.
 - Raw logs retain three days.
 - No Lockbox or new monitoring infrastructure without separate approval.
 - CDN query masking remains out of scope while no separate raw CDN pipeline is created.
@@ -56,6 +60,10 @@ personal access, but the Git-tracked links are the shared source of truth.
 3. Search raw logs by component and narrow by event/request/error fields.
 4. Inspect the source log metric or direct/platform series.
 5. Confirm the later `OK` transition and delivery to both notification methods.
+
+For `monium_metrics_export_error`, first check `meta.error_code` and the
+**Monium: сбои экспорта метрик** chart. The log-derived alert remains observable
+when the direct OTLP heartbeat path itself is degraded.
 
 [logs-info]: https://monium.yandex.cloud/projects/folder__b1ge1e4iopttj79hfdfm/logs?tab=logs&queries=NobwRAdghgtgpmAXGAgmANGAblANgVwWRAAcAnAewCs4BjAFwAIBeRgHTADMLcATOMgH1BAIwCMAczhi4AFgCWFEvXpUA7AE4AFp16cYHdIwDOArPNpwW7MP05R8ueoca44WOLmscAkgDkAMQB5F3h6KAA6KBISXAsoekUIbzAALw8ITnl6AFpOSgh6OAheULhwiOLzAvhClPIKXnwGJI4AXwwwLXlefggke1xTTF55YygRN14BvGGwIoAPegBZRqJB0zaAXSA&from=now-1h&to=now&columns=level%2Ctime%2Cmessage%2Chost&groupByField=level&chartType=column&linesMode=single&refresh=off
 [logs-error]: https://monium.yandex.cloud/projects/folder__b1ge1e4iopttj79hfdfm/logs?tab=logs&queries=NobwRAdghgtgpmAXGAgmANGAblANgVwWRAAcAnAewCs4BjAFwAIBeRgHTADMLcATOMgH1BAIwCMAczhi4AFgCWFEvXpUA7AE4AFp16cYHdIwDOArPNpwW7MP05R8ueoca44WOLmscAogCU-AHk-F3h6KAA6KBISXAsoekUIbzAALw8ITnl6AFpOSgh6OAheULhwiOLzAvhClPIKXnwGJI4AXwwwLXlefggke1xTTF55YygRN14BvGGwIoAPegBZRqJB0zaAXSA&from=now-1h&to=now&columns=level%2Ctime%2Cmessage%2Chost&groupByField=level&chartType=column&linesMode=single&refresh=off

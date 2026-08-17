@@ -134,6 +134,9 @@ Lead/schedule автоматически скрывают известные п�
 | `telegram_delivery_retry_scheduled`    | Telegram временно недоступен, будет retry                    | Log only   |
 | `telegram_delivery_failed_permanently` | Исчерпаны попытки Telegram                                   | Critical   |
 | `retry_worker_completed`               | Минутный retry pass и чтение состояния очереди завершены     | Diagnostic |
+| `monium_metrics_export_error`          | OTLP exporter не доставил gauges в отведённый таймаут        | Warning    |
+| `monium_metrics_init_error`            | Не удалось инициализировать OTLP exporter                    | Critical   |
+| `monium_metrics_misconfigured`         | Direct metrics включены без обязательной конфигурации        | Critical   |
 | `ydb_operation_completed`              | Полная длительность и разбивка query/session-фаз              | Diagnostic |
 | `ydb_retry`                            | YDB-клиент повторил операцию после временной ошибки          | Warning    |
 | `site_page_view`                       | Beacon страницы принят и классифицирован                     | Diagnostic |
@@ -265,6 +268,22 @@ YDB errors/retries, heartbeat retry-worker и очередь доставки.
 заменяет paging-alert на direct heartbeat: пустой log-heartbeat при живом direct
 heartbeat указывает на проблему Cloud Logging/log aggregate, а не retry worker.
 
+### 9a. Monium metrics exporter failures
+
+- ID: `zvenfit_monium_metrics_failures_5m`
+- Window: 5 minutes
+- Selector:
+
+```text
+{project="folder__b1ge1e4iopttj79hfdfm", cluster="default", service="default", meta.application="zvenfit-frontend", meta.environment="production", meta.service="zvenfit-lead-intake", meta.event="monium_metrics_export_error|monium_metrics_init_error|monium_metrics_misconfigured", resource_id="*"}
+```
+
+Метрика строится по Cloud Logging и не зависит от того же OTLP export path,
+который она контролирует. Три ошибки за 30 минут дают `Warning`, шесть —
+`Alarm`; одиночные сетевые таймауты остаются диагностическими точками на графике
+и не создают цикл `Warning → OK`. Alert использует стандартную задержку log
+aggregates `3m`.
+
 ### 10. Schedule runtime errors
 
 - ID: `zvenfit_schedule_runtime_errors_1m`
@@ -326,7 +345,7 @@ heartbeat указывает на проблему Cloud Logging/log aggregate, 
 Отдельный бот Yandex Cloud важен: он сможет сообщить о проблеме, даже если бот
 заявок потерял токен, доступ к чату или был заблокирован.
 
-Создай шестнадцать алертов. Runtime errors и throttling сделаны multialert-ами,
+Создай семнадцать алертов. Runtime errors и throttling сделаны multialert-ами,
 разложенными по `resource_id`; остальные — обычные алерты. Все дискретные
 application events, включая критические ошибки сохранения и окончательные сбои
 Telegram, считаются через долговечные log aggregates. Direct OTLP оставлен
@@ -350,6 +369,7 @@ Functions, storage alert — две автоматические метрики 
 | `zvenfit_retry_worker_heartbeat`      | direct `zvenfit_retry_worker_heartbeat`      | `last`   | `< 0.9` | `< 0.5` |     5m |   30s | Alarm   |
 | `zvenfit_telegram_delivery_backlog`   | direct oldest pending age, seconds           | `last`   | `> 600` | `> 1800` |    5m |   30s | OK      |
 | `zvenfit_rate_limit_health_errors`    | log aggregate `zvenfit_rate_limit_errors_5m` | `sum`    |   `> 0` |   `> 2` |    10m |    3m | OK      |
+| `zvenfit_monium_metrics_failures`     | log aggregate `zvenfit_monium_metrics_failures_5m` | `sum` | `> 2` | `> 5` | 30m | 3m | OK |
 | `zvenfit_retry_trigger_errors`        | trigger access and invocation errors         | `max`    |   `> 0` | `> 0.5` |     5m |   30s | OK      |
 | `zvenfit_ydb_storage_usage`           | query `C`, storage used percent              | `last`   | `>= 70` | `>= 85` |    15m |   30s | Warning |
 
@@ -386,6 +406,9 @@ serverless-инвокации мог нормализовать `DELTA` counter 
 Lead-функция отправляет напрямую в Monium только gauges текущего состояния с
 `service="zvenfit-frontend"`. Критические event alerts используют log aggregates;
 максимальная штатная задержка поставки учтена evaluation delay `3m`.
+OTLP export ограничен тремя секундами внутри общего execution timeout функции:
+этого достаточно для обычной сетевой вариативности, но зависший exporter не
+может удерживать invocation дольше установленного верхнего предела `5s`.
 Health-сигналы:
 
 - `zvenfit_retry_worker_heartbeat` — успешное завершение минутного retry pass;
@@ -466,7 +489,7 @@ C: (A / B) * 100
 Для direct, runtime и diagnostic алертов отсутствие точек обычно считается `OK`.
 Исключение — heartbeat: отсутствие точек считается `Alarm`. Для storage отсутствие
 любой из двух platform metrics считается `Warning`: потеря данных о заполнении базы
-не должна выглядеть как исправное состояние. Во все шестнадцать алертов добавь
+не должна выглядеть как исправное состояние. Во все семнадцать алертов добавь
 оба канала: **ZvenFit · production · Telegram** и
 **ZvenFit · production · Email**. В обоих Cloud Functions multialert включи
 декомпозицию по `resource_id` и группировку уведомлений.
@@ -544,6 +567,11 @@ histogram `duration_ms_histogram`, функцию `histogram_percentile(95, ...)
 метрик, а использование runtime `MONIUM_API_KEY` в дополнительном CI job
 расширило бы доступ к секрету. Историю production-деплоев смотри в GitHub Actions;
 отдельный marker можно добавить только после согласования write-path и IAM.
+
+График **Monium: сбои экспорта метрик** читает независимый log aggregate
+`zvenfit_monium_metrics_failures_5m`. Он остаётся видимым и переводит отдельный
+alert в Warning/Alarm, даже когда direct OTLP path не доставляет heartbeat и
+состояние очереди.
 
 Общий график **Ошибки Cloud Functions** считает встроенную
 `functions_errors` для `zvenfit-telegram-lead`, `zvenfit-fitbase-schedule` и

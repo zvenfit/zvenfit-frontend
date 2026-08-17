@@ -169,6 +169,8 @@ test('bounds the exporter timeout', () => {
   const observedTimeouts: number[] = [];
   const logger = new TestLogger();
 
+  assert.equal(_private.metricsTimeoutMs(enabledEnv()), 3000);
+
   for (const configured of ['10', '9000']) {
     const metrics = createInvocationMetrics(undefined, logger, {
       env: enabledEnv({ MONIUM_METRICS_TIMEOUT_MS: configured }),

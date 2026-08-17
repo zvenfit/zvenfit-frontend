@@ -15,7 +15,7 @@ ZvenFit. Техническое устройство метрик и ручна�
 | Именование | Глобальные alerts, log metrics и channels получают `ZvenFit · <смысл>`; заголовки графиков внутри dashboard не повторяют `ZvenFit` |
 | Компоненты и функции | `service`/`meta.service` определяет компонент, `resource_id` — конкретную функцию |
 | Event counts | Дискретные события считаются log-derived metrics |
-| Direct metrics | OTLP используется для heartbeat и состояния Telegram-очереди; direct series ограничивается полным набором `application`, `environment`, `component`, `resource_id` |
+| Direct metrics | OTLP используется для heartbeat и состояния Telegram-очереди; direct series ограничивается полным набором `application`, `environment`, `component`, `resource_id`; exporter ограничен `3s` и контролируется независимым log-based alert |
 | Platform signals | Runtime errors, throttling, queue, inflight, memory и duration берутся из managed Cloud Functions metrics |
 | SLO | Не внедряется по текущему решению владельца; paging остаётся на фактических потерях/сбоях и технических причинах |
 | No data | `Alarm` только для retry heartbeat, `Warning` для YDB storage, `OK` для событийных и runtime-error сигналов |
@@ -75,7 +75,7 @@ Monium не выполняет запрос и показывает пустой
 
 ## Desired-state drift
 
-Все шестнадцать alerts хранят человекочитаемые названия и taxonomy labels в
+Все семнадцать alerts хранят человекочитаемые названия и taxonomy labels в
 `scripts/monitoring.config.json`. Полный native JSON dashboard хранится отдельно
 в `scripts/monitoring.dashboard.json`; он не содержит alerts, log metrics или
 notification channels и не является входом для drift-check. Канонический
@@ -164,6 +164,10 @@ Runtime errors и throttling всех трёх функций покрывают
 на production-борде заменён, чтобы единичный выброс не искажал основной сигнал. Log-derived
 `zvenfit_retry_worker_log_heartbeat_1m` отдельно подтверждает поставку structured
 events и не создаёт второй paging-сигнал.
+`zvenfit_monium_metrics_failures_5m` считает ошибки инициализации/экспорта OTLP
+по Cloud Logging, поэтому alert на него не зависит от контролируемого export path.
+Alert использует окно `30m` и пороги `>2`/`>5`: одиночный сетевой таймаут
+остаётся диагностикой, а paging начинается только при устойчивой деградации.
 YDB SQL latency считается только по фазе `query_execute`; медленные
 `session_acquire` и `session_create` выводятся отдельным диагностическим
 графиком без paging-alert.
@@ -179,8 +183,9 @@ YDB SQL latency считается только по фазе `query_execute`; �
 4. Для log-derived alert сверить source selector/grouping и выходную series.
    Поставка log aggregates может занимать до трёх минут.
 5. Для direct gauges сопоставить heartbeat/backlog с `retry_worker_completed` и
-   log-derived heartbeat; для managed metrics искать подтверждение на соседних
-   platform-графиках.
+   log-derived heartbeat. При `monium_metrics_export_error` проверить error code,
+   график exporter failures и длительность функции; для managed metrics искать
+   подтверждение на соседних platform-графиках.
 6. После восстановления проверить переход `OK` и доставку в Telegram и email.
 
 Empty event graph при зелёном alert — нормальное состояние. Порог не ослабляется

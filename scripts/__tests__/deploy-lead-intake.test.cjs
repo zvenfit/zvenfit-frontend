@@ -14,6 +14,7 @@ const gatewayDeployScript = fs.readFileSync(path.join(ROOT, 'scripts/deploy-stag
 const productionWorkflow = fs.readFileSync(path.join(ROOT, '.github/workflows/main.yml'), 'utf8');
 const stagingWorkflow = fs.readFileSync(path.join(ROOT, '.github/workflows/staging.yml'), 'utf8');
 const reusableWorkflow = fs.readFileSync(path.join(ROOT, '.github/workflows/_deploy-environment.yml'), 'utf8');
+const envExample = fs.readFileSync(path.join(ROOT, '.env.example'), 'utf8');
 const packageJson = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
 
 test('production wrapper keeps every existing production resource name', () => {
@@ -225,6 +226,10 @@ test('lead direct metrics deploy the canonical application and function taxonomy
   ]) {
     assert.match(deployScript, new RegExp(`--environment ${variable}="\\$\\{${variable}\\}"`));
   }
+
+  assert.match(reusableWorkflow, /MONIUM_METRICS_TIMEOUT_MS: '3000'/);
+  assert.match(deployScript, /MONIUM_METRICS_TIMEOUT_MS="\$\{MONIUM_METRICS_TIMEOUT_MS:-3000\}"/);
+  assert.match(envExample, /^MONIUM_METRICS_TIMEOUT_MS=3000$/m);
 });
 
 test('lead deployment packages the environment-specific artifact with its own entrypoint', () => {

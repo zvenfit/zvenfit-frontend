@@ -1873,6 +1873,71 @@
           "truncate": "TRUNCATE_END"
         }
       }
+    },
+    {
+      "position": {
+        "x": "0",
+        "y": "106",
+        "w": "36",
+        "h": "8"
+      },
+      "multiSourceChart": {
+        "id": "4a0b58a3-1a6d-4f89-9b7e-1ad607738fa5",
+        "dataSources": [
+          {
+            "id": "25e8aa61-ae24-4434-8943-ac55fd249ace",
+            "type": "monitoring",
+            "downsampling": {
+              "gridAggregation": "GRID_AGGREGATION_UNSPECIFIED",
+              "gapFilling": "GAP_FILLING_UNSPECIFIED"
+            }
+          }
+        ],
+        "targets": [
+          {
+            "query": "series_sum({project=\"folder__b1ge1e4iopttj79hfdfm\", cluster=\"default\", service=\"logging_aggregates\", name=\"zvenfit_monium_metrics_failures_5m\", meta.application=\"zvenfit-frontend\", meta.environment=\"production\", meta.service=\"zvenfit-lead-intake\"})",
+            "hidden": false,
+            "name": "A",
+            "textMode": true,
+            "type": "monitoring",
+            "dataSourceId": "25e8aa61-ae24-4434-8943-ac55fd249ace",
+            "growDown": false
+          }
+        ],
+        "seriesOverrides": [],
+        "visualizationSettings": {
+          "type": "VISUALIZATION_TYPE_UNSPECIFIED",
+          "interpolate": "INTERPOLATE_UNSPECIFIED",
+          "yaxisSettings": {
+            "left": {
+              "type": "YAXIS_TYPE_LINEAR"
+            },
+            "right": {
+              "type": "YAXIS_TYPE_LINEAR"
+            }
+          },
+          "colorSchemeSettings": {
+            "automatic": {}
+          }
+        },
+        "thresholds": {
+          "items": [
+            {
+              "color": "#92db00",
+              "id": "0f395b03-8ca3-427f-8907-c8b137a60ac4"
+            }
+          ],
+          "showMode": "CONSTANT_LINE"
+        },
+        "title": "Monium: сбои экспорта метрик",
+        "legendSettings": {
+          "position": "POSITION_BOTTOM",
+          "list": {
+            "columnsCount": 0
+          },
+          "truncate": "TRUNCATE_END"
+        }
+      }
     }
   ],
   "links": [],
