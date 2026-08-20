@@ -301,7 +301,7 @@ test('YDB retry thresholds expose reachable Warning and Alarm states', () => {
   );
 });
 
-test('slow YDB alert warns on one event and alarms on three events in ten minutes', () => {
+test('slow YDB alert ignores one event, warns on two, and alarms on three in ten minutes', () => {
   const alert = config.alerts.find(item => item.id === 'zvenfit_slow_ydb_operations');
 
   assert.deepEqual(
@@ -312,9 +312,10 @@ test('slow YDB alert warns on one event and alarms on three events in ten minute
       operator: alert.operator,
       window: alert.window,
     },
-    { warning: 0.5, alarm: 2.5, aggregation: 'sum', operator: '>', window: '10m' },
+    { warning: 1.5, alarm: 2.5, aggregation: 'sum', operator: '>', window: '10m' },
   );
-  assert.match(monitoringDocs, /единичное превышение\s+даёт `Warning`/);
+  assert.match(monitoringDocs, /единичное превышение остаётся диагностикой/);
+  assert.match(monitoringDocs, /`Warning` требует минимум два превышения за 10 минут/);
   assert.match(monitoringDocs, /`Alarm` требует минимум три превышения за 10 минут/);
   assert.equal(alert.metricId, 'zvenfit_ydb_slow_operations_5m');
   assert.match(alert.metricSelector, /service="logging_aggregates"/);

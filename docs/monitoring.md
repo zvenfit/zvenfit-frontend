@@ -363,7 +363,7 @@ Functions, storage alert — две автоматические метрики 
 | `zvenfit_schedule_runtime_errors`     | log aggregate `zvenfit_schedule_runtime_errors_1m` | `max` |   `> 0` | `> 0.5` |     5m |    3m | OK      |
 | `zvenfit_schedule_cancellations`      | log aggregate `zvenfit_schedule_client_cancellations_5m` | `sum` | `> 0` | `> 9.5` |    10m |    3m | OK      |
 | `zvenfit_ydb_retries`                 | log aggregate `zvenfit_ydb_retries_5m`       | `sum`    | `> 4.5` | `> 5.5` |    10m |    3m | OK      |
-| `zvenfit_slow_ydb_operations`         | log aggregate `zvenfit_ydb_slow_operations_5m` | `sum`  | `> 0.5` | `> 2.5` |    10m |    3m | OK      |
+| `zvenfit_slow_ydb_operations`         | log aggregate `zvenfit_ydb_slow_operations_5m` | `sum`  | `> 1.5` | `> 2.5` |    10m |    3m | OK      |
 | `zvenfit_rate-limited_leads`          | log aggregate `zvenfit_lead_rate_limited_5m` | `sum`    |   `> 0` |   `> 5` |    10m |    3m | OK      |
 | `zvenfit_persisted_leads_volume`      | log aggregate `zvenfit_leads_persisted_5m`   | `sum`    |  `> 10` |  `> 20` |    10m |    3m | OK      |
 | `zvenfit_retry_worker_heartbeat`      | direct `zvenfit_retry_worker_heartbeat`      | `last`   | `< 0.9` | `< 0.5` |     5m |   30s | Alarm   |
@@ -375,8 +375,10 @@ Functions, storage alert — две автоматические метрики 
 
 Monium требует `Alarm > Warning`. Для целочисленных счётчиков промежуточное
 значение `0.5` техническое. Для error counters первая точка со значением `1`
-сразу даёт `Alarm`; для slow YDB пороги намеренно разведены: единичное превышение
-даёт `Warning`, а `Alarm` требует минимум три превышения за 10 минут. Для
+сразу даёт `Alarm`; для slow YDB пороги намеренно разведены:
+единичное превышение остаётся диагностикой;
+`Warning` требует минимум два превышения за 10 минут, а
+`Alarm` требует минимум три превышения за 10 минут. Для
 клиентских отмен первая точка даёт только `Warning`, а `Alarm` требует десять
 отмен за 10 минут. Heartbeat в норме всегда равен `1`; его основная проверка —
 политика `No data = Alarm`. Direct gauges и platform metrics используют задержку
@@ -428,9 +430,11 @@ heartbeat для диагностики самой поставки логов. 
 отличить отсутствие ошибок от поломки log aggregate pipeline.
 
 Read-only операции `list_telegram_candidates` и `get_telegram_queue_health`
-один раз повторяют `AbortError` через новую query и свежую YDB session. Успешное
-восстановление пишет `ydb_retry`; повторный abort по-прежнему завершает invocation
-ошибкой и попадает в runtime alert.
+один раз повторяют transient `AbortError`, `TimeoutError`, неклассифицированный
+`ClientError` и известные временные gRPC/transport-коды через новую query и
+свежую YDB session. Явные постоянные коды, например `PERMISSION_DENIED`, не
+повторяются. Успешное восстановление пишет `ydb_retry`; повторный transient
+сбой по-прежнему завершает invocation ошибкой и попадает в runtime alert.
 
 Fitbase не использует `functions_errors` как основной application alert: handler
 перехватывает недоступность upstream и возвращает контролируемый HTTP `502`, то

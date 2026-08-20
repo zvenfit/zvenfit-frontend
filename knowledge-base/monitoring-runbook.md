@@ -1,7 +1,7 @@
 ---
 type: runbook
 title: ZvenFit alerts, metrics and logs runbook
-updated: 2026-08-17
+updated: 2026-08-20
 ---
 
 # Alerts, metrics and logs runbook
@@ -21,6 +21,9 @@ is the project entry point and intentionally does not duplicate every selector.
   the independent `zvenfit_monium_metrics_failures_5m` log aggregate.
 - Exporter alert evaluates `30m`, warns after three failures, and alarms after
   six; isolated timeouts remain graph-only diagnostics.
+- Read-only retry-worker YDB queries retry one transient session/query failure;
+  write operations never opt in to this retry.
+- A single slow YDB query is graph-only; two in `10m` warn and three alarm.
 - Raw logs retain three days.
 - No Lockbox or new monitoring infrastructure without separate approval.
 - CDN query masking remains out of scope while no separate raw CDN pipeline is created.

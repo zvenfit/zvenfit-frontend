@@ -435,7 +435,7 @@
       "metricSelector": "{project=\"folder__b1ge1e4iopttj79hfdfm\", cluster=\"default\", service=\"logging_aggregates\", name=\"zvenfit_ydb_slow_operations_5m\"}",
       "aggregation": "sum",
       "operator": ">",
-      "warning": 0.5,
+      "warning": 1.5,
       "alarm": 2.5,
       "window": "10m",
       "delay": "3m",

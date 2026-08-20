@@ -170,7 +170,10 @@ Alert использует окно `30m` и пороги `>2`/`>5`: одино�
 остаётся диагностикой, а paging начинается только при устойчивой деградации.
 YDB SQL latency считается только по фазе `query_execute`; медленные
 `session_acquire` и `session_create` выводятся отдельным диагностическим
-графиком без paging-alert.
+графиком без paging-alert. Read-only проверки retry-worker один раз повторяют
+transient session/query failure через новую query; write-path заявки не
+повторяется этим механизмом. Единичный `ydb_slow_operation` остаётся только на
+графике, два события за `10m` дают `Warning`, три — `Alarm`.
 
 ## Разбор срабатывания
 
