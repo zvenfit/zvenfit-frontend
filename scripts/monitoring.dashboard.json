@@ -58,20 +58,18 @@
       "alertList": {
         "annotationNames": [],
         "groupByLabels": [],
-        "selectors": "{application = \"zvenfit-frontend\", environment = \"production\"}",
+        "selectors": "{application = \"zvenfit-frontend\", environment = \"production\", id = \"folder__b1ge1e4iopttj79hfdfm_zvenfit_lead_storage_errors|folder__b1ge1e4iopttj79hfdfm_zvenfit_permanent_telegram_failures|folder__b1ge1e4iopttj79hfdfm_zvenfit_fitbase_errors|folder__b1ge1e4iopttj79hfdfm_zvenfit_function_runtime_errors|folder__b1ge1e4iopttj79hfdfm_zvenfit_function_throttles|folder__b1ge1e4iopttj79hfdfm_zvenfit_schedule_runtime_errors|folder__b1ge1e4iopttj79hfdfm_zvenfit_schedule_cancellations|folder__b1ge1e4iopttj79hfdfm_zvenfit_ydb_retries|folder__b1ge1e4iopttj79hfdfm_zvenfit_slow_ydb_operations|folder__b1ge1e4iopttj79hfdfm_zvenfit_rate-limited_leads|folder__b1ge1e4iopttj79hfdfm_zvenfit_persisted_leads_volume|folder__b1ge1e4iopttj79hfdfm_zvenfit_retry_worker_heartbeat|folder__b1ge1e4iopttj79hfdfm_zvenfit_telegram_delivery_backlog|folder__b1ge1e4iopttj79hfdfm_zvenfit_rate_limit_health_errors|folder__b1ge1e4iopttj79hfdfm_zvenfit_monium_metrics_failures|folder__b1ge1e4iopttj79hfdfm_zvenfit_retry_trigger_errors|folder__b1ge1e4iopttj79hfdfm_zvenfit_ydb_storage_usage\"}",
         "showAllAnnotations": false,
         "title": "Состояние production",
         "pageSize": 100,
         "groupMultiAlert": true,
         "allLabelsGrouping": false,
         "projectId": "folder__b1ge1e4iopttj79hfdfm",
-        "widgetScope": "projectId",
         "orderByStatus": "ASC",
         "orderBy": "orderByStatus",
         "manualLayout": false,
         "_manualLayout": "manualLayout"
-      },
-      "widget": "alertList"
+      }
     },
     {
       "links": [],

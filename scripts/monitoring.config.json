@@ -62,6 +62,17 @@
       "scope": "dashboard-only",
       "workflow": "settings-json-export-import"
     },
+    "alertOverview": {
+      "title": "Состояние production",
+      "visualization": "alert-list",
+      "source": "alerts",
+      "filterStrategy": "fully-qualified-alert-id-allowlist",
+      "pageSize": 100,
+      "layout": {
+        "widthColumns": 36,
+        "heightRows": 5
+      }
+    },
     "quickLogAccess": {
       "title": "Быстрый доступ к логам",
       "position": "top",

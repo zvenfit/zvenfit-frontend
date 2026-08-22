@@ -83,9 +83,18 @@ test('native dashboard JSON is restorable and matches critical desired-state inv
     );
   }
 
-  const alertList = dashboardExport.widgets.find(widget => widget.widget === 'alertList');
-  assert.match(alertList.alertList.selectors, /application = "zvenfit-frontend"/);
-  assert.match(alertList.alertList.selectors, /environment = "production"/);
+  const alertListWidgets = dashboardExport.widgets.filter(widget => widget.alertList);
+  assert.equal(alertListWidgets.length, 1);
+  const alertList = alertListWidgets[0];
+  const alertIdAllowlist = config.alerts.map(alert => `${config.project}_${alert.id}`).join('|');
+  assert.equal(alertList.widget, undefined);
+  assert.equal(alertList.alertList.widgetScope, undefined);
+  assert.equal(alertList.alertList.title, config.dashboard.alertOverview.title);
+  assert.equal(
+    alertList.alertList.selectors,
+    `{application = "zvenfit-frontend", environment = "production", id = "${alertIdAllowlist}"}`,
+  );
+  assert.deepEqual(alertList.position, { x: '0', y: '9', w: '36', h: '5' });
 
   const chartTitles = dashboardExport.widgets
     .filter(widget => widget.multiSourceChart)

@@ -37,8 +37,11 @@ ZvenFit. Техническое устройство метрик и ручна�
 Alerts обязаны иметь `application` и `environment`. Однофункциональные alerts
 дополнительно имеют точный component `service` и человекочитаемый `resource_id`;
 в Cloud Functions multialert точная функция приходит через label subalert-а
-`resource_id`. Общий alert-list остаётся плоским и фильтруется по
-application/environment. Function-графики показывают `resource_id` в legend;
+`resource_id`. Статусная зона dashboard использует компактный `alertList` с явным
+allowlist полных alert ID из `scripts/monitoring.config.json`. В старом JSON виджета
+`widgetScope: "projectId"` заставлял Monium игнорировать прикладной selector и смешивать
+alerts разных приложений shared project; это поле и внешний `widget: "alertList"`
+возвращать нельзя. Function-графики показывают `resource_id` в legend;
 runtime errors и throttling реализованы multialert-ами, разложены по
 `resource_id` и группируют уведомления.
 

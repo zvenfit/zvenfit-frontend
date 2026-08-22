@@ -1,7 +1,7 @@
 ---
 type: dashboard
 title: ZvenFit production monitoring
-updated: 2026-08-17
+updated: 2026-08-22
 ---
 
 # Production monitoring dashboard
@@ -9,6 +9,10 @@ updated: 2026-08-17
 - URL: https://monium.yandex.cloud/projects/folder__b1ge1e4iopttj79hfdfm/dashboards/zvenfit-production-monitoring
 - Native JSON snapshot: [`scripts/monitoring.dashboard.json`](../scripts/monitoring.dashboard.json).
 - Purpose: production lead pipeline, Telegram delivery, Fitbase schedule, Cloud Functions, traffic, and YDB health.
+- The compact alert status list uses an explicit allowlist of all seventeen
+  fully-qualified ZvenFit alert IDs. Do not restore the legacy
+  `widgetScope: "projectId"` / outer `widget: "alertList"` fields: that schema made
+  Monium ignore the application selector and mix alerts from the shared project.
 - Reading order: alert statuses, Telegram queue and heartbeat, then application and Cloud Functions diagnostics.
 - The first row contains one-click `INFO за час` and `ERROR за час` links to
   production application logs. The same canonical URLs are tracked in the
