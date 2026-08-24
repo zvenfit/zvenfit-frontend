@@ -411,6 +411,7 @@ test('runtime multialert covers every production function and keeps schedule can
   assert.match(generalRuntimeAlert.metricSelector, /resource_id="zvenfit-telegram-lead\|/);
   assert.match(generalRuntimeAlert.metricSelector, /zvenfit-fitbase-schedule/);
   assert.match(generalRuntimeAlert.metricSelector, /zvenfit-site-traffic/);
+  assert.equal(generalRuntimeAlert.aggregation, 'max');
   assert.equal(generalRuntimeAlert.scope, 'production-functions');
   assert.deepEqual(generalRuntimeAlert.decomposeBy, ['resource_id']);
   assert.equal(generalRuntimeAlert.groupNotifications, true);

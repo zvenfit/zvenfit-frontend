@@ -3,6 +3,7 @@ import { channel, tracingChannel } from 'node:diagnostics_channel';
 
 import { safeErrorFields } from './errors';
 import { slowOperationMs } from '../ydb/config';
+import { initializationAttempts } from '../ydb/initialization-attempts';
 
 import type { JsonObject, LoggerLike } from '../types';
 
@@ -273,17 +274,23 @@ export async function prepareAndObserveYdbOperation<TPrepared, TResult>(
   callback: (prepared: TPrepared) => Promise<TResult>,
   options: ObserveYdbOperationOptions = {},
 ): Promise<TResult> {
-  const prepared = await prepare();
+  const startedAt = Date.now();
+  let prepared: TPrepared;
+  try {
+    prepared = await prepare();
+  } catch (error) {
+    const attempts = initializationAttempts(error);
+    writeLog(logger, 'error', {
+      event: 'ydb_operation_failed',
+      operation: operationName,
+      phase: 'client_preparation',
+      duration_ms: Date.now() - startedAt,
+      retry_attempts: 0,
+      ...(attempts === undefined ? {} : { initialization_attempts: attempts }),
+      ...safeErrorFields(error, { fallbackCode: 'ydb_initialization_error' }),
+    });
+    throw error;
+  }
 
   return observeYdbOperation(operationName, logger, () => callback(prepared), options);
 }
-
-export const _private = {
-  createOperationState,
-  errorChain,
-  isTransientReadError,
-  phaseFields,
-  slowSessionPhase,
-  subscribeToDiagnostics,
-  writeLog,
-};

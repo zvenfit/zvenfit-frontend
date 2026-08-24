@@ -360,7 +360,7 @@
       "displayName": "ZvenFit · Cloud Functions: ошибки выполнения",
       "scope": "production-functions",
       "metricSelector": "{project=\"folder__b1ge1e4iopttj79hfdfm\", service=\"serverless-functions\", name=\"functions_errors\", resource_id=\"zvenfit-telegram-lead|zvenfit-fitbase-schedule|zvenfit-site-traffic\"}",
-      "aggregation": "sum",
+      "aggregation": "max",
       "operator": ">",
       "warning": 0,
       "alarm": 0.5,

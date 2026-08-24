@@ -163,6 +163,9 @@ Runtime errors и throttling всех трёх функций покрывают
 разложенных по `resource_id`; уведомление показывает конкретную функцию, а
 события одного вычисления отправляются группой. Queue, inflight, memory и duration
 также разделены по `resource_id` и используются как диагностические графики.
+Runtime-error multialert агрегирует managed `functions_errors` через `max` за 5 минут:
+одна ошибка остаётся критической, но повторные `DGAUGE`-точки не выглядят как несколько
+независимых invocation. Их точное число определяется по системным Request ID в raw logs.
 Основной latency-график строит p95 из managed `duration_ms_histogram`; max duration
 на production-борде заменён, чтобы единичный выброс не искажал основной сигнал. Log-derived
 `zvenfit_retry_worker_log_heartbeat_1m` отдельно подтверждает поставку structured

@@ -1,7 +1,7 @@
 ---
 type: runbook
 title: ZvenFit alerts, metrics and logs runbook
-updated: 2026-08-20
+updated: 2026-08-24
 ---
 
 # Alerts, metrics and logs runbook
@@ -16,6 +16,8 @@ is the project entry point and intentionally does not duplicate every selector.
 - Components: `zvenfit-lead-intake`, `zvenfit-fitbase-schedule`, `zvenfit-site-traffic`.
 - Exact function: `resource_id`.
 - Runtime errors and throttling use grouped multialerts decomposed by `resource_id`.
+- Managed `functions_errors` uses `max` over `5m`: one failed invocation still alarms,
+  while repeated `DGAUGE` samples are not presented as an invocation count.
 - Direct gauges require `application`, `environment`, `component`, and `resource_id`.
 - OTLP export has a bounded `3s` timeout; exporter failures are counted through
   the independent `zvenfit_monium_metrics_failures_5m` log aggregate.
@@ -23,6 +25,8 @@ is the project entry point and intentionally does not duplicate every selector.
   six; isolated timeouts remain graph-only diagnostics.
 - Read-only retry-worker YDB queries retry one transient session/query failure;
   write operations never opt in to this retry.
+- YDB client-preparation failures record `initialization_attempts` separately from
+  query/session `retry_attempts`; message-derived codes come only from a fixed safe allowlist.
 - A single slow YDB query is graph-only; two in `10m` warn and three alarm.
 - Raw logs retain three days.
 - No Lockbox or new monitoring infrastructure without separate approval.

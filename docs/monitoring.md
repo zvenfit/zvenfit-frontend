@@ -358,7 +358,7 @@ Functions, storage alert — две автоматические метрики 
 | `zvenfit_lead_storage_errors`         | log aggregate `zvenfit_lead_storage_errors_1m` | `max`  |   `> 0` | `> 0.5` |     5m |    3m | OK      |
 | `zvenfit_permanent_telegram_failures` | log aggregate `zvenfit_telegram_delivery_failed_1m` | `max` | `> 0` | `> 0.5` | 5m | 3m | OK |
 | `zvenfit_fitbase_errors`              | log aggregate `zvenfit_fitbase_errors_5m`    | `max`    |   `> 0` | `> 0.5` |    10m |    3m | OK      |
-| `zvenfit_function_runtime_errors`     | `functions_errors` for three production functions | `sum` | `> 0` | `> 0.5` | 5m | 30s | OK |
+| `zvenfit_function_runtime_errors`     | `functions_errors` for three production functions | `max` | `> 0` | `> 0.5` | 5m | 30s | OK |
 | `zvenfit_function_throttles`          | `functions_throttles` for three production functions | `sum` | `> 0` | `> 0.5` | 5m | 30s | OK |
 | `zvenfit_schedule_runtime_errors`     | log aggregate `zvenfit_schedule_runtime_errors_1m` | `max` |   `> 0` | `> 0.5` |     5m |    3m | OK      |
 | `zvenfit_schedule_cancellations`      | log aggregate `zvenfit_schedule_client_cancellations_5m` | `sum` | `> 0` | `> 9.5` |    10m |    3m | OK      |
@@ -435,6 +435,10 @@ Read-only операции `list_telegram_candidates` и `get_telegram_queue_hea
 свежую YDB session. Явные постоянные коды, например `PERMISSION_DENIED`, не
 повторяются. Успешное восстановление пишет `ydb_retry`; повторный transient
 сбой по-прежнему завершает invocation ошибкой и попадает в runtime alert.
+Ошибка подготовки YDB client пишет `phase=client_preparation` и отдельный
+`initialization_attempts`; поле `retry_attempts` остаётся счётчиком query/session
+retry и не смешивается с попытками инициализации driver. Из message/details в
+structured error допускается только фиксированный allowlist технических кодов.
 
 Fitbase не использует `functions_errors` как основной application alert: handler
 перехватывает недоступность upstream и возвращает контролируемый HTTP `502`, то
@@ -450,6 +454,11 @@ Fitbase не использует `functions_errors` как основной app
 ```text
 {project="folder__b1ge1e4iopttj79hfdfm", service="serverless-functions", name="functions_errors", resource_id="zvenfit-telegram-lead|zvenfit-fitbase-schedule|zvenfit-site-traffic"}
 ```
+
+Managed `functions_errors` имеет тип `DGAUGE`, поэтому runtime multialert использует
+`max` за окно 5 минут. Одна ошибка по-прежнему немедленно даёт `Alarm`, но повторные
+точки одной platform-серии не складываются в псевдосчётчик invocation. Точное число
+упавших запусков подтверждается по системным `ERROR ... RequestID` в raw logs.
 
 Несмотря на название метки, live Monitoring API возвращает в `resource_id`
 имена функций, а не их облачные ID `d4e…`. Селектор проверен по фактическим

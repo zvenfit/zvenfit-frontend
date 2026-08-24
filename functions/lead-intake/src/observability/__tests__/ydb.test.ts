@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { channel, tracingChannel } from 'node:diagnostics_channel';
 import test from 'node:test';
 
+import { recordInitializationAttempts } from '../../ydb/initialization-attempts';
 import { observeYdbOperation, prepareAndObserveYdbOperation } from '../ydb';
 
 import type { JsonObject, LoggerLike } from '../../types';
@@ -286,6 +287,33 @@ test('excludes client preparation from operation latency', async () => {
   } finally {
     Date.now = originalNow;
   }
+});
+
+test('logs client preparation failures with their initialization attempts', async () => {
+  const logger = memoryLogger();
+  const error = Object.assign(new Error('private initialization details'), {
+    code: 'UNAVAILABLE',
+  });
+  recordInitializationAttempts(error, 2);
+
+  await assert.rejects(
+    prepareAndObserveYdbOperation(
+      'list_telegram_candidates',
+      logger,
+      async () => {
+        throw error;
+      },
+      async () => 'ok',
+    ),
+  );
+
+  const failure = recordByEvent(logger.records, 'ydb_operation_failed');
+  assert.equal(failure.phase, 'client_preparation');
+  assert.equal(failure.initialization_attempts, 2);
+  assert.equal(failure.retry_attempts, 0);
+  assert.equal(failure.error_code, 'UNAVAILABLE');
+  assert.equal(failure.retriable, true);
+  assert.doesNotMatch(JSON.stringify(failure), /private initialization details/);
 });
 
 test('records query and session phase durations without logging SQL text', async () => {
