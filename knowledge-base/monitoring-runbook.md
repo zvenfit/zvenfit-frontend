@@ -27,6 +27,8 @@ is the project entry point and intentionally does not duplicate every selector.
   write operations never opt in to this retry.
 - YDB client-preparation failures record `initialization_attempts` separately from
   query/session `retry_attempts`; message-derived codes come only from a fixed safe allowlist.
+- Transient YDB driver discovery uses up to three initialization attempts with
+  `250ms` / `500ms` exponential backoff; permanent initialization errors fail immediately.
 - A single slow YDB query is graph-only; two in `10m` warn and three alarm.
 - Raw logs retain three days.
 - No Lockbox or new monitoring infrastructure without separate approval.

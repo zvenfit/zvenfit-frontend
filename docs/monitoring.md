@@ -439,6 +439,8 @@ Read-only операции `list_telegram_candidates` и `get_telegram_queue_hea
 `initialization_attempts`; поле `retry_attempts` остаётся счётчиком query/session
 retry и не смешивается с попытками инициализации driver. Из message/details в
 structured error допускается только фиксированный allowlist технических кодов.
+Transient discovery-сбой при подготовке driver допускает до трёх попыток с
+exponential backoff `250ms` / `500ms`; постоянные ошибки не повторяются.
 
 Fitbase не использует `functions_errors` как основной application alert: handler
 перехватывает недоступность upstream и возвращает контролируемый HTTP `502`, то
