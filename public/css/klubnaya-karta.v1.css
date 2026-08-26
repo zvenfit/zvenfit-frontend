@@ -45,6 +45,20 @@ html[data-zvenfit-page="club-card"] .club-card-logo img {
   height: 29px;
 }
 
+html[data-zvenfit-page="club-card"] .menu_grid-2 > .link-block-page1 {
+  place-self: center start;
+}
+
+html[data-zvenfit-page="club-card"] .menu_grid-2 > .link-block-page2,
+html[data-zvenfit-page="club-card"] .menu_grid-2 > .club-card-logo,
+html[data-zvenfit-page="club-card"] .menu_grid-2 > .link-block-page3 {
+  place-self: center;
+}
+
+html[data-zvenfit-page="club-card"] .menu_grid-2 > .link-block-page4 {
+  place-self: center end;
+}
+
 html[data-zvenfit-page="club-card"] .photo_page.club-card-hero {
   min-height: 420px;
   height: min(70vh, 760px);
