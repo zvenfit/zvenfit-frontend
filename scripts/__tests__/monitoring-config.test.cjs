@@ -296,6 +296,7 @@ test('count-sensitive and caught application alerts use the log aggregate pipeli
     'zvenfit_slow_ydb_operations',
     'zvenfit_rate-limited_leads',
     'zvenfit_persisted_leads_volume',
+    'zvenfit_retry_worker_heartbeat',
     'zvenfit_rate_limit_health_errors',
     'zvenfit_monium_metrics_failures',
   ]);
@@ -375,7 +376,7 @@ test('YDB storage alert uses live database metrics and 70/85 percent thresholds'
   assert.equal(alert.noData, 'WARNING');
 });
 
-test('direct lead health alerts select the same canonical taxonomy emitted by the function', () => {
+test('lead health alerts select the same canonical taxonomy emitted by the function', () => {
   const expectedLabels = {
     application: 'zvenfit-frontend',
     environment: 'production',
@@ -383,16 +384,19 @@ test('direct lead health alerts select the same canonical taxonomy emitted by th
     resource_id: 'zvenfit-telegram-lead',
   };
 
-  for (const id of ['zvenfit_retry_worker_heartbeat', 'zvenfit_telegram_delivery_backlog']) {
-    const alert = config.alerts.find(item => item.id === id);
+  const heartbeat = config.alerts.find(item => item.id === 'zvenfit_retry_worker_heartbeat');
+  const backlog = config.alerts.find(item => item.id === 'zvenfit_telegram_delivery_backlog');
 
-    assert.ok(alert, `${id} is missing`);
-    assert.match(alert.metricSelector, /application="zvenfit-frontend"/);
-    assert.match(alert.metricSelector, /environment="production"/);
-    assert.match(alert.metricSelector, /component="zvenfit-lead-intake"/);
-    assert.match(alert.metricSelector, /resource_id="zvenfit-telegram-lead"/);
-    assert.deepEqual(alert.labels, expectedLabels);
-  }
+  assert.match(heartbeat.metricSelector, /meta\.application="zvenfit-frontend"/);
+  assert.match(heartbeat.metricSelector, /meta\.environment="production"/);
+  assert.match(heartbeat.metricSelector, /meta\.service="zvenfit-lead-intake"/);
+  assert.deepEqual(heartbeat.labels, expectedLabels);
+
+  assert.match(backlog.metricSelector, /application="zvenfit-frontend"/);
+  assert.match(backlog.metricSelector, /environment="production"/);
+  assert.match(backlog.metricSelector, /component="zvenfit-lead-intake"/);
+  assert.match(backlog.metricSelector, /resource_id="zvenfit-telegram-lead"/);
+  assert.deepEqual(backlog.labels, expectedLabels);
 });
 
 test('runtime multialert covers every production function and keeps schedule cancellations separate', () => {
@@ -492,7 +496,7 @@ test('critical lead events use durable log aggregates with exact production sele
 });
 
 test('direct OTLP metrics are limited to current-state gauges', () => {
-  const directIds = ['zvenfit_retry_worker_heartbeat', 'zvenfit_telegram_delivery_backlog'];
+  const directIds = ['zvenfit_telegram_delivery_backlog'];
 
   for (const id of directIds) {
     const alert = config.alerts.find(item => item.id === id);
@@ -500,6 +504,8 @@ test('direct OTLP metrics are limited to current-state gauges', () => {
     assert.equal(alert.delay, '30s', `${id} should use direct metric latency`);
   }
   assert.doesNotMatch(directMetricsSource, /addCounter/);
+  assert.match(directMetricsSource, /recordGauge\('zvenfit_retry_worker_heartbeat'/);
+  assert.match(directMetricsSource, /recordGauge\('zvenfit_telegram_oldest_pending_age_seconds'/);
   assert.doesNotMatch(directMetricsSource, /zvenfit_lead_storage_errors/);
   assert.doesNotMatch(directMetricsSource, /zvenfit_telegram_delivery_failed_1m/);
 });
@@ -537,11 +543,14 @@ test('retry worker health covers missing heartbeats, delivery backlog, and trigg
   const trigger = config.alerts.find(item => item.id === 'zvenfit_retry_trigger_errors');
 
   assert.equal(heartbeat.noData, 'ALARM');
-  assert.equal(heartbeat.aggregation, 'last');
+  assert.equal(heartbeat.metricId, 'zvenfit_retry_worker_log_heartbeat_1m');
+  assert.equal(heartbeat.aggregation, 'max');
   assert.equal(heartbeat.operator, '<');
   assert.deepEqual({ warning: heartbeat.warning, alarm: heartbeat.alarm }, { warning: 0.9, alarm: 0.5 });
   assert.ok(heartbeat.alarm < heartbeat.warning);
-  assert.match(heartbeat.metricSelector, /name="zvenfit_retry_worker_heartbeat"/);
+  assert.match(heartbeat.metricSelector, /service="logging_aggregates"/);
+  assert.match(heartbeat.metricSelector, /name="zvenfit_retry_worker_log_heartbeat_1m"/);
+  assert.equal(heartbeat.delay, '3m');
   assert.deepEqual(
     { warning: backlog.warning, alarm: backlog.alarm, aggregation: backlog.aggregation },
     { warning: 600, alarm: 1800, aggregation: 'last' },
@@ -582,7 +591,7 @@ test('dashboard includes diagnostic p95 duration and an independent log-pipeline
   assert.equal(logHeartbeat.source, 'zvenfit_retry_worker_log_heartbeat_1m');
   assert.match(logHeartbeat.query, /service="logging_aggregates"/);
   assert.match(logHeartbeat.query, /name="zvenfit_retry_worker_log_heartbeat_1m"/);
-  assert.equal(logHeartbeat.pagingAlert, false);
+  assert.equal(logHeartbeat.pagingAlert, true);
   assert.deepEqual(logHeartbeat.layout, { widthColumns: 36, heightRows: 8 });
 });
 
@@ -614,9 +623,16 @@ test('metrics exporter failures use logs so the alert survives a broken OTLP pat
   );
   assert.match(monitoringDocs, /Три ошибки за 30 минут дают `Warning`/);
   assert.match(monitoringDocs, /шесть —\s+`Alarm`/);
+  assert.equal(alert.level, 'INFO');
+  assert.deepEqual(alert.notificationChannelIds, ['zvenfit_email_alerts']);
+  assert.deepEqual(alert.notificationStatuses, ['ALARM', 'WARNING', 'OK']);
+  assert.equal(alert.repeatMinutes, 0);
+  assert.match(source, /event === 'monium_metrics_export_error' && logger\.warn/);
+  assert.match(source, /['"]monium_metrics_export_completed['"]/);
+  assert.match(monitoringDocs, /`monium_metrics_export_completed`/);
   assert.equal(chart.source, metric.id);
   assert.equal(chart.query, widget.multiSourceChart.targets[0].query);
-  assert.equal(chart.pagingAlert, true);
+  assert.equal(chart.pagingAlert, false);
   assert.deepEqual(widget.position, { x: '0', y: '106', w: '36', h: '8' });
 });
 

@@ -39,7 +39,10 @@ const ALERT_FIELDS = [
   'decomposeBy',
   'groupNotifications',
   'notificationChannelIds',
+  'notificationStatuses',
+  'repeatMinutes',
 ];
+
 function normalizeValue(value) {
   if (Array.isArray(value)) {
     const normalized = value.map(normalizeValue);
@@ -80,14 +83,24 @@ function normalizeCollection(items, fields, name) {
 }
 
 function normalizeMonitoringState(state, options = {}) {
-  const { inheritDefaultChannels = true } = options;
+  const { inheritNotificationPolicy = true } = options;
   const defaultChannelIds = state.notificationPolicy?.channelIds;
+  const defaultStatuses = state.notificationPolicy?.statuses;
+  const defaultRepeatMinutes = state.notificationPolicy?.repeatMinutes;
   const alerts = state.alerts?.map(alert => ({
     ...alert,
     notificationChannelIds:
-      inheritDefaultChannels && alert.notificationChannelIds === undefined
+      inheritNotificationPolicy && alert.notificationChannelIds === undefined
         ? defaultChannelIds
         : alert.notificationChannelIds,
+    notificationStatuses:
+      inheritNotificationPolicy && alert.notificationStatuses === undefined
+        ? defaultStatuses
+        : alert.notificationStatuses,
+    repeatMinutes:
+      inheritNotificationPolicy && !Object.prototype.hasOwnProperty.call(alert, 'repeatMinutes')
+        ? defaultRepeatMinutes
+        : alert.repeatMinutes,
   }));
 
   return {
@@ -134,8 +147,8 @@ function diffCollection(kind, expectedItems, actualItems) {
 }
 
 function diffMonitoringState(expectedState, actualState) {
-  const expected = normalizeMonitoringState(expectedState, { inheritDefaultChannels: true });
-  const actual = normalizeMonitoringState(actualState, { inheritDefaultChannels: false });
+  const expected = normalizeMonitoringState(expectedState, { inheritNotificationPolicy: true });
+  const actual = normalizeMonitoringState(actualState, { inheritNotificationPolicy: false });
 
   return [
     ...diffCollection('logMetrics', expected.logMetrics, actual.logMetrics),

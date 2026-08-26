@@ -19,10 +19,14 @@ is the project entry point and intentionally does not duplicate every selector.
 - Managed `functions_errors` uses `max` over `5m`: one failed invocation still alarms,
   while repeated `DGAUGE` samples are not presented as an invocation count.
 - Direct gauges require `application`, `environment`, `component`, and `resource_id`.
-- OTLP export has a bounded `3s` timeout; exporter failures are counted through
+- OTLP export has a bounded `5s` timeout; exporter failures are counted through
   the independent `zvenfit_monium_metrics_failures_5m` log aggregate.
 - Exporter alert evaluates `30m`, warns after three failures, and alarms after
-  six; isolated timeouts remain graph-only diagnostics.
+  six; it sends email once without Telegram or repeats, while isolated timeouts
+  remain graph-only diagnostics.
+- Critical retry-worker heartbeat uses the independent
+  `zvenfit_retry_worker_log_heartbeat_1m` aggregate; direct OTLP heartbeat is
+  diagnostic only.
 - Read-only retry-worker YDB queries retry one transient session/query failure;
   write operations never opt in to this retry.
 - YDB client-preparation failures record `initialization_attempts` separately from
@@ -69,8 +73,11 @@ personal access, but the Git-tracked links are the shared source of truth.
 3. Search raw logs by component and narrow by event/request/error fields.
 4. Inspect the source log metric or direct/platform series.
 5. Confirm the later `OK` transition and delivery to both notification methods.
+   The exporter-failure alert is the documented exception: email once, without
+   Telegram or repeat delivery.
 
-For `monium_metrics_export_error`, first check `meta.error_code` and the
+For `monium_metrics_export_error`, first check `meta.error_type`,
+`meta.error_code`, `meta.duration_ms`, and the
 **Monium: сбои экспорта метрик** chart. The log-derived alert remains observable
 when the direct OTLP heartbeat path itself is degraded.
 

@@ -14,6 +14,10 @@ function liveSnapshot() {
   const snapshot = JSON.parse(JSON.stringify(config));
   for (const alert of snapshot.alerts) {
     alert.notificationChannelIds ??= [...snapshot.notificationPolicy.channelIds];
+    alert.notificationStatuses ??= [...snapshot.notificationPolicy.statuses];
+    if (!Object.prototype.hasOwnProperty.call(alert, 'repeatMinutes')) {
+      alert.repeatMinutes = snapshot.notificationPolicy.repeatMinutes;
+    }
   }
 
   return snapshot;
@@ -39,6 +43,22 @@ test('reports a live alert whose notification channels are omitted', () => {
   assert.match(
     diffMonitoringState(config, snapshot).join('\n'),
     /alerts\.zvenfit_schedule_runtime_errors\.notificationChannelIds/,
+  );
+});
+
+test('preserves per-alert notification delivery overrides', () => {
+  const snapshot = liveSnapshot();
+  const alert = snapshot.alerts.find(item => item.id === 'zvenfit_monium_metrics_failures');
+
+  assert.deepEqual(alert.notificationChannelIds, ['zvenfit_email_alerts']);
+  assert.deepEqual(alert.notificationStatuses, ['ALARM', 'WARNING', 'OK']);
+  assert.equal(alert.repeatMinutes, 0);
+  assert.deepEqual(diffMonitoringState(config, snapshot), []);
+
+  alert.repeatMinutes = 30;
+  assert.match(
+    diffMonitoringState(config, snapshot).join('\n'),
+    /alerts\.zvenfit_monium_metrics_failures\.repeatMinutes/,
   );
 });
 

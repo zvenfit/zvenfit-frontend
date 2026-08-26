@@ -15,9 +15,9 @@ ZvenFit. Техническое устройство метрик и ручна�
 | Именование | Глобальные alerts, log metrics и channels получают `ZvenFit · <смысл>`; заголовки графиков внутри dashboard не повторяют `ZvenFit` |
 | Компоненты и функции | `service`/`meta.service` определяет компонент, `resource_id` — конкретную функцию |
 | Event counts | Дискретные события считаются log-derived metrics |
-| Direct metrics | OTLP используется для heartbeat и состояния Telegram-очереди; direct series ограничивается полным набором `application`, `environment`, `component`, `resource_id`; exporter ограничен `3s` и контролируется независимым log-based alert |
+| Direct metrics | OTLP используется для диагностического heartbeat и состояния Telegram-очереди; direct series ограничивается полным набором `application`, `environment`, `component`, `resource_id`; exporter ограничен `5s` и контролируется независимым log-based alert |
 | Platform signals | Runtime errors, throttling, queue, inflight, memory и duration берутся из managed Cloud Functions metrics |
-| SLO | Не внедряется по текущему решению владельца; paging остаётся на фактических потерях/сбоях и технических причинах |
+| SLO | Не внедряется по текущему решению владельца; paging остаётся на фактических потерях и сбоях пользовательских/бизнес-процессов; отказ только direct telemetry — email без повторов |
 | No data | `Alarm` только для retry heartbeat, `Warning` для YDB storage, `OK` для событийных и runtime-error сигналов |
 | Traffic | Текущая схема stateless; маркетинговые конверсии остаются в маркетинговых счётчиках |
 | Новая инфраструктура | Bucket, service account, IAM binding, trigger, function, raw-log export, state storage и Lockbox создаются только после отдельного согласования |
@@ -168,12 +168,16 @@ Runtime-error multialert агрегирует managed `functions_errors` чер�
 независимых invocation. Их точное число определяется по системным Request ID в raw logs.
 Основной latency-график строит p95 из managed `duration_ms_histogram`; max duration
 на production-борде заменён, чтобы единичный выброс не искажал основной сигнал. Log-derived
-`zvenfit_retry_worker_log_heartbeat_1m` отдельно подтверждает поставку structured
-events и не создаёт второй paging-сигнал.
+`zvenfit_retry_worker_log_heartbeat_1m` — основной независимый от OTLP paging-
+сигнал активности retry-worker; direct gauge остаётся диагностическим.
 `zvenfit_monium_metrics_failures_5m` считает ошибки инициализации/экспорта OTLP
 по Cloud Logging, поэтому alert на него не зависит от контролируемого export path.
 Alert использует окно `30m` и пороги `>2`/`>5`: одиночный сетевой таймаут
-остаётся диагностикой, а paging начинается только при устойчивой деградации.
+остаётся диагностикой. Alert доставляется только по email, без повторов и без
+Telegram paging. В live-форме отсутствие повторов задаётся `0s` и отображается
+как «Никогда»; уровень карточки — `Info`, потому что отдельного уровня `Warning`
+у Monium нет. Экспорт ограничен `5s`; события содержат `outcome`,
+`duration_ms`, `error_type` и `error_code` без исходного текста ошибки.
 YDB SQL latency считается только по фазе `query_execute`; медленные
 `session_acquire` и `session_create` выводятся отдельным диагностическим
 графиком без paging-alert. Read-only проверки retry-worker один раз повторяют
@@ -192,10 +196,13 @@ transient session/query failure через новую query; write-path заяв
 4. Для log-derived alert сверить source selector/grouping и выходную series.
    Поставка log aggregates может занимать до трёх минут.
 5. Для direct gauges сопоставить heartbeat/backlog с `retry_worker_completed` и
-   log-derived heartbeat. При `monium_metrics_export_error` проверить error code,
-   график exporter failures и длительность функции; для managed metrics искать
-   подтверждение на соседних platform-графиках.
+   основным log-derived heartbeat. При `monium_metrics_export_error` проверить
+   `error_type`, `error_code`, `duration_ms`, график exporter failures и
+   длительность функции; для managed metrics искать подтверждение на соседних
+   platform-графиках.
 6. После восстановления проверить переход `OK` и доставку в Telegram и email.
+   Для `zvenfit_monium_metrics_failures` ожидается только одно email-уведомление:
+   Telegram и повторная отправка для него намеренно отключены.
 
 Empty event graph при зелёном alert — нормальное состояние. Порог не ослабляется
 по одному шумному срабатыванию: сначала проверяются raw logs, series, окно и

@@ -235,9 +235,9 @@ test('lead direct metrics deploy the canonical application and function taxonomy
     assert.match(deployScript, new RegExp(`--environment ${variable}="\\$\\{${variable}\\}"`));
   }
 
-  assert.match(reusableWorkflow, /MONIUM_METRICS_TIMEOUT_MS: '3000'/);
-  assert.match(deployScript, /MONIUM_METRICS_TIMEOUT_MS="\$\{MONIUM_METRICS_TIMEOUT_MS:-3000\}"/);
-  assert.match(envExample, /^MONIUM_METRICS_TIMEOUT_MS=3000$/m);
+  assert.match(reusableWorkflow, /MONIUM_METRICS_TIMEOUT_MS: '5000'/);
+  assert.match(deployScript, /MONIUM_METRICS_TIMEOUT_MS="\$\{MONIUM_METRICS_TIMEOUT_MS:-5000\}"/);
+  assert.match(envExample, /^MONIUM_METRICS_TIMEOUT_MS=5000$/m);
 });
 
 test('lead deployment packages the environment-specific artifact with its own entrypoint', () => {

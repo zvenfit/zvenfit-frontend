@@ -117,7 +117,7 @@
       "source": "zvenfit_retry_worker_log_heartbeat_1m",
       "query": "series_sum({project=\"folder__b1ge1e4iopttj79hfdfm\", cluster=\"default\", service=\"logging_aggregates\", name=\"zvenfit_retry_worker_log_heartbeat_1m\"})",
       "visualization": "chart",
-      "pagingAlert": false,
+      "pagingAlert": true,
       "layout": {
         "widthColumns": 36,
         "heightRows": 8
@@ -128,7 +128,7 @@
       "source": "zvenfit_monium_metrics_failures_5m",
       "query": "series_sum({project=\"folder__b1ge1e4iopttj79hfdfm\", cluster=\"default\", service=\"logging_aggregates\", name=\"zvenfit_monium_metrics_failures_5m\", meta.application=\"zvenfit-frontend\", meta.environment=\"production\", meta.service=\"zvenfit-lead-intake\"})",
       "visualization": "chart",
-      "pagingAlert": true,
+      "pagingAlert": false,
       "layout": {
         "widthColumns": 36,
         "heightRows": 8
@@ -484,13 +484,14 @@
     {
       "id": "zvenfit_retry_worker_heartbeat",
       "displayName": "ZvenFit · Retry-worker: нет активности",
-      "metricSelector": "{project=\"folder__b1ge1e4iopttj79hfdfm\", cluster=\"default\", service=\"zvenfit-frontend\", name=\"zvenfit_retry_worker_heartbeat\", application=\"zvenfit-frontend\", environment=\"production\", component=\"zvenfit-lead-intake\", resource_id=\"zvenfit-telegram-lead\"}",
-      "aggregation": "last",
+      "metricId": "zvenfit_retry_worker_log_heartbeat_1m",
+      "metricSelector": "{project=\"folder__b1ge1e4iopttj79hfdfm\", cluster=\"default\", service=\"logging_aggregates\", name=\"zvenfit_retry_worker_log_heartbeat_1m\", meta.application=\"zvenfit-frontend\", meta.environment=\"production\", meta.service=\"zvenfit-lead-intake\"}",
+      "aggregation": "max",
       "operator": "<",
       "warning": 0.9,
       "alarm": 0.5,
       "window": "5m",
-      "delay": "30s",
+      "delay": "3m",
       "noData": "ALARM",
       "labels": { "application": "zvenfit-frontend", "environment": "production", "service": "zvenfit-lead-intake", "resource_id": "zvenfit-telegram-lead" }
     },
@@ -533,6 +534,10 @@
       "window": "30m",
       "delay": "3m",
       "noData": "OK",
+      "level": "INFO",
+      "notificationChannelIds": ["zvenfit_email_alerts"],
+      "notificationStatuses": ["ALARM", "WARNING", "OK"],
+      "repeatMinutes": 0,
       "labels": { "application": "zvenfit-frontend", "environment": "production", "service": "zvenfit-lead-intake", "resource_id": "zvenfit-telegram-lead" }
     },
     {
