@@ -110,8 +110,8 @@ if (relativeHtmlLink) {
 if (!clubCardHtml.includes('<link rel="canonical" href="https://zvenfit.ru/klubnaya-karta/">')) {
   throw new Error('check-build: club card page canonical URL is missing');
 }
-if (!clubCardHtml.includes('/css/klubnaya-karta.v1.css')) {
-  throw new Error('check-build: club card page-scoped stylesheet is missing');
+if (!clubCardHtml.includes('/css/klubnaya-karta.v1.css?v=')) {
+  throw new Error('check-build: club card page-scoped stylesheet is missing its cache-busting version');
 }
 if (!clubCardHtml.includes('data-map-set="chekhova"') || !clubCardHtml.includes('/js/yandex-map.js?v=')) {
   throw new Error('check-build: club card page map was not converted to the shared runtime map');
