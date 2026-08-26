@@ -78,6 +78,7 @@
   "breadcrumbSkipSegments": ["contacts"],
   "breadcrumbLabels": {
     "home": "Главная",
+    "klubnaya-karta": "Клубная карта",
     "trenazhernyj-zal": "Тренажёрный зал",
     "mini-gruppy": "Мини-группы",
     "pilates-na-reformere": "Пилатес на реформере",
@@ -165,6 +166,15 @@
     }
   },
   "pages": {
+    "/klubnaya-karta/": {
+      "primaryLocation": "chekhova",
+      "services": [
+        {
+          "name": "Клубные карты ZvenFit",
+          "description": "Абонементы в фитнес-клуб ZvenFit на месяц, 3 месяца и год"
+        }
+      ]
+    },
     "/trenazhernyj-zal/": {
       "primaryLocation": "chekhova",
       "services": [

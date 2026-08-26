@@ -90,6 +90,61 @@ if (!leadFormHtml.includes('role="alert"') || !leadFormHtml.includes('aria-live=
   throw new Error('check-build: lead form error feedback must be announced to assistive technology');
 }
 
+const clubCardPath = path.join(distDir, 'klubnaya-karta', 'index.html');
+if (!fs.existsSync(clubCardPath)) {
+  throw new Error('check-build: club card page is missing');
+}
+
+const clubCardHtml = fs.readFileSync(clubCardPath, 'utf8');
+const clubCardIds = Array.from(clubCardHtml.matchAll(/\sid="([^"]+)"/g), match => match[1]);
+const duplicateClubCardIds = clubCardIds.filter((id, index) => clubCardIds.indexOf(id) !== index);
+const relativeHtmlLink = clubCardHtml.match(/href="(?!https?:|\/|#|mailto:|tel:)([^"]+\.html(?:#[^"]*)?)"/i);
+const clubCardCtaCount = (clubCardHtml.match(/href="\/forma-dlya-zayavki\/"/g) || []).length;
+
+if (duplicateClubCardIds.length > 0) {
+  throw new Error(`check-build: club card page contains duplicate ids: ${duplicateClubCardIds.join(', ')}`);
+}
+if (relativeHtmlLink) {
+  throw new Error(`check-build: club card page contains a relative Webflow link: ${relativeHtmlLink[1]}`);
+}
+if (!clubCardHtml.includes('<link rel="canonical" href="https://zvenfit.ru/klubnaya-karta/">')) {
+  throw new Error('check-build: club card page canonical URL is missing');
+}
+if (!clubCardHtml.includes('/css/klubnaya-karta.v1.css')) {
+  throw new Error('check-build: club card page-scoped stylesheet is missing');
+}
+if (!clubCardHtml.includes('data-map-set="chekhova"') || !clubCardHtml.includes('/js/yandex-map.js?v=')) {
+  throw new Error('check-build: club card page map was not converted to the shared runtime map');
+}
+if (!clubCardHtml.includes('/js/traffic-config.js?v=') || !clubCardHtml.includes('/js/traffic-beacon.js?v=')) {
+  throw new Error('check-build: club card page is missing versioned technical traffic scripts');
+}
+if (clubCardCtaCount < 8) {
+  throw new Error(`check-build: club card page exposes only ${clubCardCtaCount} lead CTA(s)`);
+}
+if (!clubCardHtml.includes('<main id="main-content" tabindex="-1">')) {
+  throw new Error('check-build: club card skip-link target must accept keyboard focus');
+}
+if ((clubCardHtml.match(/href="#contacts"/g) || []).length < 2 || clubCardHtml.includes('href="#contact"')) {
+  throw new Error('check-build: club card navigation must use the shared visible contacts anchor');
+}
+
+const clubCardCssPath = path.join(distDir, 'css', 'klubnaya-karta.v1.css');
+if (!fs.existsSync(clubCardCssPath)) {
+  throw new Error('check-build: club card page-scoped stylesheet asset is missing');
+}
+
+const clubCardCss = fs.readFileSync(clubCardCssPath, 'utf8');
+if (!clubCardCss.includes('html[data-zvenfit-page="club-card"]')) {
+  throw new Error('check-build: club card stylesheet is not scoped to its page marker');
+}
+
+const gymHtml = fs.readFileSync(path.join(distDir, 'trenazhernyj-zal', 'index.html'), 'utf8');
+const selfTrainingEntry = gymHtml.match(/<h3 class="text-block">Самостоятельно<\/h3>[\s\S]*?<a href="([^"]+)"/);
+if (selfTrainingEntry?.[1] !== '/klubnaya-karta/') {
+  throw new Error('check-build: gym self-training card must link to the club card page');
+}
+
 const logoPath = path.join(distDir, 'images', 'zvenfit-logo.svg');
 if (!fs.existsSync(logoPath)) {
   throw new Error('check-build: organization logo asset is missing');
@@ -129,6 +184,7 @@ if (!reducedMotionBlock?.[1].includes('.grain-overlay') || !reducedMotionBlock[1
 console.log(`check-build: versioned CDN webflow.js verified in ${checkedPages} HTML file(s)`);
 console.log('check-build: generated Yandex Maps runtime config verified');
 console.log('check-build: lead form accessibility contract verified');
+console.log('check-build: club card page, CTAs, map, analytics and entry point verified');
 console.log('check-build: Organization logo asset and JSON-LD reference verified');
 console.log('check-build: technical traffic beacon and runtime config verified');
 console.log('check-build: 404 page-view beacon exclusion verified');
