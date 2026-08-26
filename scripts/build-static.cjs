@@ -73,6 +73,7 @@ const CACHE_BUST_SCRIPTS = [
   'maps-config.js',
   'yandex-map.js',
 ];
+const CACHE_BUST_STYLES = ['klubnaya-karta.v1.css'];
 
 const MAP_IFRAME_RE = /<div class="code-embed-4 w-embed w-iframe"><iframe[^>]*map-widget[^>]*>\s*<\/iframe><\/div>/g;
 
@@ -251,6 +252,11 @@ function bustAssetUrls(html, assetVersion) {
   let nextHtml = html;
   for (const scriptName of CACHE_BUST_SCRIPTS) {
     const pattern = new RegExp(`(/js/${scriptName})(?:\\?v=[^"']*)?`, 'g');
+    nextHtml = nextHtml.replace(pattern, `$1?v=${assetVersion}`);
+  }
+
+  for (const stylesheetName of CACHE_BUST_STYLES) {
+    const pattern = new RegExp(`(/css/${escapeRegExp(stylesheetName)})(?:\\?v=[^"']*)?`, 'g');
     nextHtml = nextHtml.replace(pattern, `$1?v=${assetVersion}`);
   }
 
