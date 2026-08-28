@@ -1,7 +1,7 @@
 ---
 type: runbook
 title: ZvenFit staging deployment and E2E runbook
-updated: 2026-08-17
+updated: 2026-08-28
 ---
 
 # Staging deployment and E2E runbook
@@ -25,7 +25,7 @@ the current operational state and the shortest safe deployment path.
 - The latest full deploy and cross-repository Playwright verification succeeded
   in [GitHub Actions run 31977617090](https://github.com/zvenfit/zvenfit-frontend/actions/runs/31977617090).
 - The verified reusable suite is pinned to
-  [`zvenfit-autotests@6bd13be`](https://github.com/zvenfit/zvenfit-autotests/commit/6bd13bef9d3e69a570f9fa2e7aadbd1fe179cd09).
+  [`zvenfit-autotests@a20daef`](https://github.com/zvenfit/zvenfit-autotests/commit/a20daef958028e965c6baa7d75482e370e50ff9c).
 - The autotests default branch is protected by review and the required
   `quality` status check; the repository keeps an administrator bypass for the
   current single-maintainer workflow.
