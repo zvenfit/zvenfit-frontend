@@ -36,9 +36,9 @@ jobs:
     needs: deploy
     permissions:
       contents: read
-    uses: zvenfit/zvenfit-autotests/.github/workflows/staging-smoke.yml@165664b17124964bdbdfd65734b4611fb113ccd2
+    uses: zvenfit/zvenfit-autotests/.github/workflows/staging-smoke.yml@52b6975bc4e504111bda7dd543163930b1ba196c
     with:
-      autotests_ref: 165664b17124964bdbdfd65734b4611fb113ccd2
+      autotests_ref: 52b6975bc4e504111bda7dd543163930b1ba196c
     secrets:
       STAGING_BASIC_AUTH_USERNAME: ${{ secrets.STAGING_BASIC_AUTH_USERNAME }}
       STAGING_BASIC_AUTH_PASSWORD: ${{ secrets.STAGING_BASIC_AUTH_PASSWORD }}
