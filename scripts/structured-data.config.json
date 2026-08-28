@@ -37,11 +37,11 @@
           "priceCurrency": "RUB"
         },
         {
-          "id": "pilates-trial-2000",
-          "name": "Пробное занятие пилатесом 2000 ₽",
+          "id": "pilates-trial-1000",
+          "name": "Пробное занятие пилатесом 1000 ₽",
           "description": "Первое занятие пилатесом на реформере по специальной цене",
           "url": "/pilates-na-reformere/",
-          "price": 2000,
+          "price": 1000,
           "priceCurrency": "RUB"
         },
         {
