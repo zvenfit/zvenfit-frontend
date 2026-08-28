@@ -25,7 +25,7 @@ the current operational state and the shortest safe deployment path.
 - The latest full deploy and cross-repository Playwright verification succeeded
   in [GitHub Actions run 31977617090](https://github.com/zvenfit/zvenfit-frontend/actions/runs/31977617090).
 - The verified reusable suite is pinned to
-  [`zvenfit-autotests@a20daef`](https://github.com/zvenfit/zvenfit-autotests/commit/a20daef958028e965c6baa7d75482e370e50ff9c).
+  [`zvenfit-autotests@165664b`](https://github.com/zvenfit/zvenfit-autotests/commit/165664b17124964bdbdfd65734b4611fb113ccd2).
 - The autotests default branch is protected by review and the required
   `quality` status check; the repository keeps an administrator bypass for the
   current single-maintainer workflow.
