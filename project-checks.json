@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "checks": [
+    { "name": "diff-check", "command": ["git", "diff", "--check"], "mode": "read-only", "requires_network": false, "timeout_seconds": 30 },
+    { "name": "lint-public", "command": ["npm", "run", "lint:public"], "mode": "read-only", "requires_network": false, "timeout_seconds": 120 },
+    { "name": "lead-function", "command": ["npm", "run", "test:lead-fn"], "mode": "writes", "requires_network": false, "timeout_seconds": 300 },
+    { "name": "schedule-function", "command": ["npm", "run", "test:schedule-fn"], "mode": "writes", "requires_network": false, "timeout_seconds": 300 },
+    { "name": "staging-authorizer", "command": ["npm", "run", "test:staging-authorizer"], "mode": "writes", "requires_network": false, "timeout_seconds": 300 },
+    { "name": "site-traffic", "command": ["npm", "run", "test:site-traffic"], "mode": "writes", "requires_network": false, "timeout_seconds": 300 },
+    { "name": "monitoring", "command": ["npm", "run", "test:monitoring"], "mode": "read-only", "requires_network": false, "timeout_seconds": 120 },
+    { "name": "lead-import", "command": ["npm", "run", "test:lead-import"], "mode": "writes", "requires_network": false, "timeout_seconds": 300 },
+    { "name": "layout", "command": ["npm", "run", "test:layout"], "mode": "read-only", "requires_network": false, "timeout_seconds": 120 },
+    { "name": "build", "command": ["npm", "run", "test:build"], "mode": "writes", "requires_network": true, "timeout_seconds": 180 },
+    { "name": "staging-build", "command": ["npm", "run", "test:build:staging"], "mode": "writes", "requires_network": true, "timeout_seconds": 300 }
+  ]
+}

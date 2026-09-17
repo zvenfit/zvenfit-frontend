@@ -3,11 +3,18 @@
 Статический сайт ZvenFit из Webflow-экспорта, serverless-функции и надёжное хранение заявок в YDB Serverless.
 
 - Инструкции для контрибьюторов и AI-агентов: [`AGENTS.md`](AGENTS.md)
-- Проектная база знаний: [`knowledge-base/_index.md`](knowledge-base/_index.md)
+- Связь с Personal AI Workspace и запуск проверок: [`docs/personal-ai-workspace.md`](docs/personal-ai-workspace.md)
+- Техническая база знаний: [`knowledge-base/_index.md`](knowledge-base/_index.md)
 - Текущий backlog: [`TODO.md`](TODO.md)
 - Полная настройка инфраструктуры: [`docs/setup.md`](docs/setup.md)
 - Границы backend-слоёв и артефактов: [`docs/backend-architecture.md`](docs/backend-architecture.md)
 - Повторяемый production release checklist: [`docs/launch-checklist.md`](docs/launch-checklist.md)
+
+По правилам Personal AI Workspace бизнес-контекст, цели продукта, проектные планы
+и статусы ведутся в его `vault/`. Код и техническая документация остаются в этом
+репозитории. Между карточками Workspace и документацией используются ссылки;
+копировать базу знаний при подключении проекта не нужно. Правила доступа к
+контексту и локальному bridge описаны в [`AGENTS.md`](AGENTS.md).
 
 ## Быстрый старт
 

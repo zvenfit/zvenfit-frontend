@@ -4,11 +4,17 @@
 
 ## Project-specific agent rule
 
-- Use only the project-local knowledge base in `knowledge-base/`.
-- The project-local knowledge base is version-controlled documentation: it may be staged, committed, and pushed only to this repository's configured Git remote after checking that it contains no secrets or personal data.
-- Do not use Stefania Wiki, DataCatalog, remote knowledge-base adapters, cross-project memory, or knowledge-base sync workflows for this project.
-- Do not synchronize, upload, or copy `knowledge-base/` to a separate knowledge-base surface; Git for this project is its only remote storage.
-- Work only with the repository and task-specific tools explicitly requested by the user.
+<!-- personal-ai-workspace-code-policy:v1 -->
+
+- Workspace identity: `REP-001`, domain `zvenfit`, product `PROD-001`. See `repo-manifest.json` and [local integration instructions](docs/personal-ai-workspace.md).
+- Follow Personal AI Workspace's knowledge-routing and context-access rules. This file defines the repository's stack, implementation constraints, and checks.
+- Keep curated business context, product goals, project plans, status, and Product/Project/Repository cards in the personal Workspace's `vault/`. Keep source code, technical decisions, architecture, build/deployment instructions, and runbooks in this repository (`knowledge-base/`, `docs/`, and `README.md`).
+- Maintain one canonical source for each fact. Link between Workspace cards and repository documentation instead of copying either knowledge base. The existing `knowledge-base/` remains the version-controlled technical knowledge base; adoption does not relocate it.
+- Resolve an adopted repository's machine-local Workspace pointer with `git rev-parse --git-path personal-ai-workspace/local.json`. If the bridge is not configured or unavailable, report that limitation; do not guess a Workspace path or scan neighbouring projects.
+- Access only Workspace context needed for the current task: use its metadata selector when an exact note path is unknown, then its exact-file cloud preflight for each note before reading its body. Follow the Workspace's active-client and sensitivity rules; never load the whole vault or unrelated cross-project context.
+- Repository documentation may be staged, committed, and pushed only to this repository's configured Git remote after checking that it contains no secrets or personal data. Workspace runtime notes and machine-local absolute paths must not be committed here.
+- Do not synchronize either knowledge base to Stefania Wiki, DataCatalog, remote knowledge-base adapters, or another assistant's memory. Connecting the local Workspace does not authorize publication, synchronization, push, or deployment.
+- Work only with this repository, the task's explicitly selected Personal AI Workspace context, and tools needed for the user's request.
 
 ## Cross-repository test ownership
 
@@ -121,6 +127,8 @@ npm run dev:watch                  # mock API + rebuild + serve :4173
 - Live local data requires both `SCHEDULE_PROVIDER=fitbase` and `FITBASE_API_TOKEN`
 
 ## Verification
+
+The Workspace check contract is `project-checks.json`. Run `python3 scripts/check.py --list` to review it; execute selected checks only with the returned `--execute-reviewed <review_digest>` and any required write/network flags. The runner does not provide OS sandboxing. Existing npm commands remain available below.
 
 ```bash
 npm run build          # must produce dist/
