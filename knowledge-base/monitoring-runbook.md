@@ -1,7 +1,7 @@
 ---
 type: runbook
 title: ZvenFit alerts, metrics and logs runbook
-updated: 2026-08-24
+updated: 2026-09-18
 ---
 
 # Alerts, metrics and logs runbook
@@ -34,7 +34,7 @@ is the project entry point and intentionally does not duplicate every selector.
 - Transient YDB driver discovery uses up to three initialization attempts with
   `250ms` / `500ms` exponential backoff; permanent initialization errors fail immediately.
 - A single slow YDB query is graph-only; two in `10m` warn and three alarm.
-- Raw logs retain three days.
+- Raw logs retain 14 days.
 - No Lockbox or new monitoring infrastructure without separate approval.
 - CDN query masking remains out of scope while no separate raw CDN pipeline is created.
 - Production smoke uses only synthetic non-personal records and requires explicit confirmation.
@@ -48,7 +48,7 @@ is the project entry point and intentionally does not duplicate every selector.
   `meta.environment=production`; add `meta.service`, `resource_id`, `meta.event`,
   or `level` only when narrowing an incident.
 - If the UI still says “select service”, the query has not run. If a complete
-  query ran and the table is empty, expand the time range up to the three-day
+  query ran and the table is empty, expand the time range up to the 14-day
   raw-log retention window.
 
 ### Quick access

@@ -103,7 +103,7 @@ export async function sendTelegram(payload: ClaimedLead, requestFactory: Request
     });
   } catch (error) {
     invalidateTelegramRoute(route);
-    throw telegramError('Telegram is unreachable', telegramNetworkErrorCode(error));
+    throw telegramError('Telegram is unreachable', telegramNetworkErrorCode(error), undefined, 'send_message');
   }
 
   let responseBody: unknown = null;
@@ -116,7 +116,7 @@ export async function sendTelegram(payload: ClaimedLead, requestFactory: Request
   const telegramOk =
     typeof responseBody === 'object' && responseBody !== null && 'ok' in responseBody && responseBody.ok === true;
   if (response.statusCode < 200 || response.statusCode >= 300 || !telegramOk) {
-    throw telegramError('Telegram returned an error', 'telegram_error', response.statusCode);
+    throw telegramError('Telegram returned an error', 'telegram_error', response.statusCode, 'send_message');
   }
 }
 

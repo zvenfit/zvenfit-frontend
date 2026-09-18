@@ -1,63 +1,16 @@
 import assert from 'node:assert/strict';
-import { channel, tracingChannel } from 'node:diagnostics_channel';
+import { channel } from 'node:diagnostics_channel';
 import test from 'node:test';
 
+import { memoryLogger, namedError, recordByEvent, tracePhase } from './ydb-test-helpers';
 import { recordInitializationAttempts } from '../../ydb/initialization-attempts';
 import { observeYdbOperation, prepareAndObserveYdbOperation } from '../ydb';
-
-import type { JsonObject, LoggerLike } from '../../types';
-
-interface LogRecord extends JsonObject {
-  level: string;
-  event?: string;
-  retry_attempts?: number;
-  error_code?: string;
-}
-
-type TestPhase = 'query.execute' | 'query.session.acquire' | 'query.session.create';
-
-function memoryLogger(): LoggerLike & { records: LogRecord[] } {
-  const records: LogRecord[] = [];
-  const write = (level: string) => (fields: JsonObject) => records.push({ level, ...fields });
-
-  return {
-    records,
-    info: write('info'),
-    warn: write('warn'),
-    error: write('error'),
-  };
-}
-
-function recordByEvent(records: LogRecord[], event: string): LogRecord {
-  const record = records.find(candidate => candidate.event === event);
-  assert.ok(record);
-
-  return record;
-}
 
 function abortError(): Error {
   const error = new Error('The operation has been aborted');
   error.name = 'AbortError';
 
   return error;
-}
-
-function namedError(name: string, code?: string | number): Error {
-  const error = new Error(`${name} details must not be logged`);
-  error.name = name;
-
-  return Object.assign(error, code === undefined ? {} : { code });
-}
-
-async function tracePhase<T>(phase: TestPhase, callback: () => Promise<T>): Promise<T> {
-  let result: T | undefined;
-  await Promise.resolve(
-    tracingChannel(`tracing:ydb:${phase}`).tracePromise(async () => {
-      result = await callback();
-    }, {}),
-  );
-
-  return result as T;
 }
 
 async function withSlowThreshold<T>(value: string, callback: () => Promise<T>): Promise<T> {
@@ -87,6 +40,7 @@ test('records YDB latency and retry attempts', async () => {
   assert.equal(result, 'ok');
   assert.equal(recordByEvent(logger.records, 'ydb_operation_completed').retry_attempts, 1);
   assert.equal(recordByEvent(logger.records, 'ydb_retry').retry_attempts, 1);
+  assert.equal(recordByEvent(logger.records, 'ydb_retry').error_code, 'ydb_retry_cause_unavailable');
 });
 
 test('logs a safe error code without the database error message', async () => {
@@ -179,6 +133,8 @@ test('retries a nested transient gRPC error for an explicitly safe read', async 
 
   assert.equal(result, 'ok');
   assert.equal(attempts, 2);
+  assert.equal(recordByEvent(logger.records, 'ydb_retry').error_code, 'UNAVAILABLE');
+  assert.equal(recordByEvent(logger.records, 'ydb_retry').phase, 'unknown');
 });
 
 test('does not retry transient errors unless the operation opts in', async () => {
@@ -253,6 +209,10 @@ test('stops after one transient retry', async () => {
 
   assert.equal(attempts, 2);
   assert.equal(recordByEvent(logger.records, 'ydb_operation_failed').retry_attempts, 1);
+  assert.equal(
+    logger.records.some(record => record.event === 'ydb_retry'),
+    false,
+  );
 });
 
 test('excludes client preparation from operation latency', async () => {

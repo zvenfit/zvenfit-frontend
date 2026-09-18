@@ -90,6 +90,8 @@ test('Telegram network failures preserve a safe diagnostic code', async () => {
         error instanceof Error &&
         'code' in error &&
         error.code === 'telegram_etimedout' &&
+        'telegram_phase' in error &&
+        error.telegram_phase === 'route_probe' &&
         !error.message.includes(process.env.TELEGRAM_BOT_TOKEN ?? ''),
     );
     assert.equal(requestOptions.family, 4);
@@ -263,7 +265,10 @@ test('Telegram never retries an ambiguous POST over another route', async () => 
 
   try {
     _private.resetTelegramRouteCache();
-    await assert.rejects(sendTelegram(testLead(), requestFactory));
+    await assert.rejects(sendTelegram(testLead(), requestFactory), {
+      code: 'telegram_etimedout',
+      telegram_phase: 'send_message',
+    });
     assert.equal(postCount, 1);
   } finally {
     _private.resetTelegramRouteCache();

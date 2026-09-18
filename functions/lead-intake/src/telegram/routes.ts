@@ -42,8 +42,9 @@ export function telegramError(
   message: string,
   code: string,
   status?: number,
-): Error & { code: string; status?: number } {
-  return Object.assign(new Error(message), { code, name: 'TelegramError', status });
+  phase?: 'route_probe' | 'send_message',
+): Error & { code: string; status?: number; telegram_phase?: 'route_probe' | 'send_message' } {
+  return Object.assign(new Error(message), { code, name: 'TelegramError', status, telegram_phase: phase });
 }
 
 function telegramFallbackIpv4s(): string[] {
@@ -149,7 +150,7 @@ async function chooseTelegramRoute(fallbackIpv4s: string[], requestFactory: Requ
     return healthy.route;
   }
 
-  throw telegramError('Telegram is unreachable', telegramNetworkErrorCode(results[0]?.error));
+  throw telegramError('Telegram is unreachable', telegramNetworkErrorCode(results[0]?.error), undefined, 'route_probe');
 }
 
 export async function selectTelegramRoute(requestFactory: RequestFactory): Promise<TelegramRoute> {

@@ -667,7 +667,7 @@ test('production log source and retention are explicit', () => {
       'meta.application': 'zvenfit-frontend',
       'meta.environment': 'production',
     },
-    retentionDays: 3,
+    retentionDays: 14,
   });
   assert.deepEqual(config.metricOutput, {
     cluster: 'default',

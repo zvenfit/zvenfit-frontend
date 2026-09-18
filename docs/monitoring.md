@@ -31,7 +31,7 @@
 | Schedule function         | `zvenfit-fitbase-schedule`        |
 | CDN resource              | `bc8rubabuwzpqqp7rifz`            |
 | Traffic function          | `zvenfit-site-traffic`            |
-| Cloud Logging retention   | 3 days                            |
+| Cloud Logging retention   | 14 days                           |
 
 Project dashboard: <https://monium.yandex.cloud/projects/folder__b1ge1e4iopttj79hfdfm/dashboards/zvenfit-production-monitoring>
 
@@ -91,7 +91,7 @@ edge.request_time_seconds{service="yccdn", resource="bc8rubabuwzpqqp7rifz"}
 
 Access-like event сохраняет IP, полный User-Agent, полный URL с query,
 referrer, `page_view_id` и признак `webdriver`. Это осознанный диагностический
-лог с общей retention Cloud Logging 3 дня. Сырые поля нельзя добавлять в labels
+лог с общей retention Cloud Logging 14 дней. Сырые поля нельзя добавлять в labels
 метрики: grouping ограничен `traffic_class` и фиксированной taxonomy
 `application` / `service` / `resource_id` — четыре штатных production-ряда.
 `host` и нормализованный `page` остаются полями лога: произвольные хосты и 404
@@ -449,12 +449,28 @@ Read-only операции `list_telegram_candidates` и `get_telegram_queue_hea
 свежую YDB session. Явные постоянные коды, например `PERMISSION_DENIED`, не
 повторяются. Успешное восстановление пишет `ydb_retry`; повторный transient
 сбой по-прежнему завершает invocation ошибкой и попадает в runtime alert.
+`ydb_retry` содержит безопасные `error_type`/`error_code` последней ошибки,
+приведшей к повтору, `retry_source=sdk|read_fallback`, общую `duration_ms` и
+агрегаты длительности фаз. `phase` и `failed_phase_duration_ms` описывают
+исходную неудачную фазу; при отсутствии trace используется `phase=unknown`
+без выдуманной длительности. Для SDK причина берётся из error trace попытки,
+поскольку событие завершения попытки содержит только результат и счётчик.
+Количество событий остаётся прежним: одно `ydb_retry` на успешно
+восстановленную операцию, а `retry_attempts` — число её повторов. Коды YDB
+и gRPC извлекаются из числового статуса, без SQL, параметров и текста issues.
 Ошибка подготовки YDB client пишет `phase=client_preparation` и отдельный
 `initialization_attempts`; поле `retry_attempts` остаётся счётчиком query/session
 retry и не смешивается с попытками инициализации driver. Из message/details в
 structured error допускается только фиксированный allowlist технических кодов.
 Transient discovery-сбой при подготовке driver допускает до трёх попыток с
 exponential backoff `250ms` / `500ms`; постоянные ошибки не повторяются.
+
+Ошибки Telegram дополнительно содержат `telegram_phase=route_probe` при
+неудачной проверке доступности маршрутов или `telegram_phase=send_message`
+при сбое отправки/ответа API. Таймаут `send_message` не доказывает, что Telegram
+не принял сообщение: немедленная повторная POST-отправка по другому маршруту
+не выполняется. Дальнейшая доставка идёт через сохранённую очередь с прежними
+интервалами повторов.
 
 Fitbase не использует `functions_errors` как основной application alert: handler
 перехватывает недоступность upstream и возвращает контролируемый HTTP `502`, то
@@ -634,8 +650,9 @@ Sessions пока не считаются. Cache/status/bytes/latency
   tariff of `1.5 RUB / 1000 alert-hours`.
 - Telegram and email notification channels: no separate charge; SMS and calls
   are not enabled.
-- Cloud Functions and Cloud Logging should remain within their shared billing-
-  account free tiers at the current traffic. The log group retains three days.
+- Cloud Logging retains 14 days. Storage cost must be checked against actual
+  usage and shared billing-account free tiers after increasing retention;
+  the previous three-day estimate does not establish the new storage cost.
 - Paid CDN log export, Query and DataLens are not used.
 - No new service account, IAM binding, Object Storage trigger, Lockbox secret,
   HMAC, session state or custom deploy-marker write is introduced.

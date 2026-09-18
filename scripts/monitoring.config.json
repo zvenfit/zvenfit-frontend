@@ -7,7 +7,7 @@
       "meta.application": "zvenfit-frontend",
       "meta.environment": "production"
     },
-    "retentionDays": 3
+    "retentionDays": 14
   },
   "metricOutput": {
     "cluster": "default",

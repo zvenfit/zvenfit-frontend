@@ -1,30 +1,17 @@
-import { AsyncLocalStorage } from 'node:async_hooks';
-import { channel, tracingChannel } from 'node:diagnostics_channel';
-
-import { safeErrorFields } from './errors';
+import { errorChain, safeErrorFields } from './errors';
+import {
+  createOperationState,
+  operationStorage,
+  phaseFields,
+  retryErrorFields,
+  subscribeToDiagnostics,
+  type OperationState,
+  type YdbPhase,
+} from './ydb-diagnostics';
 import { slowOperationMs } from '../ydb/config';
 import { initializationAttempts } from '../ydb/initialization-attempts';
 
 import type { JsonObject, LoggerLike } from '../types';
-
-interface OperationState {
-  retries: number;
-  phases: Record<YdbPhase, PhaseAggregate>;
-}
-
-type YdbPhase = 'query_execute' | 'session_acquire' | 'session_create';
-
-interface PhaseAggregate {
-  attempts: number;
-  maxDurationMs: number;
-  totalDurationMs: number;
-}
-
-interface PhaseTrace {
-  operation: OperationState;
-  phase: YdbPhase;
-  startedAt: number;
-}
 
 interface ObserveYdbOperationOptions {
   retryTransientOnce?: boolean;
@@ -34,94 +21,6 @@ const RETRYABLE_READ_ERROR_NAMES = new Set(['AbortError', 'TimeoutError']);
 const RETRYABLE_GRPC_CODES = new Set([4, 8, 10, 13, 14]);
 const RETRYABLE_ERROR_PATTERN =
   /ABORTED|DEADLINE_EXCEEDED|EAI_AGAIN|ECONNRESET|ECONNREFUSED|ETIMEDOUT|INTERNAL|RESOURCE_EXHAUSTED|TIMEOUT|UNAVAILABLE/i;
-
-const operationStorage = new AsyncLocalStorage<OperationState>();
-const phaseTraces = new WeakMap<object, PhaseTrace>();
-let subscribed = false;
-
-function emptyPhaseAggregate(): PhaseAggregate {
-  return { attempts: 0, maxDurationMs: 0, totalDurationMs: 0 };
-}
-
-function createOperationState(): OperationState {
-  return {
-    retries: 0,
-    phases: {
-      query_execute: emptyPhaseAggregate(),
-      session_acquire: emptyPhaseAggregate(),
-      session_create: emptyPhaseAggregate(),
-    },
-  };
-}
-
-function isTraceContext(message: unknown): message is object {
-  return typeof message === 'object' && message !== null;
-}
-
-function subscribeToPhase(channelName: string, phase: YdbPhase): void {
-  tracingChannel(channelName).subscribe({
-    start(message) {
-      const operation = operationStorage.getStore();
-      if (operation && isTraceContext(message)) {
-        phaseTraces.set(message, { operation, phase, startedAt: Date.now() });
-      }
-    },
-    asyncStart(message) {
-      if (!isTraceContext(message)) {
-        return;
-      }
-
-      const trace = phaseTraces.get(message);
-      if (!trace) {
-        return;
-      }
-
-      const durationMs = Math.max(0, Date.now() - trace.startedAt);
-      const aggregate = trace.operation.phases[trace.phase];
-      aggregate.attempts += 1;
-      aggregate.totalDurationMs += durationMs;
-      aggregate.maxDurationMs = Math.max(aggregate.maxDurationMs, durationMs);
-      phaseTraces.delete(message);
-    },
-    end() {},
-    asyncEnd() {},
-    error() {},
-  });
-}
-
-function subscribeToDiagnostics(): void {
-  if (subscribed) {
-    return;
-  }
-
-  channel('ydb:retry.attempt.completed').subscribe(message => {
-    const operation = operationStorage.getStore();
-    const outcome =
-      typeof message === 'object' && message !== null && 'outcome' in message ? message.outcome : undefined;
-
-    if (operation && outcome === 'retried') {
-      operation.retries += 1;
-    }
-  });
-  subscribeToPhase('tracing:ydb:query.execute', 'query_execute');
-  subscribeToPhase('tracing:ydb:query.session.acquire', 'session_acquire');
-  subscribeToPhase('tracing:ydb:query.session.create', 'session_create');
-  subscribed = true;
-}
-
-function phaseFields(operation: OperationState): JsonObject {
-  return {
-    query_execute_attempts: operation.phases.query_execute.attempts,
-    query_execute_duration_ms: operation.phases.query_execute.totalDurationMs,
-    query_execute_max_duration_ms: operation.phases.query_execute.maxDurationMs,
-    session_acquire_attempts: operation.phases.session_acquire.attempts,
-    session_acquire_duration_ms: operation.phases.session_acquire.totalDurationMs,
-    session_acquire_max_duration_ms: operation.phases.session_acquire.maxDurationMs,
-    session_create_attempts: operation.phases.session_create.attempts,
-    session_create_duration_ms: operation.phases.session_create.totalDurationMs,
-    session_create_max_duration_ms: operation.phases.session_create.maxDurationMs,
-  };
-}
 
 function slowSessionPhase(operation: OperationState): { durationMs: number; phase: YdbPhase } | undefined {
   const createDurationMs = operation.phases.session_create.maxDurationMs;
@@ -135,20 +34,6 @@ function slowSessionPhase(operation: OperationState): { durationMs: number; phas
   }
 
   return undefined;
-}
-
-function errorChain(error: unknown): unknown[] {
-  const chain: unknown[] = [];
-  const visited = new Set<unknown>();
-  let current = error;
-
-  while (current && typeof current === 'object' && !visited.has(current) && chain.length < 4) {
-    chain.push(current);
-    visited.add(current);
-    current = (current as Record<string, unknown>).cause;
-  }
-
-  return chain;
 }
 
 function isTransientReadError(error: unknown): boolean {
@@ -208,6 +93,7 @@ export async function observeYdbOperation<T>(
         }
 
         operation.retries += 1;
+        operation.retryFailure = retryErrorFields(operation, error, 'read_fallback');
 
         return callback();
       }
@@ -227,6 +113,9 @@ export async function observeYdbOperation<T>(
         event: 'ydb_retry',
         operation: operationName,
         retry_attempts: operation.retries,
+        duration_ms: durationMs,
+        ...phaseFields(operation),
+        ...operation.retryFailure,
       });
     }
 

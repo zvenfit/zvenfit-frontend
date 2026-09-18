@@ -66,7 +66,7 @@ reusable deploy workflow передаёт их явно. Изменение sele
 | Куда настроена доставка | [Notification methods](https://monium.yandex.cloud/projects/folder__b1ge1e4iopttj79hfdfm/notification-methods) |
 
 Production channels: `ZvenFit · production · Telegram` и
-`ZvenFit · production · Email`. Raw logs хранятся три дня. Для более старого
+`ZvenFit · production · Email`. Raw logs хранятся 14 дней. Для более старого
 инцидента сначала используются alert history, notification feed и metric series.
 
 Если раздел Logs открыт только с `project=folder__b1ge1e4iopttj79hfdfm`,
@@ -187,6 +187,15 @@ transient session/query failure через новую query; write-path заяв
 
 ## Разбор срабатывания
 
+При `ydb_retry` сначала сравни `retry_source`, `error_code`, `phase` и
+`failed_phase_duration_ms`. `duration_ms` включает всю операцию и повторы;
+`query_execute_max_duration_ms` показывает самую медленную query-фазу.
+Событие означает успешное восстановление. Если повторов несколько, поля
+ошибки относятся к последнему из них. `phase=unknown` означает отсутствие
+соответствующего SDK trace, а не установленную проблему с query или session.
+В `telegram_delivery_retry_scheduled` поле `telegram_phase` отличает проверку
+маршрута от самой отправки. Для старых записей этих полей может не быть.
+
 1. В alert записать время перехода, `service`, `resource_id`, окно и evaluation
    delay. Для multialert открыть конкретный subalert.
 2. На dashboard проверить соседние signals той же функции: errors, throttles,
@@ -207,6 +216,35 @@ transient session/query failure через новую query; write-path заяв
 Empty event graph при зелёном alert — нормальное состояние. Порог не ослабляется
 по одному шумному срабатыванию: сначала проверяются raw logs, series, окно и
 delay, затем desired state, тесты и live drift.
+
+## Увеличение срока хранения для двухнедельных разборов
+
+18 сентября 2026 владелец согласовал увеличение retention существующей группы
+`default` (`e23fnr42117phjg4r2oe`) с 72 до 336 часов (14 суток).
+Desired state в `monitoring.config.json` — 14 дней. Изменение действует на всю
+log group, включая access-like поля traffic-функции и записи других её
+источников. Уже истёкшие логи не восстановятся; полная двухнедельная история
+накопится со временем.
+
+Применение и проверка:
+
+```bash
+yc logging group get --id e23fnr42117phjg4r2oe --format json
+yc logging group update --id e23fnr42117phjg4r2oe --retention-period=336h
+yc logging group get --id e23fnr42117phjg4r2oe --format json
+```
+
+Ожидаемое значение после изменения — `retention_period=1209600s`.
+При последующих изменениях синхронно обновлять `source.retentionDays`,
+соответствующий config-тест и описания retention в `monitoring.md` и project
+runbook; затем выполнять `npm run test:monitoring`. Не создавать новую log group и не переносить функции
+в рамках этого изменения. Возврат к 72 часам сокращает доступную историю и
+тоже требует осознанного решения.
+
+Параметр CLI принимает часы, минуты или секунды, а не дни:
+[документация Yandex Cloud](https://yandex.cloud/ru/docs/logging/operations/retention-period).
+Стоимость зависит от объёма записи и хранения:
+[тарификация Cloud Logging](https://yandex.cloud/ru/docs/logging/pricing).
 
 ## Правила изменения
 
