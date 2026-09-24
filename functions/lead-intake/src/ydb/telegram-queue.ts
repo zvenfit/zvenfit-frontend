@@ -155,7 +155,7 @@ export async function listTelegramCandidates({
   limit: number;
   logger?: LoggerLike;
 }): Promise<string[]> {
-  return observedReadOnly('list_telegram_candidates', logger, async sql => {
+  return observedReadOnly('list_telegram_candidates', logger, async (sql, signal) => {
     const leadsTable = sql.identifier(tableName());
     const dueIndex = sql.identifier(dueIndexName());
     const safeLimit = Math.min(Math.max(Number(limit) || 1, 1), 100);
@@ -173,7 +173,8 @@ export async function listTelegramCandidates({
           LIMIT ${safeLimit};
         `
           .idempotent(true)
-          .isolation('snapshotReadOnly'),
+          .isolation('snapshotReadOnly')
+          .signal(signal),
       ),
     );
 
@@ -188,7 +189,7 @@ export async function getTelegramQueueHealth({
   now: Date;
   logger?: LoggerLike;
 }): Promise<TelegramQueueHealth> {
-  return observedReadOnly('get_telegram_queue_health', logger, async sql => {
+  return observedReadOnly('get_telegram_queue_health', logger, async (sql, signal) => {
     const leadsTable = sql.identifier(tableName());
     const queueHealthIndex = sql.identifier(queueHealthIndexName());
     const rows = firstResultSet(
@@ -201,7 +202,8 @@ export async function getTelegramQueueHealth({
           WHERE telegram_status = ${'pending'} OR telegram_status = ${'sending'};
         `
           .idempotent(true)
-          .isolation('snapshotReadOnly'),
+          .isolation('snapshotReadOnly')
+          .signal(signal),
       ),
     );
     const row = rows[0];

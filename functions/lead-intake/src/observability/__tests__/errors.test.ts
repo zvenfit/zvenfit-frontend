@@ -90,3 +90,17 @@ test('logs only known Telegram failure phases', () => {
     assert.doesNotMatch(JSON.stringify(fields), /private/);
   }
 });
+
+test('normalizes DOM cancellation codes without confusing them with protocol statuses', () => {
+  for (const name of ['TimeoutError', 'AbortError']) {
+    const error = new DOMException('private cancellation reason', name);
+    for (const candidate of [error, new Error('private wrapper', { cause: error })]) {
+      const fields = safeErrorFields(candidate, { fallbackCode: 'ydb_error' });
+      assert.equal(fields.error_code, name);
+      assert.equal(fields.retriable, true);
+      assert.doesNotMatch(JSON.stringify(fields), /private/);
+    }
+  }
+  const grpc = Object.assign(new Error('private'), { code: 4 });
+  assert.equal(safeErrorFields(grpc, { fallbackCode: 'ydb_error' }).error_code, 'DEADLINE_EXCEEDED');
+});

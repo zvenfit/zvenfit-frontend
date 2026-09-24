@@ -121,16 +121,21 @@ function errorCode(error: unknown, fallback: string): string {
     .map(item => errorRecord(item)?.code)
     .find(value => typeof value === 'string' && value.trim());
   const numericCode = chain
+    .filter(item => !(item instanceof DOMException && ['AbortError', 'TimeoutError'].includes(item.name)))
     .map(item => errorRecord(item)?.code)
     .find(value => typeof value === 'number' && Number.isSafeInteger(value) && value >= 0);
   const namedError = error instanceof Error && error.name !== 'Error' ? error.name : undefined;
   const specificNamedError = namedError && !GENERIC_ERROR_NAMES.has(namedError) ? namedError : undefined;
+  const cancellationName = chain.find(
+    item => item instanceof DOMException && ['AbortError', 'TimeoutError'].includes(item.name),
+  ) as DOMException | undefined;
 
   return normalizeIdentifier(
     explicitCode ??
       (typeof numericCode === 'number'
         ? (GRPC_CODE_NAMES.get(numericCode) ?? YDB_CODE_NAMES.get(numericCode) ?? String(numericCode))
         : undefined) ??
+      cancellationName?.name ??
       specificNamedError ??
       allowlistedMessageCode(error) ??
       namedError,
