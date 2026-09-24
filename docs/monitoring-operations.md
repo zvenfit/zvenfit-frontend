@@ -180,9 +180,10 @@ Telegram paging. В live-форме отсутствие повторов зад
 `duration_ms`, `error_type` и `error_code` без исходного текста ошибки.
 YDB SQL latency считается только по фазе `query_execute`; медленные
 `session_acquire` и `session_create` выводятся отдельным диагностическим
-графиком без paging-alert. Read-only проверки retry-worker один раз повторяют
-transient session/query failure через новую query; write-path заявки не
-повторяется этим механизмом. Единичный `ydb_slow_operation` остаётся только на
+графиком без paging-alert. Read-only проверки retry-worker допускают до трёх
+прикладных попыток transient session/query failure с backoff и общим бюджетом
+(по умолчанию 10 секунд; [политика повторов](monitoring.md#alerts)).
+Write-path заявки не повторяется этим механизмом. Единичный `ydb_slow_operation` остаётся только на
 графике, два события за `10m` дают `Warning`, три — `Alarm`.
 
 ## Разбор срабатывания
@@ -191,8 +192,11 @@ transient session/query failure через новую query; write-path заяв
 `failed_phase_duration_ms`. `duration_ms` включает всю операцию и повторы;
 `query_execute_max_duration_ms` показывает самую медленную query-фазу.
 Событие означает успешное восстановление. Если повторов несколько, поля
-ошибки относятся к последнему из них. `phase=unknown` означает отсутствие
-соответствующего SDK trace, а не установленную проблему с query или session.
+ошибки относятся к последнему из них. `phase_source=error_trace` означает trace
+ошибки, `active_trace` — снимок активной фазы при отмене до завершения trace.
+`phase=unknown` означает отсутствие соответствующего SDK trace, а не
+установленную проблему с query или session. При `ydb_read_budget_exhausted`
+общий бюджет чтения истёк: это ошибка invocation, а не успешное восстановление.
 В `telegram_delivery_retry_scheduled` поле `telegram_phase` отличает проверку
 маршрута от самой отправки. Для старых записей этих полей может не быть.
 

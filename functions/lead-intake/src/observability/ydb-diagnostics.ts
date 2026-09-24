@@ -8,7 +8,8 @@ import type { JsonObject } from '../types';
 export interface OperationState {
   retries: number;
   phases: Record<YdbPhase, PhaseAggregate>;
-  phaseFailures: WeakMap<object, { phase: YdbPhase; durationMs: number }>;
+  phaseFailures: WeakMap<object, PhaseFailure>;
+  activePhases: Set<PhaseTrace>;
   pendingSdkFailure?: JsonObject;
   retryFailure?: JsonObject;
 }
@@ -25,9 +26,23 @@ interface PhaseTrace {
   operation: OperationState;
   phase: YdbPhase;
   startedAt: number;
+  attempt?: RetryAttempt;
+}
+
+interface RetryAttempt {
+  active: boolean;
+  parent?: RetryAttempt;
+}
+
+interface PhaseFailure {
+  phase: YdbPhase;
+  durationMs: number;
+  source: 'error_trace' | 'active_trace';
 }
 
 export const operationStorage = new AsyncLocalStorage<OperationState>();
+const retryAttemptStorage = new AsyncLocalStorage<RetryAttempt>();
+const retryAttempts = new WeakMap<object, RetryAttempt>();
 const phaseTraces = new WeakMap<object, PhaseTrace>();
 let subscribed = false;
 
@@ -39,6 +54,7 @@ export function createOperationState(): OperationState {
   return {
     retries: 0,
     phaseFailures: new WeakMap(),
+    activePhases: new Set(),
     phases: {
       query_execute: emptyPhaseAggregate(),
       session_acquire: emptyPhaseAggregate(),
@@ -51,12 +67,26 @@ function isTraceContext(message: unknown): message is object {
   return typeof message === 'object' && message !== null;
 }
 
+function isAttemptActive(attempt: RetryAttempt | undefined): boolean {
+  for (let current = attempt; current; current = current.parent) {
+    if (!current.active) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 function subscribeToPhase(channelName: string, phase: YdbPhase): void {
   tracingChannel(channelName).subscribe({
     start(message) {
       const operation = operationStorage.getStore();
       if (operation && isTraceContext(message)) {
-        phaseTraces.set(message, { operation, phase, startedAt: Date.now() });
+        const trace = { operation, phase, startedAt: Date.now(), attempt: retryAttemptStorage.getStore() };
+        phaseTraces.set(message, trace);
+        if (isAttemptActive(trace.attempt)) {
+          operation.activePhases.add(trace);
+        }
       }
     },
     asyncStart(message) {
@@ -70,6 +100,7 @@ function subscribeToPhase(channelName: string, phase: YdbPhase): void {
       }
 
       const durationMs = Math.max(0, Date.now() - trace.startedAt);
+      trace.operation.activePhases.delete(trace);
       const aggregate = trace.operation.phases[trace.phase];
       aggregate.attempts += 1;
       aggregate.totalDurationMs += durationMs;
@@ -93,6 +124,7 @@ function subscribeToPhase(channelName: string, phase: YdbPhase): void {
         trace.operation.phaseFailures.set(message.error, {
           phase: trace.phase,
           durationMs: Math.max(0, Date.now() - trace.startedAt),
+          source: 'error_trace',
         });
       }
     },
@@ -119,11 +151,36 @@ export function subscribeToDiagnostics(): void {
   });
   // The completed channel has only an outcome/count. Its matching tracing
   // error channel carries the cause, including retries with no backoff.
-  tracingChannel('tracing:ydb:retry.attempt').subscribe({
+  const retryChannel = tracingChannel<RetryAttempt>('tracing:ydb:retry.attempt');
+  retryChannel.start.bindStore(retryAttemptStorage, message => {
+    const attempt = { active: true, parent: retryAttemptStorage.getStore() };
+    retryAttempts.set(message, attempt);
+
+    return attempt;
+  });
+  retryChannel.subscribe({
     start() {},
     end() {},
-    asyncStart() {},
-    asyncEnd() {},
+    asyncStart(message) {
+      const attempt = isTraceContext(message) ? retryAttempts.get(message) : undefined;
+      if (attempt) {
+        attempt.active = false;
+      }
+      // Retire only this attempt and its descendants, after its error snapshot.
+      // Nested credentials retries must preserve their outer SQL/session phase;
+      // cancelled RPCs must not contaminate a later attempt while unwinding.
+      const operation = operationStorage.getStore();
+      for (const trace of operation?.activePhases ?? []) {
+        if (!isAttemptActive(trace.attempt)) {
+          operation?.activePhases.delete(trace);
+        }
+      }
+    },
+    asyncEnd(message) {
+      if (isTraceContext(message)) {
+        retryAttempts.delete(message);
+      }
+    },
     error(message) {
       const operation = operationStorage.getStore();
       if (operation && isTraceContext(message) && 'error' in message) {
@@ -156,14 +213,35 @@ export function retryErrorFields(
   error: unknown,
   source: 'sdk' | 'read_fallback',
 ): JsonObject {
-  const failure = errorChain(error)
-    .map(item => operation.phaseFailures.get(item as object))
-    .find(item => item !== undefined);
-
   return {
     ...safeErrorFields(error, { fallbackCode: 'ydb_retry_cause_unavailable', retriable: true }),
     retry_source: source,
+    ...failurePhaseFields(operation, error),
+  };
+}
+
+export function failurePhaseFields(operation: OperationState, error: unknown): JsonObject {
+  let failure = errorChain(error)
+    .map(item => operation.phaseFailures.get(item as object))
+    .find(item => item !== undefined);
+  const cancellation = errorChain(error).some(
+    item => item instanceof Error && (item.name === 'TimeoutError' || item.name === 'AbortError'),
+  );
+
+  if (!failure && cancellation && isTraceContext(error)) {
+    // SDK abortable() can reject before ExecuteQuery/Session.open unwinds.
+    // Snapshot the innermost active trace at cancellation, rather than guessing
+    // from completed durations (which may belong to an earlier attempt).
+    const rank: Record<YdbPhase, number> = { session_acquire: 0, session_create: 1, query_execute: 2 };
+    const active = [...operation.activePhases].sort((a, b) => rank[b.phase] - rank[a.phase])[0];
+    if (active) {
+      failure = { phase: active.phase, durationMs: Math.max(0, Date.now() - active.startedAt), source: 'active_trace' };
+      operation.phaseFailures.set(error, failure);
+    }
+  }
+
+  return {
     phase: failure?.phase ?? 'unknown',
-    ...(failure ? { failed_phase_duration_ms: failure.durationMs } : {}),
+    ...(failure ? { phase_source: failure.source, failed_phase_duration_ms: failure.durationMs } : {}),
   };
 }
