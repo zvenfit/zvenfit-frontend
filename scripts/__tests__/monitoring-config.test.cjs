@@ -11,6 +11,7 @@ const dashboardExportText = fs.readFileSync(path.join(ROOT, 'scripts/monitoring.
 const dashboardExport = JSON.parse(dashboardExportText);
 const source = [
   'functions/lead-intake/src/handler.ts',
+  'functions/lead-intake/src/notification/worker.ts',
   'functions/lead-intake/src/notification/delivery.ts',
   'functions/lead-intake/src/observability/metrics.ts',
   'functions/lead-intake/src/telegram/delivery.ts',
@@ -27,6 +28,7 @@ const monitoringRunbook = fs.readFileSync(path.join(ROOT, 'knowledge-base/monito
 const smokeScript = fs.readFileSync(path.join(ROOT, 'scripts/test-monitoring-alerts.sh'), 'utf8');
 const directMetricsSource = [
   'functions/lead-intake/src/handler.ts',
+  'functions/lead-intake/src/notification/worker.ts',
   'functions/lead-intake/src/observability/metrics.ts',
   'functions/lead-intake/src/observability/otel-transport.ts',
 ]
@@ -244,7 +246,7 @@ test('every alert references a metric and is documented', () => {
     alertIds.add(alert.id);
   }
 
-  assert.equal(alertIds.size, 17);
+  assert.equal(alertIds.size, 18);
 });
 
 test('every alert keeps the human-readable name and product taxonomy tracked in Git', () => {
@@ -296,6 +298,7 @@ test('count-sensitive and caught application alerts use the log aggregate pipeli
     'zvenfit_slow_ydb_operations',
     'zvenfit_rate-limited_leads',
     'zvenfit_persisted_leads_volume',
+    'zvenfit_retry_worker_deferred',
     'zvenfit_retry_worker_heartbeat',
     'zvenfit_rate_limit_health_errors',
     'zvenfit_monium_metrics_failures',
@@ -649,11 +652,11 @@ test('rate limiter fail-open path has a count-based health alert', () => {
   );
 });
 
-test('transient Telegram retries remain log-only', () => {
+test('scheduled Telegram retries remain log-only while delivery storage failures page', () => {
   const monitoredEvents = config.logMetrics.flatMap(metric => metric.events || []);
 
   assert.equal(monitoredEvents.includes('telegram_delivery_retry_scheduled'), false);
-  assert.equal(monitoredEvents.includes('telegram_delivery_retry_error'), false);
+  assert.equal(monitoredEvents.includes('telegram_delivery_retry_error'), true);
   assert.match(monitoringDocs, /`telegram_delivery_retry_scheduled`\s+\| Telegram временно недоступен/);
   assert.match(monitoringDocs, /`telegram_delivery_retry_error`\s+\| Retry-задача не смогла обработать заявку/);
 });
@@ -827,4 +830,33 @@ test('monitoring smoke script requires confirmation and covers every application
 
   assert.match(smokeScript, /reason\\?":\\?"rate_limit/);
   assert.match(smokeScript, /synthetic Fitbase event intentionally exercises the production Fitbase alert/);
+});
+
+
+test('recovered YDB latency and retries are email diagnostics without repeated paging', () => {
+  for (const id of ['zvenfit_ydb_retries', 'zvenfit_slow_ydb_operations']) {
+    const alert = config.alerts.find(item => item.id === id);
+    assert.deepEqual(alert.notificationChannelIds, ['zvenfit_email_alerts']);
+    assert.equal(alert.level, 'INFO');
+    assert.equal(alert.repeatMinutes, 0);
+  }
+});
+
+test('repeated deferred passes page independently of OTLP and successful heartbeats', () => {
+  const alert = config.alerts.find(item => item.id === 'zvenfit_retry_worker_deferred');
+  const metric = config.logMetrics.find(item => item.id === alert.metricId);
+  assert.deepEqual(metric.events, ['retry_worker_deferred']);
+  assert.equal(metric.window, '1m');
+  assert.equal(metric.aggregation, 'count');
+  assert.equal(alert.aggregation, 'sum');
+  assert.equal(alert.window, '10m');
+  assert.equal(alert.delay, '3m');
+  assert.equal(alert.noData, 'OK');
+  assert.equal(alert.alarm, 2.5);
+  assert.equal(alert.operator, '>');
+  assert.deepEqual(alert.notificationChannelIds, config.notificationPolicy.channelIds);
+  for (const count of [0, 1, 2]) assert.equal(count > alert.alarm, false);
+  for (const count of [3, 5, 10]) assert.equal(count > alert.alarm, true);
+  const storage = config.logMetrics.find(item => item.id === 'zvenfit_lead_storage_errors_1m');
+  assert.deepEqual(storage.events, ['lead_storage_error', 'telegram_delivery_retry_error']);
 });

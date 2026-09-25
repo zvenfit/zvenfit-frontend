@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { channel } from 'node:diagnostics_channel';
 import test from 'node:test';
 
-import { memoryLogger, namedError, recordByEvent, tracePhase } from './ydb-test-helpers';
+import { observeReadOnlyYdbOperation, memoryLogger, namedError, recordByEvent, tracePhase } from './ydb-test-helpers';
 import { recordInitializationAttempts } from '../../ydb/initialization-attempts';
 import { observeYdbOperation, prepareAndObserveYdbOperation } from '../ydb';
 
@@ -62,7 +62,7 @@ test('retries one transient error for an explicitly safe read', async () => {
   const logger = memoryLogger();
   let attempts = 0;
 
-  const result = await observeYdbOperation(
+  const result = await observeReadOnlyYdbOperation(
     'list_telegram_candidates',
     logger,
     async () => {
@@ -73,7 +73,7 @@ test('retries one transient error for an explicitly safe read', async () => {
 
       return 'ok';
     },
-    { readRetry: { budgetMs: 10_000 } },
+    10_000,
   );
 
   assert.equal(result, 'ok');
@@ -91,7 +91,7 @@ test('retries TimeoutError and ClientError for explicitly safe reads', async () 
     const logger = memoryLogger();
     let attempts = 0;
 
-    const result = await observeYdbOperation(
+    const result = await observeReadOnlyYdbOperation(
       'list_telegram_candidates',
       logger,
       async () => {
@@ -102,7 +102,7 @@ test('retries TimeoutError and ClientError for explicitly safe reads', async () 
 
         return 'ok';
       },
-      { readRetry: { budgetMs: 10_000 } },
+      10_000,
     );
 
     assert.equal(result, 'ok');
@@ -115,7 +115,7 @@ test('retries a nested transient gRPC error for an explicitly safe read', async 
   const logger = memoryLogger();
   let attempts = 0;
 
-  const result = await observeYdbOperation(
+  const result = await observeReadOnlyYdbOperation(
     'get_telegram_queue_health',
     logger,
     async () => {
@@ -128,7 +128,7 @@ test('retries a nested transient gRPC error for an explicitly safe read', async 
 
       return 'ok';
     },
-    { readRetry: { budgetMs: 10_000 } },
+    10_000,
   );
 
   assert.equal(result, 'ok');
@@ -157,14 +157,14 @@ test('does not retry a permanent read error', async () => {
   let attempts = 0;
 
   await assert.rejects(() =>
-    observeYdbOperation(
+    observeReadOnlyYdbOperation(
       'get_telegram_queue_health',
       logger,
       async () => {
         attempts += 1;
         throw namedError('PermissionError', 'PERMISSION_DENIED');
       },
-      { readRetry: { budgetMs: 10_000 } },
+      10_000,
     ),
   );
 
@@ -177,33 +177,34 @@ test('does not retry ClientError with an explicit permanent code', async () => {
   let attempts = 0;
 
   await assert.rejects(() =>
-    observeYdbOperation(
+    observeReadOnlyYdbOperation(
       'get_telegram_queue_health',
       logger,
       async () => {
         attempts += 1;
         throw namedError('ClientError', 'PERMISSION_DENIED');
       },
-      { readRetry: { budgetMs: 10_000 } },
+      10_000,
     ),
   );
 
   assert.equal(attempts, 1);
 });
 
-test('stops after two transient retries', async () => {
+test('stops when the remaining budget cannot fit another retry', async context => {
+  context.mock.method(Math, 'random', () => 0);
   const logger = memoryLogger();
   let attempts = 0;
 
   await assert.rejects(() =>
-    observeYdbOperation(
+    observeReadOnlyYdbOperation(
       'get_telegram_queue_health',
       logger,
       async () => {
         attempts += 1;
         throw abortError();
       },
-      { readRetry: { budgetMs: 10_000 } },
+      2_000,
     ),
   );
 

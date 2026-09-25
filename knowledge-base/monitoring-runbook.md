@@ -1,7 +1,7 @@
 ---
 type: runbook
 title: ZvenFit alerts, metrics and logs runbook
-updated: 2026-09-18
+updated: 2026-09-25
 ---
 
 # Alerts, metrics and logs runbook
@@ -27,13 +27,22 @@ is the project entry point and intentionally does not duplicate every selector.
 - Critical retry-worker heartbeat uses the independent
   `zvenfit_retry_worker_log_heartbeat_1m` aggregate; direct OTLP heartbeat is
   diagnostic only.
-- Read-only retry-worker YDB queries retry one transient session/query failure;
-  write operations never opt in to this retry.
+- Read-only retry-worker YDB queries recover transient session/query failures
+  within one deadline; writes never opt in. The canonical recovery policy and
+  module boundaries are in [backend architecture](../docs/backend-architecture.md#восстановление-чтений-ydb).
 - YDB client-preparation failures record `initialization_attempts` separately from
   query/session `retry_attempts`; message-derived codes come only from a fixed safe allowlist.
 - Transient YDB driver discovery uses up to three initialization attempts with
   `250ms` / `500ms` exponential backoff; permanent initialization errors fail immediately.
-- A single slow YDB query is graph-only; two in `10m` warn and three alarm.
+- Recovered YDB retries/slow queries use email diagnostics without repeats; they do not page Telegram.
+- `retry_worker_deferred` means a known transient queue read could not recover in
+  its budget. The next minute's timer resumes the durable outbox; no successful
+  heartbeat or fabricated queue gauge is emitted. Three deferred passes in `10m`
+  page via `zvenfit_retry_worker_deferred` after the `3m` ingestion delay.
+- Missing successful passes still page through the independent log heartbeat.
+  Storage writes, permanent delivery failures and unknown runtime failures remain urgent.
+- Rollback: restore the previous function version; retain the runtime, storage,
+  heartbeat and backlog alerts. The new deferred metric can remain idle (`No data = OK`).
 - Raw logs retain 14 days.
 - No Lockbox or new monitoring infrastructure without separate approval.
 - CDN query masking remains out of scope while no separate raw CDN pipeline is created.

@@ -3,13 +3,14 @@ import { getEventListeners } from 'node:events';
 import test from 'node:test';
 import { setTimeout as delay } from 'node:timers/promises';
 
-import { isTransientReadError, retryRead } from '../read-retry';
+import { retryRead } from '../read-retry';
+import { isTransientReadError } from '../read-retry-policy';
 
 function deadlineError(): Error {
   return Object.assign(new Error('private transport details'), { name: 'ClientError', code: 4 });
 }
 
-test('recovers two session deadlines with spaced retries and one shared signal', async context => {
+test('recovers three session deadlines with spaced retries and one shared signal', async context => {
   context.mock.method(Math, 'random', () => 0);
   const starts: number[] = [];
   const signals: AbortSignal[] = [];
@@ -19,22 +20,23 @@ test('recovers two session deadlines with spaced retries and one shared signal',
     async signal => {
       signals.push(signal);
       starts.push(performance.now());
-      if (starts.length < 3) {
+      if (starts.length < 4) {
         throw error;
       }
 
       return 'recovered';
     },
-    { budgetMs: 2_000, onRetry: cause => causes.push(cause) },
+    { budgetMs: 10_000, onRetry: cause => causes.push(cause) },
   );
 
   assert.equal(result, 'recovered');
-  assert.equal(starts.length, 3);
-  const [first, second, third] = starts;
-  assert.ok(first !== undefined && second !== undefined && third !== undefined);
-  assert.ok(second - first >= 240);
-  assert.ok(third - second >= 490);
-  assert.deepEqual(causes, [error, error]);
+  assert.equal(starts.length, 4);
+  const [first, second, third, fourth] = starts;
+  assert.ok(first !== undefined && second !== undefined && third !== undefined && fourth !== undefined);
+  assert.ok(second - first >= 490);
+  assert.ok(third - second >= 990);
+  assert.ok(fourth - third >= 1_990);
+  assert.deepEqual(causes, [error, error, error]);
   assert.equal(new Set(signals).size, 1);
   const signal = signals[0];
   assert.ok(signal);
@@ -60,7 +62,7 @@ test('one budget cancels an in-flight retry and is not reset per attempt', async
         return new Promise<never>(() => {});
       },
       {
-        budgetMs: 350,
+        budgetMs: 650,
         onRetry: () => {
           retries += 1;
         },
@@ -72,7 +74,7 @@ test('one budget cancels an in-flight retry and is not reset per attempt', async
   assert.equal(attempts, 2);
   assert.equal(retries, 1);
   assert.equal(observedSignal?.aborted, true);
-  assert.ok(performance.now() - startedAt < 550);
+  assert.ok(performance.now() - startedAt < 950);
   assert.ok(observedSignal);
   assert.equal(getEventListeners(observedSignal, 'abort').length, 0);
 });

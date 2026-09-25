@@ -1,7 +1,8 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { channel, tracingChannel } from 'node:diagnostics_channel';
 
-import { errorChain, safeErrorFields } from './errors';
+import { safeErrorFields } from './errors';
+import { errorChain } from '../error-chain';
 
 import type { JsonObject } from '../types';
 
