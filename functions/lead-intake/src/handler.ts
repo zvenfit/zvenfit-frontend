@@ -1,6 +1,7 @@
 import { allowedOrigins, corsHeaders, isAllowedOrigin, isJsonContentType, jsonResponse, readBody } from './http';
 import { createLead, hasHoneypotValue, validateLead } from './lead-payload';
-import { logDeliveryFailure, retryPendingLeads, type RetrySummary } from './notification/delivery';
+import { logDeliveryFailure } from './notification/delivery';
+import { runRetryWorker, type RetryWorkerResult } from './notification/worker';
 
 import type { FunctionContext, HandlerDependencies, HttpEvent, HttpResponse, JsonObject, LoggerLike } from './types';
 
@@ -13,7 +14,7 @@ function isTimerEvent(event: HttpEvent): boolean {
     : false;
 }
 
-type HandlerResult = HttpResponse | RetrySummary;
+type HandlerResult = HttpResponse | RetryWorkerResult;
 type CloudHandler = (event: HttpEvent, context?: FunctionContext) => Promise<HandlerResult>;
 
 function requestBodyBytes(event: HttpEvent): number {
@@ -87,23 +88,7 @@ export function createHandler(dependencies: HandlerDependencies): CloudHandler {
 
     try {
       if (isTimerEvent(event)) {
-        const retrySummary = await retryPendingLeads(dependencies, logger);
-        const queueHealth = await dependencies.store.getTelegramQueueHealth({ now: dependencies.now(), logger });
-        metrics.recordGauge('zvenfit_telegram_pending_leads', queueHealth.pendingCount);
-        metrics.recordGauge('zvenfit_telegram_oldest_pending_age_seconds', queueHealth.oldestPendingAgeSeconds);
-        metrics.recordGauge('zvenfit_retry_worker_heartbeat', 1);
-        const heartbeatEvent = 'retry_worker_completed';
-        logger.info?.(
-          {
-            event: heartbeatEvent,
-            ...retrySummary,
-            queue_pending: queueHealth.pendingCount,
-            oldest_pending_age_seconds: queueHealth.oldestPendingAgeSeconds,
-          },
-          heartbeatEvent,
-        );
-
-        return retrySummary;
+        return await runRetryWorker(dependencies, logger, metrics);
       }
 
       const origins = allowedOrigins();

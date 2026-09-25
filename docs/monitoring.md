@@ -133,6 +133,7 @@ Lead/schedule автоматически скрывают известные п�
 | `telegram_delivery_retry_error`        | Retry-задача не смогла обработать заявку                     | Critical   |
 | `telegram_delivery_retry_scheduled`    | Telegram временно недоступен, будет retry                    | Log only   |
 | `telegram_delivery_failed_permanently` | Исчерпаны попытки Telegram                                   | Critical   |
+| `retry_worker_deferred`                | Временный отказ чтения очереди; следующий timer продолжит   | Series alert |
 | `retry_worker_completed`               | Минутный retry pass и чтение состояния очереди завершены     | Diagnostic |
 | `monium_metrics_export_completed`      | OTLP export завершён; содержит `duration_ms` и `outcome`      | Diagnostic |
 | `monium_metrics_export_error`          | OTLP exporter не доставил gauges в отведённый таймаут        | Warning    |
@@ -219,8 +220,8 @@ Lead/schedule автоматически скрывают известные п�
 ```
 
 Диагностический график различает `session_acquire` и `session_create`. Он не
-отправляет уведомления: пользовательское влияние продолжают покрывать slow SQL,
-YDB errors/retries, heartbeat retry-worker и очередь доставки.
+отправляет уведомления. Пользовательское влияние покрывают storage errors,
+повторные отложенные проходы, heartbeat retry-worker и очередь доставки.
 
 ### 6. Rate-limited submissions
 
@@ -375,6 +376,7 @@ Functions, storage alert — две автоматические метрики 
 | `zvenfit_slow_ydb_operations`         | log aggregate `zvenfit_ydb_slow_operations_5m` | `sum`  | `> 1.5` | `> 2.5` |    10m |    3m | OK      |
 | `zvenfit_rate-limited_leads`          | log aggregate `zvenfit_lead_rate_limited_5m` | `sum`    |   `> 0` |   `> 5` |    10m |    3m | OK      |
 | `zvenfit_persisted_leads_volume`      | log aggregate `zvenfit_leads_persisted_5m`   | `sum`    |  `> 10` |  `> 20` |    10m |    3m | OK      |
+| `zvenfit_retry_worker_deferred`       | log aggregate `zvenfit_retry_worker_deferred_1m` | `sum` | `> 2` | `> 2.5` | 10m | 3m | OK |
 | `zvenfit_retry_worker_heartbeat`      | log aggregate `zvenfit_retry_worker_log_heartbeat_1m` | `max` | `< 0.9` | `< 0.5` | 5m | 3m | Alarm |
 | `zvenfit_telegram_delivery_backlog`   | direct oldest pending age, seconds           | `last`   | `> 600` | `> 1800` |    5m |   30s | OK      |
 | `zvenfit_rate_limit_health_errors`    | log aggregate `zvenfit_rate_limit_errors_5m` | `sum`    |   `> 0` |   `> 2` |    10m |    3m | OK      |
@@ -444,22 +446,38 @@ heartbeat помогает отличить отказ direct OTLP от проб
 самого retry-worker.
 
 Read-only операции `list_telegram_candidates` и `get_telegram_queue_health`
-допускают до трёх прикладных попыток при transient `AbortError`, `TimeoutError`,
-неклассифицированном `ClientError` и известных временных YDB/gRPC/transport-кодах.
-Паузы перед повторами — 250–374 и 500–749 мс (backoff с jitter). Каждый повтор
-создаёт новую query; пул может получить свежую session без пересоздания driver.
-Общий бюджет query/session после подготовки client —
-`min(2 × YDB_QUERY_TIMEOUT_MS, 20000)` мс, по умолчанию 10 секунд.
-Для каждого из двух чтений один AbortSignal объединяет его попытки и ограничивает
-также внутренние повторы SDK и паузы; таймаут отдельной query остаётся прежним. Если на паузу уже
-не хватает бюджета, новая попытка не начинается. При исчерпании бюджета во время
-работы query отменяется, пишется `error_code=ydb_read_budget_exhausted`.
-Явные постоянные коды, например `PERMISSION_DENIED`, не повторяются даже при
-transient-тексте в сообщении или generic wrapper. Node `AbortError/ABORT_ERR`
-при отмене внутренней паузы SDK допускает повтор, если общий бюджет ещё есть
-и в цепочке причины нет постоянного протокольного кода. Write-path этим механизмом
-не повторяется. Успешное восстановление пишет `ydb_retry`; исчерпание попыток
-или бюджета по-прежнему завершает invocation ошибкой и попадает в runtime alert.
+восстанавливаются в общем бюджете через persistence adapter; политика и
+границы описаны в [backend architecture](backend-architecture.md#восстановление-чтений-ydb).
+После исчерпания бюджета adapter переводит только явно известный временный
+код или собственный deadline в `QueueReadUnavailableError`. Неизвестный
+`ClientError`, ошибка конфигурации и постоянные коды остаются runtime failures.
+Классификация для переноса прохода строже классификации для дополнительной
+попытки чтения: одного имени или текста ошибки недостаточно.
+
+Timer пишет `retry_worker_deferred`, возвращает `{deferred: true, stage}` и
+полагается на следующий минутный запуск. Заявки уже в долговечной очереди;
+состояние и счётчик попыток доставки от чтения не меняются. Успешного heartbeat
+или нулевых gauges при этом нет. Если чтение health не удалось после отправки,
+успешная доставка остаётся сохранённой и повторно не отправляется.
+HTTP-приём не обрабатывает этот результат: ошибка сохранения всегда даёт 503
+и `lead_storage_error`; ошибки записи при доставке дают
+`telegram_delivery_retry_error`. Оба события включены в критическую storage metric.
+
+### Повторные отложенные проходы
+
+Log metric `zvenfit_retry_worker_deferred_1m`: `count`, окно `1m`, event
+`retry_worker_deferred`, production taxonomy и группировка как у heartbeat.
+Alert `zvenfit_retry_worker_deferred`: `sum > 2.5` за `10m`, задержка `3m`,
+`No data = OK`. Три отложенных прохода вызывают Telegram/email; один или два
+остаются диагностикой. Полная остановка дополнительно покрывается независимым
+heartbeat (`5m`, задержка `3m`, `No data = Alarm`), даже если логи ошибок не пришли.
+Общий runtime alert остаётся без ослабления для неизвестных ошибок.
+
+Успешные `ydb_retry` и `ydb_slow_operation` остаются на dashboard и в email
+без повторных уведомлений; их алерты имеют уровень `INFO` и не пишут в Telegram.
+Это не меняет срочность несохранённой заявки, окончательного отказа доставки,
+backlog, отсутствия heartbeat и повторных отложенных проходов.
+
 `ydb_retry` содержит безопасные `error_type`/`error_code` последней ошибки,
 приведшей к повтору, `retry_source=sdk|read_fallback`, общую `duration_ms` и
 агрегаты длительности фаз. `phase` и `failed_phase_duration_ms` описывают

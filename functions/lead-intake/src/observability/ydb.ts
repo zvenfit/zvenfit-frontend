@@ -11,12 +11,11 @@ import {
 } from './ydb-diagnostics';
 import { slowOperationMs } from '../ydb/config';
 import { initializationAttempts } from '../ydb/initialization-attempts';
-import { retryRead } from '../ydb/read-retry';
 
 import type { JsonObject, LoggerLike } from '../types';
 
-interface ObserveYdbOperationOptions {
-  readRetry?: { budgetMs: number };
+export interface YdbOperationObserver {
+  onReadRetry(error: unknown): void;
 }
 
 function slowSessionPhase(operation: OperationState): { durationMs: number; phase: YdbPhase } | undefined {
@@ -44,8 +43,7 @@ function writeLog(logger: LoggerLike | undefined, level: 'info' | 'warn' | 'erro
 export async function observeYdbOperation<T>(
   operationName: string,
   logger: LoggerLike | undefined,
-  callback: (signal: AbortSignal) => Promise<T>,
-  options: ObserveYdbOperationOptions = {},
+  callback: (observer: YdbOperationObserver) => Promise<T>,
 ): Promise<T> {
   subscribeToDiagnostics();
 
@@ -53,19 +51,14 @@ export async function observeYdbOperation<T>(
   const operation = createOperationState();
 
   try {
-    const result = await operationStorage.run(operation, async () => {
-      if (options.readRetry) {
-        return retryRead(callback, {
-          budgetMs: options.readRetry.budgetMs,
-          onRetry(error) {
-            operation.retries += 1;
-            operation.retryFailure = retryErrorFields(operation, error, 'read_fallback');
-          },
-        });
-      }
-
-      return callback(new AbortController().signal);
-    });
+    const result = await operationStorage.run(operation, () =>
+      callback({
+        onReadRetry(error) {
+          operation.retries += 1;
+          operation.retryFailure = retryErrorFields(operation, error, 'read_fallback');
+        },
+      }),
+    );
     const durationMs = Date.now() - startedAt;
 
     writeLog(logger, 'info', {
@@ -129,8 +122,7 @@ export async function prepareAndObserveYdbOperation<TPrepared, TResult>(
   operationName: string,
   logger: LoggerLike | undefined,
   prepare: () => Promise<TPrepared>,
-  callback: (prepared: TPrepared, signal: AbortSignal) => Promise<TResult>,
-  options: ObserveYdbOperationOptions = {},
+  callback: (prepared: TPrepared, observer: YdbOperationObserver) => Promise<TResult>,
 ): Promise<TResult> {
   const startedAt = Date.now();
   let prepared: TPrepared;
@@ -150,5 +142,5 @@ export async function prepareAndObserveYdbOperation<TPrepared, TResult>(
     throw error;
   }
 
-  return observeYdbOperation(operationName, logger, signal => callback(prepared, signal), options);
+  return observeYdbOperation(operationName, logger, observer => callback(prepared, observer));
 }

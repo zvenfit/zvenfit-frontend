@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import { tracingChannel } from 'node:diagnostics_channel';
 
+import { runReadOnlyYdbOperation } from '../../ydb/read-operation';
+
 import type { JsonObject, LoggerLike } from '../../types';
 
 interface LogRecord extends JsonObject {
@@ -47,4 +49,19 @@ export async function tracePhase<T>(phase: TestPhase, callback: () => Promise<T>
   );
 
   return result as T;
+}
+
+export function observeReadOnlyYdbOperation<T>(
+  operation: string,
+  logger: LoggerLike,
+  execute: (signal: AbortSignal) => Promise<T>,
+  budgetMs: number,
+): Promise<T> {
+  return runReadOnlyYdbOperation(
+    operation,
+    logger,
+    async () => undefined,
+    (_prepared, signal) => execute(signal),
+    budgetMs,
+  );
 }

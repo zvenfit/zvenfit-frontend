@@ -1,7 +1,14 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { memoryLogger, namedError, recordByEvent, tracePhase, type TestPhase } from './ydb-test-helpers';
+import {
+  observeReadOnlyYdbOperation,
+  memoryLogger,
+  namedError,
+  recordByEvent,
+  tracePhase,
+  type TestPhase,
+} from './ydb-test-helpers';
 import { observeYdbOperation } from '../ydb';
 
 test('captures the real SDK retry cause and failed query phase even with zero backoff', async () => {
@@ -48,7 +55,7 @@ test('captures the innermost session failure recovered by the read fallback', as
   const logger = memoryLogger();
   let attempts = 0;
 
-  await observeYdbOperation(
+  await observeReadOnlyYdbOperation(
     'list_telegram_candidates',
     logger,
     async () => {
@@ -61,7 +68,7 @@ test('captures the innermost session failure recovered by the read fallback', as
         }),
       );
     },
-    { readRetry: { budgetMs: 10_000 } },
+    10_000,
   );
 
   const recovered = recordByEvent(logger.records, 'ydb_retry');
@@ -111,7 +118,7 @@ test('captures the active query when SDK timeout wins the race against its trace
   let unwind: () => void = () => {};
   let attempts = 0;
   try {
-    await observeYdbOperation(
+    await observeReadOnlyYdbOperation(
       'list_telegram_candidates',
       logger,
       async () => {
@@ -131,7 +138,7 @@ test('captures the active query when SDK timeout wins the race against its trace
           ),
         );
       },
-      { readRetry: { budgetMs: 2_000 } },
+      2_000,
     );
 
     const recovered = recordByEvent(logger.records, 'ydb_retry');
@@ -147,13 +154,14 @@ test('captures the active query when SDK timeout wins the race against its trace
   }
 });
 
-test('does not attribute a later session timeout to a cancelled query still unwinding', async () => {
+test('does not attribute a later session timeout to a cancelled query still unwinding', async context => {
+  context.mock.method(Math, 'random', () => 0);
   const { retry } = await import('@ydbjs/retry');
   const logger = memoryLogger();
   const unwinds: (() => void)[] = [];
   let attempts = 0;
   try {
-    await observeYdbOperation(
+    await observeReadOnlyYdbOperation(
       'list_telegram_candidates',
       logger,
       async () => {
@@ -175,7 +183,7 @@ test('does not attribute a later session timeout to a cancelled query still unwi
           ),
         );
       },
-      { readRetry: { budgetMs: 2_000 } },
+      2_000,
     );
     const recovered = recordByEvent(logger.records, 'ydb_retry');
     assert.equal(recovered.retry_attempts, 2);
@@ -209,11 +217,11 @@ test('the shared deadline reaches a real SDK query while CreateSession is in fli
   const sql = query(driver as unknown as Parameters<typeof query>[0]);
   try {
     await assert.rejects(
-      observeYdbOperation(
+      observeReadOnlyYdbOperation(
         'list_telegram_candidates',
         logger,
         async signal => sql`SELECT 1;`.idempotent(true).signal(signal).timeout(1_000),
-        { readRetry: { budgetMs: 30 } },
+        30,
       ),
       { code: 'ydb_read_budget_exhausted' },
     );
@@ -271,11 +279,11 @@ for (const metadataCompletes of [false, true]) {
     const sql = query(driver as unknown as Parameters<typeof query>[0]);
     try {
       await assert.rejects(
-        observeYdbOperation(
+        observeReadOnlyYdbOperation(
           'list_telegram_candidates',
           logger,
           async signal => sql`SELECT 1;`.idempotent(true).signal(signal).timeout(1_000),
-          { readRetry: { budgetMs: 30 } },
+          30,
         ),
         { code: 'ydb_read_budget_exhausted' },
       );
@@ -291,10 +299,11 @@ for (const metadataCompletes of [false, true]) {
   });
 }
 
-test('final failures retain the innermost phase and never become a recovered event', async () => {
+test('final failures retain the innermost phase and never become a recovered event', async context => {
+  context.mock.method(Math, 'random', () => 0);
   const logger = memoryLogger();
   await assert.rejects(
-    observeYdbOperation(
+    observeReadOnlyYdbOperation(
       'list_telegram_candidates',
       logger,
       () =>
@@ -303,7 +312,7 @@ test('final failures retain the innermost phase and never become a recovered eve
             throw namedError('ClientError', 4);
           }),
         ),
-      { readRetry: { budgetMs: 2_000 } },
+      2_000,
     ),
   );
   const failure = recordByEvent(logger.records, 'ydb_operation_failed');

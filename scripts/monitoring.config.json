@@ -187,7 +187,7 @@
   "logMetrics": [
     {
       "id": "zvenfit_lead_storage_errors_1m",
-      "events": ["lead_storage_error"],
+      "events": ["lead_storage_error", "telegram_delivery_retry_error"],
       "filters": { "meta.service": "zvenfit-lead-intake", "resource_id": "*" },
       "aggregation": "count",
       "window": "1m",
@@ -258,6 +258,16 @@
       "aggregation": "count",
       "window": "5m",
       "grouping": ["meta.application", "meta.environment", "meta.service", "resource_id"]
+    },
+    {
+      "id": "zvenfit_retry_worker_deferred_1m",
+      "displayName": "ZvenFit · Retry-worker: отложенные проходы",
+      "events": ["retry_worker_deferred"],
+      "filters": { "meta.service": "zvenfit-lead-intake", "resource_id": "*" },
+      "aggregation": "count",
+      "window": "1m",
+      "grouping": ["meta.application", "meta.environment", "meta.service", "resource_id"],
+      "synthetic": false
     },
     {
       "id": "zvenfit_retry_worker_log_heartbeat_1m",
@@ -437,7 +447,11 @@
       "window": "10m",
       "delay": "3m",
       "noData": "OK",
-      "labels": { "application": "zvenfit-frontend", "environment": "production", "service": "zvenfit-lead-intake", "resource_id": "zvenfit-telegram-lead" }
+      "labels": { "application": "zvenfit-frontend", "environment": "production", "service": "zvenfit-lead-intake", "resource_id": "zvenfit-telegram-lead" },
+      "level": "INFO",
+      "notificationChannelIds": ["zvenfit_email_alerts"],
+      "notificationStatuses": ["ALARM", "WARNING", "OK"],
+      "repeatMinutes": 0
     },
     {
       "id": "zvenfit_slow_ydb_operations",
@@ -451,7 +465,11 @@
       "window": "10m",
       "delay": "3m",
       "noData": "OK",
-      "labels": { "application": "zvenfit-frontend", "environment": "production", "service": "zvenfit-lead-intake", "resource_id": "zvenfit-telegram-lead" }
+      "labels": { "application": "zvenfit-frontend", "environment": "production", "service": "zvenfit-lead-intake", "resource_id": "zvenfit-telegram-lead" },
+      "level": "INFO",
+      "notificationChannelIds": ["zvenfit_email_alerts"],
+      "notificationStatuses": ["ALARM", "WARNING", "OK"],
+      "repeatMinutes": 0
     },
     {
       "id": "zvenfit_rate-limited_leads",
@@ -480,6 +498,22 @@
       "delay": "3m",
       "noData": "OK",
       "labels": { "application": "zvenfit-frontend", "environment": "production", "service": "zvenfit-lead-intake", "resource_id": "zvenfit-telegram-lead" }
+    },
+    {
+      "id": "zvenfit_retry_worker_deferred",
+      "displayName": "ZvenFit · Retry-worker: повторные сбои чтения очереди",
+      "metricId": "zvenfit_retry_worker_deferred_1m",
+      "metricSelector": "{project=\"folder__b1ge1e4iopttj79hfdfm\", cluster=\"default\", service=\"logging_aggregates\", name=\"zvenfit_retry_worker_deferred_1m\", meta.application=\"zvenfit-frontend\", meta.environment=\"production\", meta.service=\"zvenfit-lead-intake\"}",
+      "aggregation": "sum",
+      "operator": ">",
+      "warning": 2,
+      "alarm": 2.5,
+      "window": "10m",
+      "delay": "3m",
+      "noData": "OK",
+      "level": "CRITICAL",
+      "labels": { "application": "zvenfit-frontend", "environment": "production", "service": "zvenfit-lead-intake", "resource_id": "zvenfit-telegram-lead" },
+      "notificationChannelIds": ["zvenfit_telegram_alerts", "zvenfit_email_alerts"]
     },
     {
       "id": "zvenfit_retry_worker_heartbeat",

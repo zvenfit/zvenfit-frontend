@@ -23,12 +23,48 @@ Application handler не создаёт adapters, не читает provider-mod
 
 - `src/handler.ts` — HTTP/timer orchestration и lead use-case;
 - `src/notification/delivery.ts` — provider-neutral outbox/retry workflow;
+- `src/notification/worker.ts` — результат timer pass и health/heartbeat;
 - `src/ydb/` — persistence adapters;
 - `src/telegram/delivery.ts` — только Telegram transport;
 - `src/adapters/notification/discard-sink.ts` — adapter без внешних side effects;
 - `src/composition/production.ts` — production wiring;
 - `src/composition/staging.ts` — staging wiring;
 - `src/entrypoints/` — тонкие cloud entrypoints.
+
+### Восстановление чтений YDB
+
+Повторы временных ошибок — ответственность persistence adapter. Handler и
+сценарий доставки работают через существующий storage port и не выбирают
+число попыток, коды YDB или таймауты SDK.
+
+- `ydb/read-retry-policy.ts` — чистая классификация ошибок и расчёт пауз:
+  базовые 500 мс, 1 с, затем 2 с с jitter до 50%.
+- `ydb/read-retry.ts` — выполнение этой политики с одним монотонным deadline
+  и AbortSignal на всю операцию. Ограничение — общий бюджет, а не три быстрые
+  попытки. Если следующая пауза не помещается, возвращается последняя ошибка.
+  Постоянные ошибки завершаются сразу; поздний результат после deadline
+  считается ошибкой.
+- `ydb/read-operation.ts` — связывает подготовку клиента, повторы и наблюдение.
+  Подготовка клиента сохраняет собственную политику и исключена из бюджета
+  SQL-операции. Бюджет задаёт `ydb/context.ts`:
+  `min(2 * YDB_QUERY_TIMEOUT_MS, 20000)` мс.
+- `observability/ydb.ts` — измеряет результат и получает уведомления о повторах,
+  но не запускает их и не импортирует исполнителя повторов.
+
+Только чтения `listTelegramCandidates` и `getTelegramQueueHealth` используют
+этот путь. Записи, захват заявки и отправка уведомления не переисполняются
+этим механизмом. Отмена чтения не закрывает общий driver/pool. Регрессионные
+тесты используют настоящий SDK с искусственным транспортом: серия ошибок
+создания сессии или отмена чтения не мешает независимой транзакции завершиться.
+
+`notification/queue-read-unavailable.ts` задаёт публичную ошибку storage port.
+YDB adapter (`queue-read.ts`) переводит в неё только явно временные read failures;
+application workflow не импортирует SDK и не разбирает provider-коды. Timer
+возвращает отдельный deferred-result, а следующий минутный запуск продолжает
+долговечную очередь. Deferred pass не пишет успешный heartbeat и не обнуляет
+состояние очереди. Неизвестные/постоянные ошибки продолжают отклонять invocation.
+HTTP write-path и транзакции не используют этот контракт восстановления.
+Сигналы отказа и пороги описаны в [monitoring](monitoring.md#повторные-отложенные-проходы).
 
 Схема YDB сохраняет исторические `telegram_*` имена до отдельной обратимо
 совместимой миграции. Это persistence detail; staging/production provider
