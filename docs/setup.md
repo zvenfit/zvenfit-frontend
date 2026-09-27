@@ -88,8 +88,8 @@ Job получает OIDC JWT, обменивает его на короткож
 
 - production и staging variables/secrets хранятся раздельно;
 - deployment разрешён только из `main`;
-- staging требует approval настроенного reviewer; в текущем single-maintainer
-  режиме self-review разрешён;
+- ручного approval нет ни в staging, ни в production: staging — автоматическая
+  первая ступень релиза, production выкатывается только после зелёного E2E;
 - staging workflow не наследует repository secrets;
 - `pull_request_target` с checkout кода PR не используется.
 
@@ -150,7 +150,9 @@ Telegram-функция всегда предпочитает обычный DNS
 
 ## Deployment
 
-Production запускается push в `main`; staging — только вручную.
+Push в `main` запускает workflow **Release**: staging, E2E, затем production
+(см. [`launch-checklist.md`](launch-checklist.md)). Ручной **Deploy to Staging**
+прогоняет staging и E2E без релиза.
 
 Порядок reusable workflow:
 

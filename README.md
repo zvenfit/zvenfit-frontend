@@ -59,6 +59,11 @@ Local development
 
 Заявка считается принятой после сохранения в YDB. Telegram служит каналом уведомления: при временном сбое retry timer повторит доставку сохранённой заявки.
 
+Релиз: каждый push в `main` запускает workflow **Release**. Он разворачивает
+staging, прогоняет E2E из `zvenfit-autotests` и только после их успеха деплоит
+production и публикует тег версии. Подробности и аварийный путь — в
+[`docs/launch-checklist.md`](docs/launch-checklist.md).
+
 ## Где менять код
 
 | Зона                      | Источник                                               |
@@ -71,13 +76,13 @@ Local development
 | Staging Basic authorizer  | `functions/staging-authorizer/src/`                    |
 | Техническая посещаемость  | `public/js/traffic-beacon.js`, `functions/site-traffic/` |
 | Build и HTML-инъекции     | `scripts/build-static.cjs`, `scripts/snippets/`        |
-| Production workflow       | `.github/workflows/main.yml`                           |
-| Private staging workflow  | `.github/workflows/staging.yml`                        |
+| Release: staging → E2E → production | `.github/workflows/main.yml`                 |
+| Ручной staging + E2E без релиза     | `.github/workflows/staging.yml`              |
 
 Staging Playwright tests and their fail-closed config live in
-[`zvenfit-autotests`](https://github.com/zvenfit/zvenfit-autotests). The
-frontend staging workflow calls that repository's reusable workflow at an
-immutable commit SHA after deploy.
+[`zvenfit-autotests`](https://github.com/zvenfit/zvenfit-autotests). Both
+frontend deploy workflows call that repository's reusable workflow at the same
+immutable commit SHA after the staging deploy.
 
 `dist/` генерируется и не редактируется вручную. После изменений HTML, CSS, JS или build-конфигурации запускай `npm run build` либо используй `npm run dev:watch`.
 
