@@ -57,11 +57,12 @@ Staging с браузерными тестами пока запускается
 ## Перед merge
 
 ```bash
-npm run lint:public
+npm run lint
 npm run test:lead-fn
 npm run test:schedule-fn
-npm run test:monitoring
-npm run test:lead-import
+npm run test:site-traffic
+npm run test:staging-authorizer
+npm run test:scripts
 npm run test:build
 ```
 

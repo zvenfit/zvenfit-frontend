@@ -1,6 +1,8 @@
 # ZvenFit Frontend
 
-Статический сайт ZvenFit из Webflow-экспорта, serverless-функции и надёжное хранение заявок в YDB Serverless.
+Статический сайт ZvenFit, serverless-функции и надёжное хранение заявок в YDB Serverless.
+Разметка изначально пришла из Webflow-экспорта, но Webflow больше не используется: источник
+истины — `public/`, страницы правятся прямо в репозитории.
 
 - Инструкции для контрибьюторов и AI-агентов: [`AGENTS.md`](AGENTS.md)
 - Связь с Personal AI Workspace и запуск проверок: [`docs/personal-ai-workspace.md`](docs/personal-ai-workspace.md)
@@ -82,16 +84,18 @@ immutable commit SHA after deploy.
 ## Проверки
 
 ```bash
-npm run lint:public
+npm run lint
 npm run test:lead-fn
 npm run test:schedule-fn
 npm run test:staging-authorizer
 npm run test:site-traffic
-npm run test:monitoring
-npm run test:lead-import
+npm run test:scripts
 npm run test:build
 npm run test:build:staging
 ```
+
+`test:scripts` покрывает все тесты `scripts/__tests__/`; `test:monitoring` и
+`test:lead-import` запускают их подмножества.
 
 После production deploy выполни smoke-test. Он проверяет страницы,
 runtime-конфиги, CORS lead API, schedule API и пишет один page view класса

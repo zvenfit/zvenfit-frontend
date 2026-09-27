@@ -8,3 +8,5 @@ production-архитектуры.
   discovery-план будущего развития интеграции с FitBase.
 - [`fitbase-integration-manager-plan.md`](fitbase-integration-manager-plan.md) —
   версия предложения для согласования с менеджером.
+- [`ideas.md`](ideas.md) — короткие идеи без проработки: MAX как второй канал
+  уведомлений, проверка обработки персональных данных.

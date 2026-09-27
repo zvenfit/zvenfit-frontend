@@ -1,24 +1,16 @@
 module.exports = {
-  parser: '@babel/eslint-parser',
   parserOptions: {
-    ecmaVersion: 2020,
-    ecmaFeatures: {
-      jsx: true,
-    },
-    requireConfigFile: false,
+    ecmaVersion: 'latest',
+    sourceType: 'module',
   },
   env: {
     browser: true,
-    es6: true,
-    es2017: true,
+    es2022: true,
     node: true,
-    jest: true,
   },
   // Prettier should be ALWAYS in the end of the list
   extends: [
     'eslint:recommended',
-    'plugin:react/recommended',
-    'plugin:react-hooks/recommended',
     'plugin:@typescript-eslint/eslint-recommended',
     'plugin:@typescript-eslint/recommended',
     'plugin:import/recommended',
@@ -26,12 +18,6 @@ module.exports = {
     'plugin:prettier/recommended',
   ],
   plugins: [],
-  settings: {
-    react: {
-      // No react dependency in this static-only repo; pin version for eslint-plugin-react rules.
-      version: '18.3',
-    },
-  },
   // https://eslint.org/docs/rules/
   rules: {
     curly: 'error',
@@ -125,28 +111,22 @@ module.exports = {
     },
     {
       // Settings for TS
-      files: ['*.ts', '*.tsx'],
-      excludedFiles: ['webpack.config.ts'],
+      files: ['*.ts'],
       parser: '@typescript-eslint/parser',
       parserOptions: {
         project: [
-          './tsconfig.test.json',
           './functions/lead-intake/tsconfig.json',
           './functions/fitbase-schedule/tsconfig.json',
           './functions/staging-authorizer/tsconfig.json',
           './functions/site-traffic/tsconfig.json',
         ],
         sourceType: 'module',
-        ecmaFeatures: { jsx: true },
       },
       settings: {
         'import/resolver': {
           typescript: {
             alwaysTryTypes: true,
           },
-        },
-        'react': {
-          version: '18.3',
         },
       },
       extends: ['plugin:@typescript-eslint/recommended'],
@@ -172,7 +152,6 @@ module.exports = {
           'error',
           { selector: 'interface', format: ['PascalCase'], filter: { regex: 'Window', match: false } },
           { selector: 'class', format: ['PascalCase'] },
-          { selector: 'method', format: null, filter: { regex: '^UNSAFE_', match: true } },
         ],
         '@typescript-eslint/member-ordering': [
           'error',
@@ -221,7 +200,6 @@ module.exports = {
             '**/__mocks__/*.ts',
             '**/__mocks__/**/*.ts',
             '*.test.ts',
-            '*.test.tsx',
           ],
           rules: {
             '@typescript-eslint/no-explicit-any': 'off',
@@ -238,29 +216,7 @@ module.exports = {
             'import/no-extraneous-dependencies': 'off',
           },
         },
-        {
-          files: ['*.stories.tsx'],
-          rules: {
-            'import/no-default-export': 'off',
-          },
-        },
       ],
-    },
-    {
-      files: ['webpack.config.ts'],
-      parser: '@typescript-eslint/parser',
-      parserOptions: {
-        project: ['./tsconfig-webpack.json'],
-      },
-      overrides: [
-        {
-          files: ['webpack.config.ts'],
-          rules: {
-            'import/no-extraneous-dependencies': 'off',
-            'import/no-default-export': 'off',
-          },
-        },
-      ]
     },
   ],
 };

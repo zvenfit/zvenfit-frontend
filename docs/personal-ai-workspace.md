@@ -9,8 +9,9 @@
   и `10 Domains/Zvenfit/Products/Сайт ZvenFit` внутри Workspace `vault/`.
 
 Карточки Workspace задают связи; `repo-manifest.json` отражает их идентификаторы.
-`project_ids` пуст: подключение существующего продукта не создаёт отдельную
-инициативу с вымышленными целями или сроками.
+`project_ids` зеркалит Project cards, связанные с этим репозиторием: сейчас это
+`PRJ-006` «Уровни алертов мониторинга сайта ZvenFit». Каноничны сами карточки
+в Workspace; при новой связи обновляются обе стороны.
 
 ## Где хранить знания
 
@@ -53,7 +54,7 @@ Browser E2E по-прежнему принадлежат только `zvenfit-a
 
 ```bash
 python3 scripts/check.py --list
-python3 scripts/check.py --execute-reviewed <review_digest> --check lint-public
+python3 scripts/check.py --execute-reviewed <review_digest> --check lint
 ```
 
 `review_digest` берётся из предыдущего запуска и относится к точным байтам
