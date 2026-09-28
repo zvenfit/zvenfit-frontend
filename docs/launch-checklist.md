@@ -64,6 +64,7 @@ npm run test:site-traffic
 npm run test:staging-authorizer
 npm run test:scripts
 npm run test:build
+npm run test:build:staging
 ```
 
 - [ ] Все проверки завершились успешно.
