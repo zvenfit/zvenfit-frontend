@@ -95,6 +95,38 @@ test('deploy workflows share one non-cancelling concurrency group', () => {
   }
 });
 
+test('every workflow job that runs on a runner fails within 20 minutes instead of hanging', () => {
+  const workflowDirectory = path.join(ROOT, '.github/workflows');
+
+  for (const file of fs.readdirSync(workflowDirectory).filter(name => /\.ya?ml$/.test(name))) {
+    const workflow = fs.readFileSync(path.join(workflowDirectory, file), 'utf8');
+    const jobIds = [...workflow.split('\njobs:\n')[1].matchAll(/^ {2}([a-z][a-z0-9-]*):$/gm)].map(match => match[1]);
+
+    assert.notEqual(jobIds.length, 0, `${file} declares no jobs`);
+    for (const jobId of jobIds) {
+      const job = workflowJob(workflow, jobId);
+      if (!/\n {4}runs-on:/.test(job)) continue;
+
+      const timeout = job.match(/\n {4}timeout-minutes: (\d+)\n/);
+      assert.ok(timeout, `${file} job ${jobId} must set timeout-minutes`);
+      assert.ok(Number(timeout[1]) <= 20, `${file} job ${jobId} must fail within 20 minutes`);
+    }
+  }
+});
+
+test('pull requests keep the quality check that the main ruleset requires', () => {
+  const qualityWorkflow = fs.readFileSync(path.join(ROOT, '.github/workflows/quality.yml'), 'utf8');
+
+  assert.match(qualityWorkflow, /\non:\n(?: {2}.*\n)* {2}pull_request:/);
+  assert.doesNotMatch(
+    qualityWorkflow,
+    /\n {2}pull_request:\n(?: {4}.*\n)* {4}paths(?:-ignore)?:/,
+    'a path filter would leave the required check pending',
+  );
+  assert.match(qualityWorkflow, /\njobs:\n {2}quality:\n/);
+  assert.doesNotMatch(workflowJob(qualityWorkflow, 'quality'), /\n {4}name:/, 'a job name renames the check');
+});
+
 test('staging wrapper is manual-only and uses isolated resource names', () => {
   assert.match(stagingWorkflow, /on:\n  workflow_dispatch:/);
   assert.doesNotMatch(stagingWorkflow, /pull_request|push:/);
@@ -421,6 +453,32 @@ test('deploy jobs use OIDC and ephemeral storage keys instead of long-lived clou
   assert.doesNotMatch(reusableWorkflow, /YC_SA_JSON_KEY|YC_ACCESS_KEY_ID|YC_SECRET_ACCESS_KEY/);
   assert.doesNotMatch(reusableWorkflow, /curl -sSL[^\n]+install\.sh \| bash/);
   assert.doesNotMatch(reusableWorkflow, /docker:\/\//);
+});
+
+test('deploy scripts bound the connection and total time of every curl call', () => {
+  const scriptsDirectory = path.join(ROOT, 'scripts');
+  let calls = 0;
+
+  for (const file of fs.readdirSync(scriptsDirectory).filter(name => name.endsWith('.sh'))) {
+    const source = fs.readFileSync(path.join(scriptsDirectory, file), 'utf8').replace(/^\s*#.*$/gm, '');
+
+    for (const call of source.match(/\bcurl (?:[^\n]*\\\n)*[^\n]*/g) || []) {
+      calls += 1;
+      assert.match(call, /--connect-timeout \d+/, `${file}: ${call.split('\n')[0]}`);
+      assert.match(call, /--max-time \d+/, `${file}: ${call.split('\n')[0]}`);
+    }
+  }
+  assert.ok(calls >= 4, 'the curl call scan found fewer calls than the deploy scripts make');
+});
+
+test('yc CLI download restarts a stalled transfer, retries every error and verifies the pinned binary', () => {
+  const installer = fs.readFileSync(path.join(ROOT, 'scripts/install-yc-cli.sh'), 'utf8');
+
+  assert.match(installer, /--speed-limit \d+ --speed-time \d+/);
+  assert.match(installer, /--retry \d+ --retry-all-errors/);
+  assert.match(installer, /--no-progress-meter/);
+  assert.doesNotMatch(installer, /--silent/, 'retry warnings must stay visible in the job log');
+  assert.match(installer, /sha256sum --check/);
 });
 
 test('staging checks bucket privacy before upload and rechecks object ACL afterwards', () => {

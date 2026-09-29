@@ -16,6 +16,7 @@ fi
 ENCODED_AUDIENCE="$(node -e 'process.stdout.write(encodeURIComponent(process.argv[1]))' "${YC_WIF_AUDIENCE}")"
 echo 'auth-yc-wif: requesting a GitHub OIDC token'
 OIDC_RESPONSE="$(curl --fail --silent --show-error --location --retry 5 \
+  --connect-timeout 10 --max-time 30 \
   --header "Authorization: Bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" \
   "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=${ENCODED_AUDIENCE}")"
 OIDC_TOKEN="$(node -e '
@@ -33,6 +34,7 @@ process.stdout.write(`iss=${value("iss")} aud=${value("aud")} sub=${value("sub")
 
 echo 'auth-yc-wif: exchanging the GitHub OIDC token for a Yandex Cloud IAM token'
 if ! IAM_RESPONSE="$(curl --fail-with-body --silent --show-error --location --retry 5 \
+  --connect-timeout 10 --max-time 30 \
   --request POST \
   --header 'Content-Type: application/x-www-form-urlencoded' \
   --data-urlencode 'grant_type=urn:ietf:params:oauth:grant-type:token-exchange' \
