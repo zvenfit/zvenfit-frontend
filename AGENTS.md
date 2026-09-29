@@ -146,11 +146,13 @@ npm run test:schedule-fn         # schedule contract, Fitbase and synthetic adap
 npm run test:site-traffic        # page-view validation/classification/logging contract
 npm run test:staging-authorizer  # staging Basic auth
 npm run test:scripts             # build, deploy, monitoring and import scripts
+npm run test:layout              # focused layout tests and page markup checks
 npm run test:build               # build + smoke check dist/
 npm run test:build:staging       # protected staging build
 ```
 
 `test:monitoring` and `test:lead-import` run subsets of `test:scripts` when only that area changed.
+The tests and checks from `test:layout` are also covered by `test:scripts` and `test:build`.
 
 Manual smoke:
 
