@@ -4,11 +4,18 @@
 
 ## Автоматическая публикация версии
 
-Push в `main` запускает **Deploy to Production**. После успешных проверок,
+Push в `main` запускает workflow **Release**:
+
+```text
+проверки → deploy staging → E2E (zvenfit-autotests) → deploy production → Publish production release
+```
+
+Production деплоится, только если staging и E2E прошли. После успешных проверок,
 деплоя функций и сайта и встроенного smoke-test job **Publish production release**
 публикует Git-тег и GitHub Release на точный SHA этого запуска. Описание включает
 автоматические release notes, SHA и ссылку на deployment run. Отдельно создавать
-или отправлять тег вручную не требуется.
+или отправлять тег вручную не требуется. От merge до production проходит около
+10 минут.
 
 Версия рассчитывается от последнего стабильного тега `vMAJOR.MINOR.PATCH` по
 сообщениям всех коммитов после него. При squash merge это итоговые сообщения PR:
@@ -40,9 +47,15 @@ prerelease-теги не участвуют в расчёте. Повторна�
    обхода ошибки: проверь конкурирующую ручную публикацию и историю версий.
 
 Публикация использует встроенный `GITHUB_TOKEN` с `contents: write` только в
-release job; отдельный PAT не нужен. Все jobs входят в общую последовательную
-группу `deploy-production`. Публикация может восстановить пропущенный Release
+release job; отдельный PAT не нужен. Публикация может восстановить пропущенный Release
 старого существующего тега, но не назначит его latest поверх более новой версии.
+
+Release и ручной **Deploy to Staging** входят в одну последовательную группу
+`deploy`. Идущий deploy не прерывается: отмена на середине оставила бы
+production частично обновлённым. Пока один запуск идёт, GitHub держит в очереди
+только самый новый, поэтому промежуточные коммиты выходят вместе с последним.
+Ручной staging, запущенный во время релиза, может вытеснить ожидающий релиз;
+в этом случае перезапусти **Release** вручную.
 
 Read-only просмотр предполагаемой версии для текущего checkout:
 
@@ -51,8 +64,15 @@ RELEASE_SHA=$(git rev-parse HEAD) node scripts/publish-production-release.cjs --
 ```
 
 Перед просмотром нужны актуальные теги и полная история (`git fetch origin --tags`).
-Staging с браузерными тестами пока запускается отдельно вручную и не является
-обязательным условием production: см. [`staging-environment.md`](staging-environment.md).
+Устройство staging: [`staging-environment.md`](staging-environment.md).
+
+## Аварийный релиз без staging
+
+Только когда production нужно исправить срочно, а staging или E2E сломаны сами:
+**Actions → Release → Run workflow** из `main`, включить `skip_staging` и
+заполнить `reason`. Без причины job **Select release path** остановит запуск.
+Проверки качества и production smoke-test выполняются как обычно; причина
+попадает в summary запуска. После исправления staging прогони обычный релиз.
 
 ## Перед merge
 
@@ -74,7 +94,7 @@ npm run test:build:staging
 
 ## После deploy
 
-1. Дождись успешного завершения workflow **Deploy to Production**, включая
+1. Дождись успешного завершения workflow **Release**, включая
    **Publish production release**. Ссылка на версию появится в summary этого job.
 2. Smoke-test уже выполняется в workflow. При необходимости повтори его локально:
 

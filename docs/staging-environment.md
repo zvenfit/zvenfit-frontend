@@ -2,8 +2,9 @@
 
 Staging разворачивает тот же commit, что production, но физически отделён от
 него: отдельные Yandex Cloud folder, bucket, Functions, YDB, service accounts и
-GitHub Environment. Workflow запускается вручную из `main` через **Deploy to
-Staging**.
+GitHub Environment. Каждый push в `main` запускает workflow **Release**: сначала
+staging и E2E, и только после их успеха production. **Deploy to Staging**
+оставлен для ручного прогона staging и E2E без релиза.
 
 Единственная внешняя точка входа — API Gateway. Он защищает HTML, assets и оба
 `/api/*` одним HTTP Basic authorizer и Smart Web Security. Bucket и Functions
@@ -74,9 +75,10 @@ Variables:
 | `YC_SWS_SECURITY_PROFILE_ID` | SWS profile с подключённым ARL |
 | `Y_MAPS_API_KEY` | browser key для staging build |
 
-Environment должен разрешать deployment только из `main` и требовать
-подтверждение настроенного reviewer. В текущем single-maintainer режиме
-self-review разрешён; код PR всё равно не получает staging secrets.
+Environment разрешает deployment только из `main`. Ручного approval нет: по
+решению владельца от 2026-09-27 staging разворачивается автоматически как первая
+ступень релиза. Код PR staging secrets не получает, потому что deploy идёт
+только из `main`.
 
 ## Минимальная IAM-матрица
 
@@ -163,7 +165,9 @@ Gateway остаётся в deny-all bootstrap spec и не публикует s
 
 Staging считается готовым, когда одновременно выполнены условия:
 
-- environment разрешает deploy только из `main` и требует явного approval назначенного reviewer;
+- environment разрешает deploy только из `main`;
+- production деплоится только после зелёных staging и E2E, кроме аварийного
+  запуска **Release** с `skip_staging` и указанной причиной;
 - WIF subject и deploy SA отличаются от production;
 - административный parent-IAM audit зелёный;
 - прямые bucket/function URLs отвергают anonymous access;

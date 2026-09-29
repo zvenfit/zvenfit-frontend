@@ -193,8 +193,11 @@ test('authentication failures do not masquerade as a missing release', async () 
 test('workflow gates publication on successful production deploy and confines write permission to that job', () => {
   const workflow = fs.readFileSync(path.join(__dirname, '../../.github/workflows/main.yml'), 'utf8');
   const release = workflow.slice(workflow.indexOf('\n  release:'));
-  assert.match(release, /needs: deploy/);
-  assert.match(release, /if: github.ref == 'refs\/heads\/main'/);
+  assert.match(release, /needs: production\n/);
+  assert.match(
+    release,
+    /if: \$\{\{ !cancelled\(\) && needs\.production\.result == 'success' && github\.ref == 'refs\/heads\/main' \}\}/,
+  );
   assert.doesNotMatch(release, /always\(\)|continue-on-error/);
   assert.match(release, /ref: \$\{\{ github.sha \}\}/);
   assert.match(release, /RELEASE_SHA: \$\{\{ github.sha \}\}/);
@@ -202,5 +205,5 @@ test('workflow gates publication on successful production deploy and confines wr
   assert.match(release, /persist-credentials: false/);
   assert.match(release, /contents: write/);
   assert.doesNotMatch(workflow.slice(0, workflow.indexOf('\n  release:')), /contents: write/);
-  assert.match(workflow, /group: deploy-production\n\s+cancel-in-progress: false/);
+  assert.match(workflow, /group: deploy\n\s+cancel-in-progress: false/);
 });

@@ -20,8 +20,8 @@
 
 - `zvenfit-autotests` is the only repository that owns Playwright, browser E2E specs, Playwright configs, fixtures, and reusable browser-test workflows.
 - Never add `@playwright/test`, `playwright`, `playwright-core`, `playwright*.config.*`, or browser E2E source files to `zvenfit-frontend`.
-- This repository may own unit, integration, build, deployment, and static contract tests. Its staging workflow may only call the reusable E2E workflow from `zvenfit-autotests`.
-- Pin both the cross-repository reusable workflow reference and its checkout input to the same full immutable commit SHA.
+- This repository may own unit, integration, build, deployment, and static contract tests. Its deploy workflows (`main.yml`, `staging.yml`) may only call the reusable E2E workflow from `zvenfit-autotests`.
+- Pin both the cross-repository reusable workflow reference and its checkout input to the same full immutable commit SHA, identical in `main.yml` and `staging.yml`.
 - Publish and validate browser-test changes in `zvenfit-autotests` first; only then update the pinned SHA here.
 - If a task asks to add Playwright or browser E2E while working in this repository, implement that part in `zvenfit-autotests` instead of crossing the boundary.
 
@@ -31,7 +31,7 @@
 - **Build:** `scripts/build-static.cjs` → `dist/` (gitignored)
 - **Runtime JS:** vanilla JS in `public/js/`
 - **Backend:** 4 TypeScript Yandex Cloud Functions in `functions/` (compiled to CommonJS): `lead-intake`, `fitbase-schedule`, `site-traffic`, `staging-authorizer`
-- **CI:** `quality.yml` checks pull requests; `main.yml` deploys production on every push to `main` (functions → build → S3 → smoke → release tag); `staging.yml` deploys staging and runs the E2E suite on manual dispatch. Both deploys share `_deploy-environment.yml`.
+- **CI:** `quality.yml` checks pull requests. `main.yml` (**Release**) runs on every push to `main`: staging deploy → E2E from `zvenfit-autotests` → production deploy (functions → build → S3 → smoke) → release tag; production is skipped unless E2E passes. An emergency dispatch with `skip_staging` and a `reason` deploys production without staging. `staging.yml` re-runs staging and E2E manually without a release. All deploys share `_deploy-environment.yml` and the `deploy` concurrency group.
 
 TypeScript is used only for Cloud Functions; the frontend remains static vanilla JS. Do not assume React/Vite/Next.
 
@@ -182,7 +182,7 @@ From `TODO.md` — keep current identity:
 2. Copy-pasting footer/header across every page — use snippets/markers
 3. Forgetting `build-static` before deploy — app badges/OG/analytics missing
 4. Breaking marker comments — build skips injection silently
-5. Pushing to `main` — it deploys production immediately; work on a branch and open a pull request
+5. Pushing to `main` — it starts a release (staging, E2E, then production); work on a branch and open a pull request
 
 ## Git branches
 

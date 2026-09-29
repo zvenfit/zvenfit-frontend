@@ -17,15 +17,82 @@ const reusableWorkflow = fs.readFileSync(path.join(ROOT, '.github/workflows/_dep
 const envExample = fs.readFileSync(path.join(ROOT, '.env.example'), 'utf8');
 const packageJson = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
 
+function workflowJob(workflow, jobId) {
+  const start = workflow.indexOf(`\n  ${jobId}:\n`);
+  assert.notEqual(start, -1, `workflow job ${jobId} is missing`);
+  const job = workflow.slice(start + 1);
+  const next = job.slice(1).search(/\n {2}[a-z][a-z0-9-]*:\n/);
+
+  return next === -1 ? job : job.slice(0, next + 1);
+}
+
+function jobBlock(job, key) {
+  const lines = job.slice(job.indexOf(`\n    ${key}:\n`) + 1).split('\n').slice(1);
+  const end = lines.findIndex(line => !line.startsWith('      '));
+
+  return lines.slice(0, end === -1 ? lines.length : end).join('\n');
+}
+
+const EMERGENCY_RELEASE = "github.event_name == 'workflow_dispatch' && inputs.skip_staging";
+
 test('production wrapper keeps every existing production resource name', () => {
-  assert.match(productionWorkflow, /deployment_environment: production/);
-  assert.match(productionWorkflow, /site_url: https:\/\/zvenfit\.ru/);
-  assert.match(productionWorkflow, /s3_bucket: zvenfit-frontend(?:\n|$)/);
-  assert.match(productionWorkflow, /lead_function_name: zvenfit-telegram-lead(?:\n|$)/);
-  assert.match(productionWorkflow, /schedule_function_name: zvenfit-fitbase-schedule(?:\n|$)/);
-  assert.match(productionWorkflow, /traffic_function_name: zvenfit-site-traffic(?:\n|$)/);
-  assert.match(productionWorkflow, /lead_retry_trigger_name: zvenfit-lead-telegram-retry(?:\n|$)/);
-  assert.match(productionWorkflow, /ydb_database_name: zvenfit-leads(?:\n|$)/);
+  const production = workflowJob(productionWorkflow, 'production');
+
+  assert.match(production, /deployment_environment: production/);
+  assert.match(production, /site_url: https:\/\/zvenfit\.ru/);
+  assert.match(production, /s3_bucket: zvenfit-frontend(?:\n|$)/);
+  assert.match(production, /lead_function_name: zvenfit-telegram-lead(?:\n|$)/);
+  assert.match(production, /schedule_function_name: zvenfit-fitbase-schedule(?:\n|$)/);
+  assert.match(production, /traffic_function_name: zvenfit-site-traffic(?:\n|$)/);
+  assert.match(production, /lead_retry_trigger_name: zvenfit-lead-telegram-retry(?:\n|$)/);
+  assert.match(production, /ydb_database_name: zvenfit-leads(?:\n|$)/);
+});
+
+test('release deploys staging, runs E2E and only then production', () => {
+  const staging = workflowJob(productionWorkflow, 'staging');
+  const e2e = workflowJob(productionWorkflow, 'e2e');
+  const production = workflowJob(productionWorkflow, 'production');
+  const release = workflowJob(productionWorkflow, 'release');
+
+  assert.match(productionWorkflow, /on:\n {2}push:\n {4}branches:\n {6}- main\n/);
+  assert.match(staging, /needs: release-path/);
+  assert.match(staging, /deployment_environment: staging/);
+  assert.match(e2e, /needs: staging/);
+  assert.match(production, /needs: \[release-path, e2e\]/);
+  assert.match(production, /!cancelled\(\)/);
+  assert.match(production, /needs\.release-path\.result == 'success'/);
+  assert.match(production, /needs\.e2e\.result == 'success'/);
+  assert.doesNotMatch(production, /always\(\)|continue-on-error/);
+  assert.match(release, /needs: production/);
+});
+
+test('emergency release requires an explicit dispatch from main with a reason', () => {
+  const releasePath = workflowJob(productionWorkflow, 'release-path');
+  const script = releasePath.slice(releasePath.indexOf('run: |'));
+
+  assert.match(productionWorkflow, /skip_staging:\n\s+description: .+\n\s+type: boolean\n\s+default: false/);
+  assert.match(productionWorkflow, /reason:\n\s+description: .+\n\s+type: string/);
+  assert.match(releasePath, /REASON: \$\{\{ inputs\.reason \}\}/);
+  assert.doesNotMatch(script, /\$\{\{/, 'dispatch inputs reach the script only through env');
+  assert.match(script, /"\$GITHUB_REF" != "refs\/heads\/main"/);
+  assert.match(script, /requires a reason/);
+  assert.ok(workflowJob(productionWorkflow, 'staging').includes(`!(${EMERGENCY_RELEASE})`));
+  assert.ok(workflowJob(productionWorkflow, 'production').includes(`(${EMERGENCY_RELEASE})`));
+});
+
+test('release staging matches the manual staging wrapper and receives no production secrets', () => {
+  const releaseStaging = workflowJob(productionWorkflow, 'staging');
+  const manualStaging = workflowJob(stagingWorkflow, 'deploy');
+
+  assert.equal(jobBlock(releaseStaging, 'with'), jobBlock(manualStaging, 'with'));
+  assert.equal(jobBlock(releaseStaging, 'secrets'), jobBlock(manualStaging, 'secrets'));
+  assert.doesNotMatch(releaseStaging, /TELEGRAM_BOT_TOKEN|FITBASE_API_TOKEN|MONIUM_API_KEY/);
+});
+
+test('deploy workflows share one non-cancelling concurrency group', () => {
+  for (const workflow of [productionWorkflow, stagingWorkflow]) {
+    assert.match(workflow, /\nconcurrency:\n {2}group: deploy\n {2}cancel-in-progress: false\n/);
+  }
 });
 
 test('staging wrapper is manual-only and uses isolated resource names', () => {
@@ -48,19 +115,28 @@ test('staging wrapper is manual-only and uses isolated resource names', () => {
   assert.match(stagingWorkflow, /allowed_origins: https:\/\/staging\.zvenfit\.ru/);
 });
 
-test('staging E2E delegates to an immutable autotests revision after deploy', () => {
-  const e2eJob = stagingWorkflow.slice(stagingWorkflow.indexOf('  e2e:'));
-  const workflowReference = e2eJob.match(
-    /uses: zvenfit\/zvenfit-autotests\/\.github\/workflows\/staging-smoke\.yml@([0-9a-f]{40})/,
-  );
+test('staging E2E delegates to one immutable autotests revision after deploy', () => {
+  const revisions = [
+    { workflow: stagingWorkflow, deployJob: 'deploy' },
+    { workflow: productionWorkflow, deployJob: 'staging' },
+  ].map(({ workflow, deployJob }) => {
+    const e2eJob = workflowJob(workflow, 'e2e');
+    const workflowReference = e2eJob.match(
+      /uses: zvenfit\/zvenfit-autotests\/\.github\/workflows\/staging-smoke\.yml@([0-9a-f]{40})/,
+    );
 
-  assert.match(e2eJob, /needs: deploy/);
-  assert.ok(workflowReference, 'staging E2E must call a commit-pinned autotests workflow');
-  assert.match(e2eJob, new RegExp(`autotests_ref: ${workflowReference[1]}`));
-  assert.match(e2eJob, /STAGING_BASIC_AUTH_USERNAME: \$\{\{ secrets\.STAGING_BASIC_AUTH_USERNAME \}\}/);
-  assert.match(e2eJob, /STAGING_BASIC_AUTH_PASSWORD: \$\{\{ secrets\.STAGING_BASIC_AUTH_PASSWORD \}\}/);
-  assert.doesNotMatch(e2eJob, /TELEGRAM_BOT_TOKEN|FITBASE_API_TOKEN|MONIUM_API_KEY/);
-  assert.doesNotMatch(e2eJob, /npm (?:ci|run)|npx playwright|runs-on:/);
+    assert.match(e2eJob, new RegExp(`needs: ${deployJob}\\n`));
+    assert.ok(workflowReference, 'staging E2E must call a commit-pinned autotests workflow');
+    assert.match(e2eJob, new RegExp(`autotests_ref: ${workflowReference[1]}`));
+    assert.match(e2eJob, /STAGING_BASIC_AUTH_USERNAME: \$\{\{ secrets\.STAGING_BASIC_AUTH_USERNAME \}\}/);
+    assert.match(e2eJob, /STAGING_BASIC_AUTH_PASSWORD: \$\{\{ secrets\.STAGING_BASIC_AUTH_PASSWORD \}\}/);
+    assert.doesNotMatch(e2eJob, /TELEGRAM_BOT_TOKEN|FITBASE_API_TOKEN|MONIUM_API_KEY/);
+    assert.doesNotMatch(e2eJob, /npm (?:ci|run)|npx playwright|runs-on:/);
+
+    return workflowReference[1];
+  });
+
+  assert.equal(revisions[0], revisions[1], 'release and manual staging must run the same E2E revision');
 });
 
 test('frontend does not own Playwright code or dependencies', () => {
