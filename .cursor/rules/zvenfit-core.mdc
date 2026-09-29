@@ -5,7 +5,8 @@ alwaysApply: true
 
 # ZvenFit — core rules
 
-Static Webflow site. Source: `public/`, `scripts/`, `functions/`. **Never edit `dist/`.**
+Static site. Markup started as a Webflow export; Webflow is no longer used, so edit `public/` directly.
+Source: `public/`, `scripts/`, `functions/`. **Never edit `dist/`.**
 
 After changes: `npm run build` or `npm run dev:watch`.
 
@@ -13,11 +14,12 @@ After changes: `npm run build` or `npm run dev:watch`.
 
 - Lead: `functions/lead-intake/` → `window.ZVENFIT_LEAD_API`
 - Schedule: `functions/fitbase-schedule/` → `window.ZVENFIT_SCHEDULE_API`
+- Page views: `functions/site-traffic/` → `window.ZVENFIT_TRAFFIC_API`
 
 ## Build markers
 
 HTML contains `<!-- ZvenFit: ... -->` comments replaced by `scripts/build-static.cjs`.
-Edit snippets in `scripts/snippets/` or configs — not 26 HTML copies.
+Edit snippets in `scripts/snippets/` or configs — not every HTML copy.
 
 ## Brand
 
@@ -29,13 +31,13 @@ No tokens in HTML/JS. Use env / GitHub Secrets only.
 
 ## Verify
 
-`npm run lint:public` and `npm run test:build`. Full guide: `AGENTS.md`.
+`npm run lint` and `npm run test:build`. Full guide: `AGENTS.md`.
 
 ## Deploy
 
 **Frontend (`zvenfit-frontend` bucket):** only via GitHub Actions (`.github/workflows/main.yml`).
 Do **not** manually upload to `zvenfit-frontend` (`yc storage s3api put-object`, `aws s3 cp/sync`, etc.) unless the user explicitly asks.
 
-After code changes: commit → push → CI runs `npm run build` and `s3 sync ./dist`.
+A push to `main` deploys production: CI runs `npm run build` and `s3 sync ./dist`. Work on a branch and open a pull request.
 
 **Assets bucket (`zvenfit`):** coach images and static CDN assets — not deployed by CI; manual ops only when the user requests or approves.

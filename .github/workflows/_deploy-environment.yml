@@ -126,16 +126,13 @@ jobs:
           npm ci --prefix functions/staging-authorizer
 
       - name: Run linters
-        run: |
-          npm run lint
-          npm run lint:public
+        run: npm run lint
 
       - name: Run tests
         run: |
           npm run test:lead-fn
           npm run test:schedule-fn
-          npm run test:lead-import
-          npm run test:monitoring
+          npm run test:scripts
           npm run test:staging-authorizer
           npm run test:site-traffic
 

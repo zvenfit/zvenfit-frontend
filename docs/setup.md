@@ -201,12 +201,11 @@ config.
 
 ```bash
 npm run lint
-npm run lint:public
 npm run test:lead-fn
 npm run test:schedule-fn
 npm run test:staging-authorizer
-npm run test:lead-import
-npm run test:monitoring
+npm run test:site-traffic
+npm run test:scripts
 npm run test:build
 npm run test:build:staging
 ```

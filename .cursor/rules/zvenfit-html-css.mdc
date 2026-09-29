@@ -6,8 +6,9 @@ alwaysApply: false
 
 # ZvenFit frontend files
 
-## HTML (Webflow export)
+## HTML (Webflow-derived markup)
 
+- Webflow is no longer used; `public/` is the source of truth
 - Class names are Webflow-generated — preserve them unless refactoring CSS too
 - Duplicated footer: `section-4` (desktop) + `section-3` (mobile) — prefer snippet/markers over N-file edits
 - Keep marker comments intact: `<!-- ZvenFit: ... -->`
@@ -21,8 +22,8 @@ alwaysApply: false
 ## JS
 
 - No bundler — plain browser JS with `window.*` config globals
-- `lead-config.js` / `schedule-config.js` contain placeholders replaced at build — don't hardcode prod URLs
+- `lead-config.js` / `schedule-config.js` / `traffic-config.js` contain placeholders replaced at build — don't hardcode prod URLs
 
 ## Scope
 
-Minimize diff. One page change ≠ refactor all 26 HTML files unless explicitly requested.
+Minimize diff. One page change ≠ refactor every HTML page unless explicitly requested.

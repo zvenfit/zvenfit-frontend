@@ -115,7 +115,7 @@
 - блок работает на 375 px и с клавиатуры;
 - ссылки на приложение берутся из `scripts/app-links.config.json`;
 - измеряются показ блока и клики по каждой платформе приложения с контекстом страницы;
-- HTML/CSS/JS проходят `npm run build`, `npm run lint:public` и `npm run test:build`.
+- HTML/CSS/JS проходят `npm run build`, `npm run lint` и `npm run test:build`.
 
 ## P2. Свободные места и лист ожидания
 

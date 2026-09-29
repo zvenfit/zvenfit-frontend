@@ -46,7 +46,9 @@ beacon events нельзя трактовать как bots: edge также с�
 - IP и полный User-Agent;
 - случайный `page_view_id`, `webdriver` и function `request_id`.
 
-Retention общей Cloud Logging group — 3 дня. В labels метрики разрешены только
+Retention общей Cloud Logging group — 14 дней (было 3 дня; увеличено 18 сентября
+2026, см. [monitoring-operations](monitoring-operations.md#увеличение-срока-хранения-для-двухнедельных-разборов)).
+Столько же хранятся IP, User-Agent и полный URL из page view. В labels метрики разрешены только
 `traffic_class` и `host`, то есть не больше 12 штатных рядов. `page` тоже
 остаётся только в логах: произвольные 404 URL сделали бы его высококардинальной
 label. IP, URL, referrer, User-Agent и IDs тем более нельзя добавлять в grouping.

@@ -27,13 +27,13 @@
 
 ## Stack
 
-- **Frontend:** static HTML (Webflow export) in `public/`
+- **Frontend:** static HTML in `public/`. The markup started as a Webflow export, but Webflow is no longer used: edit `public/` directly and never re-import a Webflow export over it.
 - **Build:** `scripts/build-static.cjs` → `dist/` (gitignored)
 - **Runtime JS:** vanilla JS in `public/js/`
-- **Backend:** 3 TypeScript Yandex Cloud Functions in `functions/` (compiled to CommonJS)
-- **CI:** `.github/workflows/main.yml` — deploy functions → build → S3
+- **Backend:** 4 TypeScript Yandex Cloud Functions in `functions/` (compiled to CommonJS): `lead-intake`, `fitbase-schedule`, `site-traffic`, `staging-authorizer`
+- **CI:** `quality.yml` checks pull requests; `main.yml` deploys production on every push to `main` (functions → build → S3 → smoke → release tag); `staging.yml` deploys staging and runs the E2E suite on manual dispatch. Both deploys share `_deploy-environment.yml`.
 
-TypeScript is used for Cloud Functions and declarations in `src/`; the frontend remains static vanilla JS. Do not assume React/Vite/Next.
+TypeScript is used only for Cloud Functions; the frontend remains static vanilla JS. Do not assume React/Vite/Next.
 
 ## Source of truth
 
@@ -61,6 +61,9 @@ Browser (zvenfit.ru)
                                                     └─ staging: dynamic fixture
 
 Browser page-view beacon → functions/site-traffic → Cloud Logging → Monium
+
+staging.zvenfit.ru → API Gateway + Basic auth (functions/staging-authorizer)
+  → private bucket and private staging builds of the functions above
 
 Local dev (npm run dev):
   mock-server :3000  ← lead POST + GET /schedule + POST /traffic
@@ -90,9 +93,9 @@ Build injects API URLs into:
 Also at build time:
 
 - minifies `zvenfit.webflow.css` → `zvenfit.webflow.min.css`
-- cache-busts listed JS files via `ASSET_VERSION`
+- cache-busts listed JS/CSS files via `ASSET_VERSION`
 - writes `maps-config.js` from `maps.config.json` + structured data
-- optional Yandex Maps org photos fetch (needs network)
+- fetches Yandex Maps organization photos for the map panels (needs network; falls back to `locationPhotos` from `maps.config.json`). Production visitors see these build-time photos: the in-browser `ymaps.findOrganization` lookup currently fails
 
 ## Task → file map
 
@@ -102,14 +105,18 @@ Also at build time:
 | Lead API / Telegram        | `functions/lead-intake/src/handler.ts`, `src/telegram/`             |
 | Lead storage / retry state | `functions/lead-intake/src/ydb/`                                    |
 | Schedule UI                | `public/raspisanie/index.html`, `public/js/schedule.js`             |
-| Schedule API / Fitbase     | `functions/fitbase-schedule/src/handler.ts`, `src/fitbase/`         |
+| Schedule API / Fitbase     | `functions/fitbase-schedule/src/handler.ts`, `src/adapters/fitbase/` |
 | Technical site traffic     | `public/js/traffic-beacon.js`, `functions/site-traffic/src/`        |
 | UTM in leads               | `public/js/utm-attribution.js`, `docs/utm-attribution-marketing.md` |
 | App store badges/links     | `scripts/app-links.config.json`, snippets in `scripts/snippets/`    |
 | SEO / JSON-LD              | `scripts/structured-data.config.json`, page `<meta>`                |
 | Maps                       | `scripts/maps.config.json`, `public/js/yandex-map.js`               |
+| Prices and page ownership  | `knowledge-base/site-information-architecture.md`                   |
+| Club card page             | `public/klubnaya-karta/`, `public/css/klubnaya-karta.v1.css`        |
 | Global styles              | `public/css/zvenfit.webflow.css`                                    |
-| Deploy                     | `.github/workflows/main.yml`, `scripts/deploy-*.sh`                 |
+| Alerts / dashboard         | `scripts/monitoring.config.json`, `docs/monitoring.md`              |
+| Staging access             | `functions/staging-authorizer/`, `docs/staging-environment.md`      |
+| Deploy                     | `.github/workflows/`, `scripts/deploy-*.sh`                         |
 
 ## Local development
 
@@ -119,6 +126,7 @@ npm install
 npm ci --prefix functions/lead-intake
 npm ci --prefix functions/fitbase-schedule
 npm ci --prefix functions/site-traffic
+npm ci --prefix functions/staging-authorizer
 npm run dev:watch                  # mock API + rebuild + serve :4173
 ```
 
@@ -131,12 +139,20 @@ npm run dev:watch                  # mock API + rebuild + serve :4173
 The Workspace check contract is `project-checks.json`. Run `python3 scripts/check.py --list` to review it; execute selected checks only with the returned `--execute-reviewed <review_digest>` and any required write/network flags. The runner does not provide OS sandboxing. Existing npm commands remain available below.
 
 ```bash
-npm run build          # must produce dist/
-npm run lint:public    # JS in public/ and functions/
-npm run test:lead-fn   # durable storage / Telegram failure paths
-npm run test:site-traffic  # page-view validation/classification/logging contract
-npm run test:build     # build + smoke check dist/index.html
+npm run build                    # must produce dist/
+npm run lint                     # JS in public/ and all functions
+npm run test:lead-fn             # durable storage / Telegram failure paths
+npm run test:schedule-fn         # schedule contract, Fitbase and synthetic adapters
+npm run test:site-traffic        # page-view validation/classification/logging contract
+npm run test:staging-authorizer  # staging Basic auth
+npm run test:scripts             # build, deploy, monitoring and import scripts
+npm run test:layout              # focused layout tests and page markup checks
+npm run test:build               # build + smoke check dist/
+npm run test:build:staging       # protected staging build
 ```
+
+`test:monitoring` and `test:lead-import` run subsets of `test:scripts` when only that area changed.
+The tests and checks from `test:layout` are also covered by `test:scripts` and `test:build`.
 
 Manual smoke:
 
@@ -163,20 +179,34 @@ From `TODO.md` — keep current identity:
 ## Common mistakes
 
 1. Editing `dist/` directly — changes are lost on next build
-2. Copy-pasting footer/header across 26 HTML files — use snippets/markers
+2. Copy-pasting footer/header across every page — use snippets/markers
 3. Forgetting `build-static` before deploy — app badges/OG/analytics missing
 4. Breaking marker comments — build skips injection silently
-5. Running `lint` only — default `lint` targets empty `src/`, use `lint:public`
+5. Pushing to `main` — it deploys production immediately; work on a branch and open a pull request
 
-## Pages (26 HTML files)
+## Git branches
 
-`index.html`, service pages (`personalnye-trenirovki`, `gruppovye-trenirovki`, `parnye-trenirovki`, `pilates-na-reformere/*`, `trenazhernyj-zal/*`), `raspisanie`, `forma-dlya-zayavki`, `trenery/*` (8 trainers), `promos/*`, legal (`privacy`, `offer`, `payment-policy`), `contacts/platforms`, `404.html`.
+- Do not use the `codex/` prefix.
+- Choose a semantic prefix: `feature/`, `bugfix/`, `hotfix/` (urgent production fix), `chore/`, `docs/`, or `refactor/`.
+- Keep the rest short, lowercase and kebab-case, for example `bugfix/telegram-ipv4`.
+
+## Pages
+
+`public/**/index.html` plus `404.html`: home, service pages (`personalnye-trenirovki`, `gruppovye-trenirovki`, `parnye-trenirovki`, `pilates-na-reformere/*`, `trenazhernyj-zal/*`), `klubnaya-karta`, `raspisanie`, `forma-dlya-zayavki`, `trenery/*` (index + one page per trainer), `promos/*`, legal (`privacy`, `offer`, `payment-policy`), `contacts/platforms`. `public/sitemap.xml` lists every indexable page and is maintained by hand: update it when adding or removing a page.
 
 ## Docs index
 
-| File                                | Purpose                               |
-| ----------------------------------- | ------------------------------------- |
-| `README.md`                         | Architecture, deploy, troubleshooting |
-| `docs/setup.md`                     | YC + Telegram + GitHub Secrets setup  |
-| `docs/utm-attribution-marketing.md` | UTM for marketing team                |
-| `TODO.md`                           | UI/UX + infra backlog with priorities |
+| File                                | Purpose                                             |
+| ----------------------------------- | --------------------------------------------------- |
+| `README.md`                         | Architecture, local start, checks                   |
+| `docs/setup.md`                     | YC + Telegram + GitHub Secrets setup                |
+| `docs/backend-architecture.md`      | Function layers, composition roots, artifacts       |
+| `docs/staging-environment.md`       | Private staging gateway and deploy                  |
+| `docs/launch-checklist.md`          | Production release checklist                        |
+| `docs/monitoring.md`                | Logs, metrics, alerts, dashboard                    |
+| `docs/monitoring-operations.md`     | Log selectors, retention, incident runbook          |
+| `docs/site-traffic-analytics.md`    | Stateless page views and traffic classes            |
+| `docs/utm-attribution-marketing.md` | UTM for marketing team                              |
+| `docs/future/`                      | Ideas and discovery plans not approved for work yet |
+| `knowledge-base/_index.md`          | Technical runbooks and page ownership               |
+| `TODO.md`                           | UI/UX + infra backlog with priorities               |

@@ -60,6 +60,15 @@ Agent guide: [`AGENTS.md`](AGENTS.md)
 
 - [x] **Map accessibility** — build заменяет iframe на region с `role` и `aria-label`.
 
+- [ ] **Живые фото на картах (`ymaps.findOrganization`)**
+  На production вызов в браузере падает со `scriptError`: запрос к
+  `api-maps.yandex.ru/services/search/v2` не проходит (проверено 2026-09-27).
+  Поэтому карты показывают фото, которые `build-static.cjs` на каждом деплое
+  парсит со страницы организации в Яндекс.Картах через `curl`. Починить, а не
+  выпиливать: проверить, есть ли у `Y_MAPS_API_KEY` доступ к поиску по
+  организациям, и вернуть живую загрузку. Либо доработать сборочный путь:
+  хранить снимок фото в конфиге вместо парсинга на каждом деплое.
+
 - [ ] **Purple accent contrast** — `#b949ff` on `#1a1a1a` for small text (WCAG AA).
 
 ---
@@ -68,7 +77,7 @@ Agent guide: [`AGENTS.md`](AGENTS.md)
 
 - [x] `AGENTS.md` + `.cursor/rules/` for agent context
 - [x] `.env.example` for local dev
-- [x] `npm run lint:public` — lint `public/js` + `functions`
+- [x] `npm run lint` — lint `public/js` + `functions`
 - [x] `npm run test:build` — build smoke check
 - [x] Durable lead storage in YDB + Telegram retry timer
 - [x] Lead function unit tests in CI
