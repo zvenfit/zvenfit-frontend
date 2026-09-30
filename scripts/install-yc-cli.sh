@@ -7,7 +7,13 @@ INSTALL_ROOT="${RUNNER_TEMP:-/tmp}/zvenfit-yc-cli-${YC_CLI_VERSION}"
 YC_BINARY="${INSTALL_ROOT}/yc"
 
 mkdir -p "${INSTALL_ROOT}"
-curl --fail --silent --show-error --location --retry 5 \
+# The 170 MB binary normally downloads in about 10 seconds. A transfer slower than
+# 100 KB/s for 30 seconds is treated as stalled and restarted, and every error is
+# retried: an unbounded stalled download once held a production deploy for 84 minutes.
+curl --fail --no-progress-meter --location \
+  --connect-timeout 10 --max-time 120 \
+  --speed-limit 102400 --speed-time 30 \
+  --retry 5 --retry-all-errors \
   "https://storage.yandexcloud.net/yandexcloud-yc/release/${YC_CLI_VERSION}/linux/amd64/yc" \
   --output "${YC_BINARY}"
 

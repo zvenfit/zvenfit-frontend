@@ -74,9 +74,12 @@ env:
   NODE_VERSION: '22'
   LOG_LEVEL: info
 
+# Every job has a timeout: a hung step fails the release instead of holding the
+# shared deploy group for up to GitHub's 6-hour default.
 jobs:
   validate-config:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     env:
       DEPLOYMENT_ENVIRONMENT: ${{ inputs.deployment_environment }}
       SITE_URL: ${{ inputs.site_url }}
@@ -100,6 +103,7 @@ jobs:
 
   quality-checks:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     steps:
       - name: Checkout repository
@@ -150,6 +154,7 @@ jobs:
   deploy-function:
     needs: [validate-config, quality-checks]
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     environment: ${{ inputs.deployment_environment }}
     permissions:
       contents: read
@@ -244,6 +249,7 @@ jobs:
   deploy-schedule-function:
     needs: [validate-config, quality-checks]
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     environment: ${{ inputs.deployment_environment }}
     permissions:
       contents: read
@@ -311,6 +317,7 @@ jobs:
   deploy-traffic-function:
     needs: [validate-config, quality-checks]
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     environment: ${{ inputs.deployment_environment }}
     permissions:
       contents: read
@@ -375,6 +382,7 @@ jobs:
   deploy-authorizer:
     needs: [validate-config, quality-checks]
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     environment: ${{ inputs.deployment_environment }}
     permissions:
       contents: read
@@ -444,6 +452,7 @@ jobs:
   deploy-site:
     needs: [validate-config, deploy-function, deploy-schedule-function, deploy-traffic-function, deploy-authorizer]
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     environment: ${{ inputs.deployment_environment }}
     permissions:
       contents: read
@@ -608,6 +617,7 @@ jobs:
       ${{ always() && inputs.site_access_mode == 'authenticated-gateway' &&
           needs.deploy-authorizer.result == 'success' && needs.deploy-site.result != 'success' }}
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     environment: ${{ inputs.deployment_environment }}
     permissions:
       contents: read
