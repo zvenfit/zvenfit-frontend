@@ -1,7 +1,7 @@
 ---
 type: runbook
 title: ZvenFit alerts, metrics and logs runbook
-updated: 2026-09-25
+updated: 2026-10-04
 ---
 
 # Alerts, metrics and logs runbook
@@ -19,8 +19,12 @@ is the project entry point and intentionally does not duplicate every selector.
 - Managed `functions_errors` uses `max` over `5m`: one failed invocation still alarms,
   while repeated `DGAUGE` samples are not presented as an invocation count.
 - Direct gauges require `application`, `environment`, `component`, and `resource_id`.
-- OTLP export has a bounded `5s` timeout; exporter failures are counted through
-  the independent `zvenfit_monium_metrics_failures_5m` log aggregate.
+- The complete OTLP lifecycle shares one deadline of at most `5s`; timeout closes
+  invocation-owned HTTP/HTTPS agents and blocks late connections and retries, and
+  the warning names the failed `phase`;
+  see the [timeout investigation](../docs/monitoring-operations.md#зависание-после-завершения-retry-worker-диагностика-28-сентября-2026).
+  Logged exporter failures are counted through the independent
+  `zvenfit_monium_metrics_failures_5m` log aggregate.
 - Exporter alert evaluates `30m`, warns after three failures, and alarms after
   six; it sends email once without Telegram or repeats, while isolated timeouts
   remain graph-only diagnostics.

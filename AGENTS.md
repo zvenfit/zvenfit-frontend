@@ -141,7 +141,7 @@ The Workspace check contract is `project-checks.json`. Run `python3 scripts/chec
 ```bash
 npm run build                    # must produce dist/
 npm run lint                     # JS in public/ and all functions
-npm run test:lead-fn             # durable storage / Telegram failure paths
+npm run test:lead-fn             # durable storage, Telegram failure paths, metrics export deadline (needs openssl)
 npm run test:schedule-fn         # schedule contract, Fitbase and synthetic adapters
 npm run test:site-traffic        # page-view validation/classification/logging contract
 npm run test:staging-authorizer  # staging Basic auth

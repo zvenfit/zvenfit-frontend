@@ -1,0 +1,273 @@
+import { ExportResultCode } from '@opentelemetry/core';
+import { MetricReader, type PushMetricExporter } from '@opentelemetry/sdk-metrics';
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import { setImmediate as drainMicrotasks } from 'node:timers/promises';
+
+import { createHandler } from '../../handler';
+import { createInvocationMetrics } from '../metrics';
+import { createOtelTransport } from '../otel-transport';
+
+import type { HandlerDependencies, JsonObject, LoggerLike } from '../../types';
+
+const METRICS_TIMEOUT_MS = 5000;
+const FUNCTION_TIMEOUT_MS = 120000;
+const EMPTY_QUEUE_RESULT = { processed: 0, sent: 0, pending: 0, failed: 0, skipped: 0 };
+const TIMER_EVENT = {
+  messages: [{ event_metadata: { event_type: 'yandex.cloud.events.serverless.triggers.TimerMessage' } }],
+};
+
+type StalledStage = 'none' | 'export' | 'forceFlush' | 'shutdown' | 'export-and-shutdown';
+
+function deferred() {
+  let resolve!: () => void;
+  let reject!: (error: Error) => void;
+  const promise = new Promise<void>((done, fail) => {
+    resolve = done;
+    reject = fail;
+  });
+
+  return { promise, resolve, reject };
+}
+
+// Use the real handler, metrics wrapper, SDK collection and transport; only
+// storage and the exporter are synthetic. No YDB, Telegram or Monium requests.
+function fixture(stalledStage: StalledStage) {
+  const blocked = deferred();
+  const entered = deferred();
+  const logs: JsonObject[] = [];
+  const calls: string[] = [];
+  let exportCallback: Parameters<PushMetricExporter['export']>[1] | undefined;
+  let exporterBudget: number | undefined;
+  const logger: LoggerLike = {
+    info: fields => logs.push(fields),
+    warn: fields => logs.push(fields),
+    error: fields => logs.push(fields),
+  };
+  const exporter: PushMetricExporter = {
+    export(_metrics, callback) {
+      calls.push('export');
+      exportCallback = callback;
+      if (stalledStage === 'export' || stalledStage === 'export-and-shutdown') {
+        entered.resolve();
+
+        return;
+      }
+      callback({ code: ExportResultCode.SUCCESS });
+    },
+    async forceFlush() {
+      calls.push('forceFlush');
+      if (stalledStage === 'forceFlush') {
+        entered.resolve();
+        await blocked.promise;
+      }
+    },
+    async shutdown() {
+      calls.push('shutdown');
+      if (stalledStage === 'shutdown' || stalledStage === 'export-and-shutdown') {
+        entered.resolve();
+        await blocked.promise;
+      }
+    },
+  };
+  const dependencies: HandlerDependencies = {
+    loggerFactory: () => logger,
+    metricsFactory: context =>
+      createInvocationMetrics(context, logger, {
+        env: {
+          MONIUM_METRICS_ENABLED: 'true',
+          MONIUM_PROJECT: 'test-project',
+          MONIUM_API_KEY: 'test-only',
+          MONIUM_METRICS_TIMEOUT_MS: String(METRICS_TIMEOUT_MS),
+        },
+        transportFactory: options =>
+          createOtelTransport(options, configured => {
+            exporterBudget = configured.timeoutMs;
+
+            return exporter;
+          }),
+      }),
+    maxAttempts: () => 12,
+    notificationSender: async () => assert.fail('an empty queue must not send notifications'),
+    now: () => new Date(),
+    rateLimiter: async () => assert.fail('a timer must not check submission rate limits'),
+    retryBatchSize: () => 5,
+    store: {
+      async listTelegramCandidates() {
+        return [];
+      },
+      async getTelegramQueueHealth() {
+        return { pendingCount: 0, oldestPendingAgeSeconds: 0 };
+      },
+      async saveLead() {
+        return assert.fail('a timer must not save a lead');
+      },
+      async claimForTelegram() {
+        return assert.fail('an empty queue must not claim a lead');
+      },
+      async markTelegramDelivered() {
+        assert.fail('an empty queue must not mark deliveries');
+      },
+      async markTelegramFailed() {
+        assert.fail('an empty queue must not mark failures');
+      },
+    },
+    uuid: () => 'test-unused-id',
+  };
+
+  return {
+    handler: createHandler(dependencies),
+    blocked,
+    entered,
+    logs,
+    calls,
+    completeExport: (result: Parameters<NonNullable<typeof exportCallback>>[0]) => exportCallback?.(result),
+    exporterBudget: () => exporterBudget,
+  };
+}
+
+test('timer returns its queue result after healthy metric export and shutdown', async () => {
+  const f = fixture('none');
+
+  assert.deepEqual(await f.handler(TIMER_EVENT), EMPTY_QUEUE_RESULT);
+  assert.deepEqual(f.calls, ['export', 'forceFlush', 'shutdown']);
+  assert.deepEqual(
+    f.logs.map(log => log.event),
+    ['retry_worker_completed', 'monium_metrics_export_completed'],
+  );
+});
+
+test('the overall deadline releases a missing export callback', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
+  const f = fixture('export');
+  const invocation = f.handler(TIMER_EVENT);
+  await f.entered.promise;
+
+  t.mock.timers.tick(METRICS_TIMEOUT_MS);
+  await drainMicrotasks();
+
+  assert.deepEqual(await invocation, EMPTY_QUEUE_RESULT);
+  assert.deepEqual(f.calls, ['export', 'shutdown']);
+  const failure = f.logs.find(log => log.event === 'monium_metrics_export_error');
+  assert.equal(failure?.error_code, 'metrics_export_timeout');
+  assert.equal(failure?.phase, 'export');
+  assert.equal(failure?.duration_ms, METRICS_TIMEOUT_MS);
+});
+
+// Regressions for the hangs found during the September 28 incident diagnosis.
+const TIMED_OUT_PHASE = { forceFlush: 'force_flush', shutdown: 'shutdown', 'export-and-shutdown': 'export' } as const;
+for (const stage of ['forceFlush', 'shutdown', 'export-and-shutdown'] as const) {
+  test(
+    `timer completes within the metrics budget when ${stage} stalls`,
+    {
+      timeout: 2000,
+    },
+    async t => {
+      t.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
+      const f = fixture(stage);
+      let settled = false;
+      const invocation = f.handler(TIMER_EVENT).finally(() => {
+        settled = true;
+      });
+      try {
+        await f.entered.promise;
+        const completed = f.logs.find(log => log.event === 'retry_worker_completed');
+        assert.equal(completed?.queue_pending, 0);
+        assert.equal(completed?.failed, 0);
+
+        t.mock.timers.tick(METRICS_TIMEOUT_MS);
+        await drainMicrotasks();
+        assert.equal(settled, true, `${stage} retained a completed retry pass past the 5s metrics budget`);
+        assert.deepEqual(await invocation, EMPTY_QUEUE_RESULT);
+        assert.deepEqual(
+          f.logs.filter(log => log.event === 'monium_metrics_export_error'),
+          [
+            {
+              event: 'monium_metrics_export_error',
+              outcome: 'failure',
+              error_type: 'timeout',
+              error_code: 'metrics_export_timeout',
+              phase: TIMED_OUT_PHASE[stage],
+              duration_ms: METRICS_TIMEOUT_MS,
+            },
+          ],
+        );
+        assert.equal(f.calls.filter(call => call === 'shutdown').length, 1);
+
+        // Reject cleanup/forceFlush after the caller has returned. Neither a
+        // second result log nor an unhandled rejection may escape.
+        f.blocked.reject(new Error('late exporter failure'));
+        f.completeExport({ code: ExportResultCode.SUCCESS });
+        t.mock.timers.tick(FUNCTION_TIMEOUT_MS - METRICS_TIMEOUT_MS);
+        await drainMicrotasks();
+        assert.equal(f.logs.length, 2);
+        assert.equal(f.calls.filter(call => call === 'shutdown').length, 1);
+      } finally {
+        f.blocked.resolve();
+        await invocation;
+      }
+    },
+  );
+}
+
+test('collection time counts against the same budget as export and shutdown', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
+  const collect = MetricReader.prototype.collect;
+  t.mock.method(
+    MetricReader.prototype,
+    'collect',
+    async function (this: MetricReader, options: Parameters<MetricReader['collect']>[0]) {
+      await new Promise<void>(resolve => setTimeout(resolve, 3000));
+
+      return collect.call(this, options);
+    },
+  );
+  const f = fixture('forceFlush');
+  let settled = false;
+  const invocation = f.handler(TIMER_EVENT).finally(() => {
+    settled = true;
+  });
+  await drainMicrotasks();
+  t.mock.timers.tick(3000);
+  await f.entered.promise;
+  assert.equal(f.exporterBudget(), 2000);
+  t.mock.timers.tick(1999);
+  await drainMicrotasks();
+  assert.equal(settled, false);
+  t.mock.timers.tick(1);
+  await drainMicrotasks();
+  assert.equal(settled, true);
+  assert.deepEqual(await invocation, EMPTY_QUEUE_RESULT);
+  f.blocked.resolve();
+  await drainMicrotasks();
+});
+
+test('collection that finishes after cancellation cannot start an export', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
+  const collect = MetricReader.prototype.collect;
+  const gate = deferred();
+  const entered = deferred();
+  t.mock.method(
+    MetricReader.prototype,
+    'collect',
+    async function (this: MetricReader, options: Parameters<MetricReader['collect']>[0]) {
+      const result = await collect.call(this, options);
+      entered.resolve();
+      await gate.promise;
+
+      return result;
+    },
+  );
+  const f = fixture('none');
+  const invocation = f.handler(TIMER_EVENT);
+  await entered.promise;
+  t.mock.timers.tick(METRICS_TIMEOUT_MS);
+  await drainMicrotasks();
+  assert.deepEqual(await invocation, EMPTY_QUEUE_RESULT);
+  gate.resolve();
+  await drainMicrotasks();
+  assert.deepEqual(f.calls, []);
+  assert.equal(f.logs.length, 2);
+  assert.equal(f.logs[1]?.error_code, 'metrics_export_timeout');
+  assert.equal(f.logs[1]?.phase, 'collect');
+});
