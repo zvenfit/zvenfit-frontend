@@ -420,12 +420,16 @@ serverless-инвокации мог нормализовать `DELTA` counter 
 Lead-функция отправляет напрямую в Monium только gauges текущего состояния с
 `service="zvenfit-frontend"`. Критические event alerts используют log aggregates;
 максимальная штатная задержка поставки учтена evaluation delay `3m`.
-OTLP export ограничен пятью секундами внутри общего execution timeout функции.
-Минутный интервал retry-trigger при этом не затрагивается, а зависший exporter
-не может удерживать invocation дольше установленного верхнего предела `5s`.
+Весь цикл OTLP — сбор, отправка, `forceFlush()` и `shutdown()` — использует
+единый бюджет `MONIUM_METRICS_TIMEOUT_MS` (по умолчанию и максимум `5s`).
+По истечении бюджета функция возвращает результат основной работы, транспорт
+закрывает собственные HTTP/HTTPS-соединения и блокирует поздние подключения.
+SDK получает только остаток бюджета после сбора. Воспроизведение и проверки
+описаны в [диагностике таймаутов](monitoring-operations.md#зависание-после-завершения-retry-worker-диагностика-28-сентября-2026).
 Успех пишет `monium_metrics_export_completed` с `outcome=success` и
 `duration_ms`; сбой пишет warning `monium_metrics_export_error` с
-`outcome=failure`, `duration_ms`, безопасными `error_type` и `error_code`.
+`outcome=failure`, `duration_ms`, безопасными `error_type`, `error_code` и
+фазой `phase` (`collect`, `export`, `force_flush`, `shutdown`).
 Health-сигналы:
 
 - `zvenfit_retry_worker_heartbeat` — успешное завершение минутного retry pass;
