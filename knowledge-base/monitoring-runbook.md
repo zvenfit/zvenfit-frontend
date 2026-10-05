@@ -21,7 +21,9 @@ is the project entry point and intentionally does not duplicate every selector.
 - Direct gauges require `application`, `environment`, `component`, and `resource_id`.
 - The complete OTLP lifecycle shares one deadline of at most `5s`; timeout closes
   invocation-owned HTTP/HTTPS agents and blocks late connections and retries, and
-  the warning names the failed `phase`;
+  the warning names the failed `phase` (`collect`, `export`, `force_flush`,
+  `shutdown`; YDB events use the same key with their own values, so always read
+  `meta.phase` together with `meta.event`);
   see the [timeout investigation](../docs/monitoring-operations.md#зависание-после-завершения-retry-worker-диагностика-28-сентября-2026).
   Logged exporter failures are counted through the independent
   `zvenfit_monium_metrics_failures_5m` log aggregate.

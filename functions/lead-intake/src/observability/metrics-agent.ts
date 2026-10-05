@@ -9,8 +9,13 @@ function rejectAfterAbort(signal: AbortSignal, callback: ConnectionCallback): bo
   if (!signal.aborted) {
     return false;
   }
-  // A pre-aborted socket can emit an uncaught AbortError on Node 22. Reject
-  // through the agent callback before creating it, including cached SDK retries.
+  // Refuse new connections once the invocation gave up, including a cached SDK
+  // retry that wakes later. Reject through the agent callback before any socket
+  // exists: Node 22's ClientRequest attaches its socket 'error' listener one
+  // tick after the socket is handed over, so a socket failing inside its own
+  // constructor (for example from an aborted `signal` option) surfaces as an
+  // uncaught AbortError there. The signal is therefore never passed to sockets;
+  // abort closes open sockets through agent.destroy() below.
   queueMicrotask(() => callback(Object.assign(new Error('Metrics export closed'), { code: 'ABORT_ERR' })));
 
   return true;
@@ -20,8 +25,7 @@ class MetricsHttpAgent extends HttpAgent {
   private readonly signal: AbortSignal;
 
   public constructor(signal: AbortSignal) {
-    const options = { keepAlive: false, signal };
-    super(options);
+    super({ keepAlive: false });
     this.signal = signal;
   }
 
@@ -39,9 +43,7 @@ class MetricsHttpsAgent extends HttpsAgent {
   }
 
   public createConnection(options: ConnectionOptions, callback: ConnectionCallback) {
-    const connectOptions = { ...options, signal: this.signal };
-
-    return rejectAfterAbort(this.signal, callback) ? undefined : connectTls(connectOptions);
+    return rejectAfterAbort(this.signal, callback) ? undefined : connectTls(options);
   }
 }
 

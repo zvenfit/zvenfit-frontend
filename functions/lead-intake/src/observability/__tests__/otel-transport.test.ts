@@ -137,7 +137,7 @@ test('timer returns its queue result after healthy metric export and shutdown', 
   );
 });
 
-test('the overall deadline releases a missing export callback', async t => {
+test('the overall deadline releases a missing export callback', { timeout: 2000 }, async t => {
   t.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
   const f = fixture('export');
   const invocation = f.handler(TIMER_EVENT);
@@ -174,6 +174,7 @@ for (const stage of ['forceFlush', 'shutdown', 'export-and-shutdown'] as const) 
         const completed = f.logs.find(log => log.event === 'retry_worker_completed');
         assert.equal(completed?.queue_pending, 0);
         assert.equal(completed?.failed, 0);
+        assert.equal(settled, false, `${stage} returned before the metrics budget elapsed`);
 
         t.mock.timers.tick(METRICS_TIMEOUT_MS);
         await drainMicrotasks();
@@ -210,7 +211,7 @@ for (const stage of ['forceFlush', 'shutdown', 'export-and-shutdown'] as const) 
   );
 }
 
-test('collection time counts against the same budget as export and shutdown', async t => {
+test('collection time counts against the same budget as export and shutdown', { timeout: 2000 }, async t => {
   t.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
   const collect = MetricReader.prototype.collect;
   t.mock.method(
@@ -242,7 +243,7 @@ test('collection time counts against the same budget as export and shutdown', as
   await drainMicrotasks();
 });
 
-test('collection that finishes after cancellation cannot start an export', async t => {
+test('collection that finishes after cancellation cannot start an export', { timeout: 2000 }, async t => {
   t.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
   const collect = MetricReader.prototype.collect;
   const gate = deferred();
@@ -270,4 +271,74 @@ test('collection that finishes after cancellation cannot start an export', async
   assert.equal(f.logs.length, 2);
   assert.equal(f.logs[1]?.error_code, 'metrics_export_timeout');
   assert.equal(f.logs[1]?.phase, 'collect');
+});
+
+// Outcomes that land exactly on the deadline, before its timer has run, must be
+// reported as what they are: the budget only gates starting network work.
+test('an export that fails at the deadline keeps the exporter error code and phase', { timeout: 2000 }, async t => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
+  const f = fixture('export');
+  const invocation = f.handler(TIMER_EVENT);
+  await f.entered.promise;
+
+  t.mock.timers.setTime(Date.now() + METRICS_TIMEOUT_MS);
+  f.completeExport({
+    code: ExportResultCode.FAILED,
+    error: Object.assign(new Error('rejected'), { code: 'collector_rejected' }),
+  });
+  await drainMicrotasks();
+
+  assert.deepEqual(await invocation, EMPTY_QUEUE_RESULT);
+  assert.deepEqual(f.calls, ['export', 'shutdown']);
+  const failure = f.logs.find(log => log.event === 'monium_metrics_export_error');
+  assert.equal(failure?.error_code, 'collector_rejected');
+  assert.equal(failure?.phase, 'export');
+  assert.equal(failure?.duration_ms, METRICS_TIMEOUT_MS);
+  assert.equal(f.logs.length, 2);
+});
+
+test('an export acknowledged at the deadline is reported as completed', { timeout: 2000 }, async t => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
+  const f = fixture('export');
+  const invocation = f.handler(TIMER_EVENT);
+  await f.entered.promise;
+
+  t.mock.timers.setTime(Date.now() + METRICS_TIMEOUT_MS);
+  f.completeExport({ code: ExportResultCode.SUCCESS });
+  await drainMicrotasks();
+
+  assert.deepEqual(await invocation, EMPTY_QUEUE_RESULT);
+  assert.deepEqual(f.calls, ['export', 'forceFlush', 'shutdown']);
+  assert.deepEqual(
+    f.logs.map(log => log.event),
+    ['retry_worker_completed', 'monium_metrics_export_completed'],
+  );
+});
+
+test('a malformed endpoint is reported as an initialization error before any export', () => {
+  const logs: JsonObject[] = [];
+  const logger: LoggerLike = {
+    info: fields => logs.push(fields),
+    warn: fields => logs.push(fields),
+    error: fields => logs.push(fields),
+  };
+  const metrics = createInvocationMetrics(undefined, logger, {
+    env: {
+      MONIUM_METRICS_ENABLED: 'true',
+      MONIUM_PROJECT: 'test-project',
+      MONIUM_API_KEY: 'test-only',
+      MONIUM_METRICS_ENDPOINT: 'not a url',
+    },
+  });
+
+  metrics.recordGauge('local_probe', 1);
+
+  assert.deepEqual(logs, [
+    {
+      event: 'monium_metrics_init_error',
+      outcome: 'failure',
+      error_type: 'initialization',
+      error_code: 'metrics_endpoint_invalid',
+    },
+  ]);
 });

@@ -49,7 +49,7 @@ before(() => {
       '-out',
       cert,
     ],
-    { stdio: 'ignore', timeout: 10000 },
+    { stdio: ['ignore', 'ignore', 'pipe'], timeout: 10000 },
   );
   certificates = { key: readFileSync(key), cert: readFileSync(cert) };
 });
@@ -314,6 +314,8 @@ test('HTTPS verification rejects a collector without a trusted CA', { timeout: 8
   assert.equal(f.logs[0]?.error_code, 'DEPTH_ZERO_SELF_SIGNED_CERT');
 });
 
+// The stock SDK also bounds a stalled handshake through its idle timeout once TCP
+// connects; this case guards that the shared deadline still closes the socket.
 test('HTTPS handshake stalled before a response is also cancelled', { timeout: 8000 }, async t => {
   const disconnected = deferred();
   const sockets = new Set<Socket>();

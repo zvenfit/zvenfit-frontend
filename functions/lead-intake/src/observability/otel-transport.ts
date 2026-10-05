@@ -139,7 +139,9 @@ class OtelMetricsTransport implements MetricsTransport {
         this.phase = 'export';
         this.exporter = this.exporterFactory({ ...this.options, timeoutMs: this.remainingMs() }, signal);
         await exportCollectedMetrics(this.exporter, resourceMetrics, signal);
-        this.throwIfExpired();
+        // The network work is done: only an abort that already happened may
+        // discard an acknowledged export. forceFlush() after it is immediate.
+        signal.throwIfAborted();
         this.phase = 'force_flush';
         await this.exporter.forceFlush();
       }
@@ -149,11 +151,12 @@ class OtelMetricsTransport implements MetricsTransport {
 
     this.phase = 'shutdown';
     const results = await this.shutdown();
-    this.throwIfExpired();
-
+    // Report the recorded outcome truthfully; the deadline timer, not the
+    // clock, decides whether completed work still counts as a timeout.
     if (exportFailure !== undefined) {
       throw exportFailure;
     }
+    signal.throwIfAborted();
     for (const result of results) {
       if (result.status === 'rejected') {
         throw withPhase(normalizeMetricError(result.reason, 'metrics_shutdown_failed'), 'shutdown');
@@ -233,6 +236,11 @@ export function createOtelTransport(
   options: MetricsTransportOptions,
   exporterFactory: MetricsExporterFactory = createOtelExporter,
 ): MetricsTransport {
+  // The exporter is created lazily after collection; reject a malformed
+  // endpoint now so misconfiguration still surfaces as monium_metrics_init_error.
+  if (!URL.canParse(options.endpoint)) {
+    throw Object.assign(new Error('Invalid metrics endpoint'), { code: 'metrics_endpoint_invalid' });
+  }
   const reader = new OneShotMetricReader({
     // An explicit zero is a real queue-health sample, not missing telemetry.
     aggregationTemporalitySelector: () => AggregationTemporality.CUMULATIVE,
