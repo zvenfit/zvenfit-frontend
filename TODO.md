@@ -83,6 +83,7 @@ Agent guide: [`AGENTS.md`](AGENTS.md)
 - [x] Lead function unit tests in CI
 - [x] Production smoke test after deploy without creating a real lead (`npm run smoke:production`)
 - [x] Consolidate `README.md` / `docs/setup.md` overlap (setup stays detailed, README — index)
+- [ ] YDB: диагностировать границу `CreateSession` / первый ответ `AttachSession` и логировать безопасные поля предыдущей ошибки повтора при `ydb_read_budget_exhausted` — см. [разбор 28 сентября 2026](docs/monitoring-operations.md#таймауты-открытия-сессии-ydb-28-сентября-2026)
 
 ---
 
