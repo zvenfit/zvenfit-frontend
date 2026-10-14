@@ -1,6 +1,6 @@
 import { allowedOrigins, corsHeaders, isAllowedOrigin, isJsonContentType, jsonResponse, readBody } from './http';
 import { createLead, hasHoneypotValue, validateLead } from './lead-payload';
-import { logDeliveryFailure } from './notification/delivery';
+import { deliverLead, logDeliveryFailure } from './notification/delivery';
 import { runRetryWorker, type RetryWorkerResult } from './notification/worker';
 
 import type { FunctionContext, HandlerDependencies, HttpEvent, HttpResponse, JsonObject, LoggerLike } from './types';
@@ -64,11 +64,29 @@ async function persistLead(
       const event = 'lead_persisted';
       logger.info?.({ event }, event);
     }
-    if (saved.telegramStatus === 'sent') {
+    let notificationStatus = saved.telegramStatus;
+    if (saved.created && notificationStatus === 'pending') {
+      try {
+        const outcome = await deliverLead(lead.leadId, dependencies, logger, {
+          signal: AbortSignal.timeout(8_000),
+        });
+        if (outcome !== 'skipped') {
+          notificationStatus = outcome;
+        }
+      } catch (error) {
+        // The lead is durable even if claiming, sending or recording delivery fails.
+        logDeliveryFailure(logger, 'telegram_delivery_immediate_error', lead.leadId, error, {
+          attempts: 0,
+          fallbackCode: 'immediate_delivery_error',
+          retriable: true,
+        });
+      }
+    }
+    if (notificationStatus === 'sent') {
       return jsonResponse(200, { ok: true, lead_id: lead.leadId, notification: 'sent' }, headers);
     }
 
-    return jsonResponse(202, { ok: true, lead_id: lead.leadId, notification: saved.telegramStatus }, headers);
+    return jsonResponse(202, { ok: true, lead_id: lead.leadId, notification: notificationStatus }, headers);
   } catch (error) {
     logDeliveryFailure(logger, 'lead_storage_error', lead.leadId, error, {
       attempts: 0,

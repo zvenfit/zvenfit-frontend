@@ -24,3 +24,5 @@ Use links between the two sources rather than duplicating their contents.
 - [Production monitoring dashboard](dashboards.md)
 - [Alerts, metrics and logs runbook](monitoring-runbook.md)
 - [Tracked operational documentation](../docs/monitoring-operations.md)
+
+- [Immediate Telegram delivery and independent retry](../docs/decisions/001-immediate-and-independent-delivery.md).

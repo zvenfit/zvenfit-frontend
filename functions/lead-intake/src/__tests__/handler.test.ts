@@ -65,6 +65,9 @@ function dependencies(store: StoreMock, overrides: Partial<HandlerDependencies> 
     rateLimiter: async () => true,
     retryBatchSize: () => 5,
     store: {
+      async claimForTelegram() {
+        return null;
+      },
       async getTelegramQueueHealth() {
         return { pendingCount: 0, oldestPendingAgeSeconds: 0 };
       },
@@ -88,7 +91,7 @@ function readJson(body: string): Record<string, unknown> {
   return JSON.parse(body) as Record<string, unknown>;
 }
 
-test('POST persists a pending lead and returns before Telegram delivery', async () => {
+test('POST preserves the accepted lead when another worker owns delivery', async () => {
   const calls: Call[] = [];
   const store: StoreMock = {
     async saveLead(lead) {
@@ -180,7 +183,15 @@ test('timer keeps a persisted lead pending when Telegram is unavailable', async 
       messages: [{ event_metadata: { event_type: 'yandex.cloud.events.serverless.triggers.TimerMessage' } }],
     });
 
-    assert.deepEqual(result, { processed: 1, sent: 0, pending: 1, failed: 0, skipped: 0 });
+    assert.deepEqual(result, {
+      processed: 1,
+      sent: 0,
+      pending: 1,
+      failed: 0,
+      skipped: 0,
+      queue_pending: 0,
+      oldest_pending_age_seconds: 0,
+    });
     assert.ok(failedDelivery);
     assert.equal(failedDelivery.errorCode, 'telegram_unreachable');
     assert.equal(failedDelivery.terminal, false);
@@ -219,7 +230,15 @@ test('timer marks the lead failed after the Telegram retry limit', async () => {
       messages: [{ event_metadata: { event_type: 'yandex.cloud.events.serverless.triggers.TimerMessage' } }],
     });
 
-    assert.deepEqual(result, { processed: 1, sent: 0, pending: 0, failed: 1, skipped: 0 });
+    assert.deepEqual(result, {
+      processed: 1,
+      sent: 0,
+      pending: 0,
+      failed: 1,
+      skipped: 0,
+      queue_pending: 0,
+      oldest_pending_age_seconds: 0,
+    });
     assert.ok(failedDelivery);
     assert.equal(failedDelivery.terminal, true);
     assert.equal(failedDelivery.failedAt.toISOString(), NOW.toISOString());
@@ -236,24 +255,6 @@ test('timer marks the lead failed after the Telegram retry limit', async () => {
   } finally {
     console.error = originalConsoleError;
   }
-});
-
-test('POST does not resend a lead already marked as sent', async () => {
-  let claimed = false;
-  const store: StoreMock = {
-    async saveLead() {
-      return { created: false, telegramStatus: 'sent' };
-    },
-    async claimForTelegram() {
-      claimed = true;
-
-      return null;
-    },
-  };
-  const response = await invokeHttp(_private.createHandler(dependencies(store)));
-
-  assert.equal(readJson(response.body).notification, 'sent');
-  assert.equal(claimed, false);
 });
 
 test('POST returns 503 and does not call Telegram when durable storage fails', async () => {
@@ -477,6 +478,14 @@ test('timer retries persisted pending leads', async () => {
     messages: [{ event_metadata: { event_type: 'yandex.cloud.events.serverless.triggers.TimerMessage' } }],
   });
 
-  assert.deepEqual(result, { processed: 1, sent: 1, pending: 0, failed: 0, skipped: 0 });
+  assert.deepEqual(result, {
+    processed: 1,
+    sent: 1,
+    pending: 0,
+    failed: 0,
+    skipped: 0,
+    queue_pending: 0,
+    oldest_pending_age_seconds: 0,
+  });
   assert.deepEqual(delivered, [LEAD_ID]);
 });

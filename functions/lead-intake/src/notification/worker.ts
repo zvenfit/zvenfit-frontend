@@ -3,7 +3,9 @@ import { QueueReadUnavailableError } from './queue-read-unavailable';
 
 import type { ApplicationMetrics, HandlerDependencies, LoggerLike } from '../types';
 
-export type RetryWorkerResult = RetrySummary | { deferred: true; stage: 'delivery' | 'queue_health' };
+export type RetryWorkerResult =
+  | (RetrySummary & { queue_pending: number; oldest_pending_age_seconds: number })
+  | { deferred: true; stage: 'delivery' | 'queue_health' };
 
 export async function runRetryWorker(
   dependencies: HandlerDependencies,
@@ -29,7 +31,11 @@ export async function runRetryWorker(
       event,
     );
 
-    return summary;
+    return {
+      ...summary,
+      queue_pending: health.pendingCount,
+      oldest_pending_age_seconds: health.oldestPendingAgeSeconds,
+    };
   } catch (error) {
     if (!(error instanceof QueueReadUnavailableError)) {
       throw error;

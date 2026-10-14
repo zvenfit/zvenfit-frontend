@@ -24,7 +24,7 @@ export function createProductionDependencies(environment: NodeJS.ProcessEnv = pr
     loggerFactory: createInvocationLogger,
     maxAttempts: () => positiveInteger(environment.MAX_TELEGRAM_ATTEMPTS, DEFAULT_MAX_ATTEMPTS),
     metricsFactory: createInvocationMetrics,
-    notificationSender: sendTelegram,
+    notificationSender: (lead, options) => sendTelegram(lead, undefined, options),
     now: () => new Date(),
     rateLimiter: consumeLeadRateLimit,
     retryBatchSize: () =>

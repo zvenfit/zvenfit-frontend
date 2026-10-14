@@ -49,7 +49,9 @@ export async function deliverLead(
   leadId: string,
   dependencies: HandlerDependencies,
   logger: LoggerLike,
+  options: { signal?: AbortSignal } = {},
 ): Promise<'sent' | 'pending' | 'failed' | 'skipped'> {
+  options.signal?.throwIfAborted();
   const now = dependencies.now();
   const deliveryToken = dependencies.uuid();
   const claimedLead = await dependencies.store.claimForTelegram({
@@ -58,6 +60,7 @@ export async function deliverLead(
     leaseUntil: new Date(now.getTime() + DELIVERY_LEASE_MS),
     deliveryToken,
     logger,
+    signal: options.signal,
   });
 
   if (!claimedLead) {
@@ -65,7 +68,10 @@ export async function deliverLead(
   }
 
   try {
-    await dependencies.notificationSender(claimedLead);
+    options.signal?.throwIfAborted();
+    await dependencies.notificationSender(claimedLead, options);
+    // Once Telegram has acknowledged, record it using the normal bounded DB
+    // timeout even if the immediate send deadline has just elapsed.
     await dependencies.store.markTelegramDelivered({ leadId, deliveryToken, notifiedAt: dependencies.now(), logger });
 
     return 'sent';
