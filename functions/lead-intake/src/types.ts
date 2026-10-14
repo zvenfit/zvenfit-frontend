@@ -80,6 +80,7 @@ export interface LeadStore {
     leaseUntil: Date;
     deliveryToken: string;
     logger?: LoggerLike;
+    signal?: AbortSignal;
   }): Promise<ClaimedLead | null>;
   markTelegramDelivered(args: {
     leadId: string;
@@ -103,7 +104,7 @@ export interface HandlerDependencies {
   loggerFactory(context?: FunctionContext): LoggerLike;
   maxAttempts(): number;
   metricsFactory(context: FunctionContext | undefined, logger: LoggerLike): ApplicationMetrics;
-  notificationSender(lead: ClaimedLead): Promise<void>;
+  notificationSender(lead: ClaimedLead, options?: { signal?: AbortSignal }): Promise<void>;
   now(): Date;
   rateLimiter(args: { sourceIp: string; now: Date; logger?: LoggerLike }): Promise<boolean>;
   retryBatchSize(): number;

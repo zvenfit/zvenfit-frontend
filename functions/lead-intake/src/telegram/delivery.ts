@@ -59,7 +59,12 @@ export function telegramTimeoutMs(): number {
   return Number.isInteger(value) && value > 0 ? Math.min(value, MAX_TELEGRAM_TIMEOUT_MS) : DEFAULT_TELEGRAM_TIMEOUT_MS;
 }
 
-export async function sendTelegram(payload: ClaimedLead, requestFactory: RequestFactory = httpsRequest): Promise<void> {
+export async function sendTelegram(
+  payload: ClaimedLead,
+  requestFactory: RequestFactory = httpsRequest,
+  options: { signal?: AbortSignal } = {},
+): Promise<void> {
+  options.signal?.throwIfAborted();
   const token = process.env.TELEGRAM_BOT_TOKEN;
   const chatId = process.env.TELEGRAM_CHAT_ID;
 
@@ -68,6 +73,7 @@ export async function sendTelegram(payload: ClaimedLead, requestFactory: Request
   }
 
   const route = await selectTelegramRoute(requestFactory);
+  options.signal?.throwIfAborted();
   const body = JSON.stringify({ chat_id: chatId, text: buildMessage(payload) });
   let response: { body: string; statusCode: number };
   try {
@@ -82,7 +88,9 @@ export async function sendTelegram(payload: ClaimedLead, requestFactory: Request
             'Content-Type': 'application/json',
             'Content-Length': Buffer.byteLength(body),
           },
-          signal: AbortSignal.timeout(telegramTimeoutMs()),
+          signal: options.signal
+            ? AbortSignal.any([options.signal, AbortSignal.timeout(telegramTimeoutMs())])
+            : AbortSignal.timeout(telegramTimeoutMs()),
         },
         incoming => {
           let responseBody = '';

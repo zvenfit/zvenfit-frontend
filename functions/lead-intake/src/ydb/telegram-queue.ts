@@ -20,17 +20,19 @@ export async function claimForTelegram({
   leaseUntil,
   deliveryToken,
   logger,
+  signal,
 }: {
   leadId: string;
   now: Date;
   leaseUntil: Date;
   deliveryToken: string;
   logger?: LoggerLike;
+  signal?: AbortSignal;
 }): Promise<ClaimedLead | null> {
   return observed('claim_for_telegram', logger, async sql => {
     const leadsTable = sql.identifier(tableName());
 
-    return sql.begin(transactionOptions(), async tx => {
+    return sql.begin(transactionOptions(signal), async tx => {
       const rows = firstResultSet(
         await tx`
           SELECT
