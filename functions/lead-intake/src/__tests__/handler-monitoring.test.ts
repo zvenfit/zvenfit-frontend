@@ -49,7 +49,15 @@ test('timer exports queue health and heartbeat after a successful retry pass', a
     messages: [{ event_metadata: { event_type: 'yandex.cloud.events.serverless.triggers.TimerMessage' } }],
   });
 
-  assert.deepEqual(result, { processed: 0, sent: 0, pending: 0, failed: 0, skipped: 0 });
+  assert.deepEqual(result, {
+    processed: 0,
+    sent: 0,
+    pending: 0,
+    failed: 0,
+    skipped: 0,
+    queue_pending: 2,
+    oldest_pending_age_seconds: 901,
+  });
   assert.deepEqual(gauges, [
     { name: 'zvenfit_telegram_pending_leads', value: 2 },
     { name: 'zvenfit_telegram_oldest_pending_age_seconds', value: 901 },

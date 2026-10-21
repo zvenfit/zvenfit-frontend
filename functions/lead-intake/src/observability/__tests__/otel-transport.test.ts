@@ -12,7 +12,15 @@ import type { HandlerDependencies, JsonObject, LoggerLike } from '../../types';
 
 const METRICS_TIMEOUT_MS = 5000;
 const FUNCTION_TIMEOUT_MS = 120000;
-const EMPTY_QUEUE_RESULT = { processed: 0, sent: 0, pending: 0, failed: 0, skipped: 0 };
+const EMPTY_QUEUE_RESULT = {
+  processed: 0,
+  sent: 0,
+  pending: 0,
+  failed: 0,
+  skipped: 0,
+  queue_pending: 0,
+  oldest_pending_age_seconds: 0,
+};
 const TIMER_EVENT = {
   messages: [{ event_metadata: { event_type: 'yandex.cloud.events.serverless.triggers.TimerMessage' } }],
 };
