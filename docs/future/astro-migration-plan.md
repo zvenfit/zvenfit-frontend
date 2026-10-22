@@ -1,10 +1,12 @@
 # План миграции фронтенда на Astro
 
-Редакция 4 от 2026-10-21. История: черновик 2026-10-04, редакция 2 после
+Редакция 5 от 2026-10-22. История: черновик 2026-10-04, редакция 2 после
 собственного ревью 2026-10-05, раздел TypeScript 2026-10-12, независимое ревью
 двух рецензентов 2026-10-12, решения владельца R1–R8 и редакция 3 2026-10-19,
 второе независимое ревью трёх рецензентов (техническое, процессное и сухой
-прогон релиза A) 2026-10-20, решения R9–R12 и редакция 4 2026-10-21.
+прогон релиза A) 2026-10-20, решения R9–R12 и редакция 4 2026-10-21,
+совместное ревью Codex и Claude и уточнение исполнимых контрактов 2026-10-22.
+Редакция 5 сохраняет решения R1–R12; реализация миграции ещё не начата.
 До merge PR этапа 0 файл остаётся в `docs/future/`; статус этапов ведётся в
 карточке проекта Workspace, здесь только техническая часть.
 
@@ -59,8 +61,9 @@ layout, компоненты, данные, конвейер ассетов.
   staging → E2E → production, владение E2E у `zvenfit-autotests`.
 - Фирменный стиль; `zvenfit.webflow.css` остаётся глобальной таблицей;
   `webflow.js` и jQuery остаются до пункта 10 ревью.
-- На production: аналитика, GTM и UTM. На staging: их отсутствие, `noindex`,
-  API через same-origin gateway, `robots.txt` побайтно
+- На production: аналитика, GTM и UTM. На staging: сторонней аналитики и GTM
+  нет; UTM и технический бикон (кроме 404) остаются как в legacy, API через
+  same-origin gateway, `noindex`, `robots.txt` побайтно
   `User-agent: *\nDisallow: /\n`. На development (CI автотестов, `npm run
   dev`): аналитики нет, это осознанное отклонение от сегодняшней сборки, UTM и
   бикон есть, `noindex` нет, `site` всегда `https://zvenfit.ru`.
@@ -77,7 +80,7 @@ layout, компоненты, данные, конвейер ассетов.
 
 ## 3. Факты, от которых отталкивается план
 
-Снято с репозитория 2026-10-04 … 2026-10-20; числа считаются по 41 файлу,
+Снято с репозитория 2026-10-04 … 2026-10-22; числа считаются по 41 файлу,
 если не сказано иное.
 
 ### Страницы и общие блоки
@@ -106,7 +109,8 @@ layout, компоненты, данные, конвейер ассетов.
   `section-2` пустой). В конце ссылка на следующего тренера
   (`link-block-page4`; цепочки образуют три цикла на 14, 5 и 2 страницы) и
   кнопка «записаться к …» с именем в дательном падеже. На каждой странице 6
-  `id="w-node-…"`, суффикс равен последним 8 hex `data-wf-page`;
+  общих `id="w-node-…"`; у Натальи Шулеповой ещё 6 на карточках сертификатов
+  (12 всего). Суффикс равен последним 8 hex `data-wf-page`;
   `zvenfit.webflow.css` содержит правила для этих id (раскладка грида).
   Слайдеров на страницах тренеров нет: `w-slider` живёт на 8 страницах услуг
   и главной. JSON-LD `Person` и хлебные крошки строятся из блока `trainers`
@@ -174,6 +178,17 @@ layout, компоненты, данные, конвейер ассетов.
   читается по режиму, `.env` и `.env.local` всегда; экспортированный
   `NODE_ENV` просачивается в Vite и делает `import.meta.env.PROD` ложным при
   `staging`.
+- Дополнительная проверка 2026-10-22: `stripGoogleTagManager` в
+  [build-static.cjs](../../scripts/build-static.cjs) (строки 352–357)
+  захватывает текст от первого `script` до GTM, пересекая закрывающие теги.
+  Изолированный прогон функции через `node:vm` по 41 исходному HTML показал
+  удаление bootstrap Webflow (`w-mod-js`/`w-mod-touch`), favicon и
+  apple-touch-icon на всех 41 страницах. На клубной карте также теряются
+  исходные `og:image` и `twitter:image`; `injectOpenGraphHead` (413–416)
+  затем добавляет `og:image` из конфига вместо `club-card/hero.webp`,
+  `twitter:image` не восстанавливает. В production функция не вызывается
+  (строка 903). Исправление на legacy до открытия A — условие этапа 0;
+  этот дефект не становится исключением из R6 и не переносится в Astro.
 - Корневого `tsconfig.json` нет; `.astro/` не в `.gitignore`; ESLint линтит
   `public/js/**/*.js` как модули, `max-lines` 300 для всех файлов с
   исключением для `schedule.js` и `yandex-map.js`, `plugin:prettier/recommended`,
@@ -262,7 +277,8 @@ src/
     Footer.astro            Webflow-пара section-4/section-3 с MapRegion;
                             флаги withGrid, withMobile, withMap
     MapRegion.astro         регион карты из maps.config.json (замена iframe)
-    Analytics.astro         VK + Метрика + GTM (до пункта 5), только mode production
+    Analytics.astro         Top.Mail.Ru + Метрика + GTM (до пункта 5), mode production;
+                            placement: head | body, исходное место каждого блока
     UtmHead.astro           снипет UTM
     OpenGraph.astro         из title/description/og:image страницы
     StructuredData.astro    из structured-data.config.json и коллекции тренеров
@@ -282,23 +298,72 @@ src/
                             webflow.js, normalize.min.css, webflow.min.css (релиз B)
   styles/                   zvenfit.webflow.css, klubnaya-karta.v1.css, fonts.css
   assets/ (релиз B)         images/, fonts/
-public/                     только статика как есть: favicon, webclip, images/*.svg
+public/                     в A две images/*.svg; favicon и webclip добавляются в B
 scripts/migrate/html-to-astro.cjs   одноразовый конвертер, удаляется после релиза A
 scripts/migrate/manual.json         страницы с ручными правками и причины
 scripts/compare-dist.cjs            проверка паритета (остаётся как инструмент)
+scripts/check-routes.cjs            общий guard маршрутов и ресурсов для Astro и legacy
 scripts/inventory-bucket.cjs        инвентаризация бакета (этап 0)
 scripts/optimize-images.cjs         sharp-конвейер (релиз B)
 scripts/snapshot-bucket.sh          снимок бакета перед релизом A (этап 0)
+scripts/deploy.config.json          профиль сборки, флаг GC и проверенная политика CDN
 ```
 
-Конфиги `scripts/*.config.json` переезжают в `src/data/` в релизе A; блок
-`trainers` из `structured-data.config.json` уходит в коллекцию.
+Конфиги контента `app-links.config.json`, `maps.config.json` и
+`structured-data.config.json` переезжают из `scripts/` в `src/data/` в
+релизе A; блок `trainers` уходит в коллекцию. Служебный
+`scripts/deploy.config.json` остаётся рядом со скриптами деплоя.
+
+### Данные общих компонентов
+
+- `Menu.astro`: кроме `variant`, получает `secondary: { label, href,
+  target?, dataBack? }`, `ctaTarget?`, `logo: 'svg' | 'text'`, `logoLabel?`,
+  `logoEmbedClass?` и точные `wNode` из исходной страницы. Именованные слоты
+  `cta`, `secondary`, `reviews`, `contacts` соответствуют
+  `link-block-page1` … `link-block-page4`; у coach — `back` и `next`.
+  Идентификаторы не восстанавливаются из одного общего префикса для всех
+  страниц. `dataBack: true` выводит `data-back="true"`, отсутствие флага —
+  отсутствие атрибута. У coach также передаётся `nextSlug`.
+- Значения извлекаются из страницы, а не назначаются только по классу меню:
+  тарифы, карты с доменами `yandex.ru` и `yandex.kz`, ссылка назад и CTA
+  различаются внутри одного варианта. Текстовый логотип расписания,
+  `aria-label`, `target` и классы обёртки сохраняются. Ссылка групповых
+  тренировок на `yandex.kz` остаётся по R6; возможное исправление — отдельный
+  PR после A.
+- `Footer.astro`: кроме `withGrid`, `withMobile`, `withMap`, получает
+  `location: 'chekhova' | 'nakhabinskoe'` и `anchorId?`. Вторая локация —
+  у групповых тренировок; адрес, телефон и часы сохраняются. `id="contacts"`
+  выводится только там, где он был. Юридическая ссылка на текущую страницу
+  получает прежние `w--current` и `aria-current="page"` по
+  `Astro.url.pathname`; остальные атрибуты и порядок классов сохраняются.
+- Клубная карта сразу записывается в `manual.json`: собственные меню с
+  img-логотипом и футер с отличающимися `rel` и часами остаются в странице.
+  `Menu.astro`/`Footer.astro` к этим блокам не применяются. Любое другое
+  различие, не выражаемое данными компонента, также требует записи в
+  `manual.json`, а не молчаливой унификации.
+- `Analytics.astro` выводит блок только при `MODE === 'production'`.
+  Head-блок сохраняет порядок GTM и сниппета Top.Mail.Ru/Метрики, включая
+  `noscript`. Вызов с `placement="body"` стоит на месте исходного GTM
+  `noscript`, а не в едином хвосте layout: у тренеров он может предшествовать
+  jQuery, у формы — скриптам формы. Скрипты карт и трафика добавляются после
+  исходного содержимого body в прежнем порядке.
+
+Шаблоны общих компонентов сохраняют межтеговые whitespace-узлы legacy:
+между inline-block ссылками меню пробелы влияют на отступы.
+`compressHTML: false` позволяет сохранить их; допустимые технические
+нормализации ограничены правилами раздела 8.
 
 ### Скрипты в релизе A: классические, через `?url`
 
 Существующие семь скриптов в релизе A не становятся модулями. Они лежат в
 `src/scripts/`, импортируются как `?url` и подключаются
-`<script is:inline src={url} defer>`: имя файла сохраняется в
+`<script is:inline src={url}>` с исходными атрибутами каждой страницы:
+у всех семи есть `defer`, у `accordion-horizontal.js` и
+`coaches-show-more.js` также `type="text/javascript"`. Эндпоинты подключаются
+отдельно: `lead-config.js` без `defer`, `schedule-config.js`,
+`traffic-config.js`, `maps-config.js` с `defer`. Ничего сверх исходных
+атрибутов не добавляется, кроме согласованного `defer` у Webflow на `/offer/`.
+Имя файла сохраняется в
 `_astro/lead-form.<хэш>.js`, семантика не меняется (без strict mode, порядок
 как сейчас), smoke находит их по basename, хэш даёт `immutable`. Перевод в
 модули и TypeScript — отдельная итерация после миграции.
@@ -322,19 +387,28 @@ scripts/snapshot-bucket.sh          снимок бакета перед рел�
 ### Конвертер
 
 `scripts/migrate/html-to-astro.cjs` детерминирован: та же страница на входе
-даёт тот же `.astro` на выходе. Читает исходник по git-ссылке
-(`--ref main`), а не только из рабочего дерева, потому что после A2 в ветке
-`public/` страниц нет. Что делает:
+даёт тот же `.astro` на выходе. Читает исходник по полному SHA legacy-базы
+(`--ref <SHA>` из отчёта этапа), а не из меняющегося `main` или рабочего дерева,
+потому что после A2 в ветке `public/` страниц нет. Что делает:
 
 - вынимает title, description, canonical, `og:image` страницы (у клубной карты
   свой), `data-wf-page`, `data-wf-site`, `data-zvenfit-page`, вариант меню,
-  флаги футера, карт и CSS страницы, дату `updated` для sitemap во
+  данные меню/футера из контракта выше, флаги карт и CSS страницы,
+  `sitemap: { updated, changefreq, priority }` из исходного sitemap во
   frontmatter;
 - тело переносит как есть; экранирует фигурные скобки в тексте; ставит
   `is:inline` всем `<script>`, включая теги только с `src` (иначе Astro
   соберёт их как модуль); `<style>` в страницах нет;
 - заменяет известные общие блоки (head, меню, футер, бейджи, маркеры) на
   компоненты; применяет `slash-prefix` один раз;
+- извлекает GTM из head и body: сырой блок заменяется вызовом компонента
+  на том же месте; атрибуты всех `script` и `link` сохраняются;
+- проверяет обратимость меню и футера: отрендеренный production-блок с
+  извлечёнными props сравнивается с блоком legacy production **dist** по
+  правилам раздела 8. В исходном `public/` ещё находятся iframe и маркеры сборщика,
+  поэтому он не является эталоном результата компонента. Неизменность этих
+  блоков на staging доказывается сравнением режимов раздела 8. Несовпадение даёт
+  ненулевой код, diff и необходимость записи причины в `manual.json`;
 - для страниц из `scripts/migrate/manual.json` завершается ненулевым кодом с
   причиной; перезапись только с `--force`, после чего ручная правка
   переносится заново и фиксируется в том же файле.
@@ -352,11 +426,11 @@ scripts/snapshot-bucket.sh          снимок бакета перед рел�
 | `?v=ASSET_VERSION` для своих файлов | хэши в `_astro/` через `?url`; `?v=` остаётся только у бакетного `webflow.js` до релиза B |
 | минификация CSS | Vite при импорте стилей; `klubnaya-karta.v1.css` импортируется на своей странице |
 | `js/*-config.js` с подстановкой URL | эндпоинты `src/pages/js/*-config.js.ts` с теми же путями и содержимым `window.ZVENFIT_* = '…'`; переменные читаются при сборке как есть; в `development` пустые значения заменяются на `http://localhost:3000`, `…/schedule`, `…/traffic`, в `staging` и `production` пустое значение валит сборку |
-| `maps-config.js` с `apiKey` | эндпоинт `js/maps-config.js.ts` из данных, снимка фото и `Y_MAPS_API_KEY` |
-| strip GTM, `noindex`, `robots.txt` для staging | ветвление только по `import.meta.env.MODE` (никогда по `PROD`/`DEV`) в `Analytics.astro`, layout и `robots.txt.ts` |
-| фото организаций с Яндекс Карт при сборке | prebuild-скрипт обновляет снимок `src/data/map-photos.json`; сборка сеть не трогает |
+| `maps-config.js` с `apiKey` | эндпоинт `js/maps-config.js.ts` из данных, снимка фото и `Y_MAPS_API_KEY`; пустой ключ допускается как в legacy, правило обязательных API URL на него не распространяется |
+| strip GTM, `noindex`, `robots.txt` для staging | ветвление только по `import.meta.env.MODE` (никогда по `PROD`/`DEV`) в обеих частях `Analytics.astro`, layout и `robots.txt.ts`; layout заменяет существующий robots meta на `noindex, nofollow`, а не добавляет второй (в том числе у 404 с исходным `noindex, follow`) |
+| фото организаций с Яндекс Карт при сборке | отдельная команда `maps:snapshot` обновляет `src/data/map-photos.json`; это не npm lifecycle `prebuild`. Ключи и массивы URL имеют формат `maps.config.json.locationPhotos`. Обычная сборка читает фиксированный снимок и сеть не трогает; механизм сравнения с legacy — раздел 8 |
 | `slash-prefix` | применяется конвертером, в сборке не нужен |
-| ручной `sitemap.xml` | `src/pages/sitemap.xml.ts`: страницы через `import.meta.glob('./**/*.astro', { eager: true })` с `export const updated` в каждой, тренеры из коллекции; формат как сейчас (`loc`, `lastmod`, `changefreq`, `priority`), без `404`; интеграция `@astrojs/sitemap` не подходит, она пишет `sitemap-index.xml` |
+| ручной `sitemap.xml` | `src/pages/sitemap.xml.ts`: страницы через `import.meta.glob('./**/*.astro', { eager: true })` с `export const sitemap = { updated, changefreq, priority }` в каждой; `404.astro` и `trenery/[slug].astro` исключены из glob, маршруты тренеров берутся из коллекции. Все значения импортируются из исходного XML: 9 значений priority и 4 changefreq, lastmod у всех 40 URL. Формат как сейчас (`loc`, `lastmod`, `changefreq`, `priority`); интеграция `@astrojs/sitemap` не подходит, она пишет `sitemap-index.xml` |
 | `robots.txt` | `src/pages/robots.txt.ts`: production как сейчас, staging побайтно `User-agent: *\nDisallow: /\n` |
 
 Релиз B: вендорные jQuery, `webflow.js`, `normalize.min.css`, `webflow.min.css`
@@ -372,27 +446,82 @@ scripts/snapshot-bucket.sh          снимок бакета перед рел�
   `import.meta.env.PROD` не зависел от окружения. Режимы `production`,
   `staging`, `development`. Переменные окружения не переименовываются.
 - Порядок проходов `aws s3 sync` в `_deploy-environment.yml` и `deploy:yc`
-  **с релиза A** (решение R7, перенесено из B по итогам сухого прогона):
+  **с релиза A** (решение R7):
   (1) ассеты без `--delete`, `immutable`, с исключениями `*.html`,
   `robots.txt`, `sitemap.xml`, `js/*-config.js`; (2) `robots.txt` и
   `sitemap.xml`, no-cache; (3) `*.html` и `js/*-config.js`, no-cache;
-  (4) очистка `--delete` с теми же исключениями, что в (1). Проход 4 выключен
-  на первом релизе A и на первом релизе B (откат не должен ссылаться на
-  удалённые файлы) и включается следующим релизом. Тест
-  `deploy-lead-intake.test.cjs` переписывается на четыре команды, порядок и
-  отсутствие `--delete` в первой.
+  (4) условная очистка устаревших `_astro/*` с `--delete`, описанная ниже.
+  В первых трёх проходах `--delete` запрещён. Каждый следующий проход
+  выполняется только после успешного предыдущего; после ошибки очистки нет.
+  В журнале остаётся последняя завершённая фаза. Частичная заливка не считается
+  успешным релизом и восстанавливается повторным полным прогоном или откатом
+  по разделу 9.
+- После фактической сборки в `deploy-site`, до первого `sync`, выполняются
+  `check-routes.cjs` и `check-build.cjs` из разворачиваемого дерева;
+  на staging также `check-staging-build.cjs`. Для `check-routes` выбирается
+  `--source public` при `profile: 'legacy'`, `--source astro` — для `a` и `b`.
+  Проверяется именно загружаемый `dist`, а не только отдельная сборка job `quality`.
+  Проверка равенства множеств маршрутов получает ожидаемые пути из исходников:
+  статические `src/pages/**/*.astro` плюс slugs коллекции, без эндпоинтов и
+  динамического шаблона; для legacy — HTML из `public/`. Они должны точно
+  совпасть с HTML в `dist`, а индексируемая часть — с `sitemap.xml`; `404.html`
+  существует отдельно. На старте это 41 HTML и 40 URL. Ручного списка для
+  каждого нового тренера нет. Пустой `dist`, пропавший или подменённый маршрут,
+  отсутствие одного из четырёх конфигов, crawl-файлов или локального ресурса
+  блокируют первый `sync`. Проверки содержимого и режима сохраняются;
+  production `404.html` штатно содержит `noindex, follow`.
+  Общий `check-routes.cjs` реализует guard множеств и обязательных ресурсов
+  без зависимости от Astro и не откатывается при возврате legacy.
+  Режим полного набора включён по умолчанию; частичный `--profile a1`
+  разрешён только внутри ветки A1 (три legal без требования 404, по разделу 8),
+  в deploy он запрещён. Проверки содержимого остаются в `check-build.cjs`
+  соответствующей версии, а не копируются из Astro в legacy.
+- В `scripts/deploy.config.json` фиксируются `profile: 'legacy' | 'a' | 'b'`
+  и `gcEnabled` (boolean); частичного профиля `a1` здесь нет.
+  Итоговые PR первого A, первого B и каждого rollback явно ставят
+  `gcEnabled: false`; следующий обычный релиз может поставить `true`.
+  Само значение `true` ещё не разрешает удаление: нужны успешные проходы 1–3
+  и проверка CDN ниже. Перед удалением печатается список из dry-run; фильтры
+  четвёртого `sync` ограничивают его `_astro/*` (`--exclude "*"`, затем
+  `--include "_astro/*"`). HTML, конфиги, crawl-файлы и остальные префиксы
+  не удаляются. Legacy `js/`, `css/`, `images/` очищаются после B только по
+  отдельно проверенному списку. Проход 4 остаётся частью того же workflow,
+  отдельная ручная процедура вместо него не вводится.
 - Если проверка этапа 0 покажет, что CDN кэширует HTML: минимальная правка
   CDN (уважать `Cache-Control` источника для HTML или шаг purge в деплое с
   правами deploy SA), каждое изменение с подтверждением владельца и записью в
-  ADR (решение R12); если правка невозможна — хранение ассетов двух последних
-  релизов по манифесту вместо прохода 4.
+  ADR (решение R12). В `deploy.config.json` записывается проверенная политика
+  `cdn.htmlCache: 'none' | 'purge' | 'unverified'` и ссылка на отчёт этапа 0.
+  Для `none` дата завершения распространения настройки и переходного срока
+  старого TTL записывается как `cdn.transitionEndsAt` (ISO 8601 UTC из расчёта
+  этапа 0); job сравнивает её со своим временем. Отсутствующая, невалидная или
+  будущая дата запрещает GC. Для `purge` после прохода 3 нужна квитанция операции
+  `done: true` без `error`. Текущие настройки должны соответствовать
+  проверенной политике: перед GC шаг с `yc` читает их через API с правами
+  deploy SA и сверяет с конфигурацией. Ошибка чтения или расхождение запрещают
+  GC; одиночная проба edge не заменяет эту проверку.
+  [Yandex допускает до 15 минут на purge](https://yandex.cloud/en/docs/cdn/api-ref/Cache/purge),
+  поэтому при нехватке бюджета job, незавершённом purge или неизвестной
+  политике проход 4 пропускается с явным warning. Релиз не ждёт бесконечно;
+  старые ассеты сохраняются. Универсальный срок вроде «7 дней» не задаётся:
+  значения берутся из проверки этапа 0. Если минимальная правка CDN невозможна,
+  GC остаётся выключенным; объём сохранённых файлов отражается в отчёте B.
+- `deploy-lead-intake.test.cjs` проверяет четыре фазы записи, их порядок,
+  guard до первой загрузки, отсутствие `--delete` в фазах 1–3, фильтры и
+  условия GC. Dry-run учитывается отдельно от четырёх фаз записи.
+  Запрещены `continue-on-error` и запуск следующих фаз через `if: always()`.
+  Unit fixtures для guard: пустой каталог, отсутствующий маршрут и замена
+  маршрута другим при сохранённом числе файлов. Проверяются пропуск GC при
+  ошибке загрузки/неподтверждённом CDN и rollback с выключенной очисткой.
 - Dev после релиза A: `npm run dev` = сборка функций + `mock-server` на :3000
   + `astro dev --mode development --port 4173`. `watch-static.cjs` удаляется.
   `.env.development` читается только в этом режиме, `.env` и `.env.local` —
   всегда.
 - Релизный конвейер не меняется: merge в `main` → staging → 8 тестов E2E →
   production → smoke. `skip_staging` для релизов A и B и для их revert не
-  используется (решение R11).
+  используется (решение R11). A, B, rollback и их повторы идут через общую
+  concurrency-группу `deploy` с `cancel-in-progress: false`; ручной
+  параллельный `deploy:yc` не является путём этих релизов.
 
 ## 7. Этапы
 
@@ -407,13 +536,33 @@ scripts/snapshot-bucket.sh          снимок бакета перед рел�
   передеплой или пересоздание gateway с обновлением CNAME).
 - **Пункт 1 PRJ-007 сделан на legacy**: `imask` отдаётся со своего хостинга с
   `defer`, форма отправляется и без маски. Ветка A наследует `src/vendor/imask`.
+- **Удаление GTM на legacy исправлено отдельным PR до заморозки**: захват
+  `stripGoogleTagManager` не пересекает закрывающий тег `script` или
+  `noscript` и удаляет только GTM-блоки, их комментарии и явно заданные
+  прилегающие пробелы. Unit-фикстура head клубной карты сохраняет bootstrap,
+  оба icon-link, `og:image`, `twitter:image` и порядок соседей; страница без
+  GTM остаётся побайтно прежней. При одинаковом окружении и фиксированном
+  снимке фото production до/после совпадает побайтно; staging smoke и 8 E2E
+  проходят обычный релиз из `main`. Исправленный SHA входит в закреплённую
+  legacy-базу сравнения.
+  Это подготовительная правка существующего сборщика, не дополнительный
+  релиз миграции; строгий паритет A отсчитывается от исправленной базы.
 - Снимок бакета `zvenfit-frontend` перед релизом A скриптом
   `scripts/snapshot-bucket.sh` (локальные ключи, `aws s3 sync` в каталог вне
   репозитория); versioning бакета не включается.
 - Проверки инфраструктуры, результат в `knowledge-base/`: кэширует ли CDN
-  HTML и как его сбросить; лицензии Roadrage, экспортированного рантайма
+  HTML, фактический TTL и переходный срок, как подтвердить завершение purge
+  и какие права нужны deploy SA; политика для `deploy.config.json` по разделу 6.
+  Явно проверяются права чтения настроек CDN (и purge, если он выбран),
+  доступность `yc` в job и проверка настроек перед GC; для `none` фиксируются
+  расчёт переходного срока и `cdn.transitionEndsAt`.
+  Лицензии Roadrage, экспортированного рантайма
   Webflow (`webflow.js`, `webflow.min.css`), `normalize` (MIT), `imask` (MIT),
   Roboto (Apache 2.0).
+- Проверить GitHub CodeQL default setup или существующий workflow и имя
+  ожидаемого check: отсутствие результата не считается зелёной проверкой.
+  Зафиксировать scope действующего SWS/ARL-правила и базовые измерения для B
+  (раздел 13); значения секретов и Basic auth в отчёт не включаются.
 - `scripts/inventory-bucket.cjs`: все ссылки на `storage.yandexcloud.net/zvenfit/v2`
   из HTML, CSS, `scripts/*.json` и сниппетов с размерами (HEAD-запросы),
   группировкой по типу и пометкой, что остаётся в бакете (`documents/`,
@@ -433,10 +582,13 @@ scripts/snapshot-bucket.sh          снимок бакета перед рел�
   `scripts/build-static.cjs` с открытия ветки A. Hotfix (решение R10): ошибка,
   мешающая оставить заявку, неверная цена или юридический текст; новые
   тренеры, акции и правки текстов ждут релиза A. Процедура hotfix: PR в
-  `main` → обычный релиз legacy → `git merge main` в ветку A → страницы
-  регенерируются конвертером с `--ref main` (страницы из `manual.json`
+  `main` → обычный релиз legacy → `git merge main` в ветку A →
+  обновление полного SHA legacy-базы в отчёте → страницы регенерируются
+  конвертером с `--ref <SHA>` (страницы из `manual.json`
   переносятся вручную), правки CSS, скриптов, конфигов и сниппетов
-  переносятся по diff → compare-dist по затронутым страницам. Окно
+  переносятся по diff → повтор compare-dist профиля текущего этапа
+  (`a1` до полной конвертации, затем `a`). Перед итоговым merge всегда
+  повторяется полный гейт. Окно
   заморозки по оценке раздела 14: 2–4 недели.
 
 ### Ветка A и структура PR
@@ -455,6 +607,11 @@ scripts/snapshot-bucket.sh          снимок бакета перед рел�
   `check-latest: true` у `setup-node` в обоих workflow этого репозитория;
   `astro.config.mjs`, `tsconfig.json`, `.astro/` в `.gitignore`;
   `ASTRO_TELEMETRY_DISABLED=1` в скриптах `package.json`.
+- На A1–A2a `astro.config.mjs` задаёт `publicDir: 'static'`: там только
+  копии `images/zvenfit-logo.svg` и `images/club-card-logo.svg`. Legacy
+  `public/` заморожен и не попадает в Astro-сборку; favicon/webclip до B
+  остаются бакетными. `npm run build` переключается на команду Astro из
+  раздела 6 уже в A1; legacy-сборка нужна только в worktree базы compare-dist.
 - Layout и компоненты раздела 4; `Base.astro` воспроизводит бакетные адреса
   `normalize.min.css`, `webflow.min.css`, jQuery и `webflow.js?v=ASSET_VERSION`
   как у legacy-страниц; prop `data-zvenfit-page`.
@@ -462,9 +619,9 @@ scripts/snapshot-bucket.sh          снимок бакета перед рел�
   `check-staging-build` и smoke); проверка в `astro dev` и `astro build`, что
   `js/lead-config.js.ts` отдаётся по `/js/lead-config.js`.
 - Конвертер и `manual.json`; `scripts/compare-dist.cjs` (раздел 8) с
-  devDependency HTML-парсера и его job в `quality.yml` с `timeout-minutes`,
-  `fetch-depth: 0`, базой `github.base_ref` или `main` при ручном запуске,
-  `npm ci` в worktree базы.
+  devDependency `parse5` и его job в `quality.yml` с `timeout-minutes`,
+  `fetch-depth: 0`, явными SHA базы/кандидата и профилем; `npm ci` в
+  одноразовых worktree. `github.base_ref` не выбирает базу сравнения.
 - Проверки переписываются один раз, таблица `check-build.cjs`:
 
   | Проверка | Судьба |
@@ -477,16 +634,24 @@ scripts/snapshot-bucket.sh          снимок бакета перед рел�
   | новые | `data-wf-page` валиден, дубли `id` и покрытие `w-node-*` по `dist/` (перенос из `check-webflow-layout.cjs`), маркер `data-zvenfit-page` для отзывов (перенос из `webflow-layout.test.cjs`), наличие Метрики, Top.Mail.Ru, GTM, UTM и бикона на каждой странице кроме `404` в режиме `production`, запрет `data-astro-cid-*` и `astro-island`, отсутствие страниц одновременно в `public/` и `src/pages` |
 
   `check-webflow-layout.cjs`, `webflow-layout.test.cjs` и `test:layout`
-  удаляются; `test:build` = `astro check` + `npm run build` + `check-build`;
+  удаляются; `test:build` = `astro check` + `npm run build` +
+  `check-routes --source astro` + `check-build`;
   `test-staging-build.cjs` вызывает `npm run build` с `NODE_ENV=staging` и
-  сохраняет самообеспечение окружением; `check-staging-build.cjs` без
-  изменений по сути.
+  сохраняет самообеспечение окружением; смысл staging-проверок сохраняется.
+  Все проверки получают согласованный профиль раздела 8: только `a1`
+  частичный, `a` и `b` полные. В A1 проверки содержимого страниц ограничены
+  `/offer/`, `/privacy/`, `/payment-policy/`; sitemap сравнивается по этим
+  маршрутам. Локальные ресурсы обязательны; ссылки на ещё не перенесённые
+  страницы допустимы только из полного inventory legacy-базы. Проверка дублей
+  между `public/` и `src/pages` включается в A2b. Итоговый PR в `main` и
+  deploy-guard не могут использовать частичный профиль.
 - `smoke-production.cjs` и его тест: `extractScriptUrl` принимает
   `/_astro/<имя>.<хэш>.js` для `lead-form.js`, `schedule.js`,
   `traffic-beacon.js` (имена гарантированы `?url`); конфиги по-прежнему
   `/js/*-config.js`.
 - Деплой: четыре прохода раздела 6 в `_deploy-environment.yml` и `deploy:yc`,
-  тест деплоя переписан.
+  общий `check-routes.cjs` для фактически загружаемого артефакта,
+  `deploy.config.json` и тесты.
 - ESLint: `src/**/*.{js,ts,astro}`; корневой `tsconfig.json` в
   `parserOptions.project`; `src/pages/**/*.astro` исключены из `max-lines` и
   `prettier/prettier` до пункта 10 ревью; `max-lines` выключен для
@@ -501,34 +666,50 @@ scripts/snapshot-bucket.sh          снимок бакета перед рел�
   устаревшие инструкции.
 - Готово, когда: `astro check` зелёный; сборка проходит в трёх режимах, в
   том числе с экспортированным `NODE_ENV=staging` и `development` как в CI;
-  compare-dist чист по трём юридическим страницам; реальные имена файлов в
+  compare-dist профиля `a1` чист по трём юридическим страницам в production
+  и staging; проверена обработка `noscript` внутри head компилятором Astro
+  без переноса блока и изменения содержимого. Реальные имена файлов в
   `dist/_astro/` совпадают с ожиданиями smoke и `check-build`.
 
 ### Этап A2. Конвертация всех страниц, коллекция тренеров, вывод legacy
 
 - A2a. Конвертер прогоняется по 41 файлу; ручные правки фиксируются в
-  `manual.json`; каждая страница проходит компилятор Astro.
+  `manual.json`; каждая страница проходит компилятор Astro и проверку
+  обратимости общих блоков. Все проверки переключаются на полный профиль `a`.
 - Коллекция `trainers`: `slug`, `wfPage`, `name`, `nameDative`, `jobTitle`,
   `location`, `photoClass?`, `groups: [{ heading, itemsHtml[] }]`,
-  `certificates?: [{ title, href }]`, `certificatesSectionEmpty?`,
-  `nextSlug`, `updated`, `meta: { title, description }`,
+  `certificates?: [{ title, href, wNode? }]`, `certificatesSectionEmpty?`,
+  `nextSlug`, `updated`, `sitemap: { changefreq, priority }`,
+  `meta: { title, description }`,
   `fitbaseTrainerId?`. Шесть `w-node-*` — константы шаблона с суффиксом
-  `wfPage.slice(-8)`. Одна схема и один шаблон на все 21 страницу,
-  спецшаблонов ноль; `StructuredData.astro` берёт `Person` из коллекции, блок
+  `wfPage.slice(-8)`. Дополнительные шесть id сертификатов Натальи Шулеповой
+  сохраняются в `certificates[].wNode`; без них теряется паритет с CSS.
+  Sitemap-значения всех 21 записей импортируются явно из исходного XML
+  (у Ефима priority `0.65`, у остальных `0.6`); умолчания допустимы только
+  для будущих записей. Одна схема и один шаблон на все 21 страницу;
+  отклонения вне схемы фиксируются в `manual.json`. `StructuredData.astro`
+  берёт `Person` из коллекции, блок
   `trainers` конфига удаляется.
 - Скрипты через `?url` по разделу 4; `sitemap.xml.ts`, `robots.txt.ts`,
   снимок фото карт.
-- A2b. `build-static.cjs`, `watch-static.cjs`, сниппеты, `public/*.html`,
+- A2b. `build-static.cjs`, `watch-static.cjs`, сниппеты, все `public/**/*.html`,
   `public/css`, `public/js`, `public/sitemap.xml`, `public/robots.txt`,
-  `clean-css` из `package.json` удаляются; конфиги в `src/data/`.
-- Готово, когда: compare-dist чист по всем 41 страницам (allow-list только из
-  раздела 2), `test:build`, `test:build:staging`, `test:scripts`, `lint`
+  `clean-css` из `package.json` удаляются; конфиги контента в `src/data/`.
+  После проверки побайтного равенства двух SVG в `static/images/` и
+  `public/images/` временный `static/` удаляется, override `publicDir`
+  снимается; исходные `public/images/` остаются. Включается запрет дублирования
+  страниц в `public/` и `src/pages`.
+- Готово, когда: compare-dist чист по всем 41 страницам по контракту раздела 8
+  (поведенческие исключения только из раздела 2), `test:build`,
+  `test:build:staging`, `test:scripts`, `lint`
   зелёные, `dist/` не содержит `data-astro-cid-*`.
 
 ### Этап A3. Гейт, документация, релиз A
 
 - Pre-merge гейт (раздел 8) пройден, отчёт локального прогона автотестов
-  приложен к PR. Документация: README, `AGENTS.md` (раздел 14),
+  приложен к PR; `gcEnabled: false`, рецепт rollback из раздела 9 проверен
+  локально на отдельном кандидате без деплоя. Документация: README,
+  `AGENTS.md` (раздел 14),
   `knowledge-base/_index.md`, `knowledge-base/site-information-architecture.md`,
   `TODO.md` (закрыт «Auto-generate sitemap»), `docs/launch-checklist.md`
   (пункт про `ASSET_VERSION` теперь только о `webflow.js`).
@@ -582,7 +763,16 @@ scripts/snapshot-bucket.sh          снимок бакета перед рел�
   `Crawl-delay`.
 - Готово, когда: главная на телефоне ≤ 1,5 МБ (замер до и после в карточку
   проекта), в `dist/` нет ссылок на бакет кроме двух префиксов, pre-merge
-  гейт пройден с новым SHA автотестов, релиз прошёл staging и E2E.
+  гейт профиля `b` пройден с новым SHA автотестов, `gcEnabled: false` для
+  первого B, релиз прошёл staging и E2E. До merge приложены измерения раздела
+  13: added bytes, холодные установка/сборка/CI и оценка запросов/трафика.
+  Проверена фактическая область SWS/ARL: same-origin CSS, JS и шрифты теперь
+  идут через gateway. Локальный прогон ветки даёт оценку запросов за скользящие
+  60 секунд; фактическая проверка staging выполняется после merge только из
+  `main`, в рамках обычного гейта. Нужны отсутствие 429 от ARL в полном
+  staging-прогоне и сохранение Basic auth/изоляции. Если проверка не проходит,
+  production блокируется; ослабление защиты не является исправлением теста.
+  Browser-проверки и измерения через Playwright принадлежат только autotests.
 
 ### После миграции, в рамках PRJ-007 и TODO
 
@@ -599,35 +789,115 @@ scripts/snapshot-bucket.sh          снимок бакета перед рел�
 
 ## 8. Паритет и pre-merge гейт
 
-`scripts/compare-dist.cjs` сравнивает `dist/` базовой ветки (legacy-сборка
-`main` в `git worktree` после `npm ci`, те же переменные окружения, тот же
-снимок фото карт) и `dist/` ветки по всем 41 страницам. Сравниваются:
+`scripts/compare-dist.cjs` получает обязательные `--base-sha`,
+`--candidate-sha` (полные 40 hex), `--profile a1|a|b`,
+`--mode production|staging` и `--snapshot <path>`. Профиль и SHA базы явно
+заданы в проверяемой конфигурации job `quality.yml` и отчёте PR; `main`,
+`github.base_ref` и текущее dirty-дерево не подставляются по умолчанию.
+Сборки выполняются в одноразовых worktree после `npm ci`, с фиксированным
+снимком и явно заданными не секретными переменными. `--mode production`
+сравнивает production-вывод базы и кандидата. `--mode staging` собирает
+production и staging одного `--candidate-sha` и проверяет только
+перечисленную ниже разницу режимов; production-эталон создаётся этим же
+прогоном, произвольный готовый `dist` не принимается. Inventory профиля
+читается из исходников указанной базы, повторно собирать её в staging-прогоне
+не требуется. Оба прогона обязательны: проверка режимов не заменяет
+паритет с базой. Для A база уже содержит исправление GTM из этапа 0.
 
-- `<title>`, все `<meta>` и `<link>` в `<head>` (description, canonical,
-  robots, Open Graph, Twitter, referrer, preconnect, favicon);
-- JSON-LD как разобранный JSON; inline-скрипты после нормализации пробелов;
-- `data-wf-page`, `data-wf-site`, `lang`, `data-zvenfit-page`;
-- последовательность заголовков с текстом; список `id` с дублями; все `href`
-  внутренних и внешних ссылок; **последовательность** скриптов и стилей по
-  таблице соответствия: `/js/<имя>.js?v=` ↔ `/_astro/<имя>.<хэш>.js`,
-  `/css/zvenfit.webflow.min.css?v=` и `/css/klubnaya-karta.v1.css?v=` ↔
-  `/_astro/*.css`, конфиги без `?v=`, бакетные адреса без изменений;
-- видимый текст с нормализованными пробелами;
-- `sitemap.xml` по разобранным `<url>` (`loc`, `lastmod`, `changefreq`,
-  `priority`) и `robots.txt` целиком.
+| Профиль | База и охват |
+| --- | --- |
+| `a1` | Закреплённый legacy SHA; ровно `/offer/`, `/privacy/`, `/payment-policy/`. Sitemap сравнивается по этим трём URL, ожидаемые ссылки на остальные страницы проверяются по полному inventory базы |
+| `a` | Закреплённый legacy SHA; полный набор маршрутов и sitemap, на старте 41 HTML и 40 URL. После каждого hotfix SHA обновляется и итоговый полный гейт повторяется |
+| `b` | Явный SHA принятого Astro `main`, от которого готовится B; полный набор маршрутов. После каждого изменения `main` во время ветки B база обновляется, изменения переносятся в B и полный гейт повторяется. Это уже не legacy-сборка |
 
-Исключения по умолчанию: порядок атрибутов, хэши и `?v=` в адресах
-ресурсов, пробелы между тегами, `defer` у `webflow.js` на `/offer/`,
-отсутствие аналитики в режиме `development`. Другие расхождения только по
-явному allow-list в PR. После релиза B job в `quality.yml` снимается, скрипт
-остаётся инструментом.
+В итоговых PR в `main` разрешены только полные профили `a` и `b`.
+Частичный `a1` используется только для внутреннего PR A1. Проверки сборки
+и staging получают тот же профиль, а не независимые списки `--pages`.
+
+Общий снимок — тот же `src/data/map-photos.json`, который используется
+кандидатом при деплое, с ключами и массивами URL формата `locationPhotos`.
+Для legacy-базы harness в одноразовом worktree заменяет только поле
+`scripts/maps.config.json.locationPhotos` этим снимком и проверяет равенство
+всех остальных полей коммиту базы. Только дочерний процесс legacy build
+получает первым в `PATH` каталог с `curl`-заглушкой, возвращающей код 22:
+сборщик использует детерминированный fallback вместо сети. Исходники в
+основных checkout не меняются; единственный fixture override фиксируется
+в отчёте вместе с SHA-256 снимка и путём harness. Для Astro-базы B обе сборки
+читают тот же снимок. Обновление снимка во время сравнения и подмена уже
+собранного `maps-config.js` запрещены.
+
+Ожидаемая разница candidate production → candidate staging:
+
+- отсутствуют только блоки сторонней аналитики и GTM из обоих размещений
+  `Analytics.astro`, включая их `noscript` и служебные комментарии GTM;
+  UTM, бикон, Webflow bootstrap, icon-link и остальные meta сохраняются;
+- robots meta становится единственным `noindex, nofollow`, включая 404;
+  `robots.txt` побайтно равен `User-agent: *\nDisallow: /\n`;
+- только значения API URL в `lead-config.js`, `schedule-config.js`,
+  `traffic-config.js` заменены на заданные staging-адреса. Пути четырёх
+  конфигов и остальное содержимое не меняются; `maps-config.js` при одинаковых
+  снимке и ключе совпадает побайтно.
+
+Это фиксированные правила профиля, а не сравнение с ошибочным staging-выводом
+старого SHA. Пробелы на границах удалённых блоков описываются точными
+правилами ниже; общий пропуск whitespace или всех комментариев недопустим.
+Любая другая разница между режимами валит проверку. Исправленный legacy
+staging уже прошёл релизный гейт на этапе 0, до начала A.
+
+Правила сравнения:
+
+- HTML разбирается одним парсером `parse5` с `scriptingEnabled: true` и
+  `sourceCodeLocationInfo: true`; сравниваются doctype, структура и порядок
+  узлов, все имена и значения атрибутов, текст. Порядок атрибутов неважен,
+  порядок и значения классов сохраняются. Это включает `aria-*`, `rel`,
+  `target`, `style`, все `data-*`, `defer`, `async`, `type`, `nomodule`,
+  head-метаданные и фактическое место аналитики в head/body. Новые дубли id
+  и пропавшие узлы — ошибка. У `noscript` сохраняется исходное содержимое:
+  [parse5 при включённом scripting разбирает его как текст](https://parse5.js.org/interfaces/parse5.ParserOptions.html).
+- По умолчанию текстовые пробелы сохраняются. Схлопывание ASCII
+  `[ \t\r\n]+` допустимо только в явно перечисленных правилах профиля для
+  узлов, где оно не меняет отображение; общее `\s+` и удаление всех
+  межтеговых пробелов запрещены. NBSP остаётся значимым, в том числе после
+  разбора `&nbsp;`. Содержимое `pre`, `textarea`, `script`, `style`,
+  `noscript` такой нормализации не подвергается. Обычные комментарии,
+  которые компилятор убирает, также требуют явного правила, а не общего
+  игнорирования всех комментариев.
+- Inline JS и переносимые классические JS сравниваются побайтно; JSON-LD —
+  как разобранный JSON. Если A1 выявит переформатирование inline JS самим
+  компилятором, альтернативный JS-aware алгоритм требует отдельного
+  обоснования и тестов: он сохраняет AST, литералы, regex, шаблоны и значимые
+  переводы строк для ASI. Простого сравнения токенов без переводов строк или
+  схлопывания пробелов недостаточно. Наличие идентификатора счётчика не
+  заменяет проверку содержимого script/noscript.
+- URL нормализуются только по явной таблице конкретных ресурсов. Для A:
+  свои `/js/<имя>.js?v=` и CSS ↔ соответствующие `_astro/`-файлы; у четырёх
+  конфигов убирается `?v=`; бакетные адреса сохраняются. Существование целевых
+  ресурсов и порядок подключений проверяются. Для B отдельная таблица
+  описывает перенос вендоров, шрифтов, изображений, версионированных favicon
+  и webclip, включая ссылки из CSS и конфигов. Общая маскировка любых хэшей
+  или query-параметров запрещена; изменения текста, атрибутов и логики под
+  видом переезда URL не допускаются.
+- `sitemap.xml` сравнивается по множеству `loc` и всем полям `lastmod`,
+  `changefreq`, `priority`; `robots.txt` — побайтно. Дополнительно сверяются
+  множества маршрутов исходников, dist и sitemap по разделу 6.
+
+Allow-list задаёт профиль/режим, маршрут, точный узел или поле, ожидаемые
+before/after, число совпадений и причину. Неописанное расхождение, неверное
+число совпадений или неиспользованное правило в его области действия валят
+проверку. Разрешённый `defer` у Webflow на `/offer/` записывается таким
+правилом. Исключения не отключают проверку страницы или класса атрибутов.
+После релиза B job в `quality.yml` снимается, скрипт остаётся инструментом.
 
 Pre-merge гейт для итогового PR A и для PR B, выполняет агент и прикладывает
 отчёт комментарием к PR (SHA обоих репозиториев, версия Playwright, команда и
 окружение сборки, итог reporter):
 
 1. `npm run lint`, `npm run test:scripts`, `npm run test:build`,
-   `npm run test:build:staging`, compare-dist без расхождений вне allow-list.
+   `npm run test:build:staging`; обязательные отдельные compare-dist в
+   `production` и `staging` полным профилем, без расхождений вне allow-list.
+   Production-сравнение с базой включает весь код аналитики и noscript,
+   staging-прогон проверяет дельту режимов того же кандидата; браузерный
+   перехват запросов аналитики не является обязательным дополнительным гейтом.
 2. Сборка ветки `NODE_ENV=development npm run build`; в `zvenfit-autotests`
    `git checkout <SHA из main.yml>`, `npm ci`, `npx playwright install
    chromium`, `ZVENFIT_FRONTEND_PATH=<checkout ветки> npm run check` (11 спек,
@@ -635,16 +905,44 @@ Pre-merge гейт для итогового PR A и для PR B, выполня
 3. При красных тестах: регрессия фронтенда — чинится в ветке; устаревшее
    допущение теста (путь, `?v=`, класс) — сначала PR в `zvenfit-autotests`,
    новый пин SHA отдельным PR здесь, повтор гейта.
-4. `quality` и CodeQL зелёные.
+4. `quality` и проверенный на этапе 0 CodeQL check зелёные. Отчёт также
+   содержит SHA базы сравнения, профиль, оба режима, digest снимка и полный
+   список применённых исключений. Значения секретов в отчёт не попадают.
 
 Staging и 8 тестов E2E после merge — релизный гейт, а не критерий готовности.
 
 ## 9. Откат и остановка
 
-- Откат релиза A или B — revert PR через обычный релиз со staging и E2E,
-  около 10 минут; `skip_staging` не используется и для revert (R11). Проход 4
-  деплоя выключен на первом прогоне каждого из релизов, поэтому откат не
-  ссылается на удалённые файлы.
+- Откат релиза A или B — PR поверх актуального `main`, отменяющий изменения
+  фронтенда соответствующего squash-коммита и сохраняющий безопасную доставку.
+  Чистый revert A вернул бы прежний первый `sync --delete` и удалил `_astro/`
+  до замены HTML, поэтому его нельзя выпускать без восстановления защитных
+  изменений. В rollback PR сохраняются актуальные четыре фазы в
+  `_deploy-environment.yml`, значение `deploy:yc` (не весь `package.json`),
+  `deploy.config.json`, общий `check-routes.cjs` и их тесты. Если guard требует
+  npm-зависимостей, их записи в `package.json` и lockfile сохраняются выборочно.
+- Для отката A возвращаются legacy-сборка и её проверки; проверка множеств
+  маршрутов запускается как `check-routes.cjs --source public`, без
+  адаптации самого скрипта. `check-build.cjs` и build-команды возвращаются
+  legacy-версиями самим revert; guard в workflow остаётся сочетанием общего
+  `check-routes` и `check-build` из разворачиваемого дерева. Для отката B
+  возвращается профиль A, включая `ASSET_VERSION` в сборке и её окружении:
+  workflow B нельзя сохранять целиком вместе с удалёнными настройками A.
+  Безопасные четыре фазы доставки сохраняются в обоих случаях.
+  `gcEnabled` в каждом rollback PR явно `false`. Функции и более
+  поздние hotfix сохраняются; конфликты решаются с проверкой их результата.
+- Первый проход восстановит нужные ресурсы из проверенного артефакта до
+  переключения HTML, даже если их раньше удалил GC. Отдельный журнал
+  поколений ради этой операции не требуется. Рецепт и перечень сохраняемых
+  защитных изменений записываются в staging-runbook; до merge A он
+  проверяется локально на отдельном rollback-кандидате: сборка, build-check,
+  тесты деплоя и полный локальный E2E по R8. Перед реальным rollback гейт
+  повторяется для его фактического SHA.
+- Rollback проходит обычный staging → E2E → production → smoke; staging
+  только из `main`, без `skip_staging` (R11). Время зависит от конвейера,
+  обещание «около 10 минут» не является гарантией восстановления. При ошибке
+  любого прохода последующие фазы и GC не выполняются; повтор или новый
+  rollback PR проходит тот же путь, прямой откат production не используется.
 - Сценарии падения релиза A: (1) упал staging smoke или E2E — production не
   тронут, fix-forward новым PR, если причина понятна за час, иначе revert;
   (2) упал production smoke после заливки — автоотката сайта нет, немедленный
@@ -674,9 +972,9 @@ Staging и 8 тестов E2E после merge — релизный гейт, а
 | `NODE_ENV=staging` делает `PROD` ложным | нормализация в скрипте сборки, ветвление только по `MODE` |
 | Smoke после деплоя ищет жёсткие пути скриптов | адаптация в A1, конфиги на прежних путях, basename через `?url` |
 | Конфиги под `immutable` без `?v=` | no-cache проход и `--exclude` в A1 |
-| `s3 sync --delete` удаляет старые ассеты раньше HTML | новый порядок проходов в A1, проход 4 выключен на первом релизе, проверка CDN на этапе 0 |
-| Тихая потеря аналитики на перенесённой странице | проверка наличия счётчиков в `check-build`, детекторы 30 минут, сверка Метрики |
-| Длинная ветка A и правки `public/` на `main` | заморозка и процедура hotfix из этапа 0, конвертер с `--ref main` |
+| `s3 sync --delete` удаляет ассеты при живом старом HTML | guard фактического dist, четыре фазы, явный флаг GC, проверенная политика CDN/квитанция purge; защитные изменения сохраняются при rollback |
+| Тихая потеря аналитики на перенесённой странице | обязательный production compare содержимого, атрибутов и размещения script/noscript, детекторы 30 минут, сверка Метрики |
+| Длинная ветка A и правки `public/` на `main` | заморозка, процедура hotfix, обновление явного SHA базы и повтор полного гейта |
 | `max-lines` и Prettier по телам страниц | исключения в ESLint, Prettier не запускается по страницам |
 | E2E меняют условия, когда вендорные ассеты уходят с бакета | этап B1 до релиза B, пин SHA |
 | CI автотестов собирает фронтенд сам | `check-latest` для Node там до релиза A, проверка после merge |
@@ -684,6 +982,7 @@ Staging и 8 тестов E2E после merge — релизный гейт, а
 | Персональные данные в публичном репозитории | сертификаты и фото тренеров остаются в бакете (R4, R9); `secret_scan.py` и просмотр партии перед коммитом |
 | Рост зависимостей, sharp с нативными бинарниками | `npm ci` в CI, Dependabot version updates, CodeQL без изменений |
 | Staging нестабилен | условие входа этапа 0, релиз без `skip_staging` |
+| Перенос ресурсов на same-origin увеличивает запросы к staging gateway и ARL | оценка до merge B и фактический staging-гейт из main; измерения запросов, 429, времени CI и расходов |
 
 ## 11. Решения
 
@@ -745,6 +1044,16 @@ staging); пункты 3, 5 и 13 PRJ-007.
 - Ссылок на бакет в `dist/`: ноль, кроме `documents/` и префикса фото
   тренеров.
 - Время сборки в CI и локально, для сравнения с 2026-10-19.
+- Для B в один отчёт ревью: добавленные байты оптимизированных ассетов и
+  рост Git, холодные `npm ci`/сборка/проверки и общий CI относительно этапа 0,
+  число запросов gateway за прогон и пиковые скользящие 60 секунд, трафик,
+  429 и оценка ежемесячной разницы расходов Yandex Cloud. У оценки указаны
+  объём нагрузки, регион, дата и источник тарифа, а не выдуманная фиксированная
+  цена; отдельно учитывается хранение старых ассетов при пропуске GC.
+  Во время локальной оценки учитывается отключённый HTTP cache при
+  `page.route` в autotests. Владелец получает сводку и отклонения; технические
+  прогоны и подготовку отчёта выполняет агент. Лимиты CI и существующая защита
+  staging должны выдерживать обычный релиз без ручных обходов.
 
 ## 14. Оценка и документация
 

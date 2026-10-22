@@ -11,5 +11,8 @@ production-архитектуры.
 - [`astro-migration-plan.md`](astro-migration-plan.md) — discovery-план
   миграции фронтенда на Astro: инварианты, этапы и PR, проверка паритета,
   решения владельца.
+- [`astro-deploy-rollback-findings.md`](astro-deploy-rollback-findings.md) —
+  находки о риске удаления ассетов при полном откате Astro и вопросы для
+  следующего разбора с Claude.
 - [`ideas.md`](ideas.md) — короткие идеи без проработки: MAX как второй канал
   уведомлений, проверка обработки персональных данных.
