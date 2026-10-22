@@ -16,8 +16,49 @@ document.addEventListener('DOMContentLoaded', function () {
   const defaultSubmitLabel = submitButton ? submitButton.value : 'Отправить';
   const successMessageMs = 5000;
   const defaultErrorMessage = 'Не удалось отправить заявку. Проверьте соединение и попробуйте ещё раз.';
+  // A request that never reaches the API (DNS, TCP, CORS, our own timeout) is
+  // retried with the same submission_id, which the API treats as one lead.
+  // HTTP responses are never retried: 429 and 5xx are shown to the visitor.
+  const retryDelaysMs = [400, 1200];
+  const attemptTimeoutMs = 8000;
   let successTimer;
   let submissionId = '';
+
+  function isNetworkError(error) {
+    return Boolean(error) && (error.name === 'AbortError' || error.name === 'TypeError');
+  }
+
+  function wait(delayMs) {
+    return new Promise(resolve => setTimeout(resolve, delayMs));
+  }
+
+  async function fetchWithRetry(url, options) {
+    let lastError;
+
+    for (let attempt = 0; attempt <= retryDelaysMs.length; attempt += 1) {
+      if (attempt > 0) {
+        await wait(retryDelaysMs[attempt - 1]);
+      }
+
+      const controller = typeof AbortController === 'function' ? new AbortController() : null;
+      const timer = controller ? setTimeout(() => controller.abort(), attemptTimeoutMs) : null;
+
+      try {
+        return await fetch(url, controller ? { ...options, signal: controller.signal } : options);
+      } catch (error) {
+        lastError = error;
+        if (!isNetworkError(error)) {
+          throw error;
+        }
+      } finally {
+        if (timer) {
+          clearTimeout(timer);
+        }
+      }
+    }
+
+    throw lastError;
+  }
 
   function createSubmissionId() {
     const cryptoObject = window.crypto;
@@ -154,7 +195,7 @@ document.addEventListener('DOMContentLoaded', function () {
     setSubmitting(true);
 
     try {
-      const response = await fetch(apiUrl, {
+      const response = await fetchWithRetry(apiUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
