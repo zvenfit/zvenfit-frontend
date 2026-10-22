@@ -46,6 +46,27 @@ Emergency path: dispatch **Release** from `main` with `skip_staging` and a
 `reason` only when staging or E2E are themselves broken and production needs an
 urgent fix. Quality checks and the production smoke test still run.
 
+## Upload order and pre-upload guard
+
+`deploy-site` verifies the exact `dist/` it is about to upload before the
+first `aws s3 sync`: `scripts/check-routes.cjs` proves the HTML route set
+equals the source pages, the indexable routes equal `sitemap.xml`, every
+runtime config and crawl file exists and every local `/js` and `/css`
+reference resolves; `check-build.cjs` (and `check-staging-build.cjs` on
+staging) run against the same tree. An empty or partial build never reaches
+the bucket. The route source follows `scripts/deploy.config.json`
+(`profile: legacy` reads `public/`).
+
+Upload runs as four commands in a fixed order, identical in the workflow and
+in `npm run deploy:yc`: (1) assets with `immutable`, never with `--delete`,
+excluding HTML, crawl files and `js/*-config.js`; (2) `robots.txt` and
+`sitemap.xml` with no-cache; (3) `js/*-config.js` with no-cache, so a config
+is refreshed before the HTML that references it; (4) HTML with no-cache.
+`--delete` stays only inside the crawl, config and HTML filters, so a removed
+page disappears with the release while assets referenced by previously
+served HTML are never deleted by a release or a rollback. Stale assets are
+removed only by a separate manual cleanup (see the Astro migration plan).
+
 ## E2E safety invariants
 
 - `playwright.staging.config.ts` in `zvenfit-autotests` rejects every origin

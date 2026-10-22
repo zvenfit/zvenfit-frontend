@@ -499,6 +499,16 @@ jobs:
           echo "Building with ASSET_VERSION: $ASSET_VERSION"
           npm run build
 
+      - name: Verify built site before upload
+        env:
+          SITE_ACCESS_MODE: ${{ inputs.site_access_mode }}
+        run: |
+          node scripts/check-routes.cjs
+          node scripts/check-build.cjs
+          if [ "$SITE_ACCESS_MODE" = "authenticated-gateway" ]; then
+            node scripts/check-staging-build.cjs
+          fi
+
       - name: Install Yandex Cloud CLI
         run: bash scripts/install-yc-cli.sh
 
@@ -539,13 +549,18 @@ jobs:
             "https://storage.yandexcloud.net/${STAGING_BUCKET}/index.html" \
             --allow-missing
 
+      # Upload order protects visitors who already hold the previous HTML:
+      # assets are added but never deleted by a release, crawl files follow,
+      # runtime configs are refreshed before the HTML that references them,
+      # and HTML goes last. Stale assets are removed by a separate manual
+      # cleanup, never by a release or a rollback.
       - name: Upload immutable assets to Yandex Object Storage
         run: |
           aws s3 sync ./dist s3://${{ inputs.s3_bucket }} \
-            --delete \
             --exclude "*.html" \
             --exclude "robots.txt" \
             --exclude "sitemap.xml" \
+            --exclude "js/*-config.js" \
             --cache-control "public, max-age=31536000, immutable" \
             --metadata-directive REPLACE
 
@@ -556,6 +571,15 @@ jobs:
             --exclude "*" \
             --include "robots.txt" \
             --include "sitemap.xml" \
+            --cache-control "no-cache, must-revalidate" \
+            --metadata-directive REPLACE
+
+      - name: Upload runtime configs (no-cache)
+        run: |
+          aws s3 sync ./dist s3://${{ inputs.s3_bucket }} \
+            --delete \
+            --exclude "*" \
+            --include "js/*-config.js" \
             --cache-control "no-cache, must-revalidate" \
             --metadata-directive REPLACE
 
