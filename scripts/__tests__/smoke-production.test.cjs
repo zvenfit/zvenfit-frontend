@@ -35,7 +35,10 @@ test('production smoke writes only a synthetic traffic event and never creates a
   const routes = new Map([
     [
       'https://zvenfit.ru/forma-dlya-zayavki/',
-      response(200, '<script src="/js/lead-config.js?v=42"></script><script src="/js/lead-form.js?v=42"></script><script src="/js/traffic-config.js?v=42"></script><script src="/js/traffic-beacon.js?v=42"></script>'),
+      response(
+        200,
+        '<script src="/js/lead-config.js?v=42"></script><script src="/js/lead-form.js?v=42"></script><script src="/js/traffic-config.js?v=42"></script><script src="/js/traffic-beacon.js?v=42"></script>',
+      ),
     ],
     [
       'https://zvenfit.ru/raspisanie/',
@@ -75,9 +78,7 @@ test('production smoke writes only a synthetic traffic event and never creates a
     ['GET', 'GET', 'GET', 'GET', 'GET', 'OPTIONS', 'GET', 'POST'],
   );
   assert.equal(requests.filter(item => item.method === 'POST').length, 1);
-  assert.ok(
-    requests.every(item => item.headers['User-Agent'] === 'ZvenFit-Synthetic-Monitor/1.0'),
-  );
+  assert.ok(requests.every(item => item.headers['User-Agent'] === 'ZvenFit-Synthetic-Monitor/1.0'));
 });
 
 test('authenticated same-origin staging probes both APIs without creating a lead', async () => {
@@ -87,7 +88,10 @@ test('authenticated same-origin staging probes both APIs without creating a lead
     [`${origin}/`, response(401, '', { 'www-authenticate': 'Basic realm="ZvenFit staging"' })],
     [
       `${origin}/forma-dlya-zayavki/`,
-      response(200, '<script src="/js/lead-config.js?v=7"></script><script src="/js/lead-form.js?v=7"></script><script src="/js/traffic-config.js?v=7"></script><script src="/js/traffic-beacon.js?v=7"></script>'),
+      response(
+        200,
+        '<script src="/js/lead-config.js?v=7"></script><script src="/js/lead-form.js?v=7"></script><script src="/js/traffic-config.js?v=7"></script><script src="/js/traffic-beacon.js?v=7"></script>',
+      ),
     ],
     [
       `${origin}/raspisanie/`,
@@ -164,7 +168,10 @@ test('smoke rejects a syntactically valid but unusable schedule payload', async 
   const routes = new Map([
     [
       'https://zvenfit.ru/forma-dlya-zayavki/',
-      response(200, '<script src="/js/lead-config.js"></script><script src="/js/lead-form.js"></script><script src="/js/traffic-config.js"></script><script src="/js/traffic-beacon.js"></script>'),
+      response(
+        200,
+        '<script src="/js/lead-config.js"></script><script src="/js/lead-form.js"></script><script src="/js/traffic-config.js"></script><script src="/js/traffic-beacon.js"></script>',
+      ),
     ],
     [
       'https://zvenfit.ru/raspisanie/',
@@ -175,10 +182,7 @@ test('smoke rejects a syntactically valid but unusable schedule payload', async 
       'https://zvenfit.ru/js/schedule-config.js',
       response(200, "window.ZVENFIT_SCHEDULE_API = 'https://schedule.test/';"),
     ],
-    [
-      'https://zvenfit.ru/js/traffic-config.js',
-      response(200, "window.ZVENFIT_TRAFFIC_API = 'https://traffic.test/';"),
-    ],
+    ['https://zvenfit.ru/js/traffic-config.js', response(200, "window.ZVENFIT_TRAFFIC_API = 'https://traffic.test/';")],
     ['https://lead.test/', response(204, '', { 'access-control-allow-origin': 'https://zvenfit.ru' })],
     ['https://schedule.test/', response(200, '{"error":"fixture_failed"}')],
   ]);
@@ -187,4 +191,114 @@ test('smoke rejects a syntactically valid but unusable schedule payload', async 
     () => runSmoke({ fetchImpl: async url => routes.get(url), log() {} }),
     /must return \{ ok: true, items: \[\] \}/,
   );
+});
+
+function productionRoutes() {
+  return new Map([
+    [
+      'https://zvenfit.ru/forma-dlya-zayavki/',
+      response(
+        200,
+        '<script src="/js/lead-config.js"></script><script src="/js/lead-form.js"></script><script src="/js/traffic-config.js"></script><script src="/js/traffic-beacon.js"></script>',
+      ),
+    ],
+    [
+      'https://zvenfit.ru/raspisanie/',
+      response(200, '<script src="/js/schedule-config.js"></script><script src="/js/schedule.js"></script>'),
+    ],
+    ['https://zvenfit.ru/js/lead-config.js', response(200, "window.ZVENFIT_LEAD_API = 'https://lead.test/';")],
+    [
+      'https://zvenfit.ru/js/schedule-config.js',
+      response(200, "window.ZVENFIT_SCHEDULE_API = 'https://schedule.test/';"),
+    ],
+    ['https://zvenfit.ru/js/traffic-config.js', response(200, "window.ZVENFIT_TRAFFIC_API = 'https://traffic.test/';")],
+    ['https://lead.test/', response(204, '', { 'access-control-allow-origin': 'https://zvenfit.ru' })],
+    ['https://schedule.test/', response(200, '{"ok":true,"items":[]}')],
+    ['https://traffic.test/', response(204, '')],
+  ]);
+}
+
+function connectTimeout() {
+  const cause = Object.assign(new Error('Connect Timeout Error'), { code: 'UND_ERR_CONNECT_TIMEOUT' });
+
+  return new TypeError('fetch failed', { cause });
+}
+
+test('smoke repeats a request on a new connection when no response arrives', async () => {
+  const attempts = new Map();
+  const logs = [];
+  const routes = productionRoutes();
+
+  await runSmoke({
+    retryDelayMs: 0,
+    fetchImpl: async (url, options = {}) => {
+      const attempt = (attempts.get(url) || 0) + 1;
+      attempts.set(url, attempt);
+      if (url === 'https://schedule.test/' && attempt <= 2) {
+        throw connectTimeout();
+      }
+      const route = routes.get(url);
+      assert.ok(route, `unexpected request: ${options.method || 'GET'} ${url}`);
+
+      return route;
+    },
+    log: message => logs.push(message),
+  });
+
+  assert.equal(attempts.get('https://schedule.test/'), 3);
+  assert.ok([...attempts].filter(([url]) => url !== 'https://schedule.test/').every(([, count]) => count === 1));
+  assert.deepEqual(
+    logs.filter(message => message.includes('retrying on a new connection')),
+    [
+      'smoke-production: attempt 1/8 for https://schedule.test/ got no response (fetch failed (UND_ERR_CONNECT_TIMEOUT: Connect Timeout Error)); retrying on a new connection',
+      'smoke-production: attempt 2/8 for https://schedule.test/ got no response (fetch failed (UND_ERR_CONNECT_TIMEOUT: Connect Timeout Error)); retrying on a new connection',
+    ],
+  );
+});
+
+test('smoke gives up after the configured number of connection attempts', async () => {
+  const attempts = new Map();
+  const routes = productionRoutes();
+
+  await assert.rejects(
+    () =>
+      runSmoke({
+        connectAttempts: 3,
+        retryDelayMs: 0,
+        fetchImpl: async url => {
+          attempts.set(url, (attempts.get(url) || 0) + 1);
+          if (url === 'https://zvenfit.ru/js/lead-config.js') {
+            throw connectTimeout();
+          }
+
+          return routes.get(url);
+        },
+        log() {},
+      }),
+    /request failed for https:\/\/zvenfit\.ru\/js\/lead-config\.js after 3 attempts: fetch failed \(UND_ERR_CONNECT_TIMEOUT/,
+  );
+
+  assert.equal(attempts.get('https://zvenfit.ru/js/lead-config.js'), 3);
+});
+
+test('smoke never retries an HTTP error response', async () => {
+  const attempts = new Map();
+  const routes = productionRoutes();
+  routes.set('https://schedule.test/', response(503, 'upstream unavailable'));
+
+  await assert.rejects(
+    () =>
+      runSmoke({
+        retryDelayMs: 0,
+        fetchImpl: async url => {
+          attempts.set(url, (attempts.get(url) || 0) + 1);
+
+          return routes.get(url);
+        },
+        log() {},
+      }),
+    /schedule API returned HTTP 503/,
+  );
+
+  assert.equal(attempts.get('https://schedule.test/'), 1);
 });
