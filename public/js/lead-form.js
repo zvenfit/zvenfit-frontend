@@ -120,6 +120,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
   form.addEventListener('submit', async function (event) {
     event.preventDefault();
+    // webflow.js binds its own delegated handler to `.w-form form` on document. It runs after
+    // this one, shows the `.w-form-fail` block and re-enables the button at once, so the form
+    // would look failed while the request is still in flight. Keep the event here.
+    event.stopPropagation();
     setFormState(null);
 
     const apiUrl = (window.ZVENFIT_LEAD_API || '').trim();
