@@ -83,6 +83,13 @@ Agent guide: [`AGENTS.md`](AGENTS.md)
 - [x] Lead function unit tests in CI
 - [x] Production smoke test after deploy without creating a real lead (`npm run smoke:production`)
 - [x] Consolidate `README.md` / `docs/setup.md` overlap (setup stays detailed, README — index)
+- [ ] **Dependabot alerts — отложено 2026-10-12, не приоритет**
+  Открытые алерты на `main`: `@grpc/grpc-js` 1.14.0–1.14.4 в
+  `functions/lead-intake/package-lock.json` (high + low, исправлено в 1.14.5;
+  зависимость экспорта метрик OTLP) и `brace-expansion` в корневом
+  `package-lock.json` (два moderate, исправлено в 1.1.21 и 2.1.7). Оба —
+  правка lock-файлов отдельной `chore/`-веткой; после обновления grpc
+  прогнать `npm run test:lead-fn` и `test:metrics-http` в `functions/lead-intake`.
 - [ ] YDB: диагностировать границу `CreateSession` / первый ответ `AttachSession` и логировать безопасные поля предыдущей ошибки повтора при `ydb_read_budget_exhausted` — см. [разбор 28 сентября 2026](docs/monitoring-operations.md#таймауты-открытия-сессии-ydb-28-сентября-2026)
 
 ---
