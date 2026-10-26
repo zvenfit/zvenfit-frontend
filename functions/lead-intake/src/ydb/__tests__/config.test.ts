@@ -50,4 +50,8 @@ test('driver readiness falls back to the query timeout and initialization attemp
   withEnv('YDB_INIT_ATTEMPTS', 'invalid', () => assert.equal(config.initializationAttempts(), 3));
   withEnv('YDB_INIT_ATTEMPTS', '6', () => assert.equal(config.initializationAttempts(), 6));
   withEnv('YDB_INIT_ATTEMPTS', '50', () => assert.equal(config.initializationAttempts(), 10));
+  withEnv('YDB_SCHEMA_TIMEOUT_MS', 'invalid', () =>
+    assert.equal(config.schemaTimeoutMs(), 3 * config.queryTimeoutMs()),
+  );
+  withEnv('YDB_SCHEMA_TIMEOUT_MS', '45000', () => assert.equal(config.schemaTimeoutMs(), 45000));
 });

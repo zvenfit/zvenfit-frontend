@@ -4,6 +4,7 @@ const DEFAULT_QUERY_TIMEOUT_MS = 5000;
 const DEFAULT_SLOW_OPERATION_MS = 1000;
 const DEFAULT_SESSION_POOL_SIZE = 5;
 const DEFAULT_INITIALIZATION_ATTEMPTS = 3;
+const SCHEMA_TIMEOUT_FACTOR = 3;
 const MAX_INITIALIZATION_ATTEMPTS = 10;
 
 export function parsePositiveInt(value: string | undefined, fallback: number): number {
@@ -65,6 +66,12 @@ export function normalizeConnectionString(value: string | undefined): string {
 
 export function queryTimeoutMs(): number {
   return parsePositiveInt(process.env.YDB_QUERY_TIMEOUT_MS, DEFAULT_QUERY_TIMEOUT_MS);
+}
+
+// Schema changes (CREATE, ALTER, DROP) take longer than data operations and
+// run only from migrations and tests, never on the request path.
+export function schemaTimeoutMs(): number {
+  return parsePositiveInt(process.env.YDB_SCHEMA_TIMEOUT_MS, SCHEMA_TIMEOUT_FACTOR * queryTimeoutMs());
 }
 
 export function slowOperationMs(): number {
