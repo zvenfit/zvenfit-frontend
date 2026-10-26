@@ -175,6 +175,12 @@ jobs:
       - name: Install lead function dependencies
         run: npm ci --prefix functions/lead-intake
 
+      - name: Restore the Yandex Cloud CLI from the Actions cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ${{ runner.temp }}/zvenfit-yc-cli-1.26.0
+          key: yc-cli-1.26.0-linux-amd64-b6bc853d
+
       - name: Install Yandex Cloud CLI
         run: bash scripts/install-yc-cli.sh
 
@@ -270,6 +276,12 @@ jobs:
       - name: Install schedule function dependencies
         run: npm ci --prefix functions/fitbase-schedule
 
+      - name: Restore the Yandex Cloud CLI from the Actions cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ${{ runner.temp }}/zvenfit-yc-cli-1.26.0
+          key: yc-cli-1.26.0-linux-amd64-b6bc853d
+
       - name: Install Yandex Cloud CLI
         run: bash scripts/install-yc-cli.sh
 
@@ -337,6 +349,12 @@ jobs:
 
       - name: Install traffic function dependencies
         run: npm ci --prefix functions/site-traffic
+
+      - name: Restore the Yandex Cloud CLI from the Actions cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ${{ runner.temp }}/zvenfit-yc-cli-1.26.0
+          key: yc-cli-1.26.0-linux-amd64-b6bc853d
 
       - name: Install Yandex Cloud CLI
         run: bash scripts/install-yc-cli.sh
@@ -411,6 +429,13 @@ jobs:
       - name: Install authorizer dependencies
         if: inputs.site_access_mode == 'authenticated-gateway'
         run: npm ci --prefix functions/staging-authorizer
+
+      - name: Restore the Yandex Cloud CLI from the Actions cache
+        if: inputs.site_access_mode == 'authenticated-gateway'
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ${{ runner.temp }}/zvenfit-yc-cli-1.26.0
+          key: yc-cli-1.26.0-linux-amd64-b6bc853d
 
       - name: Install Yandex Cloud CLI
         if: inputs.site_access_mode == 'authenticated-gateway'
@@ -508,6 +533,12 @@ jobs:
           if [ "$SITE_ACCESS_MODE" = "authenticated-gateway" ]; then
             node scripts/check-staging-build.cjs
           fi
+
+      - name: Restore the Yandex Cloud CLI from the Actions cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ${{ runner.temp }}/zvenfit-yc-cli-1.26.0
+          key: yc-cli-1.26.0-linux-amd64-b6bc853d
 
       - name: Install Yandex Cloud CLI
         run: bash scripts/install-yc-cli.sh
@@ -655,6 +686,12 @@ jobs:
         uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: ${{ env.NODE_VERSION }}
+
+      - name: Restore the Yandex Cloud CLI from the Actions cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ${{ runner.temp }}/zvenfit-yc-cli-1.26.0
+          key: yc-cli-1.26.0-linux-amd64-b6bc853d
 
       - name: Install Yandex Cloud CLI
         run: bash scripts/install-yc-cli.sh
