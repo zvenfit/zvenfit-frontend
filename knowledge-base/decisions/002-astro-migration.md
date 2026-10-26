@@ -94,7 +94,7 @@ production, tag and GitHub release.
 | imask 7.6.1 | `public/js/vendor/` since PR #85 | MIT, licence file next to it |
 | Roboto, Roboto Condensed | fonts.bunny.net | Apache 2.0 |
 | Webflow runtime (`webflow.js`, `webflow.min.css`) | exported with the site, bucket | Webflow terms for exported sites; confirm against the account's terms |
-| Road Rage, Cyrillic build "RUS BY LYAJKA" | bucket `fonts/roadrage.ttf` | embedded licence: "Free for personal use only", © 2016 Youssef Habchi. **Commercial use needs a licence from the designer or a replacement font; owner decision pending.** |
+| Road Rage, Cyrillic build "RUS BY LYAJKA" | bucket `fonts/roadrage.ttf` | embedded licence text says "Free for personal use only" (© 2016 Youssef Habchi); the owner holds a purchased commercial licence (confirmed 2026-10-26), kept outside the repository. |
 
 Sources: [migration plan](../../docs/future/astro-migration-plan.md),
 [staging runbook](../staging-runbook.md),
