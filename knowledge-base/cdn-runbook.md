@@ -38,10 +38,12 @@ release v3.0.12 for decision R12 in
 interactive terminal, not from an agent shell:
 
 ```bash
-yc cdn cache purge --resource-id bc8rubabuwzpqqp7rifz --path /js/lead-config.js --path /js/schedule-config.js --path /js/traffic-config.js --path /js/maps-config.js
+yc cdn cache purge --resource-id bc8rubabuwzpqqp7rifz --path /js/lead-config.js,/js/schedule-config.js,/js/traffic-config.js,/js/maps-config.js
 ```
 
-The API accepts the request at once. Verify with
+`--path` takes a comma-separated list (`yc cdn cache purge --help`); `--all`
+purges the whole resource. The API accepts the request at once and the
+operation reports `done` within seconds. Verify with
 `curl -sI https://zvenfit.ru/js/lead-config.js` and compare `Cache-Control` and
 `Last-Modified` with
 `https://storage.yandexcloud.net/zvenfit-frontend/js/lead-config.js`.
@@ -50,8 +52,8 @@ On 2026-10-26 two purges of the four bare config keys were accepted, yet the
 edge still served the old `immutable` objects 15 minutes after the first one.
 Open follow-up before release A: re-check the bare keys; if they stay stale,
 consider a full purge of the resource (`yc cdn cache purge --resource-id
-bc8rubabuwzpqqp7rifz` without `--path`), which only makes the edge refetch
-from the bucket.
+bc8rubabuwzpqqp7rifz --all`), which only makes the edge refetch from the
+bucket.
 
 ## Planned change
 
