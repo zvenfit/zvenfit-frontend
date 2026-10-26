@@ -1216,6 +1216,47 @@
     renderWeekView(root);
   }
 
+  // A request that never reaches the API (DNS, TCP, CORS, our own timeout) is
+  // retried before the error state is shown. HTTP responses are never retried.
+  const retryDelaysMs = [400, 1200];
+  const attemptTimeoutMs = 10000;
+
+  function isNetworkError(error) {
+    return Boolean(error) && (error.name === 'AbortError' || error.name === 'TypeError');
+  }
+
+  function wait(delayMs) {
+    return new Promise(resolve => setTimeout(resolve, delayMs));
+  }
+
+  async function fetchWithRetry(url) {
+    let lastError;
+
+    for (let attempt = 0; attempt <= retryDelaysMs.length; attempt += 1) {
+      if (attempt > 0) {
+        await wait(retryDelaysMs[attempt - 1]);
+      }
+
+      const controller = typeof AbortController === 'function' ? new AbortController() : null;
+      const timer = controller ? setTimeout(() => controller.abort(), attemptTimeoutMs) : null;
+
+      try {
+        return await fetch(url, controller ? { signal: controller.signal } : undefined);
+      } catch (error) {
+        lastError = error;
+        if (!isNetworkError(error)) {
+          throw error;
+        }
+      } finally {
+        if (timer) {
+          clearTimeout(timer);
+        }
+      }
+    }
+
+    throw lastError;
+  }
+
   async function loadSchedule(root) {
     state.weekStart = getMonday(getMoscowDateString());
 
@@ -1234,7 +1275,7 @@
     }
 
     try {
-      const response = await fetch(apiUrl);
+      const response = await fetchWithRetry(apiUrl);
       if (!response.ok) {
         console.error('schedule: API HTTP', response.status, apiUrl);
         clearNode(root);
