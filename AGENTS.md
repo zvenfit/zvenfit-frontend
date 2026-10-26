@@ -35,9 +35,11 @@
 
 TypeScript is used only for Cloud Functions; the frontend remains static vanilla JS. Do not assume React/Vite/Next.
 
-Обсуждается миграция сборки страниц на Astro со статическим выводом:
-discovery-план в `docs/future/astro-migration-plan.md`. До решения владельца
-правило выше действует без изменений.
+Миграция сборки страниц на Astro со статическим выводом согласована
+(ADR `knowledge-base/decisions/002-astro-migration.md`, план
+`docs/future/astro-migration-plan.md`) и идёт в ветке `feature/astro-release-a`.
+До её merge правило выше действует без изменений, а правки `public/**` на это
+время ограничены hotfix-правилом плана (решение R10).
 
 ## Source of truth
 
