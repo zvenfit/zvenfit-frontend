@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import test from 'node:test';
 
 import { createYdbClient } from '../../client';
-import { migrationTableName, queryTimeoutMs, rateLimitsTableName } from '../../config';
+import { migrationTableName, queryTimeoutMs, rateLimitsTableName, schemaTimeoutMs } from '../../config';
 import * as leadStore from '../../lead-store';
 import { runMigrations } from '../../migrations';
 import { consumeLeadRateLimit } from '../../rate-limit';
@@ -26,13 +26,17 @@ function lead(leadId: string, createdAt: Date): Lead {
 
 async function dropTable(sql: YdbSql, name: string): Promise<void> {
   try {
-    await sql`DROP TABLE ${sql.identifier(name)};`.timeout(queryTimeoutMs());
+    await sql`DROP TABLE ${sql.identifier(name)};`.timeout(schemaTimeoutMs());
   } catch (error) {
     const message = error instanceof Error ? error.message : '';
     if (!message.includes('NOT_FOUND')) {
       throw error;
     }
   }
+}
+
+function describeError(error: unknown): string {
+  return error instanceof Error ? `${error.name}: ${error.message}` : String(error);
 }
 
 async function dropTestTables(table: string): Promise<void> {
@@ -49,7 +53,7 @@ async function dropTestTables(table: string): Promise<void> {
 test(
   'YDB migrations, rate limit, idempotency, indexed queue, claim lease, and delivery token work together',
   { skip: !TEST_CONNECTION_STRING },
-  async () => {
+  async t => {
     if (!TEST_CONNECTION_STRING) {
       return;
     }
@@ -68,11 +72,22 @@ test(
     // Every cleanup step runs even when an earlier one fails: a leaked driver
     // keeps the process alive and the job only ends at its time limit.
     const cleanupErrors: unknown[] = [];
+    // Name the phase in a failure: a bare timeout says nothing about where the
+    // time went, and the CI log keeps the duration of every phase.
+    let phase = 'setup';
+    let phaseStartedAt = Date.now();
+    const enter = (name: string): void => {
+      t.diagnostic(`integration phase ${phase} took ${Date.now() - phaseStartedAt} ms`);
+      phase = name;
+      phaseStartedAt = Date.now();
+    };
 
     try {
+      enter('migrations');
       assert.deepEqual(await runMigrations({ log: { info() {} } }), [1, 2]);
       assert.deepEqual(await runMigrations({ log: { info() {} } }), []);
 
+      enter('migration-rerun');
       const migrationClient = await createYdbClient();
       try {
         const migrationsTable = migrationClient.sql.identifier(migrationTableName());
@@ -87,6 +102,7 @@ test(
       assert.deepEqual(await runMigrations({ log: { info() {} } }), [1]);
       assert.deepEqual(await runMigrations({ log: { info() {} } }), []);
 
+      enter('rate-limit');
       // Keep the fixture inside the active TTL window. A historical timestamp
       // makes YDB immediately eligible to delete occupied rate-limit slots and
       // can let a sixth concurrent request through while the test is running.
@@ -104,6 +120,7 @@ test(
         assert.equal(rateLimitResults.filter(result => !result).length, 5);
       }
 
+      enter('save-lead');
       const now = new Date();
       const leadId = randomUUID();
       const saved = await Promise.all([leadStore.saveLead(lead(leadId, now)), leadStore.saveLead(lead(leadId, now))]);
@@ -115,6 +132,7 @@ test(
         oldestPendingAgeSeconds: 0,
       });
 
+      enter('claim');
       const leaseUntil = new Date(now.getTime() + 60_000);
       const claims = await Promise.all([
         leadStore.claimForTelegram({ leadId, now, leaseUntil, deliveryToken: randomUUID() }),
@@ -128,6 +146,7 @@ test(
 
       await leadStore.markTelegramDelivered({ leadId, deliveryToken: 'wrong-token', notifiedAt: now });
 
+      enter('reclaim');
       const afterLease = new Date(leaseUntil.getTime() + 1000);
       assert.deepEqual(await leadStore.listTelegramCandidates({ now: afterLease, limit: 10 }), [leadId]);
 
@@ -141,6 +160,7 @@ test(
       assert.ok(reclaimed);
       assert.equal(reclaimed.telegramAttempts, 2);
 
+      enter('terminal-failure');
       await leadStore.markTelegramFailed({
         leadId,
         deliveryToken: secondToken,
@@ -156,7 +176,13 @@ test(
         pendingCount: 0,
         oldestPendingAgeSeconds: 0,
       });
+    } catch (error) {
+      throw new Error(
+        `integration phase "${phase}" failed after ${Date.now() - phaseStartedAt} ms: ${describeError(error)}`,
+        { cause: error },
+      );
     } finally {
+      enter('cleanup');
       await leadStore.close().catch((error: unknown) => cleanupErrors.push(error));
       await dropTestTables(table).catch((error: unknown) => cleanupErrors.push(error));
 
@@ -184,7 +210,7 @@ test(
 
     // Reached only when the body passed: a failed cleanup must still fail the test.
     if (cleanupErrors.length > 0) {
-      throw cleanupErrors[0];
+      throw new Error(`integration cleanup failed: ${describeError(cleanupErrors[0])}`, { cause: cleanupErrors[0] });
     }
   },
 );

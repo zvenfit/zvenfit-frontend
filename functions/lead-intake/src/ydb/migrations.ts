@@ -2,7 +2,7 @@ import { createYdbClient } from './client';
 import {
   dueIndexName,
   migrationTableName,
-  queryTimeoutMs,
+  schemaTimeoutMs,
   queueHealthIndexName,
   rateLimitsTableName,
   tableName,
@@ -30,7 +30,7 @@ interface MigrationLogger {
 }
 
 function timed<T>(query: YdbQuery<T>): YdbQuery<T> {
-  return query.timeout(queryTimeoutMs());
+  return query.timeout(schemaTimeoutMs());
 }
 
 async function createLeadsTable({ sql, leadsTable }: MigrationContext): Promise<void> {
