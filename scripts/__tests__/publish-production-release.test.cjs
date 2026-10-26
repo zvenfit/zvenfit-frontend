@@ -6,7 +6,12 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
-const { nextVersion, planRelease, publishRelease } = require('../publish-production-release.cjs');
+const {
+  TAG_VISIBILITY_DELAYS_MS,
+  nextVersion,
+  planRelease,
+  publishRelease,
+} = require('../publish-production-release.cjs');
 
 const SHA = 'a'.repeat(40);
 const OTHER_SHA = 'b'.repeat(40);
@@ -36,12 +41,24 @@ function repository(t) {
   return { git, commit };
 }
 
-function api({ tagSha = null, release = null, failPublish = false, annotated = false } = {}) {
-  const state = { tagSha, release, failPublish, writes: [], calls: [] };
+function api({
+  tagSha = null,
+  release = null,
+  failPublish = false,
+  annotated = false,
+  unreadableReads = 0,
+  raceSha = null,
+} = {}) {
+  const state = { tagSha, release, failPublish, unreadableReads, raceSha, writes: [], calls: [] };
   const request = async (method, route, body) => {
     state.calls.push({ method, route, body });
     if (method === 'POST') state.writes.push({ route, body });
     if (method === 'GET' && route.startsWith('/git/ref/tags/') && state.tagSha) {
+      // A ref written a moment ago may not be readable yet.
+      if (state.unreadableReads > 0) {
+        state.unreadableReads -= 1;
+        throw Object.assign(new Error('Not found'), { status: 404 });
+      }
       return { object: { type: annotated ? 'tag' : 'commit', sha: state.tagSha } };
     }
     if (method === 'GET' && route.startsWith('/git/tags/') && annotated) {
@@ -51,6 +68,11 @@ function api({ tagSha = null, release = null, failPublish = false, annotated = f
     if (method === 'POST' && route === '/releases/generate-notes')
       return { body: 'Changes since the previous version.' };
     if (method === 'POST' && route === '/git/refs') {
+      if (state.raceSha) {
+        // Another writer created the tag between our read and our write.
+        state.tagSha = state.raceSha;
+        throw Object.assign(new Error('Reference already exists'), { status: 422 });
+      }
       state.tagSha = body.sha;
       return { object: { type: 'commit', sha: body.sha } };
     }
@@ -156,6 +178,61 @@ test('rerun after tag creation resumes the same version without creating another
   );
   assert.equal(state.release.tag_name, 'v3.0.1');
   assert.equal(state.release.make_latest, 'false');
+});
+
+function recordingSleep() {
+  const delays = [];
+  return { delays, sleep: async ms => delays.push(ms) };
+}
+
+function tagReadsAfterWrite(state) {
+  const write = state.calls.findIndex(call => call.method === 'POST' && call.route === '/git/refs');
+  return state.calls.slice(write + 1).filter(call => call.method === 'GET' && call.route.startsWith('/git/ref/tags/'))
+    .length;
+}
+
+test('a tag that is not readable right after its creation is confirmed before the release', async () => {
+  const { state, request } = api({ unreadableReads: 2 });
+  const { delays, sleep } = recordingSleep();
+  const result = await publishRelease(PLAN, request, RUN_URL, sleep);
+  assert.equal(result.created, true);
+  assert.deepEqual(
+    state.writes.map(write => write.route),
+    ['/releases/generate-notes', '/git/refs', '/releases'],
+  );
+  assert.deepEqual(delays, TAG_VISIBILITY_DELAYS_MS.slice(0, 2));
+  assert.equal(tagReadsAfterWrite(state), 3);
+  assert.equal(state.release.tag_name, 'v3.0.1');
+});
+
+test('a tag that never becomes readable stops the publication with a resumable error', async () => {
+  const { state, request } = api({ unreadableReads: Number.POSITIVE_INFINITY });
+  const { delays, sleep } = recordingSleep();
+  await assert.rejects(publishRelease(PLAN, request, RUN_URL, sleep), /not readable on GitHub yet; re-run the job/);
+  assert.deepEqual(
+    state.writes.map(write => write.route),
+    ['/releases/generate-notes', '/git/refs'],
+  );
+  assert.deepEqual(delays, TAG_VISIBILITY_DELAYS_MS);
+  assert.equal(state.tagSha, SHA);
+});
+
+test('a tag claimed by another writer during publication is used only at the deployed commit', async () => {
+  const same = api({ raceSha: SHA });
+  const result = await publishRelease(PLAN, same.request, RUN_URL, async () => {});
+  assert.equal(result.created, true);
+  assert.equal(same.state.release.tag_name, 'v3.0.1');
+
+  const other = api({ raceSha: OTHER_SHA });
+  await assert.rejects(
+    publishRelease(PLAN, other.request, RUN_URL, async () => {}),
+    /another commit/,
+  );
+  assert.deepEqual(
+    other.state.writes.map(write => write.route),
+    ['/releases/generate-notes', '/git/refs'],
+  );
+  assert.equal(other.state.release, null);
 });
 
 test('a remote tag on another commit is never moved or published', async () => {
