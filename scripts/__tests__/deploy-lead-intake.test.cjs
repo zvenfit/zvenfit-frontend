@@ -330,6 +330,28 @@ test('pre-deploy YDB checks get more driver attempts than the function itself', 
   assert.doesNotMatch(deployScript, /--environment[^\n]*YDB_INIT_ATTEMPTS/, 'the function keeps its own defaults');
 });
 
+test('pre-deploy YDB checks are repeated on fresh processes a bounded number of times and cannot hang', () => {
+  assert.match(
+    deployScript,
+    /run_ydb_check\(\) \{[\s\S]*?until "\$@"; do[\s\S]*?if \(\( attempt >= attempts \)\); then[\s\S]*?return 1/,
+  );
+  assert.match(
+    deployScript,
+    /run_ydb_check "YDB integration test" "\$\{YDB_CI_TEST_ATTEMPTS\}" \\\n  env [\s\S]*?run test:integration/,
+  );
+  assert.match(
+    deployScript,
+    /run_ydb_check "YDB migration" "\$\{YDB_CI_MIGRATE_ATTEMPTS\}" \\\n  env [\s\S]*?run migrate/,
+  );
+  assert.match(deployScript, /YDB_CI_TEST_ATTEMPTS="\$\{YDB_CI_TEST_ATTEMPTS:-[2-5]\}"/);
+  const functionPackage = JSON.parse(fs.readFileSync(path.join(ROOT, 'functions/lead-intake/package.json'), 'utf8'));
+  assert.match(
+    functionPackage.scripts['test:integration'],
+    /--test --test-force-exit /,
+    'a leaked YDB driver must not keep the test process alive',
+  );
+});
+
 test('direct Monium metrics require and deploy the environment-scoped API key secret', () => {
   assert.match(reusableWorkflow, /MONIUM_API_KEY: \$\{\{ secrets\.MONIUM_API_KEY \}\}/);
   assert.match(deployScript, /set MONIUM_API_KEY when direct metrics are enabled/);

@@ -49,7 +49,8 @@ Application handler не создаёт adapters, не читает provider-mod
   SQL-операции: `YDB_READY_TIMEOUT_MS` на попытку (по умолчанию равен
   `YDB_QUERY_TIMEOUT_MS`) и `YDB_INIT_ATTEMPTS` попыток с новым сокетом
   (по умолчанию 3, не больше 10); проверки перед деплоем в CI получают
-  20 с и 6 попыток через `scripts/deploy-lead-intake.sh`. Бюджет задаёт
+  15 с и 4 попытки через `scripts/deploy-lead-intake.sh`, а сами проверки
+  повторяются ограниченное число раз новым процессом. Бюджет задаёт
   `ydb/context.ts`:
   `min(2 * YDB_QUERY_TIMEOUT_MS, 20000)` мс.
 - `observability/ydb.ts` — измеряет результат и получает уведомления о повторах,

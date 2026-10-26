@@ -21,8 +21,12 @@ YDB_QUERY_TIMEOUT_MS="${YDB_QUERY_TIMEOUT_MS:-5000}"
 # The runner reaches YDB through the public ingress, which may drop TCP
 # handshakes; the pre-deploy checks get more and longer driver attempts than
 # the function itself needs inside the cloud.
-YDB_CI_READY_TIMEOUT_MS="${YDB_CI_READY_TIMEOUT_MS:-20000}"
-YDB_CI_INIT_ATTEMPTS="${YDB_CI_INIT_ATTEMPTS:-6}"
+YDB_CI_READY_TIMEOUT_MS="${YDB_CI_READY_TIMEOUT_MS:-15000}"
+YDB_CI_INIT_ATTEMPTS="${YDB_CI_INIT_ATTEMPTS:-4}"
+# A check that still fails is repeated on a fresh process, i.e. with fresh
+# sockets to discovery and to every YDB node; the job time limit is the hard stop.
+YDB_CI_TEST_ATTEMPTS="${YDB_CI_TEST_ATTEMPTS:-3}"
+YDB_CI_MIGRATE_ATTEMPTS="${YDB_CI_MIGRATE_ATTEMPTS:-2}"
 YDB_SLOW_OPERATION_MS="${YDB_SLOW_OPERATION_MS:-1000}"
 YDB_SESSION_POOL_SIZE="${YDB_SESSION_POOL_SIZE:-5}"
 MONIUM_METRICS_ENABLED="${MONIUM_METRICS_ENABLED:-true}"
@@ -151,20 +155,37 @@ fi
 
 LEAD_YDB_IAM_TOKEN="$(yc iam create-token)"
 
-YDB_TEST_CONNECTION_STRING="${YDB_CONNECTION_STRING}" \
-YDB_ACCESS_TOKEN_CREDENTIALS="${LEAD_YDB_IAM_TOKEN}" \
-YDB_READY_TIMEOUT_MS="${YDB_CI_READY_TIMEOUT_MS}" \
-YDB_INIT_ATTEMPTS="${YDB_CI_INIT_ATTEMPTS}" \
-npm --prefix "${ROOT_DIR}/functions/lead-intake" run test:integration
+run_ydb_check() {
+  local label="$1" attempts="$2"
+  shift 2
+  local attempt=1
+  until "$@"; do
+    if (( attempt >= attempts )); then
+      echo "deploy-lead-intake: ${label} failed ${attempts} times" >&2
+      return 1
+    fi
+    echo "deploy-lead-intake: ${label} attempt ${attempt} failed; retrying on a fresh process" >&2
+    attempt=$((attempt + 1))
+    sleep 10
+  done
+}
 
-YDB_ACCESS_TOKEN_CREDENTIALS="${LEAD_YDB_IAM_TOKEN}" \
-YDB_CONNECTION_STRING="${YDB_CONNECTION_STRING}" \
-YDB_LEADS_TABLE="${YDB_LEADS_TABLE}" \
-YDB_RATE_LIMITS_TABLE="${YDB_RATE_LIMITS_TABLE}" \
-YDB_QUERY_TIMEOUT_MS="${YDB_QUERY_TIMEOUT_MS}" \
-YDB_READY_TIMEOUT_MS="${YDB_CI_READY_TIMEOUT_MS}" \
-YDB_INIT_ATTEMPTS="${YDB_CI_INIT_ATTEMPTS}" \
-npm --prefix "${ROOT_DIR}/functions/lead-intake" run migrate
+run_ydb_check "YDB integration test" "${YDB_CI_TEST_ATTEMPTS}" \
+  env YDB_TEST_CONNECTION_STRING="${YDB_CONNECTION_STRING}" \
+  YDB_ACCESS_TOKEN_CREDENTIALS="${LEAD_YDB_IAM_TOKEN}" \
+  YDB_READY_TIMEOUT_MS="${YDB_CI_READY_TIMEOUT_MS}" \
+  YDB_INIT_ATTEMPTS="${YDB_CI_INIT_ATTEMPTS}" \
+  npm --prefix "${ROOT_DIR}/functions/lead-intake" run test:integration
+
+run_ydb_check "YDB migration" "${YDB_CI_MIGRATE_ATTEMPTS}" \
+  env YDB_ACCESS_TOKEN_CREDENTIALS="${LEAD_YDB_IAM_TOKEN}" \
+  YDB_CONNECTION_STRING="${YDB_CONNECTION_STRING}" \
+  YDB_LEADS_TABLE="${YDB_LEADS_TABLE}" \
+  YDB_RATE_LIMITS_TABLE="${YDB_RATE_LIMITS_TABLE}" \
+  YDB_QUERY_TIMEOUT_MS="${YDB_QUERY_TIMEOUT_MS}" \
+  YDB_READY_TIMEOUT_MS="${YDB_CI_READY_TIMEOUT_MS}" \
+  YDB_INIT_ATTEMPTS="${YDB_CI_INIT_ATTEMPTS}" \
+  npm --prefix "${ROOT_DIR}/functions/lead-intake" run migrate
 
 unset LEAD_YDB_IAM_TOKEN
 
