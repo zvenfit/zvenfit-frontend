@@ -35,6 +35,17 @@ async function dropTable(sql: YdbSql, name: string): Promise<void> {
   }
 }
 
+async function dropTestTables(table: string): Promise<void> {
+  const client = await createYdbClient();
+  try {
+    await dropTable(client.sql, table);
+    await dropTable(client.sql, rateLimitsTableName());
+    await dropTable(client.sql, migrationTableName());
+  } finally {
+    await client.close();
+  }
+}
+
 test(
   'YDB migrations, rate limit, idempotency, indexed queue, claim lease, and delivery token work together',
   { skip: !TEST_CONNECTION_STRING },
@@ -54,6 +65,7 @@ test(
     process.env.YDB_LEADS_TABLE = table;
     process.env.YDB_RATE_LIMITS_TABLE = rateLimitsTable;
     process.env.LEAD_RATE_LIMIT_SECRET = 'integration-test-secret-not-production-32';
+    let bodyFailed = false;
 
     try {
       assert.deepEqual(await runMigrations({ log: { info() {} } }), [1, 2]);
@@ -142,14 +154,15 @@ test(
         pendingCount: 0,
         oldestPendingAgeSeconds: 0,
       });
+    } catch (error) {
+      bodyFailed = true;
+      throw error;
     } finally {
-      await leadStore.close();
-
-      const client = await createYdbClient();
-      await dropTable(client.sql, table);
-      await dropTable(client.sql, rateLimitsTableName());
-      await dropTable(client.sql, migrationTableName());
-      await client.close();
+      // Every cleanup step runs even when an earlier one fails: a leaked driver
+      // keeps the process alive and the job only ends at its time limit.
+      const cleanupErrors: unknown[] = [];
+      await leadStore.close().catch((error: unknown) => cleanupErrors.push(error));
+      await dropTestTables(table).catch((error: unknown) => cleanupErrors.push(error));
 
       if (originalConnectionString === undefined) {
         delete process.env.YDB_CONNECTION_STRING;
@@ -170,6 +183,10 @@ test(
         delete process.env.LEAD_RATE_LIMIT_SECRET;
       } else {
         process.env.LEAD_RATE_LIMIT_SECRET = originalRateLimitSecret;
+      }
+
+      if (!bodyFailed && cleanupErrors.length > 0) {
+        throw cleanupErrors[0];
       }
     }
   },
