@@ -122,13 +122,11 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
   <script src="/js/webflow.js" type="text/javascript" defer></script><!--  Google Tag Manager (noscript)  -->
   <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-5532ZMV5" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   <!--  End Google Tag Manager (noscript)  -->
-  <script src="https://unpkg.com/imask@7.6.1/dist/imask.min.js"
-          integrity="sha384-UO8YwPv//GjwHj93ZlwXcDNjv3BSxdBFUB2jtiOuL3d/a0kS9E8sYvHjTBkQI8u8"
-          crossorigin="anonymous"></script>
+  <script src="/js/vendor/imask-7.6.1.min.js" defer></script>
   <script>
 document.addEventListener("DOMContentLoaded", function(){
 const phoneInput = document.querySelector('[name="phone"]');
-if(phoneInput){
+if(phoneInput && typeof IMask === 'function'){
 IMask(phoneInput, {
 mask: '+{7} (000) 000-00-00'
 });

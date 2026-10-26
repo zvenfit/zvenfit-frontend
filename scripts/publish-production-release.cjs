@@ -4,6 +4,10 @@ const { execFileSync } = require('node:child_process');
 const { appendFileSync } = require('node:fs');
 
 const VERSION = /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
+// GitHub's git refs are eventually consistent: a ref written a moment ago can
+// still answer 404 to a read. Reads after a write are repeated with these pauses
+// before the tag is declared unreadable.
+const TAG_VISIBILITY_DELAYS_MS = [500, 1000, 2000, 4000, 8000];
 
 function git(...args) {
   return execFileSync('git', args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
@@ -102,7 +106,25 @@ async function tagCommit(request, tag) {
   return object.sha;
 }
 
-async function publishRelease(plan, request, runUrl) {
+function wait(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// Confirms that the tag resolves to the deployed commit, telling a ref that is not
+// readable yet apart from a ref that points elsewhere. Only the former is retried.
+async function confirmTagCommit(request, tag, sha, sleep = wait) {
+  for (let attempt = 0; ; attempt += 1) {
+    const remoteSha = await tagCommit(request, tag);
+    if (remoteSha === sha) return;
+    if (remoteSha) throw new Error(`${tag} already points to another commit; it will not be moved`);
+    if (attempt >= TAG_VISIBILITY_DELAYS_MS.length) {
+      throw new Error(`${tag} is not readable on GitHub yet; re-run the job to resume from the tag`);
+    }
+    await sleep(TAG_VISIBILITY_DELAYS_MS[attempt]);
+  }
+}
+
+async function publishRelease(plan, request, runUrl, sleep = wait) {
   const { sha, tag, previousTag } = plan;
   const remoteSha = await tagCommit(request, tag);
   if (remoteSha && remoteSha !== sha) throw new Error(`${tag} already points to another commit; it will not be moved`);
@@ -126,11 +148,13 @@ async function publishRelease(plan, request, runUrl) {
       // Claim the exact commit before publishing. A partial failure can resume from this tag.
       await request('POST', '/git/refs', { ref: `refs/tags/${tag}`, sha });
     } catch (error) {
-      if (error.status !== 422 || (await tagCommit(request, tag)) !== sha) throw error;
+      // 422: another writer created the tag first. It is accepted below only at our commit.
+      if (error.status !== 422) throw error;
     }
   }
-  // Never let the releases API silently use a tag moved by another writer.
-  if ((await tagCommit(request, tag)) !== sha) throw new Error(`${tag} no longer matches the deployed commit`);
+  // Never let the releases API silently use a tag moved by another writer, and
+  // give a tag written a moment ago the time it needs to become readable.
+  await confirmTagCommit(request, tag, sha, sleep);
   const release = await request('POST', '/releases', {
     tag_name: tag,
     target_commitish: sha,
@@ -171,4 +195,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { nextVersion, planRelease, publishRelease };
+module.exports = { TAG_VISIBILITY_DELAYS_MS, confirmTagCommit, nextVersion, planRelease, publishRelease };

@@ -13,7 +13,7 @@ const environment = {
   ASSET_VERSION: process.env.ASSET_VERSION || 'staging-test',
 };
 
-for (const script of ['build-static.cjs', 'check-build.cjs', 'check-staging-build.cjs']) {
+for (const script of ['build-static.cjs', 'check-routes.cjs', 'check-build.cjs', 'check-staging-build.cjs']) {
   const result = spawnSync(process.execPath, [path.join(root, 'scripts', script)], {
     cwd: root,
     env: environment,

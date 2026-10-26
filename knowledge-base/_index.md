@@ -23,6 +23,8 @@ Use links between the two sources rather than duplicating their contents.
 - [Staging deployment and E2E runbook](staging-runbook.md)
 - [Production monitoring dashboard](dashboards.md)
 - [Alerts, metrics and logs runbook](monitoring-runbook.md)
+- [CDN cache runbook](cdn-runbook.md)
 - [Tracked operational documentation](../docs/monitoring-operations.md)
 
-- [Immediate Telegram delivery and independent retry](../docs/decisions/001-immediate-and-independent-delivery.md).
+- [Immediate Telegram delivery and independent retry](decisions/001-immediate-and-independent-delivery.md).
+- [Static site generation with Astro in two releases](decisions/002-astro-migration.md).

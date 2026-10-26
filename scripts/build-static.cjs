@@ -349,11 +349,15 @@ function injectStagingRobotsMeta(html) {
   return withoutExistingRobots.replace('</head>', '  <meta name="robots" content="noindex, nofollow">\n</head>');
 }
 
+// Each pattern must stay inside one element: a match may not cross a closing
+// </script> or </noscript>, otherwise it swallows the Webflow bootstrap, the
+// icon links and the page's own Open Graph tags that precede the GTM block.
+const GTM_SCRIPT_RE = /\s*<script\b[^>]*>(?:(?!<\/script>)[\s\S])*?googletagmanager\.com\/gtm\.js(?:(?!<\/script>)[\s\S])*?<\/script>/gi;
+const GTM_NOSCRIPT_RE = /\s*<noscript>(?:(?!<\/noscript>)[\s\S])*?googletagmanager\.com\/ns\.html(?:(?!<\/noscript>)[\s\S])*?<\/noscript>/gi;
+const GTM_COMMENT_RE = /\s*<!--\s*(?:End )?Google Tag Manager(?: \(noscript\))?\s*-->/gi;
+
 function stripGoogleTagManager(html) {
-  return html
-    .replace(/\s*<script\b[^>]*>[\s\S]*?googletagmanager\.com\/gtm\.js[\s\S]*?<\/script>/gi, '\n')
-    .replace(/\s*<noscript>[\s\S]*?googletagmanager\.com\/ns\.html[\s\S]*?<\/noscript>/gi, '\n')
-    .replace(/\s*<!--\s*(?:End )?Google Tag Manager(?: \(noscript\))?\s*-->/gi, '\n');
+  return html.replace(GTM_SCRIPT_RE, '\n').replace(GTM_NOSCRIPT_RE, '\n').replace(GTM_COMMENT_RE, '\n');
 }
 
 function escapeHtmlAttr(value) {
@@ -1020,7 +1024,7 @@ function runBuild() {
   console.log('build-static: copied public/ -> dist/');
 }
 
-module.exports = { runBuild, applySlashPrefix };
+module.exports = { runBuild, applySlashPrefix, stripGoogleTagManager };
 
 if (require.main === module) {
   runBuild();
