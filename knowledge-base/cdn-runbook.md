@@ -48,12 +48,13 @@ operation reports `done` within seconds. Verify with
 `Last-Modified` with
 `https://storage.yandexcloud.net/zvenfit-frontend/js/lead-config.js`.
 
-On 2026-10-26 two purges of the four bare config keys were accepted, yet the
-edge still served the old `immutable` objects 15 minutes after the first one.
-Open follow-up before release A: re-check the bare keys; if they stay stale,
-consider a full purge of the resource (`yc cdn cache purge --resource-id
-bc8rubabuwzpqqp7rifz --all`), which only makes the edge refetch from the
-bucket.
+On 2026-10-26 two purges of the four bare config keys by path were accepted
+(operations done without errors), yet the edge still served the old
+`immutable` objects 15 minutes after each. A full purge of the resource
+(`yc cdn cache purge --resource-id bc8rubabuwzpqqp7rifz --all`) reached the
+edge within minutes: the bare keys turned to `no-cache` and HTML stayed fresh.
+Use the full purge when a path purge shows no effect; it only makes the edge
+refetch from the bucket.
 
 ## Planned change
 

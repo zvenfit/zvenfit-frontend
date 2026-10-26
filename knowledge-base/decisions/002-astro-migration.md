@@ -73,10 +73,10 @@ The edge honours the origin `Cache-Control`: HTML and crawl files with
 cache key is the path plus the `v` query parameter only. Objects uploaded with
 `immutable` stay for a year under their key: when `js/*-config.js` moved to the
 no-cache pass, the `?v=` keys were fresh while the bare keys `/js/*-config.js`
-kept the old objects. A purge of the four bare keys was issued on 2026-10-26;
-the edge still served the old objects 15 minutes later, so propagation is an
-open follow-up before release A. Settings, measurements and the purge
-procedure: [`knowledge-base/cdn-runbook.md`](../cdn-runbook.md).
+kept the old objects. Two purges by path did not reach the edge; a full purge
+of the resource on 2026-10-26 did, within minutes, and the bare keys now serve
+the no-cache objects. Settings, measurements and the purge procedure:
+[`knowledge-base/cdn-runbook.md`](../cdn-runbook.md).
 
 ### Release gate
 

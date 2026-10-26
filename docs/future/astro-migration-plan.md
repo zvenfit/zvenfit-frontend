@@ -617,8 +617,8 @@ scripts/__tests__/cleanup-bucket-assets.test.cjs   тесты очистки н�
   выбран по R12; environment-bound OIDC принимает нерелизный workflow
   (прецедент `telegram-delivery-backup.yml`). Из результатов выводятся
   `min_age_days` и правило запуска очистки. Итог: `knowledge-base/cdn-runbook.md`;
-  purge голых ключей конфигов отправлен 2026-10-26, распространение на edge
-  ещё не подтверждено — проверить до релиза A.
+  purge голых ключей конфигов выполнен 2026-10-26 полной очисткой ресурса,
+  точечный purge по путям до edge не доходил.
   Лицензии Roadrage, экспортированного рантайма
   Webflow (`webflow.js`, `webflow.min.css`), `normalize` (MIT), `imask` (MIT),
   Roboto (Apache 2.0). Итог в ADR 002: шрифт Road Rage (сборка «RUS BY
