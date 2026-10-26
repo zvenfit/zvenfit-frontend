@@ -89,3 +89,20 @@ ship with the next release.
 Deploy workflows derive `ASSET_VERSION` from the unique GitHub run number.
 Never restore a fixed Environment override: a stable query string can leave old
 CSS or JavaScript in CDN/browser caches after a successful upload.
+
+## Lost connections during smoke and E2E
+
+Staging and the public function URLs sit behind a shared Yandex Cloud ingress.
+During the October 2026 incident (#2136) about half of all TCP handshakes to
+API Gateway and Cloud Functions were never answered while `api.cloud.yandex.net`
+and Object Storage stayed healthy, so every deploy job succeeded and only the
+post-upload smoke failed with `fetch failed`.
+
+- `scripts/smoke-production.cjs` repeats a request that got no response at all
+  (lost handshake, reset, timeout) on a fresh connection, up to 8 attempts with
+  a 500 ms pause. HTTP responses are never retried: a 4xx or 5xx still fails the
+  smoke. Every retry is logged with its attempt number and cause, so a degraded
+  ingress stays visible in the job log.
+- The staging E2E suite in `zvenfit-autotests` reaches staging through a local
+  CONNECT proxy that re-dials the origin the same way; its README documents the
+  `STAGING_CONNECT_RETRY` switch.

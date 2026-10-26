@@ -2,6 +2,10 @@
 
 const DEFAULT_SITE_URL = 'https://zvenfit.ru';
 const DEFAULT_TIMEOUT_MS = 15_000;
+// A request that never produced a response (lost TCP handshake, reset, timeout)
+// is repeated on a fresh connection. HTTP responses are never retried.
+const DEFAULT_CONNECT_ATTEMPTS = 8;
+const DEFAULT_RETRY_DELAY_MS = 500;
 const SYNTHETIC_USER_AGENT = 'ZvenFit-Synthetic-Monitor/1.0';
 
 function normalizeSiteUrl(value) {
@@ -43,26 +47,61 @@ function extractScriptUrl(html, filename, origin) {
   return new URL(source, origin).toString();
 }
 
-async function request(fetchImpl, url, options, timeoutMs) {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+function describeFailure(error) {
+  const message = error instanceof Error ? error.message : String(error);
+  const cause = error instanceof Error ? error.cause : undefined;
+  const code = cause && typeof cause === 'object' && cause.code ? String(cause.code) : '';
+  const causeMessage = cause instanceof Error && cause.message ? cause.message : '';
+  const details = [code, causeMessage].filter(Boolean).join(': ');
 
-  try {
-    return await fetchImpl(url, {
-      redirect: 'follow',
-      ...options,
-      headers: {
-        'User-Agent': SYNTHETIC_USER_AGENT,
-        ...options.headers,
-      },
-      signal: controller.signal,
-    });
-  } catch (error) {
-    const reason = error instanceof Error ? error.message : String(error);
-    throw new Error(`smoke-production: request failed for ${url}: ${reason}`);
-  } finally {
-    clearTimeout(timeout);
+  return details ? `${message} (${details})` : message;
+}
+
+function wait(delayMs) {
+  return new Promise(resolve => setTimeout(resolve, delayMs));
+}
+
+function createTransport({ fetchImpl, timeoutMs, attempts, retryDelayMs, log }) {
+  async function attemptOnce(url, options) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+    try {
+      return await fetchImpl(url, {
+        redirect: 'follow',
+        ...options,
+        headers: {
+          'User-Agent': SYNTHETIC_USER_AGENT,
+          ...options.headers,
+        },
+        signal: controller.signal,
+      });
+    } finally {
+      clearTimeout(timeout);
+    }
   }
+
+  return {
+    async request(url, options = {}) {
+      let lastFailure = '';
+
+      for (let attempt = 1; attempt <= attempts; attempt += 1) {
+        try {
+          return await attemptOnce(url, options);
+        } catch (error) {
+          lastFailure = describeFailure(error);
+          if (attempt < attempts) {
+            log(
+              `smoke-production: attempt ${attempt}/${attempts} for ${url} got no response (${lastFailure}); retrying on a new connection`,
+            );
+            await wait(retryDelayMs);
+          }
+        }
+      }
+
+      throw new Error(`smoke-production: request failed for ${url} after ${attempts} attempts: ${lastFailure}`);
+    },
+  };
 }
 
 function assertOk(response, label) {
@@ -71,8 +110,8 @@ function assertOk(response, label) {
   }
 }
 
-async function assertBasicAuthBoundary(fetchImpl, origin, timeoutMs) {
-  const response = await request(fetchImpl, `${origin}/`, { headers: { 'Cache-Control': 'no-cache' } }, timeoutMs);
+async function assertBasicAuthBoundary(transport, origin) {
+  const response = await transport.request(`${origin}/`, { headers: { 'Cache-Control': 'no-cache' } });
 
   if (response.status !== 401) {
     throw new Error(`smoke-production: unauthenticated staging returned ${response.status}, expected 401`);
@@ -84,24 +123,19 @@ async function assertBasicAuthBoundary(fetchImpl, origin, timeoutMs) {
   }
 
   const wrongCredentials = Buffer.from('zvenfit-smoke:deliberately-wrong-credentials').toString('base64');
-  const wrongResponse = await request(
-    fetchImpl,
-    `${origin}/`,
-    {
-      headers: {
-        Authorization: `Basic ${wrongCredentials}`,
-        'Cache-Control': 'no-cache',
-      },
+  const wrongResponse = await transport.request(`${origin}/`, {
+    headers: {
+      Authorization: `Basic ${wrongCredentials}`,
+      'Cache-Control': 'no-cache',
     },
-    timeoutMs,
-  );
+  });
   if (wrongResponse.status !== 403) {
     throw new Error(`smoke-production: invalid staging credentials returned ${wrongResponse.status}, expected 403`);
   }
 }
 
-async function fetchText(fetchImpl, url, label, timeoutMs, headers = {}) {
-  const response = await request(fetchImpl, url, { headers: { 'Cache-Control': 'no-cache', ...headers } }, timeoutMs);
+async function fetchText(transport, url, label, headers = {}) {
+  const response = await transport.request(url, { headers: { 'Cache-Control': 'no-cache', ...headers } });
   assertOk(response, label);
 
   return response.text();
@@ -110,6 +144,8 @@ async function fetchText(fetchImpl, url, label, timeoutMs, headers = {}) {
 async function runSmoke({
   siteUrl = DEFAULT_SITE_URL,
   timeoutMs = DEFAULT_TIMEOUT_MS,
+  connectAttempts = DEFAULT_CONNECT_ATTEMPTS,
+  retryDelayMs = DEFAULT_RETRY_DELAY_MS,
   fetchImpl = globalThis.fetch,
   log = console.log,
   basicAuth,
@@ -117,22 +153,26 @@ async function runSmoke({
   if (typeof fetchImpl !== 'function') {
     throw new Error('smoke-production: this Node.js version does not provide fetch');
   }
+  if (!Number.isInteger(connectAttempts) || connectAttempts < 1) {
+    throw new Error('smoke-production: connectAttempts must be a positive integer');
+  }
 
   const origin = normalizeSiteUrl(siteUrl);
+  const transport = createTransport({ fetchImpl, timeoutMs, attempts: connectAttempts, retryDelayMs, log });
   const authorizationHeaders = basicAuth
     ? {
         Authorization: `Basic ${Buffer.from(`${basicAuth.username}:${basicAuth.password}`).toString('base64')}`,
       }
     : {};
   if (basicAuth) {
-    await assertBasicAuthBoundary(fetchImpl, origin, timeoutMs);
+    await assertBasicAuthBoundary(transport, origin);
   }
   const leadPageUrl = `${origin}/forma-dlya-zayavki/`;
   const schedulePageUrl = `${origin}/raspisanie/`;
 
   const [leadPage, schedulePage] = await Promise.all([
-    fetchText(fetchImpl, leadPageUrl, 'lead page', timeoutMs, authorizationHeaders),
-    fetchText(fetchImpl, schedulePageUrl, 'schedule page', timeoutMs, authorizationHeaders),
+    fetchText(transport, leadPageUrl, 'lead page', authorizationHeaders),
+    fetchText(transport, schedulePageUrl, 'schedule page', authorizationHeaders),
   ]);
 
   extractScriptUrl(leadPage, 'lead-form.js', origin);
@@ -143,9 +183,9 @@ async function runSmoke({
   const scheduleConfigUrl = extractScriptUrl(schedulePage, 'schedule-config.js', origin);
   const trafficConfigUrl = extractScriptUrl(leadPage, 'traffic-config.js', origin);
   const [leadConfig, scheduleConfig, trafficConfig] = await Promise.all([
-    fetchText(fetchImpl, leadConfigUrl, 'lead config', timeoutMs, authorizationHeaders),
-    fetchText(fetchImpl, scheduleConfigUrl, 'schedule config', timeoutMs, authorizationHeaders),
-    fetchText(fetchImpl, trafficConfigUrl, 'traffic config', timeoutMs, authorizationHeaders),
+    fetchText(transport, leadConfigUrl, 'lead config', authorizationHeaders),
+    fetchText(transport, scheduleConfigUrl, 'schedule config', authorizationHeaders),
+    fetchText(transport, trafficConfigUrl, 'traffic config', authorizationHeaders),
   ]);
 
   const leadApiUrl = extractRuntimeUrl(leadConfig, 'ZVENFIT_LEAD_API');
@@ -154,20 +194,15 @@ async function runSmoke({
 
   const leadApiOrigin = new URL(leadApiUrl).origin;
   if (leadApiOrigin === origin) {
-    const leadValidation = await request(
-      fetchImpl,
-      leadApiUrl,
-      {
-        method: 'POST',
-        headers: {
-          ...authorizationHeaders,
-          Origin: origin,
-          'Content-Type': 'application/json',
-        },
-        body: '{}',
+    const leadValidation = await transport.request(leadApiUrl, {
+      method: 'POST',
+      headers: {
+        ...authorizationHeaders,
+        Origin: origin,
+        'Content-Type': 'application/json',
       },
-      timeoutMs,
-    );
+      body: '{}',
+    });
     if (leadValidation.status !== 400) {
       throw new Error(
         `smoke-production: lead API validation probe returned HTTP ${leadValidation.status}, expected 400`,
@@ -178,20 +213,15 @@ async function runSmoke({
       throw new Error('smoke-production: lead API validation probe returned an invalid error payload');
     }
   } else {
-    const leadPreflight = await request(
-      fetchImpl,
-      leadApiUrl,
-      {
-        method: 'OPTIONS',
-        headers: {
-          ...authorizationHeaders,
-          Origin: origin,
-          'Access-Control-Request-Method': 'POST',
-          'Access-Control-Request-Headers': 'content-type',
-        },
+    const leadPreflight = await transport.request(leadApiUrl, {
+      method: 'OPTIONS',
+      headers: {
+        ...authorizationHeaders,
+        Origin: origin,
+        'Access-Control-Request-Method': 'POST',
+        'Access-Control-Request-Headers': 'content-type',
       },
-      timeoutMs,
-    );
+    });
     assertOk(leadPreflight, 'lead API preflight');
 
     const allowedOrigin = leadPreflight.headers.get('access-control-allow-origin');
@@ -200,12 +230,7 @@ async function runSmoke({
     }
   }
 
-  const scheduleResponse = await request(
-    fetchImpl,
-    scheduleApiUrl,
-    { method: 'GET', headers: authorizationHeaders },
-    timeoutMs,
-  );
+  const scheduleResponse = await transport.request(scheduleApiUrl, { method: 'GET', headers: authorizationHeaders });
   assertOk(scheduleResponse, 'schedule API');
 
   const schedulePayload = await scheduleResponse.json();
@@ -213,25 +238,20 @@ async function runSmoke({
     throw new Error('smoke-production: schedule API must return { ok: true, items: [] }');
   }
 
-  const trafficResponse = await request(
-    fetchImpl,
-    trafficApiUrl,
-    {
-      method: 'POST',
-      headers: {
-        ...authorizationHeaders,
-        Origin: origin,
-        'Content-Type': 'text/plain;charset=UTF-8',
-      },
-      body: JSON.stringify({
-        page_view_id: `smoke-${Date.now()}`,
-        url: `${origin}/`,
-        referrer: '',
-        webdriver: true,
-      }),
+  const trafficResponse = await transport.request(trafficApiUrl, {
+    method: 'POST',
+    headers: {
+      ...authorizationHeaders,
+      Origin: origin,
+      'Content-Type': 'text/plain;charset=UTF-8',
     },
-    timeoutMs,
-  );
+    body: JSON.stringify({
+      page_view_id: `smoke-${Date.now()}`,
+      url: `${origin}/`,
+      referrer: '',
+      webdriver: true,
+    }),
+  });
   if (trafficResponse.status !== 204) {
     throw new Error(`smoke-production: traffic API returned HTTP ${trafficResponse.status}, expected 204`);
   }
