@@ -3,6 +3,8 @@ const DEFAULT_RATE_LIMITS_TABLE_NAME = 'lead_rate_limits';
 const DEFAULT_QUERY_TIMEOUT_MS = 5000;
 const DEFAULT_SLOW_OPERATION_MS = 1000;
 const DEFAULT_SESSION_POOL_SIZE = 5;
+const DEFAULT_INITIALIZATION_ATTEMPTS = 3;
+const MAX_INITIALIZATION_ATTEMPTS = 10;
 
 export function parsePositiveInt(value: string | undefined, fallback: number): number {
   const parsed = Number.parseInt(value ?? '', 10);
@@ -67,6 +69,19 @@ export function queryTimeoutMs(): number {
 
 export function slowOperationMs(): number {
   return parsePositiveInt(process.env.YDB_SLOW_OPERATION_MS, DEFAULT_SLOW_OPERATION_MS);
+}
+
+// Driver readiness (discovery) waits this long per attempt; a lost TCP handshake
+// never recovers inside one attempt, so a fresh attempt opens a fresh socket.
+export function readyTimeoutMs(): number {
+  return parsePositiveInt(process.env.YDB_READY_TIMEOUT_MS, queryTimeoutMs());
+}
+
+export function initializationAttempts(): number {
+  return Math.min(
+    parsePositiveInt(process.env.YDB_INIT_ATTEMPTS, DEFAULT_INITIALIZATION_ATTEMPTS),
+    MAX_INITIALIZATION_ATTEMPTS,
+  );
 }
 
 export function sessionPoolSize(): number {

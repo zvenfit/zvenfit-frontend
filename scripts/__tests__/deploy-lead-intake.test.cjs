@@ -319,6 +319,17 @@ test('lead deploy verifies YDB, migrates schema, and only then creates a functio
   assert.equal(deploy > migration, true);
 });
 
+test('pre-deploy YDB checks get more driver attempts than the function itself', () => {
+  for (const command of ['run test:integration', 'run migrate']) {
+    const start = deployScript.lastIndexOf('\n\n', deployScript.indexOf(command));
+    const invocation = deployScript.slice(start, deployScript.indexOf(command));
+    assert.match(invocation, /YDB_READY_TIMEOUT_MS="\$\{YDB_CI_READY_TIMEOUT_MS\}"/, command);
+    assert.match(invocation, /YDB_INIT_ATTEMPTS="\$\{YDB_CI_INIT_ATTEMPTS\}"/, command);
+  }
+  assert.match(deployScript, /YDB_CI_INIT_ATTEMPTS="\$\{YDB_CI_INIT_ATTEMPTS:-[2-9]\}"/);
+  assert.doesNotMatch(deployScript, /--environment[^\n]*YDB_INIT_ATTEMPTS/, 'the function keeps its own defaults');
+});
+
 test('direct Monium metrics require and deploy the environment-scoped API key secret', () => {
   assert.match(reusableWorkflow, /MONIUM_API_KEY: \$\{\{ secrets\.MONIUM_API_KEY \}\}/);
   assert.match(deployScript, /set MONIUM_API_KEY when direct metrics are enabled/);

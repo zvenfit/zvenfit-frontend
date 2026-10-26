@@ -1,5 +1,5 @@
 import { errorChain } from '../error-chain';
-import { normalizeConnectionString, queryTimeoutMs, sessionPoolSize } from './config';
+import { initializationAttempts, normalizeConnectionString, readyTimeoutMs, sessionPoolSize } from './config';
 import { recordInitializationAttempts } from './initialization-attempts';
 
 import type { YdbClient, YdbSql, YdbValueConstructor } from '../types';
@@ -89,7 +89,9 @@ export async function createYdbClient(): Promise<YdbClient> {
     credentialsProvider = new EnvironCredentialsProvider(connectionString);
   }
 
-  const driver = await initializeDriver(() => new Driver(connectionString, { credentialsProvider }), queryTimeoutMs());
+  const driver = await initializeDriver(() => new Driver(connectionString, { credentialsProvider }), readyTimeoutMs(), {
+    attempts: initializationAttempts(),
+  });
 
   const sql = query(driver, {
     poolOptions: { maxSize: sessionPoolSize() },
