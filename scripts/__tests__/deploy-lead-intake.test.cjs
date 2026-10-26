@@ -27,7 +27,10 @@ function workflowJob(workflow, jobId) {
 }
 
 function jobBlock(job, key) {
-  const lines = job.slice(job.indexOf(`\n    ${key}:\n`) + 1).split('\n').slice(1);
+  const lines = job
+    .slice(job.indexOf(`\n    ${key}:\n`) + 1)
+    .split('\n')
+    .slice(1);
   const end = lines.findIndex(line => !line.startsWith('      '));
 
   return lines.slice(0, end === -1 ? lines.length : end).join('\n');
@@ -261,7 +264,10 @@ test('reusable workflow validates config before cloud deploy jobs', () => {
     reusableWorkflow.slice(scheduleDeployJob, trafficDeployJob),
     /needs: \[validate-config, quality-checks\]/,
   );
-  assert.match(reusableWorkflow.slice(trafficDeployJob, authorizerDeployJob), /needs: \[validate-config, quality-checks\]/);
+  assert.match(
+    reusableWorkflow.slice(trafficDeployJob, authorizerDeployJob),
+    /needs: \[validate-config, quality-checks\]/,
+  );
   assert.match(
     reusableWorkflow.slice(siteDeployJob),
     /needs: \[validate-config, deploy-function, deploy-schedule-function, deploy-traffic-function, deploy-authorizer\]/,
@@ -334,12 +340,7 @@ test('lead direct metrics deploy the canonical application and function taxonomy
   assert.match(reusableWorkflow, /MONIUM_COMPONENT: zvenfit-lead-intake/);
   assert.match(reusableWorkflow, /MONIUM_RESOURCE_ID: \$\{\{ inputs\.lead_function_name \}\}/);
 
-  for (const variable of [
-    'MONIUM_APPLICATION',
-    'MONIUM_ENVIRONMENT',
-    'MONIUM_COMPONENT',
-    'MONIUM_RESOURCE_ID',
-  ]) {
+  for (const variable of ['MONIUM_APPLICATION', 'MONIUM_ENVIRONMENT', 'MONIUM_COMPONENT', 'MONIUM_RESOURCE_ID']) {
     assert.match(deployScript, new RegExp(`--environment ${variable}="\\$\\{${variable}\\}"`));
   }
 
@@ -409,9 +410,7 @@ test('deploy jobs use OIDC and ephemeral storage keys instead of long-lived clou
   ]) {
     assert.match(
       reusableWorkflow,
-      new RegExp(
-        `  ${jobName}:\\n[\\s\\S]*?    permissions:\\n      contents: read\\n      id-token: write`,
-      ),
+      new RegExp(`  ${jobName}:\\n[\\s\\S]*?    permissions:\\n      contents: read\\n      id-token: write`),
     );
   }
 
@@ -445,10 +444,7 @@ test('deploy jobs use OIDC and ephemeral storage keys instead of long-lived clou
   const workloadIdentityAuth = fs.readFileSync(path.join(ROOT, 'scripts/auth-yc-wif.sh'), 'utf8');
   assert.doesNotMatch(workloadIdentityAuth, /config set token/);
   assert.match(workloadIdentityAuth, /YC_IAM_TOKEN/);
-  assert.match(
-    workloadIdentityAuth,
-    /requested_token_type=urn:ietf:params:oauth:token-type:access_token/,
-  );
+  assert.match(workloadIdentityAuth, /requested_token_type=urn:ietf:params:oauth:token-type:access_token/);
   assert.doesNotMatch(workloadIdentityAuth, /requested_token_type=urn:ietf:params:oauth-token-type/);
   assert.doesNotMatch(reusableWorkflow, /YC_SA_JSON_KEY|YC_ACCESS_KEY_ID|YC_SECRET_ACCESS_KEY/);
   assert.doesNotMatch(reusableWorkflow, /curl -sSL[^\n]+install\.sh \| bash/);
@@ -471,14 +467,48 @@ test('deploy scripts bound the connection and total time of every curl call', ()
   assert.ok(calls >= 4, 'the curl call scan found fewer calls than the deploy scripts make');
 });
 
-test('yc CLI download restarts a stalled transfer, retries every error and verifies the pinned binary', () => {
+test('yc CLI download resumes a slow transfer, bounds every attempt and verifies the pinned binary', () => {
   const installer = fs.readFileSync(path.join(ROOT, 'scripts/install-yc-cli.sh'), 'utf8');
 
   assert.match(installer, /--speed-limit \d+ --speed-time \d+/);
-  assert.match(installer, /--retry \d+ --retry-all-errors/);
+  assert.match(installer, /--max-time \d+/);
+  assert.match(installer, /--continue-at -/, 'a retry must resume the partial download');
+  assert.doesNotMatch(installer, /--retry /, 'curl --retry restarts from scratch; the loop resumes instead');
+  assert.match(installer, /attempt > MAX_ATTEMPTS/, 'the download loop must be bounded');
+  assert.match(installer, /MAX_ATTEMPTS=\d+/);
   assert.match(installer, /--no-progress-meter/);
-  assert.doesNotMatch(installer, /--silent/, 'retry warnings must stay visible in the job log');
+  assert.doesNotMatch(installer, /--silent/, 'curl warnings must stay visible in the job log');
   assert.match(installer, /sha256sum --check/);
+  assert.match(installer, /using the cached binary/, 'a verified cached binary must skip the download');
+});
+
+test('every deploy job restores the pinned yc CLI from the Actions cache right before installing it', () => {
+  const installer = fs.readFileSync(path.join(ROOT, 'scripts/install-yc-cli.sh'), 'utf8');
+  const version = installer.match(/YC_CLI_VERSION='([^']+)'/)[1];
+  const sha = installer.match(/YC_CLI_SHA256='([0-9a-f]{64})'/)[1];
+  const restoreName = '- name: Restore the Yandex Cloud CLI from the Actions cache';
+  const installName = '- name: Install Yandex Cloud CLI';
+  const installs = reusableWorkflow.split(installName).length - 1;
+  const restores = reusableWorkflow.split(restoreName).slice(1);
+
+  assert.ok(installs >= 1);
+  assert.equal(restores.length, installs, 'each install step needs its own restore step');
+  for (const block of restores) {
+    const end = block.indexOf(installName);
+    assert.ok(end > 0, 'the restore step must precede its install step');
+    const restore = block.slice(0, end);
+    assert.doesNotMatch(restore, /- name:/, 'no other step between restore and install');
+    assert.match(restore, /uses: actions\/cache@[0-9a-f]{40} # v\d/);
+    assert.ok(restore.includes(`zvenfit-yc-cli-${version}`), 'cache path must carry the pinned version');
+    assert.ok(
+      restore.includes(`yc-cli-${version}-linux-amd64-${sha.slice(0, 8)}`),
+      'cache key must carry version and checksum',
+    );
+    const installStep = block.slice(end).split(/\n\s*- name:/)[0];
+    const installCondition = installStep.match(/^\s*if: (.*)$/m);
+    const restoreCondition = restore.match(/^\s*if: (.*)$/m);
+    assert.equal(restoreCondition?.[1], installCondition?.[1], 'restore must run under the same condition as install');
+  }
 });
 
 test('staging checks bucket privacy before upload and rechecks object ACL afterwards', () => {
@@ -541,10 +571,19 @@ test('a release never deletes assets and refreshes runtime configs before the HT
 
   assert.equal(rest.length, 0);
   assert.doesNotMatch(assets, /--delete/);
-  assert.match(assets, /--exclude "\*\.html"[\s\S]*--exclude "robots\.txt"[\s\S]*--exclude "sitemap\.xml"[\s\S]*--exclude "js\/\*-config\.js"/);
+  assert.match(
+    assets,
+    /--exclude "\*\.html"[\s\S]*--exclude "robots\.txt"[\s\S]*--exclude "sitemap\.xml"[\s\S]*--exclude "js\/\*-config\.js"/,
+  );
   assert.match(assets, /max-age=31536000, immutable/);
-  assert.match(crawl, /--delete[\s\S]*--exclude "\*"[\s\S]*--include "robots\.txt"[\s\S]*--include "sitemap\.xml"[\s\S]*no-cache, must-revalidate/);
-  assert.match(configs, /--delete[\s\S]*--exclude "\*"[\s\S]*--include "js\/\*-config\.js"[\s\S]*no-cache, must-revalidate/);
+  assert.match(
+    crawl,
+    /--delete[\s\S]*--exclude "\*"[\s\S]*--include "robots\.txt"[\s\S]*--include "sitemap\.xml"[\s\S]*no-cache, must-revalidate/,
+  );
+  assert.match(
+    configs,
+    /--delete[\s\S]*--exclude "\*"[\s\S]*--include "js\/\*-config\.js"[\s\S]*no-cache, must-revalidate/,
+  );
   assert.match(html, /--delete[\s\S]*--exclude "\*"[\s\S]*--include "\*\.html"[\s\S]*no-cache, must-revalidate/);
   assert.doesNotMatch(configs, /immutable/);
   assert.doesNotMatch(html, /immutable/);
@@ -559,7 +598,10 @@ test('the built site is verified before the first upload and no upload step can 
   const upload = job.indexOf('aws s3 sync');
 
   assert.ok(start >= 0 && end > start);
-  assert.ok(build >= 0 && verify > build && upload > verify, 'guard must run after the build and before the first sync');
+  assert.ok(
+    build >= 0 && verify > build && upload > verify,
+    'guard must run after the build and before the first sync',
+  );
   assert.match(job, /node scripts\/check-routes\.cjs/);
   assert.match(job, /node scripts\/check-build\.cjs/);
   assert.match(job, /node scripts\/check-staging-build\.cjs/);
@@ -573,7 +615,11 @@ test('local deploy:yc mirrors the workflow upload order and filters', () => {
   assert.equal(local.length, workflowCommands.length);
   local.forEach((command, index) => {
     assert.match(command, /^aws s3 sync \.\/dist /);
-    assert.equal(syncFilters(command), syncFilters(workflowCommands[index]), `deploy:yc command ${index + 1} diverges from the workflow`);
+    assert.equal(
+      syncFilters(command),
+      syncFilters(workflowCommands[index]),
+      `deploy:yc command ${index + 1} diverges from the workflow`,
+    );
   });
   assert.doesNotMatch(local[0], /--delete/);
 });
