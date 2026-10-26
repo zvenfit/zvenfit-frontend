@@ -5,3 +5,4 @@
 *.json
 /browser
 /scripts
+public/js/vendor/
