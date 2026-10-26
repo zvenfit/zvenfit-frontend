@@ -43,3 +43,11 @@ test('bounds the YDB session pool and applies timeout defaults', () => {
   withEnv('YDB_QUERY_TIMEOUT_MS', 'invalid', () => assert.equal(config.queryTimeoutMs(), 5000));
   withEnv('YDB_SLOW_OPERATION_MS', '250', () => assert.equal(config.slowOperationMs(), 250));
 });
+
+test('driver readiness falls back to the query timeout and initialization attempts stay bounded', () => {
+  withEnv('YDB_READY_TIMEOUT_MS', 'invalid', () => assert.equal(config.readyTimeoutMs(), config.queryTimeoutMs()));
+  withEnv('YDB_READY_TIMEOUT_MS', '20000', () => assert.equal(config.readyTimeoutMs(), 20000));
+  withEnv('YDB_INIT_ATTEMPTS', 'invalid', () => assert.equal(config.initializationAttempts(), 3));
+  withEnv('YDB_INIT_ATTEMPTS', '6', () => assert.equal(config.initializationAttempts(), 6));
+  withEnv('YDB_INIT_ATTEMPTS', '50', () => assert.equal(config.initializationAttempts(), 10));
+});
