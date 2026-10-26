@@ -495,10 +495,14 @@ test('staging checks bucket privacy before upload and rechecks object ACL afterw
   assert.doesNotMatch(reusableWorkflow, /--acl (?:public|private)/);
 });
 
-test('every Object Storage sync keeps all flags in one shell command', () => {
-  const syncCommands = reusableWorkflow.match(/aws s3 sync [\s\S]*?--metadata-directive REPLACE/g) || [];
+const SYNC_COMMAND = /aws s3 sync [\s\S]*?--metadata-directive REPLACE/g;
+const syncFilters = command =>
+  (command.match(/--(?:delete|exclude "[^"]*"|include "[^"]*"|cache-control "[^"]*")/g) || []).join(' ');
 
-  assert.equal(syncCommands.length, 3);
+test('every Object Storage sync keeps all flags in one shell command', () => {
+  const syncCommands = reusableWorkflow.match(SYNC_COMMAND) || [];
+
+  assert.equal(syncCommands.length, 4);
   for (const command of syncCommands) {
     const lines = command.split('\n');
     for (const line of lines.slice(0, -1)) {
@@ -530,4 +534,46 @@ test('schedule deploy selects an immutable artifact and requires production cred
   assert.match(scheduleDeployScript, /FUNCTION_ENTRYPOINT="index\.handler"/);
   assert.match(scheduleDeployScript, /DEPLOYMENT_ENVIRONMENT=\$\{DEPLOYMENT_ENVIRONMENT_VALUE\}/);
   assert.match(scheduleDeployScript, /set FITBASE_API_TOKEN for production/);
+});
+
+test('a release never deletes assets and refreshes runtime configs before the HTML that uses them', () => {
+  const [assets, crawl, configs, html, ...rest] = reusableWorkflow.match(SYNC_COMMAND) || [];
+
+  assert.equal(rest.length, 0);
+  assert.doesNotMatch(assets, /--delete/);
+  assert.match(assets, /--exclude "\*\.html"[\s\S]*--exclude "robots\.txt"[\s\S]*--exclude "sitemap\.xml"[\s\S]*--exclude "js\/\*-config\.js"/);
+  assert.match(assets, /max-age=31536000, immutable/);
+  assert.match(crawl, /--delete[\s\S]*--exclude "\*"[\s\S]*--include "robots\.txt"[\s\S]*--include "sitemap\.xml"[\s\S]*no-cache, must-revalidate/);
+  assert.match(configs, /--delete[\s\S]*--exclude "\*"[\s\S]*--include "js\/\*-config\.js"[\s\S]*no-cache, must-revalidate/);
+  assert.match(html, /--delete[\s\S]*--exclude "\*"[\s\S]*--include "\*\.html"[\s\S]*no-cache, must-revalidate/);
+  assert.doesNotMatch(configs, /immutable/);
+  assert.doesNotMatch(html, /immutable/);
+});
+
+test('the built site is verified before the first upload and no upload step can be skipped', () => {
+  const start = reusableWorkflow.indexOf('\n  deploy-site:');
+  const end = reusableWorkflow.indexOf('\n  rollback-staging-authorizer:');
+  const job = reusableWorkflow.slice(start, end);
+  const build = job.indexOf('name: Build app');
+  const verify = job.indexOf('name: Verify built site before upload');
+  const upload = job.indexOf('aws s3 sync');
+
+  assert.ok(start >= 0 && end > start);
+  assert.ok(build >= 0 && verify > build && upload > verify, 'guard must run after the build and before the first sync');
+  assert.match(job, /node scripts\/check-routes\.cjs/);
+  assert.match(job, /node scripts\/check-build\.cjs/);
+  assert.match(job, /node scripts\/check-staging-build\.cjs/);
+  assert.doesNotMatch(job, /continue-on-error|always\(\)/);
+});
+
+test('local deploy:yc mirrors the workflow upload order and filters', () => {
+  const local = packageJson.scripts['deploy:yc'].split(' && ');
+  const workflowCommands = reusableWorkflow.match(SYNC_COMMAND) || [];
+
+  assert.equal(local.length, workflowCommands.length);
+  local.forEach((command, index) => {
+    assert.match(command, /^aws s3 sync \.\/dist /);
+    assert.equal(syncFilters(command), syncFilters(workflowCommands[index]), `deploy:yc command ${index + 1} diverges from the workflow`);
+  });
+  assert.doesNotMatch(local[0], /--delete/);
 });
