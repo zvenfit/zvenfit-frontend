@@ -26,6 +26,7 @@ jobs:
         uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: '22'
+          check-latest: true
           cache: npm
           cache-dependency-path: |
             package-lock.json
@@ -69,3 +70,57 @@ jobs:
           TRAFFIC_API_URL: https://staging.zvenfit.ru/api/traffic
           ASSET_VERSION: staging-ci-${{ github.sha }}
         run: npm run test:build:staging
+
+  # Parity of the Astro output with the pinned legacy base (plan, section 8).
+  # The base SHA and the profile are explicit: neither main nor the PR base
+  # branch is used as a side, and the partial profile a1 exists only in branch A1.
+  compare-dist:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      PARITY_BASE_SHA: 978b9219d45f858d6d0afcad412f8ed180d8a2f6
+      PARITY_CANDIDATE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      PARITY_PROFILE: a1
+      PARITY_SNAPSHOT: src/data/map-photos.json
+
+    steps:
+      - name: Checkout repository with history for both worktrees
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '22'
+          check-latest: true
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Compare production output with the legacy base
+        run: |
+          node scripts/compare-dist.cjs \
+            --base-sha "$PARITY_BASE_SHA" \
+            --candidate-sha "$PARITY_CANDIDATE_SHA" \
+            --profile "$PARITY_PROFILE" \
+            --mode production \
+            --snapshot "$PARITY_SNAPSHOT" \
+            --work-dir "$RUNNER_TEMP/compare-dist" \
+            --report "$RUNNER_TEMP/compare-dist-production.md"
+          cat "$RUNNER_TEMP/compare-dist-production.md" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Compare staging output with the production output of the candidate
+        run: |
+          node scripts/compare-dist.cjs \
+            --base-sha "$PARITY_BASE_SHA" \
+            --candidate-sha "$PARITY_CANDIDATE_SHA" \
+            --profile "$PARITY_PROFILE" \
+            --mode staging \
+            --snapshot "$PARITY_SNAPSHOT" \
+            --work-dir "$RUNNER_TEMP/compare-dist" \
+            --report "$RUNNER_TEMP/compare-dist-staging.md"
+          cat "$RUNNER_TEMP/compare-dist-staging.md" >> "$GITHUB_STEP_SUMMARY"

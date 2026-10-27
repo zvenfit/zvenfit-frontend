@@ -35,18 +35,25 @@ function extractRuntimeUrl(source, variableName) {
   return url.toString();
 }
 
+// Own scripts are served either from the legacy /js/<name>.js path (with an
+// optional ?v= query) or, since release A, as hashed Vite assets
+// /_astro/<name>.<hash>.js whose basename is preserved. Runtime configs stay
+// at /js/*-config.js without a query.
 function extractScriptUrl(html, filename, origin) {
-  const escapedFilename = filename.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const pattern = new RegExp(`<script[^>]+src=["']([^"']*/js/${escapedFilename}(?:\\?[^"']*)?)["']`, 'i');
+  const escape = value => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const extension = filename.match(/\.([a-z0-9]+)$/)?.[1] || 'js';
+  const stem = filename.endsWith(`.${extension}`) ? filename.slice(0, -(extension.length + 1)) : filename;
+  const legacyPath = `/js/${escape(filename)}(?:\\?[^"']*)?`;
+  const hashedPath = `/_astro/${escape(stem)}\\.[A-Za-z0-9_-]+\\.${escape(extension)}`;
+  const pattern = new RegExp(`<script[^>]+src=["']([^"']*(?:${legacyPath}|${hashedPath}))["']`, 'i');
   const source = html.match(pattern)?.[1];
 
   if (!source) {
-    throw new Error(`smoke-production: page does not load /js/${filename}`);
+    throw new Error(`smoke-production: page does not load /js/${filename} or /_astro/${stem}.<hash>.${extension}`);
   }
 
   return new URL(source, origin).toString();
 }
-
 function describeFailure(error) {
   const message = error instanceof Error ? error.message : String(error);
   const cause = error instanceof Error ? error.cause : undefined;

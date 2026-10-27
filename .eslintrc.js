@@ -104,9 +104,34 @@ module.exports = {
   overrides: [
     {
       // Existing browser runtime files stay as single scripts until they are modularized.
-      files: ['public/js/schedule.js', 'public/js/yandex-map.js'],
+      files: ['public/js/schedule.js', 'public/js/yandex-map.js', 'src/scripts/schedule.js', 'src/scripts/yandex-map.js'],
       rules: {
         'max-lines': 'off',
+      },
+    },
+    {
+      // Astro expects the config as a default export.
+      files: ['astro.config.mjs'],
+      rules: {
+        'import/no-default-export': 'off',
+        'import/no-unresolved': 'off',
+      },
+    },
+    {
+      // Astro components: TypeScript frontmatter, HTML-like template.
+      files: ['*.astro'],
+      parser: 'astro-eslint-parser',
+      parserOptions: {
+        parser: '@typescript-eslint/parser',
+        extraFileExtensions: ['.astro'],
+      },
+      extends: ['plugin:astro/recommended'],
+      rules: {
+        // Vite query imports (?url, ?raw) and the astro namespace are resolved by Vite.
+        'import/no-unresolved': 'off',
+        // Shared templates reproduce the whitespace of the legacy export byte for byte
+        // (release A parity, docs/astro-migration.md section 4); Prettier would rewrite it.
+        'prettier/prettier': 'off',
       },
     },
     {
@@ -115,6 +140,7 @@ module.exports = {
       parser: '@typescript-eslint/parser',
       parserOptions: {
         project: [
+          './tsconfig.json',
           './functions/lead-intake/tsconfig.json',
           './functions/fitbase-schedule/tsconfig.json',
           './functions/staging-authorizer/tsconfig.json',

@@ -1,0 +1,15 @@
+---
+// JSON-LD graph for the page; the legacy generator is ported in src/lib.
+import { buildStructuredData } from '../lib/structured-data';
+
+interface Props {
+  pagePath: string;
+  title: string;
+  description: string;
+}
+
+const { pagePath, title, description } = Astro.props;
+const payload = buildStructuredData(pagePath, { title, description });
+const json = payload ? `\n${JSON.stringify(payload, null, 2)}\n` : '';
+---
+{payload && <script type="application/ld+json" is:inline set:html={json}></script>}

@@ -113,6 +113,7 @@ jobs:
         uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: ${{ env.NODE_VERSION }}
+          check-latest: true
           cache: npm
           cache-dependency-path: |
             package-lock.json
@@ -171,6 +172,7 @@ jobs:
         uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: ${{ env.NODE_VERSION }}
+          check-latest: true
 
       - name: Install lead function dependencies
         run: npm ci --prefix functions/lead-intake
@@ -272,6 +274,7 @@ jobs:
         uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: ${{ env.NODE_VERSION }}
+          check-latest: true
 
       - name: Install schedule function dependencies
         run: npm ci --prefix functions/fitbase-schedule
@@ -346,6 +349,7 @@ jobs:
         uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: ${{ env.NODE_VERSION }}
+          check-latest: true
 
       - name: Install traffic function dependencies
         run: npm ci --prefix functions/site-traffic
@@ -425,6 +429,7 @@ jobs:
         uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: ${{ env.NODE_VERSION }}
+          check-latest: true
 
       - name: Install authorizer dependencies
         if: inputs.site_access_mode == 'authenticated-gateway'
@@ -491,6 +496,7 @@ jobs:
         uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: ${{ env.NODE_VERSION }}
+          check-latest: true
           cache: npm
 
       - name: Install dependencies
@@ -686,6 +692,7 @@ jobs:
         uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: ${{ env.NODE_VERSION }}
+          check-latest: true
 
       - name: Restore the Yandex Cloud CLI from the Actions cache
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0

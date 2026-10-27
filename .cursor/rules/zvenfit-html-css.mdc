@@ -1,29 +1,41 @@
 ---
-description: HTML/CSS/JS conventions for ZvenFit static site
-globs: public/**/*.{html,css,js}
+description: Astro, HTML, CSS and JS conventions for the ZvenFit static site
+globs: src/**/*.{astro,css,js,ts},public/**/*.{html,css,js}
 alwaysApply: false
 ---
 
 # ZvenFit frontend files
 
-## HTML (Webflow-derived markup)
+## Astro pages and components (`src/`)
 
-- Webflow is no longer used; `public/` is the source of truth
-- Class names are Webflow-generated — preserve them unless refactoring CSS too
-- Duplicated footer: `section-4` (desktop) + `section-3` (mobile) — prefer snippet/markers over N-file edits
-- Keep marker comments intact: `<!-- ZvenFit: ... -->`
+- Converted pages keep the Webflow-derived markup as it is: class names, `data-wf-*` and
+  `w-node-*` ids are read by the Webflow runtime and the grid CSS
+- Every classic `<script>` carries `is:inline`; `{` and `}` in text are escaped as
+  `&#123;`/`&#125;`; non-breaking spaces are written as `&nbsp;`
+- Comments passed as component children are dropped by the compiler; emit raw markup
+  with `set:html` (see `Analytics.astro`)
+- Whitespace between nodes in `src/layouts`, `src/components` and `src/pages` is part of
+  the parity contract: do not run Prettier on them
+- Pages export `sitemap = { updated, changefreq, priority }` for `sitemap.xml.ts`
+
+## Legacy export (`public/`, frozen during branch A)
+
+- Only hotfixes (lead form breakage, prices, legal texts) through `main`; new content waits
+  for release A
+- Keep marker comments intact: `<!-- ZvenFit: ... -->` — the legacy build and the
+  converter rely on them
 
 ## CSS
 
-- Source: `public/css/zvenfit.webflow.css`
-- Build produces minified copy — edit source file only
+- Source: `src/styles/zvenfit.webflow.css` (identical to the frozen `public/css/` copy
+  until A2b); Vite minifies it at build, do not commit minified output
 - a11y backlog in `TODO.md` Critical: focus states, contrast, touch targets, reduced motion
 
 ## JS
 
-- No bundler — plain browser JS with `window.*` config globals
-- `lead-config.js` / `schedule-config.js` / `traffic-config.js` contain placeholders replaced at build — don't hardcode prod URLs
+- Classic browser scripts in `src/scripts/`, no bundling, `window.*` config globals from
+  the `/js/*-config.js` endpoints — never hardcode production URLs
 
 ## Scope
 
-Minimize diff. One page change ≠ refactor every HTML page unless explicitly requested.
+Minimize diff. One page change ≠ refactor every page unless explicitly requested.

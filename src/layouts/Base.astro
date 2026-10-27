@@ -1,0 +1,98 @@
+---
+// Shared document shell for every page. The head reproduces the legacy export:
+// bucket-hosted normalize/webflow CSS, the site stylesheet (hashed by Vite),
+// preconnects, the Webflow bootstrap, icons, analytics, UTM, Open Graph and
+// JSON-LD. The body renders the page content, then jQuery and the bucket-hosted
+// Webflow runtime, the page's own tail scripts (slot "scripts"), the runtime map
+// scripts and the technical page-view beacon in the legacy order. Whitespace
+// between body nodes is part of the parity contract: keep it as it is.
+import Analytics from '../components/Analytics.astro';
+import MapScripts from '../components/MapScripts.astro';
+import OpenGraph from '../components/OpenGraph.astro';
+import StructuredData from '../components/StructuredData.astro';
+import TrafficBeacon from '../components/TrafficBeacon.astro';
+import UtmHead from '../components/UtmHead.astro';
+import WebflowRuntime from '../components/WebflowRuntime.astro';
+import { SITE_URL, buildMode } from '../lib/site';
+import { resolveStructuredDataUrl, structuredDataConfig } from '../lib/structured-data';
+import siteCss from '../styles/zvenfit.webflow.css?url';
+import webflowBootstrap from './snippets/webflow-bootstrap.html?raw';
+
+import type { GtmStyle } from '../lib/analytics';
+
+interface Props {
+  title: string;
+  description: string;
+  /** Canonical URL; defaults to the site origin plus the page path. */
+  canonical?: string;
+  /** Page-specific og:image; the configured default otherwise. */
+  ogImage?: string;
+  /** Properties the page renders itself (passed to OpenGraph `skip`). */
+  openGraphSkip?: string[];
+  /** Production robots meta, e.g. "noindex, follow" on 404. Staging always forces "noindex, nofollow". */
+  robots?: string;
+  wfPage?: string;
+  wfSite?: string;
+  zvenfitPage?: string;
+  /** Raw Webflow export comments that follow the doctype, byte-exact. */
+  webflowComments?: string;
+  /** GTM comment style of this page, or false when the page never had GTM in the head. */
+  gtm?: GtmStyle;
+  /** The page contains a runtime map region. */
+  hasMaps?: boolean;
+  /** Technical page-view beacon; 404 never reports views. */
+  trackViews?: boolean;
+}
+
+const {
+  title,
+  description,
+  canonical,
+  ogImage,
+  openGraphSkip,
+  robots,
+  wfPage,
+  wfSite,
+  zvenfitPage,
+  webflowComments = '',
+  gtm = 'commented',
+  hasMaps = false,
+  trackViews = true,
+} = Astro.props;
+
+const mode = buildMode();
+const pagePath = Astro.url.pathname;
+const pageUrl = canonical ?? `${SITE_URL}${pagePath}`;
+const siteUrl = structuredDataConfig.siteUrl.replace(/\/$/, '');
+const ogImageUrl =
+  ogImage ??
+  resolveStructuredDataUrl(siteUrl, structuredDataConfig.openGraph?.image || structuredDataConfig.organization.logo);
+const ogSiteName = structuredDataConfig.openGraph?.siteName || structuredDataConfig.organization.name;
+// Legacy build-static.cjs appended each script pair with this trailing whitespace at the end of body.
+const tailGap = '\n  ';
+---
+<!DOCTYPE html><Fragment set:html={webflowComments} />
+<html lang="ru" data-wf-page={wfPage} data-wf-site={wfSite} data-zvenfit-page={zvenfitPage}>
+<head>
+  <meta charset="utf-8">
+  <title>{title}</title>
+  <meta name="description" content={description}>
+  {mode !== 'staging' && robots && <meta name="robots" content={robots} />}
+  <meta content="width=device-width, initial-scale=1" name="viewport">
+  <link rel="canonical" href={pageUrl}>
+  <link href="https://storage.yandexcloud.net/zvenfit/v2/css/normalize.min.css" rel="stylesheet" type="text/css">
+  <link href="https://storage.yandexcloud.net/zvenfit/v2/css/webflow.min.css" rel="stylesheet" type="text/css">
+  <link href={siteCss} rel="stylesheet" type="text/css">
+  <slot name="styles" />
+  <link rel="preconnect" href="https://storage.yandexcloud.net">
+  <link href="https://fonts.bunny.net" rel="preconnect" crossorigin="anonymous">
+  <Fragment set:html={webflowBootstrap} />
+  <link href="https://storage.yandexcloud.net/zvenfit/v2/images/favicon.png" rel="shortcut icon" type="image/x-icon">
+  <link href="https://storage.yandexcloud.net/zvenfit/v2/images/webclip.png" rel="apple-touch-icon"><slot name="head" /><Analytics placement="head" gtm={gtm} />
+  <UtmHead />
+  <OpenGraph title={title} description={description} url={pageUrl} image={ogImageUrl} siteName={ogSiteName} skip={openGraphSkip} />
+  <StructuredData pagePath={pagePath} title={title} description={description} />
+  {mode === 'staging' && <meta name="robots" content="noindex, nofollow" />}
+</head>
+<body class="body"><slot /><WebflowRuntime /><slot name="scripts" />{hasMaps && (<Fragment><MapScripts />{tailGap}</Fragment>)}{trackViews && (<Fragment><TrafficBeacon />{tailGap}</Fragment>)}</body>
+</html>

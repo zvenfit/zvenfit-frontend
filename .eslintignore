@@ -6,3 +6,6 @@
 /browser
 /scripts
 public/js/vendor/
+src/vendor/
+# Converted legacy pages: their inline scripts must stay byte-exact, eslint --fix would rewrite them (parity contract)
+src/pages/**/*.astro

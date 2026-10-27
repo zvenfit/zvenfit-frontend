@@ -1,0 +1,38 @@
+---
+// Site menu. Release A1 implements the `plain` variant (Webflow `menu3`): logo
+// link plus one secondary link whose Webflow block class, target and data-back
+// flag come from the page. The home, service and coach variants are added by
+// the converter in A2a together with their pages.
+import LogoEmbeds from './LogoEmbeds.astro';
+
+export interface SecondaryLink {
+  label: string;
+  href: string;
+  target?: string;
+  dataBack?: boolean;
+  block: 1 | 2 | 3 | 4;
+}
+
+interface Props {
+  variant: 'plain';
+  secondary: SecondaryLink;
+  logo?: 'svg' | 'text';
+  logoLabel?: string;
+  logoText?: string;
+}
+
+const { variant, secondary, logo = 'svg', logoLabel, logoText = 'zvenfit' } = Astro.props;
+if (variant !== 'plain') {
+  throw new Error(`Menu: variant "${variant}" is converted in A2a`);
+}
+---
+<section class="menu3">
+    <div class="menu_grid-4">
+      <a href="/" class="link-block-4 w-inline-block" aria-label={logoLabel}>
+        {logo === 'svg' ? <LogoEmbeds /> : <div class="menu-txt">{logoText}</div>}
+      </a>
+      <a data-back={secondary.dataBack ? 'true' : undefined} href={secondary.href} target={secondary.target} class={`link-block-page${secondary.block} w-inline-block`}>
+        <div class="menu-txt">{secondary.label}</div>
+      </a>
+    </div>
+  </section>

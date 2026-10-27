@@ -9,6 +9,8 @@ const { test } = require('node:test');
 const {
   REQUIRED_FILES,
   SOURCES_BY_PROFILE,
+  astroPageToRoute,
+  expectedRoutesFromAstro,
   expectedRoutesFromPublic,
   readProfile,
   routeToUrl,
@@ -112,5 +114,42 @@ test('404 is a route but never an indexable URL', () => {
 test('the deploy profile selects the route source and matches the repository tree', () => {
   const profile = readProfile();
   assert.equal(SOURCES_BY_PROFILE[profile], fs.existsSync(path.join(__dirname, '..', '..', 'src', 'pages')) ? 'astro' : 'public');
-  assert.equal(profile, 'legacy');
+  assert.equal(profile, 'a');
+});
+
+test('Astro pages map to directory routes and private or dynamic files are skipped', () => {
+  assert.equal(astroPageToRoute('index.astro'), 'index.html');
+  assert.equal(astroPageToRoute('404.astro'), '404.html');
+  assert.equal(astroPageToRoute('offer/index.astro'), 'offer/index.html');
+  assert.equal(astroPageToRoute('promos/apps.astro'), 'promos/apps/index.html');
+
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'check-routes-astro-'));
+  for (const file of ['index.astro', '404.astro', 'offer/index.astro', 'trenery/index.astro', 'trenery/[slug].astro', '_drafts/new.astro', 'promos/_partial.astro']) {
+    writeFile(path.join(root, 'src/pages'), file, '---\n---\n<html></html>');
+  }
+  writeFile(path.join(root, 'src/content'), 'trainers/trener-a.json', '{}');
+  writeFile(path.join(root, 'src/content'), 'trainers/trener-b.json', '{}');
+  assert.deepEqual(expectedRoutesFromAstro(path.join(root, 'src/pages'), path.join(root, 'src/content')), [
+    '404.html',
+    'index.html',
+    'offer/index.html',
+    'trenery/index.html',
+    'trenery/trener-a/index.html',
+    'trenery/trener-b/index.html',
+  ]);
+  assert.throws(() => expectedRoutesFromAstro(path.join(root, 'nowhere'), path.join(root, 'nowhere-either')), /no Astro pages/);
+});
+
+test('the full profile requires a 404 route while the partial profile does not', () => {
+  const pages = ['offer/index.html', 'privacy/index.html'];
+  const { distDir } = fixture({ pages, distPages: pages, sitemapPages: pages });
+  const partial = verifyDist({ distDir, expectedRoutes: pages, siteUrl: SITE_URL, requires404: false });
+  assert.deepEqual(partial.errors, []);
+  const full = verifyDist({ distDir, expectedRoutes: pages, siteUrl: SITE_URL });
+  assert.deepEqual(full.errors, ['sources define no 404.html route']);
+});
+
+test('hashed Astro assets referenced by a page must exist in dist', () => {
+  const result = check({ html: '<html><script src="/_astro/lead-form.DzJub9Ws.js" defer></script></html>' });
+  assert.ok(result.errors.includes('index.html references /_astro/lead-form.DzJub9Ws.js, which is not in dist'), result.errors.join('; '));
 });

@@ -1,8 +1,11 @@
 # ZvenFit Frontend
 
 Статический сайт ZvenFit, serverless-функции и надёжное хранение заявок в YDB Serverless.
-Разметка изначально пришла из Webflow-экспорта, но Webflow больше не используется: источник
-истины — `public/`, страницы правятся прямо в репозитории.
+Сайт собирается Astro в статический `dist/`: страницы в `src/pages`, общая разметка в
+`src/layouts` и `src/components`, данные в `src/content` и `src/data`. Разметка
+изначально пришла из Webflow-экспорта; релиз A переносит её в Astro со строгим паритетом
+([план](docs/astro-migration.md), ветка `feature/astro-release-a`). После этапа A1 в Astro
+живут юридические страницы, остальные ждут A2a в замороженном `public/`.
 
 - Инструкции для контрибьюторов и AI-агентов: [`AGENTS.md`](AGENTS.md)
 - Связь с Personal AI Workspace и запуск проверок: [`docs/personal-ai-workspace.md`](docs/personal-ai-workspace.md)
@@ -27,10 +30,12 @@ npm ci --prefix functions/lead-intake
 npm ci --prefix functions/fitbase-schedule
 npm ci --prefix functions/site-traffic
 npm ci --prefix functions/staging-authorizer
-npm run dev:watch
+npm run dev:astro
 ```
 
-Локально сайт открывается на `http://localhost:4173`, mock API — на `http://localhost:3000`.
+Нужен Node ≥ 22.23.4 (`.nvmrc`). Локально Astro dev открывается на `http://localhost:4173`,
+mock API — на `http://localhost:3000`; `npm run dev:watch` по-прежнему собирает замороженный
+legacy-экспорт `public/` для проверки hotfix.
 Локальный mock-server использует staging-артефакт с динамическими синтетическими данными. Для live Fitbase локально
 явно задай `SCHEDULE_PROVIDER=fitbase` и `FITBASE_API_TOKEN` в `.env.development`; этот переключатель существует
 только в локальном сервере и не попадает в cloud runtime.
@@ -68,14 +73,17 @@ production и публикует тег версии. Подробности и 
 
 | Зона                      | Источник                                               |
 | ------------------------- | ------------------------------------------------------ |
-| Статические страницы      | `public/`                                              |
-| Lead form                 | `public/forma-dlya-zayavki/`, `public/js/lead-form.js` |
-| Расписание                | `public/raspisanie/`, `public/js/schedule.js`          |
+| Страницы Astro (A1: оферта, конфиденциальность, оплата) | `src/pages/`             |
+| Общая разметка            | `src/layouts/Base.astro`, `src/components/`             |
+| Остальные страницы до A2a | `public/` (заморожен, только hotfix по решению R10)      |
+| Lead form                 | `public/forma-dlya-zayavki/` (до A2a), `src/scripts/lead-form.js` |
+| Расписание                | `public/raspisanie/` (до A2a), `src/scripts/schedule.js` |
 | Lead API / YDB / Telegram | `functions/lead-intake/src/`                           |
 | Fitbase API               | `functions/fitbase-schedule/src/`                      |
 | Staging Basic authorizer  | `functions/staging-authorizer/src/`                    |
-| Техническая посещаемость  | `public/js/traffic-beacon.js`, `functions/site-traffic/` |
-| Build и HTML-инъекции     | `scripts/build-static.cjs`, `scripts/snippets/`        |
+| Техническая посещаемость  | `src/scripts/traffic-beacon.js`, `functions/site-traffic/` |
+| Сборка и эндпоинты конфигов | `astro.config.mjs`, `src/pages/js/*-config.js.ts`, `src/pages/sitemap.xml.ts`, `src/pages/robots.txt.ts` |
+| Конвертер и паритет       | `scripts/migrate/`, `scripts/compare-dist.cjs`, `scripts/parity-allowlist.json` |
 | Release: staging → E2E → production | `.github/workflows/main.yml`                 |
 | Ручной staging + E2E без релиза     | `.github/workflows/staging.yml`              |
 
@@ -84,11 +92,15 @@ Staging Playwright tests and their fail-closed config live in
 frontend deploy workflows call that repository's reusable workflow at the same
 immutable commit SHA after the staging deploy.
 
-`dist/` генерируется и не редактируется вручную. После изменений HTML, CSS, JS или build-конфигурации запускай `npm run build` либо используй `npm run dev:watch`.
+`dist/` генерируется и не редактируется вручную. После изменений в `src/` запускай `npm run build`
+(режим берётся из `NODE_ENV`: production, staging, development) либо используй `npm run dev:astro`.
+Шаблоны в `src/layouts`, `src/components` и `src/pages` воспроизводят пробелы legacy-разметки
+байт в байт: их не форматируют, иначе падает `compare:dist`.
 
 ## Проверки
 
 ```bash
+npm run check
 npm run lint
 npm run test:lead-fn
 npm run test:schedule-fn
@@ -100,7 +112,9 @@ npm run test:build:staging
 ```
 
 `test:scripts` покрывает все тесты `scripts/__tests__/`; `test:monitoring` и
-`test:lead-import` запускают их подмножества.
+`test:lead-import` запускают их подмножества. Паритет с закреплённой legacy-базой
+проверяет `npm run compare:dist -- --base-sha <SHA> --candidate-sha HEAD --profile a1 --mode production --snapshot src/data/map-photos.json`
+(и то же с `--mode staging`); в CI это job `compare-dist` с явными SHA.
 
 После production deploy выполни smoke-test. Он проверяет страницы,
 runtime-конфиги, CORS lead API, schedule API и пишет один page view класса
@@ -120,6 +134,7 @@ npm run smoke:production
 | [`docs/monitoring-operations.md`](docs/monitoring-operations.md)         | Договорённости, ссылки, готовые log-селекторы и incident runbook                     |
 | [`docs/site-traffic-analytics.md`](docs/site-traffic-analytics.md)       | Stateless page views, traffic classes и dashboard Monium                            |
 | [`docs/utm-attribution-marketing.md`](docs/utm-attribution-marketing.md) | UTM-разметка для маркетинга                                                         |
+| [`docs/astro-migration.md`](docs/astro-migration.md)                     | Миграция на Astro: инварианты, этапы, контракт паритета, откат                      |
 | [`docs/future/README.md`](docs/future/README.md)                         | Несогласованные будущие инициативы и discovery-планы                                |
 
 `knowledge-base/` хранится вместе с кодом и может публиковаться только в Git-репозиторий этого проекта. Её нельзя синхронизировать с Wiki, DataCatalog или другой внешней базой знаний. Перед коммитом в ней не должно быть секретов, персональных данных, реальных `.env*` или ключей сервисных аккаунтов.
