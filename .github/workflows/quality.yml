@@ -26,6 +26,7 @@ jobs:
         uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: '22'
+          check-latest: true
           cache: npm
           cache-dependency-path: |
             package-lock.json
@@ -69,3 +70,4 @@ jobs:
           TRAFFIC_API_URL: https://staging.zvenfit.ru/api/traffic
           ASSET_VERSION: staging-ci-${{ github.sha }}
         run: npm run test:build:staging
+
