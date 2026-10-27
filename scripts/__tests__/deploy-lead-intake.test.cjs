@@ -641,6 +641,31 @@ test('the built site is verified before the first upload and no upload step can 
   assert.doesNotMatch(job, /continue-on-error|always\(\)/);
 });
 
+test('the deploy guard runs with the deploy profile and never with a partial parity profile', () => {
+  const start = reusableWorkflow.indexOf('\n  deploy-site:');
+  const job = reusableWorkflow.slice(start, reusableWorkflow.indexOf('\n  rollback-staging-authorizer:'));
+  const verify = job.slice(job.indexOf('name: Verify built site before upload'));
+  const step = verify.slice(0, verify.indexOf('\n      - name:'));
+
+  assert.match(step, /node scripts\/check-routes\.cjs\n/);
+  assert.match(step, /node scripts\/check-build\.cjs\n/);
+  assert.doesNotMatch(step, /--profile|--source/, 'the guard must derive its profile from scripts/deploy.config.json');
+  const deployConfig = JSON.parse(fs.readFileSync(path.join(ROOT, 'scripts/deploy.config.json'), 'utf8'));
+  assert.ok(['legacy', 'a', 'b'].includes(deployConfig.profile), 'deploy.config.json knows no partial profile');
+});
+
+test('every Node.js setup resolves the latest release of the pinned major', () => {
+  const qualityWorkflow = fs.readFileSync(path.join(ROOT, '.github/workflows/quality.yml'), 'utf8');
+
+  for (const [file, workflow] of [['quality.yml', qualityWorkflow], ['_deploy-environment.yml', reusableWorkflow]]) {
+    const setups = workflow.match(/node-version: [^\n]+\n(?: +[a-z-]+: [^\n]+\n)*/g) || [];
+    assert.ok(setups.length > 0, `${file} sets up Node.js`);
+    for (const setup of setups) {
+      assert.match(setup, /check-latest: true/, `${file}: ${setup.split('\n')[0]} must set check-latest`);
+    }
+  }
+});
+
 test('local deploy:yc mirrors the workflow upload order and filters', () => {
   const local = packageJson.scripts['deploy:yc'].split(' && ');
   const workflowCommands = reusableWorkflow.match(SYNC_COMMAND) || [];

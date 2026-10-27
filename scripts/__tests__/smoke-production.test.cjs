@@ -3,7 +3,7 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 
-const { extractRuntimeUrl, runSmoke } = require('../smoke-production.cjs');
+const { extractRuntimeUrl, extractScriptUrl, runSmoke } = require('../smoke-production.cjs');
 
 function response(status, body, headers = {}) {
   return {
@@ -28,6 +28,55 @@ test('extractRuntimeUrl rejects build placeholders', () => {
     () => extractRuntimeUrl("window.ZVENFIT_LEAD_API = '__LEAD_API_URL__';", 'ZVENFIT_LEAD_API'),
     /placeholder/,
   );
+});
+
+test('extractScriptUrl accepts legacy /js paths and hashed /_astro assets, but never a bare basename', () => {
+  const origin = 'https://zvenfit.ru';
+  assert.equal(extractScriptUrl('<script src="/js/lead-form.js?v=42" defer></script>', 'lead-form.js', origin), 'https://zvenfit.ru/js/lead-form.js?v=42');
+  assert.equal(
+    extractScriptUrl('<script src="/_astro/lead-form.DzJub9Ws.js" defer></script>', 'lead-form.js', origin),
+    'https://zvenfit.ru/_astro/lead-form.DzJub9Ws.js',
+  );
+  assert.equal(extractScriptUrl('<script src="/js/lead-config.js"></script>', 'lead-config.js', origin), 'https://zvenfit.ru/js/lead-config.js');
+  assert.throws(() => extractScriptUrl('<script src="/_astro/lead-form.js"></script>', 'lead-form.js', origin), /does not load \/js\/lead-form\.js or \/_astro\/lead-form\.<hash>\.js/);
+  assert.throws(() => extractScriptUrl('<script src="/_astro/lead-form-extra.DzJub9Ws.js"></script>', 'lead-form.js', origin), /does not load/);
+});
+
+test('production smoke accepts the release A markup with hashed scripts and plain config paths', async () => {
+  const requests = [];
+  const routes = new Map([
+    [
+      'https://zvenfit.ru/forma-dlya-zayavki/',
+      response(
+        200,
+        '<script src="/js/lead-config.js"></script><script src="/_astro/lead-form.DzJub9Ws.js" defer></script><script src="/js/traffic-config.js" defer></script><script src="/_astro/traffic-beacon.DgQiCINO.js" defer></script>',
+      ),
+    ],
+    [
+      'https://zvenfit.ru/raspisanie/',
+      response(200, '<script src="/js/schedule-config.js" defer></script><script src="/_astro/schedule.Qw3rTy12.js" defer></script>'),
+    ],
+    ['https://zvenfit.ru/js/lead-config.js', response(200, "window.ZVENFIT_LEAD_API = 'https://lead.example.test/';")],
+    ['https://zvenfit.ru/js/schedule-config.js', response(200, "window.ZVENFIT_SCHEDULE_API = 'https://schedule.example.test/';")],
+    ['https://zvenfit.ru/js/traffic-config.js', response(200, "window.ZVENFIT_TRAFFIC_API = 'https://traffic.example.test/';")],
+    ['https://lead.example.test/', response(204, '', { 'access-control-allow-origin': 'https://zvenfit.ru' })],
+    ['https://schedule.example.test/', response(200, '{"ok":true,"items":[]}')],
+    ['https://traffic.example.test/', response(204, '')],
+  ]);
+
+  const result = await runSmoke({
+    fetchImpl: async (url, options = {}) => {
+      requests.push(url);
+      const route = routes.get(url);
+      assert.ok(route, `unexpected request: ${options.method || 'GET'} ${url}`);
+
+      return route;
+    },
+    log() {},
+  });
+
+  assert.equal(result.leadApiUrl, 'https://lead.example.test/');
+  assert.ok(requests.includes('https://zvenfit.ru/js/lead-config.js'));
 });
 
 test('production smoke writes only a synthetic traffic event and never creates a lead', async () => {
