@@ -130,17 +130,25 @@ test('the legal pages at HEAD convert into Base pages with Menu, Footer and Anal
   assert.ok(result.output.endsWith('</Fragment></Base>\n'));
 });
 
-test('pages listed in manual.json are refused without --force', () => {
+test('pages listed in manual.json are refused without --force', t => {
   const manual = JSON.parse(fs.readFileSync(path.join(ROOT, 'scripts/migrate/manual.json'), 'utf8'));
   assert.ok(manual.pages['/klubnaya-karta/'], 'the club card is maintained by hand');
   for (const entry of Object.values(manual.pages)) {
     assert.match(entry.since, /^[0-9a-f]{40}$/);
     assert.ok(entry.reason.length > 20);
   }
+  // A pull-request checkout is shallow, so the legacy base SHA may be missing; HEAD still
+  // carries the frozen public/ tree until A2b and exercises the same refusal path.
+  const tracked = execFileSync('git', ['ls-files', 'public/sitemap.xml'], { cwd: ROOT, encoding: 'utf8' }).trim();
+  if (!tracked) {
+    t.skip('public/sitemap.xml is no longer tracked');
+    return;
+  }
+  const ref = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: ROOT, encoding: 'utf8' }).trim();
   const out = fs.mkdtempSync(path.join(os.tmpdir(), 'html-to-astro-'));
   const result = require('node:child_process').spawnSync(
     process.execPath,
-    [path.join(ROOT, 'scripts/migrate/html-to-astro.cjs'), '--ref', '978b9219d45f858d6d0afcad412f8ed180d8a2f6', '--page', '/klubnaya-karta/', '--out', out],
+    [path.join(ROOT, 'scripts/migrate/html-to-astro.cjs'), '--ref', ref, '--page', '/klubnaya-karta/', '--out', out],
     { cwd: ROOT, encoding: 'utf8' },
   );
   assert.equal(result.status, 1);
