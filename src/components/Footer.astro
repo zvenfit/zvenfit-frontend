@@ -1,0 +1,28 @@
+---
+// Webflow footer pair: section-4 (desktop) and section-3 (mobile) with the
+// runtime map region and the app badges. Release A1 implements the Chekhova
+// location used by the legal pages and the lead form; the Nakhabinskoe
+// location, the footer grid of the home page and the schedule footer follow in
+// A2a with their pages. The newline between the two sections is part of the
+// legacy markup.
+import FooterDesktop from './FooterDesktop.astro';
+import FooterMobile from './FooterMobile.astro';
+
+interface Props {
+  location: 'chekhova' | 'nahabinskoe-shosse';
+  withMobile?: boolean;
+  withMap?: boolean;
+  badges?: boolean;
+}
+
+const { location, withMobile = true, withMap = true, badges = true } = Astro.props;
+if (location !== 'chekhova') {
+  throw new Error(`Footer: location "${location}" is converted in A2a`);
+}
+if (!withMap) {
+  throw new Error('Footer: the variant without a map is converted in A2a');
+}
+// Legacy whitespace between the desktop and the mobile section.
+const gap = '\n  ';
+---
+<FooterDesktop badges={badges} />{withMobile && (<Fragment>{gap}<FooterMobile badges={badges} /></Fragment>)}
