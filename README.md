@@ -126,6 +126,8 @@ npm run smoke:production
 
 ## Документация
 
+События форм и переключение тегов GTM: [`docs/form-analytics.md`](docs/form-analytics.md).
+
 | Файл                                                                     | Назначение                                                                          |
 | ------------------------------------------------------------------------ | ----------------------------------------------------------------------------------- |
 | [`docs/setup.md`](docs/setup.md)                                         | Yandex Cloud, YDB, Telegram, GitHub Secrets, локальная разработка и troubleshooting |
