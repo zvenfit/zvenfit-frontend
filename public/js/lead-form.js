@@ -23,6 +23,7 @@ document.addEventListener('DOMContentLoaded', function () {
   const attemptTimeoutMs = 8000;
   let successTimer;
   let submissionId = '';
+  let requestPending = false;
 
   function isNetworkError(error) {
     return Boolean(error) && (error.name === 'AbortError' || error.name === 'TypeError');
@@ -148,6 +149,7 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   function setSubmitting(isSubmitting) {
+    requestPending = isSubmitting;
     if (!submitButton) {
       return;
     }
@@ -155,6 +157,30 @@ document.addEventListener('DOMContentLoaded', function () {
     submitButton.value = isSubmitting ? 'Отправляем...' : defaultSubmitLabel;
     form.setAttribute('aria-busy', String(isSubmitting));
   }
+
+  function trackFormEvent(event) {
+    try {
+      window.dataLayer = window.dataLayer || [];
+      window.dataLayer.push({ event, form_type: 'lead' });
+    } catch {
+      // Analytics must not interrupt form handling.
+    }
+  }
+
+  function trackSubmission(data) {
+    // Honeypot responses have ok: true but no persisted lead ID.
+    if (data.ok === true && typeof data.lead_id === 'string' && data.lead_id.trim()) {
+      trackFormEvent('form_submitted');
+    }
+  }
+
+  // Native implicit submission (Enter) also activates this button. Click runs
+  // before constraint validation; tracking submit as well would count it twice.
+  submitButton?.addEventListener('click', function () {
+    if (!requestPending && !submitButton.disabled) {
+      trackFormEvent('form_submit_attempt');
+    }
+  });
 
   serviceSelect?.addEventListener('change', syncContactFields);
   syncContactFields();
@@ -165,6 +191,10 @@ document.addEventListener('DOMContentLoaded', function () {
     // this one, shows the `.w-form-fail` block and re-enables the button at once, so the form
     // would look failed while the request is still in flight. Keep the event here.
     event.stopPropagation();
+    if (requestPending) {
+      return;
+    }
+
     setFormState(null);
 
     const apiUrl = (window.ZVENFIT_LEAD_API || '').trim();
@@ -226,6 +256,7 @@ document.addEventListener('DOMContentLoaded', function () {
       submissionId = '';
       syncContactFields();
       setFormState('success');
+      trackSubmission(data);
       successTimer = setTimeout(function () {
         setFormState(null);
         firstField?.focus();
