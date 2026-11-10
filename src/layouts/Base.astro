@@ -15,6 +15,7 @@ import UtmHead from '../components/UtmHead.astro';
 import WebflowRuntime from '../components/WebflowRuntime.astro';
 import { SITE_URL, buildMode } from '../lib/site';
 import { resolveStructuredDataUrl, structuredDataConfig } from '../lib/structured-data';
+import analyticsEvents from '../scripts/analytics.js?url';
 import siteCss from '../styles/zvenfit.webflow.css?url';
 import webflowBootstrap from './snippets/webflow-bootstrap.html?raw';
 
@@ -93,6 +94,7 @@ const tailGap = '\n  ';
   <OpenGraph title={title} description={description} url={pageUrl} image={ogImageUrl} siteName={ogSiteName} skip={openGraphSkip} />
   <StructuredData pagePath={pagePath} title={title} description={description} />
   {mode === 'staging' && <meta name="robots" content="noindex, nofollow" />}
+{trackViews && <script src={analyticsEvents} data-analytics-timer="true" defer is:inline></script>}
 </head>
 <body class="body"><slot /><WebflowRuntime /><slot name="scripts" />{hasMaps && (<Fragment><MapScripts />{tailGap}</Fragment>)}{trackViews && (<Fragment><TrafficBeacon />{tailGap}</Fragment>)}</body>
 </html>

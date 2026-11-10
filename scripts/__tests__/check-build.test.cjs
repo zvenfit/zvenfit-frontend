@@ -34,7 +34,7 @@ function distPage({ beacon = true, analytics = true, webflow = 'https://storage.
     ? '<script>https://www.googletagmanager.com/gtm.js</script><script>https://top-fwz1.mail.ru/js/code.js</script><script>https://mc.yandex.ru/metrika/tag.js</script>'
     : '';
   const tail = beacon ? `<script src="/js/traffic-config.js${configQuery}" defer></script><script src="/_astro/traffic-beacon.DgQiCINO.js" defer></script>` : '';
-  return `<!DOCTYPE html><html lang="ru" data-wf-page="69ae68a15d10e15990081f0d"><head>${head}<script src="/_astro/utm-attribution.DdMN3-Dg.js" defer></script></head><body><p id="a">x</p><script src="${webflow}" type="text/javascript" defer></script>${tail}</body></html>`;
+  return `<!DOCTYPE html><html lang="ru" data-wf-page="69ae68a15d10e15990081f0d"><head>${head}<script src="/_astro/utm-attribution.DdMN3-Dg.js" defer></script><script src="/_astro/analytics.Ab123456.js" data-analytics-timer="true" defer></script></head><body><p id="a">x</p><script src="${webflow}" type="text/javascript" defer></script>${tail}</body></html>`;
 }
 
 function fixture({ pages, robots = 'User-agent: *\nAllow: /\n' }) {
@@ -79,4 +79,13 @@ test('missing analytics, versioned configs, local webflow and a reporting 404 fa
   assert.throws(() => checkBuild({ dist: fixture({ pages: { ...LEGAL, 'offer/index.html': distPage({ beacon: false }) } }), profile: A1 }), /missing the technical traffic config and beacon/);
   const full = { ...getProfile('a'), pages: null };
   assert.throws(() => checkBuild({ dist: fixture({ pages: { ...LEGAL, 'index.html': distPage(), '404.html': distPage() } }), profile: full }), /404 page must not emit technical page views/);
+});
+
+
+test('rejects a missing, duplicated or non-deferred analytics event loader', () => {
+  const script = '<script src="/_astro/analytics.Ab123456.js" data-analytics-timer="true" defer></script>';
+  for (const replacement of ['', script + script, script.replace(' defer', '')]) {
+    const failing = { ...LEGAL, 'offer/index.html': distPage().replace(script, replacement) };
+    assert.throws(() => checkBuild({ dist: fixture({ pages: failing }), profile: A1 }), /analytics event loader/);
+  }
 });

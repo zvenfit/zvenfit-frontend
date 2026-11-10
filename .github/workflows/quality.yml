@@ -78,7 +78,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
-      PARITY_BASE_SHA: 2758dfe37adc15c604260a87a519372fd08e3a07
+      PARITY_BASE_SHA: 03411e869c92679c82f72fb326c7e90a76cfb66f
       PARITY_CANDIDATE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
       PARITY_PROFILE: a1
       PARITY_SNAPSHOT: src/data/map-photos.json

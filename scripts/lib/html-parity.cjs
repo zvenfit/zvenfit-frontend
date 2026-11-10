@@ -18,6 +18,7 @@
 const parse5 = require('parse5');
 
 const OWN_SCRIPTS = [
+  'analytics.js',
   'schedule.js',
   'lead-form.js',
   'yandex-map.js',

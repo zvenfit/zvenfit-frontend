@@ -61,6 +61,7 @@ const ASSETS_CDN_BASE = 'https://storage.yandexcloud.net/zvenfit/v2';
 const CDN_VENDOR_JS = ['webflow.js'];
 const MAPS_CONFIG_PLACEHOLDER = '__ZVENFIT_MAPS_JSON__';
 const CACHE_BUST_SCRIPTS = [
+  'analytics.js',
   'utm-attribution.js',
   'traffic-beacon.js',
   'traffic-config.js',
@@ -918,7 +919,11 @@ function runBuild() {
     const withTrafficScripts =
       pagePath === '/404.html' ? withMapScripts : injectTrafficScripts(withMapScripts, assetVersion);
     const environmentHtml = isStaging ? injectStagingRobotsMeta(withTrafficScripts) : withTrafficScripts;
-    const nextHtml = bustAssetUrls(applySlashPrefix(environmentHtml), assetVersion);
+    const withAnalyticsEvents = pagePath === '/404.html' ? environmentHtml : environmentHtml.replace(
+      '</head>',
+      '<script src="/js/analytics.js" data-analytics-timer="true" defer></script>\n</head>',
+    );
+    const nextHtml = bustAssetUrls(applySlashPrefix(withAnalyticsEvents), assetVersion);
 
     if (nextHtml !== html) {
       fs.writeFileSync(htmlPath, nextHtml, 'utf8');
