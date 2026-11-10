@@ -105,6 +105,13 @@ function checkPage(route, html, { mode, siteCss, errors }) {
   if (html.includes('/js/traffic-config.js?v=') || /\/js\/[a-z]+-config\.js\?v=/.test(html)) {
     errors.push(`${route} versions a runtime config with ?v=; configs are served with no-cache`);
   }
+  const eventScripts = [...html.matchAll(/<script\b[^>]*>/g)].filter(match => hashedAsset('analytics.js').test(match[0]));
+  const expectedEvents = route === '404.html' ? 0 : 1;
+  if (eventScripts.length !== expectedEvents) {
+    errors.push(`${route} must have ${expectedEvents} hashed analytics event loader(s)`);
+  } else if (expectedEvents && (!/\bdefer\b/.test(eventScripts[0][0]) || eventScripts[0].index > html.indexOf('</head>'))) {
+    errors.push(`${route} analytics event loader must be deferred in head`);
+  }
   if (!hashedAsset('utm-attribution.js').test(html)) {
     errors.push(`${route} is missing UTM attribution`);
   }

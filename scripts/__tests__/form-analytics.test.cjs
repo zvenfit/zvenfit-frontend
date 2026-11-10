@@ -9,7 +9,7 @@ const vm = require('node:vm');
 
 const KINDS = ['lead'];
 const ID_KEY = 'lead_id';
-const runtimeFiles = () => ['lead-form.js'];
+const runtimeFiles = () => ['analytics.js', 'lead-form.js'];
 
 function response(status = 202, data = { ok: true, [ID_KEY]: 'saved-submission' }) {
   return { ok: status >= 200 && status < 300, status, json: async () => data };
