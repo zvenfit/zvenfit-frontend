@@ -32,7 +32,9 @@ HTML страниц в этом исправлении не менялся; ко
 расписание используют его API; Base.astro подключает хешированный скрипт в head.
 Нормализатор parity явно сопоставляет этот ассет с legacy `/js/analytics.js`.
 Runtime-тесты читают `src/scripts`; `check-build` проверяет loader и исключение 404.
-Текущая legacy-база общего контракта: `f1ed9d7fb7b1a2d042fcaed63a82a3d65bdba245`.
+Текущая legacy-база общего контракта после слияния
+[PR #101](https://github.com/zvenfit/zvenfit-frontend/pull/101):
+`03411e869c92679c82f72fb326c7e90a76cfb66f`.
 
 ## 1. Решение и его границы
 
