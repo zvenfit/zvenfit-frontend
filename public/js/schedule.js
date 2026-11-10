@@ -637,6 +637,7 @@
 
     dialog.showModal();
     lockPageScroll();
+    window.__ZVENFIT_ANALYTICS?.track('schedule_event_open');
   }
 
   function bindEventCardInteractions(event, item) {
@@ -1295,6 +1296,7 @@
 
       state.items = data.items;
       renderWeekView(root);
+      window.__ZVENFIT_ANALYTICS?.track('schedule_loaded');
     } catch (loadError) {
       console.error('schedule: fetch failed', loadError);
       clearNode(root);

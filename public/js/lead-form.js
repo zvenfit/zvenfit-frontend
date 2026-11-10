@@ -160,8 +160,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
   function trackFormEvent(event) {
     try {
-      window.dataLayer = window.dataLayer || [];
-      window.dataLayer.push({ event, form_type: 'lead' });
+      window.__ZVENFIT_ANALYTICS?.track(event, { form_type: 'lead' });
     } catch {
       // Analytics must not interrupt form handling.
     }

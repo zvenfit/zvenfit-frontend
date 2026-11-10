@@ -190,3 +190,5 @@ console.log('check-build: technical traffic beacon and runtime config verified')
 console.log('check-build: 404 page-view beacon exclusion verified');
 console.log('check-build: branded native-select chevron verified');
 console.log('check-build: reduced-motion grain fallback verified');
+
+require('./check-analytics.cjs').checkAnalytics(distDir, ['404.html']);
