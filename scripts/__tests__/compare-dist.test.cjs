@@ -108,6 +108,20 @@ test('a faithful candidate passes the production comparison with the allow-list 
   assert.deepEqual(report.routes[0].exceptions, ['offer-webflow-defer×1', 'legacy-marker-analytics×1', 'legacy-marker-utm×1', 'legacy-marker-open-graph×1', 'legacy-marker-structured-data×1']);
   assert.match(report.render(), /Result: PASS/);
   assert.match(report.render(), /utm-attribution\.js \| js\/utm-attribution\.js \| _astro\/utm-attribution\.Ef56Gh78\.js \| bytes equal/);
+  assert.match(report.render(), /zvenfit\.webflow\.css \| css\/zvenfit\.webflow\.min\.css \| _astro\/zvenfit\.webflow\.Ab12Cd34\.css \| source and built bytes equal/);
+});
+
+test('a stylesheet minified differently from the legacy build fails even when the sources match', () => {
+  const fixture = productionFixture();
+  write(fixture.candidateDist, '_astro/zvenfit.webflow.Ab12Cd34.css', '.a{color:red}@media (width<=767px){.a{color:#00f}}');
+  const built = runProduction(fixture);
+  assert.ok(built.errors.some(error => /stylesheet zvenfit\.webflow\.css: built bytes differ from the legacy build/.test(error)), built.render());
+  assert.match(built.render(), /zvenfit\.webflow\.css \| css\/zvenfit\.webflow\.min\.css \| _astro\/zvenfit\.webflow\.Ab12Cd34\.css \| MISMATCH/);
+
+  const drifted = productionFixture();
+  write(drifted.candidateDir, 'src/styles/zvenfit.webflow.css', '.a{color:blue}\n');
+  const source = runProduction(drifted);
+  assert.ok(source.errors.some(error => /stylesheet zvenfit\.webflow\.css: source differs between public\/css and src\/styles/.test(error)), source.render());
 });
 
 test('the production comparison catches changed scripts, configs, sitemap entries and links to unknown routes', () => {

@@ -12,6 +12,7 @@ const vm = require('node:vm');
 
 const { LEGACY_DUPLICATES, readProfileArgument } = require('./lib/parity-profile.cjs');
 const { astroPageToRoute } = require('./check-routes.cjs');
+const { builtSiteStylesheets, mediaRangeQueries, minifySiteCss } = require('./lib/site-css.cjs');
 
 const rootDir = path.join(__dirname, '..');
 const distDir = path.join(rootDir, 'dist');
@@ -127,6 +128,26 @@ function checkPage(route, html, { mode, siteCss, errors }) {
     }
   }
   errors.push(...analyzeWebflowPage({ cssSource: siteCss, relativePath: route, sourceHtml: html }).errors);
+}
+
+// The built site stylesheet must be the clean-css output of its source, the
+// same bytes as the legacy build. A second guard names the failure that
+// matters to visitors: range media queries are ignored by Safari before 16.4
+// and Chrome before 104, which switches the whole responsive layout off.
+function checkStylesheets(dist, siteCss, errors) {
+  const assetsDir = path.join(dist, '_astro');
+  const built = builtSiteStylesheets(assetsDir);
+  if (built.length !== 1) {
+    errors.push(`expected exactly one built site stylesheet in _astro/, found ${built.length}`);
+  } else if (fs.readFileSync(path.join(assetsDir, built[0]), 'utf8') !== minifySiteCss(siteCss)) {
+    errors.push(`${built[0]} must be the clean-css level 2 output of src/styles/zvenfit.webflow.css, as in the legacy build`);
+  }
+  for (const name of walkFiles(assetsDir, file => file.endsWith('.css'))) {
+    const ranges = mediaRangeQueries(fs.readFileSync(path.join(assetsDir, name), 'utf8'));
+    if (ranges.length > 0) {
+      errors.push(`_astro/${name} uses media query range syntax (${ranges[0]}), which Safari before 16.4 and Chrome before 104 ignore`);
+    }
+  }
 }
 
 function checkLeadForm(dist, errors) {
@@ -268,6 +289,8 @@ function checkBuild({ dist = distDir, profile }) {
     checkPage(route, fs.readFileSync(path.join(dist, route), 'utf8'), { mode, siteCss, errors });
   }
 
+  checkStylesheets(dist, siteCss, errors);
+
   const logoPath = path.join(dist, 'images', 'zvenfit-logo.svg');
   if (!fs.existsSync(logoPath)) {
     errors.push('organization logo asset is missing');
@@ -311,6 +334,7 @@ if (require.main === module) {
     const result = checkBuild({ profile });
     console.log(`check-build: ${result.pages} page(s) verified in ${result.mode} mode (profile ${result.profile})`);
     console.log('check-build: CDN webflow.js, hashed own assets, no-cache runtime configs and generated maps config verified');
+    console.log('check-build: site stylesheet equals its legacy clean-css minification, no range media queries');
     console.log('check-build: analytics, UTM, traffic beacon and 404 exclusion verified for the build mode');
     console.log('check-build: Webflow page ids, duplicate ids and w-node CSS coverage verified');
     console.log('check-build: branded native-select chevron, reduced-motion fallback and review scoping verified');

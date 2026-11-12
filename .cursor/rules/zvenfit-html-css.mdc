@@ -28,7 +28,10 @@ alwaysApply: false
 ## CSS
 
 - Source: `src/styles/zvenfit.webflow.css` (identical to the frozen `public/css/` copy
-  until A2b); Vite minifies it at build, do not commit minified output
+  until A2b); the build minifies it with clean-css exactly as the legacy build did
+  (`scripts/lib/site-css.cjs`), Vite's own CSS minifier stays off because it rewrites
+  media queries into range syntax that old Safari and Chrome ignore; do not commit
+  minified output
 - a11y backlog in `TODO.md` Critical: focus states, contrast, touch targets, reduced motion
 
 ## JS

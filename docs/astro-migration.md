@@ -312,7 +312,8 @@ B workflow деплоя не меняют. Очистка устаревших `
 ```
 astro.config.mjs            site 'https://zvenfit.ru', trailingSlash 'always',
                             compressHTML false, build.inlineStylesheets 'never',
-                            vite.build.assetsInlineLimit 0
+                            vite.build.assetsInlineLimit 0, vite.build.cssMinify false,
+                            интеграция zvenfit:site-css (scripts/lib/site-css.cjs)
 tsconfig.json               extends astro/tsconfigs/strict
 src/
   layouts/Base.astro        <html lang data-wf-page data-wf-site data-zvenfit-page>,
@@ -482,10 +483,24 @@ scripts/__tests__/cleanup-bucket-assets.test.cjs   тесты очистки н�
   шаблон (`{'\n  '}`), а не сам компонент.
 - После `<!DOCTYPE html>` компилятор ставит перевод строки; parse5 его не
   видит. Самозакрывающиеся `<img … />` выводятся как `<img …>`; дерево то же.
-- CSS, импортированный через `?url`, минифицируется lightningcss (умолчание
-  Vite 8), а не clean-css: на `zvenfit.webflow.css` слились два правила с
-  одинаковыми объявлениями, вендорные префиксы сохранены. Контракт сравнения
-  проверяет исходники CSS и наличие собранного файла, а не байты минификации.
+- CSS, импортированный через `?url`, Vite 8 по умолчанию минифицирует
+  lightningcss, а Astro собирает с целью `esnext`. Минификатор тогда выбирает
+  самый короткий современный синтаксис: `(max-width: 767px)` становится
+  диапазонным `(width<=767px)` (38 из 42 media-запросов
+  `zvenfit.webflow.css`), `top/right/bottom/left` сливаются в `inset`. Safari
+  до 16.4 и Chrome до 104 диапазонный запрос отбрасывают целиком, то есть на
+  таких устройствах перестают применяться все брейкпоинты. Найдено 2026-11-12
+  сверкой объявлений собранных таблиц; ни HTML-паритет, ни сверка вычисленных
+  стилей в актуальном Chromium этого не показывают. Поэтому
+  `vite.build.cssMinify: false`, а интеграция `zvenfit:site-css`
+  (`scripts/lib/site-css.cjs`) после сборки минифицирует
+  `zvenfit.webflow.<хэш>.css` тем же clean-css level 2, что и
+  `build-static.cjs`: файл побайтно равен legacy `zvenfit.webflow.min.css`.
+  Остальные таблицы выходят как исходник, как их отдавал legacy. Хэш в имени
+  считается от исходника. `build.cssTarget` не задаётся: с ним Astro сам
+  прогоняет CSS через lightningcss. `compare-dist` сравнивает собранные байты
+  таблиц, `check-build` сверяет файл с clean-css от исходника и запрещает
+  диапазонные media-запросы в любом CSS из `_astro/`.
 
 ## 5. Карта замен `build-static.cjs`
 
@@ -498,7 +513,7 @@ scripts/__tests__/cleanup-bucket-assets.test.cjs   тесты очистки н�
 | замена iframe карты | `MapRegion.astro` по `maps.config.json`; ключи страниц в прежней конвенции (`'/404.html'`, `'/contacts/platforms/'`) |
 | скрипты карт и трафика | layout по props `hasMaps`, `trackViews`; `traffic-config.js` всегда раньше бикона |
 | `?v=ASSET_VERSION` для своих файлов | хэши в `_astro/` через `?url`; `?v=` остаётся только у бакетного `webflow.js` до релиза B |
-| минификация CSS | Vite при импорте стилей; `klubnaya-karta.v1.css` импортируется на своей странице |
+| минификация CSS | тот же clean-css level 2 после сборки (интеграция `zvenfit:site-css`), минификатор Vite выключен; байты `zvenfit.webflow.css` равны legacy; `klubnaya-karta.v1.css` импортируется на своей странице и выходит как исходник |
 | `js/*-config.js` с подстановкой URL | эндпоинты `src/pages/js/*-config.js.ts` с теми же путями и содержимым `window.ZVENFIT_* = '…'`; переменные читаются при сборке как есть; в `development` пустые значения заменяются на `http://localhost:3000`, `…/schedule`, `…/traffic`, в `staging` и `production` пустое значение валит сборку |
 | `maps-config.js` с `apiKey` | эндпоинт `js/maps-config.js.ts` из данных, снимка фото и `Y_MAPS_API_KEY`; пустой ключ допускается как в legacy, правило обязательных API URL на него не распространяется |
 | strip GTM, `noindex`, `robots.txt` для staging | ветвление только по `import.meta.env.MODE` (никогда по `PROD`/`DEV`) в обеих частях `Analytics.astro`, layout и `robots.txt.ts`; layout заменяет существующий robots meta на `noindex, nofollow`, а не добавляет второй (в том числе у 404 с исходным `noindex, follow`) |
@@ -818,8 +833,11 @@ PR и проходит `quality`, чтобы откат был готов зар
 - Скрипты через `?url` по разделу 4; `sitemap.xml.ts`, `robots.txt.ts`,
   снимок фото карт.
 - A2b. `build-static.cjs`, `watch-static.cjs`, сниппеты, все `public/**/*.html`,
-  `public/css`, `public/js`, `public/sitemap.xml`, `public/robots.txt`,
-  `clean-css` из `package.json` удаляются; конфиги контента в `src/data/`.
+  `public/css`, `public/js`, `public/sitemap.xml`, `public/robots.txt`
+  удаляются; конфиги контента в `src/data/`. `clean-css` остаётся в
+  `package.json`: им минифицируется `zvenfit.webflow.css` в сборке Astro
+  (раздел 4). Смена минификатора — отдельная задача после миграции, с явным
+  списком поддерживаемых браузеров и проверкой на старых Safari и Chrome.
   После проверки побайтного равенства двух SVG в `static/images/` и
   `public/images/` временный `static/` удаляется, override `publicDir`
   снимается; исходные `public/images/` остаются. Включается запрет дублирования
@@ -1019,7 +1037,10 @@ staging уже прошёл релизный гейт на этапе 0, до н
 - URL нормализуются только по явной таблице конкретных ресурсов. Для A:
   свои `/js/<имя>.js?v=` и CSS ↔ соответствующие `_astro/`-файлы; у четырёх
   конфигов убирается `?v=`; бакетные адреса сохраняются. Существование целевых
-  ресурсов и порядок подключений проверяются. Для B отдельная таблица
+  ресурсов и порядок подключений проверяются. Свои скрипты и таблицы стилей
+  сверяются побайтно в собранном виде: `js/<имя>.js` и
+  `css/zvenfit.webflow.min.css` базы против `_astro/<имя>.<хэш>`; у таблиц
+  дополнительно сверяются исходники. Для B отдельная таблица
   описывает перенос вендоров, шрифтов, изображений, версионированных favicon
   и webclip, включая ссылки из CSS и конфигов. Общая маскировка любых хэшей
   или query-параметров запрещена; изменения текста, атрибутов и логики под
@@ -1108,6 +1129,7 @@ Staging и 8 тестов E2E после merge — релизный гейт, а
 | Компилятор Astro 7 падает на невалидном HTML экспорта | конвертер прогоняет страницу через компилятор; правки фиксируются в `manual.json` |
 | `compressHTML: 'jsx'` ломает раскладку | `compressHTML: false` навсегда |
 | Astro и Vite инлайнят мелкие скрипты и CSS | `assetsInlineLimit: 0`, `inlineStylesheets: 'never'` |
+| Минификатор Vite при цели `esnext` переписывает media-запросы в диапазонный синтаксис; Safari до 16.4 и Chrome до 104 теряют адаптивную вёрстку | `cssMinify: false` и clean-css level 2 как в legacy; побайтная сверка собранного CSS в `compare-dist`, самостоятельная проверка в `check-build` |
 | Имена чанков не содержат basename | скрипты через `?url`; проверка реальных имён в `dist/` в A1 |
 | Фигурные скобки и `<script src>` без `is:inline` | конвертер экранирует и ставит директиву всем скриптам |
 | `webflow.js` и интеракции зависят от `data-wf-page`, `data-wf-site`, `w-node-*` | атрибуты в props layout и в коллекции тренеров; проверка в `check-build` |

@@ -8,6 +8,10 @@ const test = require('node:test');
 
 const { analyzeWebflowPage, checkBuild, detectMode } = require('../check-build.cjs');
 const { getProfile } = require('../lib/parity-profile.cjs');
+const { minifySiteCss } = require('../lib/site-css.cjs');
+
+const SITE_CSS = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'styles', 'zvenfit.webflow.css'), 'utf8');
+const BUILT_SITE_CSS = minifySiteCss(SITE_CSS);
 
 function page({ pageId = '69b540f958c9c44d220bcf1a', ids = [] } = {}) {
   return `<html data-wf-page="${pageId}"><body>${ids.map(id => `<div id="${id}"></div>`).join('')}</body></html>`;
@@ -37,8 +41,12 @@ function distPage({ beacon = true, analytics = true, webflow = 'https://storage.
   return `<!DOCTYPE html><html lang="ru" data-wf-page="69ae68a15d10e15990081f0d"><head>${head}<script src="/_astro/utm-attribution.DdMN3-Dg.js" defer></script><script src="/_astro/analytics.Ab123456.js" data-analytics-timer="true" defer></script></head><body><p id="a">x</p><script src="${webflow}" type="text/javascript" defer></script>${tail}</body></html>`;
 }
 
-function fixture({ pages, robots = 'User-agent: *\nAllow: /\n' }) {
+function fixture({ pages, robots = 'User-agent: *\nAllow: /\n', styles = { 'zvenfit.webflow.Ab12Cd34.css': BUILT_SITE_CSS } }) {
   const dist = fs.mkdtempSync(path.join(os.tmpdir(), 'check-build-'));
+  fs.mkdirSync(path.join(dist, '_astro'));
+  for (const [name, css] of Object.entries(styles)) {
+    fs.writeFileSync(path.join(dist, '_astro', name), css);
+  }
   for (const [route, html] of Object.entries(pages)) {
     fs.mkdirSync(path.dirname(path.join(dist, route)), { recursive: true });
     fs.writeFileSync(path.join(dist, route), html);
@@ -88,4 +96,14 @@ test('rejects a missing, duplicated or non-deferred analytics event loader', () 
     const failing = { ...LEGAL, 'offer/index.html': distPage().replace(script, replacement) };
     assert.throws(() => checkBuild({ dist: fixture({ pages: failing }), profile: A1 }), /analytics event loader/);
   }
+});
+
+test('the built site stylesheet must be the legacy minification and no stylesheet may use range media queries', () => {
+  assert.throws(() => checkBuild({ dist: fixture({ pages: LEGAL, styles: {} }), profile: A1 }), /expected exactly one built site stylesheet in _astro\/, found 0/);
+  assert.throws(() => checkBuild({ dist: fixture({ pages: LEGAL, styles: { 'zvenfit.webflow.Ab12Cd34.css': SITE_CSS } }), profile: A1 }), /must be the clean-css level 2 output/);
+  const ranged = BUILT_SITE_CSS.replace('(max-width:767px)', '(width<=767px)');
+  assert.notEqual(ranged, BUILT_SITE_CSS);
+  assert.throws(() => checkBuild({ dist: fixture({ pages: LEGAL, styles: { 'zvenfit.webflow.Ab12Cd34.css': ranged } }), profile: A1 }), /must be the clean-css level 2 output[\s\S]*uses media query range syntax \(@media screen and \(width<=767px\)\)/);
+  const pageScoped = { 'zvenfit.webflow.Ab12Cd34.css': BUILT_SITE_CSS, 'klubnaya-karta.v1.Ef56Gh78.css': '@media (width>=992px){.card{display:grid}}' };
+  assert.throws(() => checkBuild({ dist: fixture({ pages: LEGAL, styles: pageScoped }), profile: A1 }), /_astro\/klubnaya-karta\.v1\.Ef56Gh78\.css uses media query range syntax/);
 });

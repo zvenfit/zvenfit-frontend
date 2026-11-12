@@ -49,6 +49,13 @@
   `?url` and served hashed from `/_astro/`; vendor files in `src/vendor/`;
   stylesheets in `src/styles/`. The runtime configs stay at `/js/*-config.js`
   as endpoints.
+- **CSS:** Vite's minifier is off (`vite.build.cssMinify: false`). The
+  `zvenfit:site-css` integration (`scripts/lib/site-css.cjs`) minifies
+  `zvenfit.webflow.<hash>.css` after the build with clean-css level 2, the
+  same bytes as the legacy `zvenfit.webflow.min.css`; other stylesheets are
+  emitted as their source. lightningcss with the `esnext` target of Astro
+  rewrites `(max-width: 767px)` into `(width<=767px)`, which Safari before 16.4
+  and Chrome before 104 ignore.
 - **Backend:** 4 TypeScript Yandex Cloud Functions in `functions/` (compiled to CommonJS): `lead-intake`, `fitbase-schedule`, `site-traffic`, `staging-authorizer`
 - **CI:** `quality.yml` checks pull requests (lint, tests, `astro check`, production-like and staging builds, `compare-dist` against the pinned base). `main.yml` (**Release**) runs on every push to `main`: staging deploy → E2E from `zvenfit-autotests` → production deploy (functions → build → S3 → smoke) → release tag; production is skipped unless E2E passes. An emergency dispatch with `skip_staging` and a `reason` deploys production without staging. `staging.yml` re-runs staging and E2E manually without a release. All deploys share `_deploy-environment.yml` and the `deploy` concurrency group.
 
@@ -144,6 +151,7 @@ expressions, escape them as `&#123;`/`&#125;`; every classic `<script>` needs
 | Legal pages (Astro)        | `src/pages/offer/`, `src/pages/privacy/`, `src/pages/payment-policy/`                      |
 | Page conversion            | `scripts/migrate/html-to-astro.cjs`, `scripts/migrate/manual.json`                         |
 | Parity check               | `scripts/compare-dist.cjs`, `scripts/parity-allowlist.json`, `scripts/lib/html-parity.cjs` |
+| CSS minification           | `scripts/lib/site-css.cjs`, `astro.config.mjs`; guards in `scripts/check-build.cjs` and `scripts/compare-dist.cjs` |
 | Layout and shared blocks   | `src/layouts/Base.astro`, `src/components/`                                                 |
 | Lead form UI/validation    | `public/forma-dlya-zayavki/index.html` (frozen until A2a), `src/scripts/lead-form.js`       |
 | Lead API / Telegram        | `functions/lead-intake/src/handler.ts`, `src/telegram/`                                     |
@@ -242,6 +250,7 @@ From `TODO.md` — keep current identity:
 5. Raw `U+00A0` or HTML comments inside component children in `.astro` templates — the compiler rewrites the first and drops the second; use `&nbsp;` and `set:html`
 6. Breaking marker comments in the frozen legacy pages — the legacy build skips injection silently
 7. Pushing to `main` — it starts a release (staging, E2E, then production); work on a branch and open a pull request. During branch A the stacked PRs target `feature/astro-release-a`
+8. Turning Vite's CSS minification back on or setting `build.cssTarget` — the stylesheet gets media range syntax and old Safari and Chrome lose the responsive layout; `check-build` and `compare-dist` fail
 
 ## Git branches
 

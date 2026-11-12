@@ -225,11 +225,18 @@ function compareProduction({ baseDir, baseDist, candidateDir, candidateDist, pag
     const candidateFile = assets.candidate.styles.get(name);
     const baseSource = readIfExists(path.join(baseDir, 'public', 'css', name));
     const candidateSource = readIfExists(path.join(candidateDir, 'src', 'styles', name));
+    const baseBuilt = readIfExists(path.join(baseDist, baseFile));
     const candidateBuilt = candidateFile ? readIfExists(path.join(candidateDist, candidateFile)) : null;
-    const ok = Boolean(baseSource && candidateSource && baseSource.equals(candidateSource) && candidateBuilt && candidateBuilt.length > 0 && fs.existsSync(path.join(baseDist, baseFile)));
-    report.assets.push({ name, base: baseFile, candidate: candidateFile || 'missing', check: ok ? 'source bytes equal, built file present' : 'MISMATCH' });
-    if (!ok) {
-      report.errors.push(`stylesheet ${name}: source differs between public/css and src/styles, or a built file is missing`);
+    const sourcesEqual = Boolean(baseSource && candidateSource && baseSource.equals(candidateSource));
+    // The built file is compared too: a different minifier keeps the source and
+    // still changes what old browsers understand (media query range syntax).
+    const builtEqual = Boolean(baseBuilt && candidateBuilt && baseBuilt.equals(candidateBuilt));
+    const ok = sourcesEqual && builtEqual;
+    report.assets.push({ name, base: baseFile, candidate: candidateFile || 'missing', check: ok ? 'source and built bytes equal' : 'MISMATCH' });
+    if (!sourcesEqual) {
+      report.errors.push(`stylesheet ${name}: source differs between public/css and src/styles, or a source file is missing`);
+    } else if (!builtEqual) {
+      report.errors.push(`stylesheet ${name}: ${!candidateFile ? 'the candidate never references it' : 'built bytes differ from the legacy build or a file is missing'}`);
     }
   }
 
