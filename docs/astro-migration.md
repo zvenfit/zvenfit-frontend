@@ -32,9 +32,16 @@ HTML страниц в этом исправлении не менялся; ко
 расписание используют его API; Base.astro подключает хешированный скрипт в head.
 Нормализатор parity явно сопоставляет этот ассет с legacy `/js/analytics.js`.
 Runtime-тесты читают `src/scripts`; `check-build` проверяет loader и исключение 404.
-Текущая legacy-база общего контракта после слияния
+Legacy-база общего контракта после слияния
 [PR #101](https://github.com/zvenfit/zvenfit-frontend/pull/101):
 `03411e869c92679c82f72fb326c7e90a76cfb66f`.
+
+Контакты MAX из [PR #103](https://github.com/zvenfit/zvenfit-frontend/pull/103)
+меняют только `public/contacts/platforms/index.html`: описание страницы и новую
+карточку с двумя ссылками `max.ru`. Страница ещё не конвертирована, поэтому в
+`src/` переносить нечего; A2a сгенерирует её из новой базы. Метод контакта `max`
+и хост `max.ru` уже есть в `src/scripts/analytics.js`. Текущая legacy-база:
+`d7d838f7ef4218e55056731a10ed85a8d0ff6736`.
 
 ## 1. Решение и его границы
 
