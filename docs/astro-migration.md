@@ -40,8 +40,14 @@ Legacy-база общего контракта после слияния
 меняют только `public/contacts/platforms/index.html`: описание страницы и новую
 карточку с двумя ссылками `max.ru`. Страница ещё не конвертирована, поэтому в
 `src/` переносить нечего; A2a сгенерирует её из новой базы. Метод контакта `max`
-и хост `max.ru` уже есть в `src/scripts/analytics.js`. Текущая legacy-база:
+и хост `max.ru` уже есть в `src/scripts/analytics.js`. Legacy-база после #103:
 `d7d838f7ef4218e55056731a10ed85a8d0ff6736`.
+
+Обновление `@grpc/grpc-js` до 1.14.7 из
+[PR #104](https://github.com/zvenfit/zvenfit-frontend/pull/104) (релиз `v3.1.2`)
+меняет только `functions/lead-intake/package-lock.json`: фронтенд, legacy-сборка
+и корневой lock-файл не затронуты, переносить в `src/` нечего. Текущая
+legacy-база: `12d025bcae0e83821fc86dea66caa004509d59ab`.
 
 ## 1. Решение и его границы
 
