@@ -1,0 +1,13 @@
+---
+// Replaces the Webflow map iframe: the runtime map (yandex-map.js) mounts into
+// this region and picks the location set configured for the page.
+import { mapSetForPage } from '../lib/maps';
+
+interface Props {
+  pagePath?: string;
+}
+
+const { pagePath = Astro.url.pathname } = Astro.props;
+const mapSet = mapSetForPage(pagePath);
+---
+<div class="zvenfit-map code-embed-4" data-map-set={mapSet} role="region" aria-label="Карта — ZvenFit"></div>

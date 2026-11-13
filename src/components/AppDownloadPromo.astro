@@ -1,0 +1,37 @@
+---
+// Promo section "install the app, get 15% off" (legacy snippet
+// app-download-promo-section.html), used by /promos/apps/.
+import appLinks from '../../scripts/app-links.config.json';
+---
+<section id="mobile-app" class="promo-apps-cta">
+    <div class="promo-apps-cta__shell">
+      <div class="promo-apps-cta__card">
+        <div class="promo-apps-cta__body">
+          <p class="promo-apps-cta__eyebrow slash-prefix">акция</p>
+          <div class="promo-apps-cta__headline">
+            <span class="promo-apps-cta__discount">15%</span>
+            <h1 class="p1 left promo-apps-cta__title">Скачай приложение и&nbsp;получи скидку 15% на&nbsp;абонемент в&nbsp;фитнес-клуб!</h1>
+          </div>
+          <p class="promo-apps-cta__desc">Расписание, покупка абонемента и напоминания — всё в приложении ZvenFit.</p>
+          <div class="app-badges app-badges--promo">
+            <div class="app-badges__stores">
+              <a href={appLinks.appStore} target="_blank" rel="noopener noreferrer" class="app-badges__link" aria-label="Скачать ZvenFit в App Store">
+                <img src={appLinks.appStoreBadge} alt="" class="app-badges__img" width="140" height="48" loading="lazy">
+              </a>
+              <a href={appLinks.ruStore} target="_blank" rel="noopener noreferrer" class="app-badges__link" aria-label="Скачать ZvenFit в RuStore">
+                <img src={appLinks.ruStoreBadge} alt="" class="app-badges__img" width="140" height="48" loading="lazy">
+              </a>
+              <a href={appLinks.apk} target="_blank" rel="noopener noreferrer" class="app-badges__link" aria-label="Скачать APK ZvenFit для Android">
+                <img src={appLinks.apkBadge} alt="" class="app-badges__img" width="140" height="48" loading="lazy">
+              </a>
+            </div>
+            <p class="promo-apps-cta__note">* Скидка 15% применяется администратором на ресепшене — один раз на первый абонемент. <a href="#promo-terms">Условия акции</a></p>
+            <p class="promo-apps-cta__note promo-apps-cta__note--stores">* Если RuStore не установлен, сначала <a href="https://www.rustore.ru/" target="_blank" rel="noopener noreferrer">скачайте магазин</a>, затем — приложение. Или установите APK.</p>
+          </div>
+        </div>
+        <div class="promo-apps-cta__aside">
+          <img class="promo-apps-cta__mockup" src="https://storage.yandexcloud.net/zvenfit/v2/images/webclip.png" alt="" width="240" height="240" loading="lazy">
+        </div>
+      </div>
+    </div>
+  </section>

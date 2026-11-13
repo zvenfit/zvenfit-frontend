@@ -1,11 +1,11 @@
 # Static site generation with Astro in two releases
 
 Status: approved by the owner on 2026-10-19, 2026-10-21 and 2026-10-22; stage 0
-(preparation on the legacy build) in progress since 2026-10-22. The detailed
+(preparation on the legacy build) closed on 2026-10-26 with v3.0.15; branch
+`feature/astro-release-a` opened on 2026-10-27 from `978b921`. The detailed
 plan with stages, parity rules, rollback and estimates lives in
-[`docs/future/astro-migration-plan.md`](../../docs/future/astro-migration-plan.md).
-This record is the canonical list of decisions and their consequences; the plan
-moves to `docs/astro-migration.md` when branch A opens.
+[`docs/astro-migration.md`](../../docs/astro-migration.md). This record is the
+canonical list of decisions and their consequences.
 
 ## Decision
 
@@ -96,7 +96,7 @@ production, tag and GitHub release.
 | Webflow runtime (`webflow.js`, `webflow.min.css`) | exported with the site, bucket | Webflow terms for exported sites; confirm against the account's terms |
 | Road Rage, Cyrillic build "RUS BY LYAJKA" | bucket `fonts/roadrage.ttf` | embedded licence text says "Free for personal use only" (© 2016 Youssef Habchi); the owner holds a purchased commercial licence (confirmed 2026-10-26), kept outside the repository. |
 
-Sources: [migration plan](../../docs/future/astro-migration-plan.md),
+Sources: [migration plan](../../docs/astro-migration.md),
 [staging runbook](../staging-runbook.md),
 [CDN runbook](../cdn-runbook.md), font name table of
 `fonts/roadrage.ttf`, CDN resource settings from `yc cdn resource list`.

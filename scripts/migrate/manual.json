@@ -1,0 +1,9 @@
+{
+  "$comment": "Pages the converter must not generate: their shared blocks differ from the Menu/Footer components and are ported by hand. Keys are page paths; `since` is the legacy base SHA the entry was recorded against. The converter exits with code 1 for these pages unless --force is passed, after which the manual changes are re-applied and recorded here again.",
+  "pages": {
+    "/klubnaya-karta/": {
+      "since": "978b9219d45f858d6d0afcad412f8ed180d8a2f6",
+      "reason": "Own menus with an <img> logo and a footer whose rel attributes and opening hours differ from the shared Footer; GTM comments use single spaces and the noscript iframe carries a title. Ported by hand in A2a."
+    }
+  }
+}

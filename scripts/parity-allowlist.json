@@ -1,0 +1,59 @@
+{
+  "$comment": "Explicit exceptions of the parity check (scripts/compare-dist.cjs). Every entry names the profiles and mode it applies to, the routes (\"*\" means every route of the profile, minus exceptRoutes), the exact node or attribute, the expected before/after and how many matches each route must produce. A rule that matches a different number of times fails the check.",
+  "rules": [
+    {
+      "id": "offer-webflow-defer",
+      "profiles": ["a1", "a"],
+      "mode": "production",
+      "routes": ["offer/index.html"],
+      "kind": "attribute",
+      "selector": { "tag": "script", "attrIncludes": { "src": "/js/webflow.js?v=" } },
+      "name": "defer",
+      "before": null,
+      "after": "",
+      "count": 1,
+      "reason": "The only agreed deviation of release A (plan, section 2): the shared layout loads webflow.js with defer on every page; the legacy offer page was the one page without it."
+    },
+    {
+      "id": "legacy-marker-analytics",
+      "profiles": ["a1", "a"],
+      "mode": "production",
+      "routes": ["*"],
+      "kind": "comment-removed",
+      "data": " ZvenFit: VK + Yandex Metrika ",
+      "count": 1,
+      "reason": "Build marker left in the output by the legacy pipeline; Astro renders the analytics block from a component and emits no marker."
+    },
+    {
+      "id": "legacy-marker-utm",
+      "profiles": ["a1", "a"],
+      "mode": "production",
+      "routes": ["*"],
+      "kind": "comment-removed",
+      "data": " ZvenFit: UTM attribution ",
+      "count": 1,
+      "reason": "Build marker of the legacy UTM snippet; the script itself is compared."
+    },
+    {
+      "id": "legacy-marker-open-graph",
+      "profiles": ["a1", "a"],
+      "mode": "production",
+      "routes": ["*"],
+      "kind": "comment-removed",
+      "data": " ZvenFit: open-graph ",
+      "count": 1,
+      "reason": "Build marker of the legacy Open Graph injection; the meta tags themselves are compared."
+    },
+    {
+      "id": "legacy-marker-structured-data",
+      "profiles": ["a1", "a"],
+      "mode": "production",
+      "routes": ["*"],
+      "exceptRoutes": ["404.html"],
+      "kind": "comment-removed",
+      "data": " ZvenFit: structured-data ",
+      "count": 1,
+      "reason": "Build marker of the legacy JSON-LD injection; the JSON-LD graph itself is compared. The legacy build emits no JSON-LD on 404."
+    }
+  ]
+}

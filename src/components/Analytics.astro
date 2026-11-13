@@ -1,0 +1,30 @@
+---
+// Top.Mail.Ru, Yandex Metrika and Google Tag Manager, production only.
+// placement="head" renders the GTM loader (in the page's own comment style)
+// followed by the counters; placement="body" renders the GTM noscript frame at
+// the exact spot the legacy page had it. Staging and development render nothing.
+// The snippets are raw legacy markup: comments inside component children are
+// dropped by the Astro compiler, so they are emitted through set:html.
+import { type GtmStyle, wrapGtm } from '../lib/analytics';
+import { buildMode } from '../lib/site';
+import countersHead from './analytics/counters-head.html?raw';
+import gtmBodyNoscript from './analytics/gtm-body.html?raw';
+import gtmHeadScript from './analytics/gtm-head.html?raw';
+
+interface Props {
+  placement: 'head' | 'body';
+  gtm?: GtmStyle;
+}
+
+const { placement, gtm = 'commented' } = Astro.props;
+
+let html = '';
+if (buildMode() === 'production') {
+  if (placement === 'head') {
+    html = `${gtm ? `${wrapGtm(gtm, gtmHeadScript, '')}\n` : ''}${countersHead}`;
+  } else if (gtm) {
+    html = wrapGtm(gtm, gtmBodyNoscript, ' (noscript)');
+  }
+}
+---
+<Fragment set:html={html} />

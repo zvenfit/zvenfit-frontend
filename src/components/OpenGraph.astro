@@ -1,0 +1,30 @@
+---
+// Open Graph and Twitter tags derived from the page meta, in the legacy order.
+// `skip` lists properties the page already carries itself (the club card has
+// its own og:image and twitter:image).
+interface Props {
+  title: string;
+  description: string;
+  url: string;
+  image?: string;
+  siteName?: string;
+  skip?: string[];
+}
+
+const { title, description, url, image, siteName, skip = [] } = Astro.props;
+const skipped = new Set(skip);
+const tags: Array<[string, string | undefined]> = [
+  ['og:title', title],
+  ['og:description', description],
+  ['og:url', url],
+  ['og:type', 'website'],
+  ['og:locale', 'ru_RU'],
+  ['og:site_name', siteName],
+  ['og:image', image],
+  ['twitter:card', 'summary'],
+  ['twitter:title', title],
+  ['twitter:description', description],
+];
+const rendered = tags.filter(([property, content]) => content && !skipped.has(property));
+---
+{rendered.map(([property, content]) => <meta property={property} content={content} />)}

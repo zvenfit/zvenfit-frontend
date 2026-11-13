@@ -1,0 +1,7 @@
+---
+// The Webflow logo embeds of the site menus (desktop and compact variants).
+// The markup is byte-exact from the legacy export and rendered raw: the SVG
+// keeps its lowercase `viewbox` attribute, which Astro's SVG typings reject.
+import markup from './logo-embeds.html?raw';
+---
+<Fragment set:html={markup} />

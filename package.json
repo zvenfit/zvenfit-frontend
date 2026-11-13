@@ -7,9 +7,11 @@
     "dev:watch": "npm run build:functions && NODE_ENV=development concurrently -k \"node mock-server.js\" \"node scripts/watch-static.cjs\" \"serve dist -l 4173\" --names \"API,BUILD,WEB\" --prefix-colors \"cyan,yellow,green\"",
     "dev:mock": "npm run build:functions && node mock-server.js",
     "dev:full": "npm run dev:watch",
-    "build": "node scripts/build-static.cjs",
+    "dev:astro": "npm run build:functions && ASTRO_TELEMETRY_DISABLED=1 concurrently -k \"node mock-server.js\" \"astro dev --mode development --port 4173\" --names \"API,WEB\" --prefix-colors \"cyan,green\"",
+    "build": "MODE=${NODE_ENV:-production}; ASTRO_TELEMETRY_DISABLED=1 NODE_ENV=production astro build --mode \"$MODE\"",
+    "check": "ASTRO_TELEMETRY_DISABLED=1 astro check",
     "build:functions": "npm --prefix functions/lead-intake run build && npm --prefix functions/fitbase-schedule run build && npm --prefix functions/fitbase-schedule run build:staging && npm --prefix functions/site-traffic run build && npm --prefix functions/staging-authorizer run build",
-    "lint": "eslint \"public/js/**/*.js\" \"functions/*/src/**/*.ts\" \"functions/*/src/__tests__/*.cjs\" --no-error-on-unmatched-pattern",
+    "lint": "eslint \"public/js/**/*.js\" \"src/**/*.{js,ts,astro}\" astro.config.mjs \"functions/*/src/**/*.ts\" \"functions/*/src/__tests__/*.cjs\" --no-error-on-unmatched-pattern",
     "lint:fix": "npm run lint -- --fix",
     "import:leads": "npm --prefix functions/lead-intake run build && node scripts/import-leads.cjs",
     "test:lead-fn": "npm --prefix functions/lead-intake test",
@@ -21,9 +23,10 @@
     "test:lead-import": "node --test scripts/__tests__/import-leads.test.cjs",
     "test:monitoring": "node --test scripts/__tests__/monitoring-config.test.cjs scripts/__tests__/monitoring-drift.test.cjs",
     "check:monitoring-drift": "node scripts/check-monitoring-drift.cjs",
-    "test:layout": "node --test scripts/__tests__/webflow-layout.test.cjs && node scripts/check-webflow-layout.cjs",
-    "test:build": "node scripts/check-webflow-layout.cjs && node scripts/build-static.cjs && node scripts/check-routes.cjs && node scripts/check-build.cjs",
-    "test:build:staging": "node scripts/test-staging-build.cjs",
+    "test:build": "npm run check && npm run build && node scripts/check-routes.cjs --source astro --profile a1 && node scripts/check-build.cjs --profile a1",
+    "test:build:staging": "node scripts/test-staging-build.cjs --profile a1",
+    "compare:dist": "node scripts/compare-dist.cjs",
+    "maps:snapshot": "node scripts/snapshot-map-photos.cjs",
     "smoke:production": "node scripts/smoke-production.cjs",
     "deploy:yc": "aws s3 sync ./dist \"s3://${YC_S3_BUCKET:-zvenfit-frontend}\" --exclude \"*.html\" --exclude \"robots.txt\" --exclude \"sitemap.xml\" --exclude \"js/*-config.js\" --cache-control \"public, max-age=31536000, immutable\" --metadata-directive REPLACE --endpoint-url https://storage.yandexcloud.net --region ru-1 && aws s3 sync ./dist \"s3://${YC_S3_BUCKET:-zvenfit-frontend}\" --delete --exclude \"*\" --include \"robots.txt\" --include \"sitemap.xml\" --cache-control \"no-cache, must-revalidate\" --metadata-directive REPLACE --endpoint-url https://storage.yandexcloud.net --region ru-1 && aws s3 sync ./dist \"s3://${YC_S3_BUCKET:-zvenfit-frontend}\" --delete --exclude \"*\" --include \"js/*-config.js\" --cache-control \"no-cache, must-revalidate\" --metadata-directive REPLACE --endpoint-url https://storage.yandexcloud.net --region ru-1 && aws s3 sync ./dist \"s3://${YC_S3_BUCKET:-zvenfit-frontend}\" --delete --exclude \"*\" --include \"*.html\" --cache-control \"no-cache, must-revalidate\" --metadata-directive REPLACE --endpoint-url https://storage.yandexcloud.net --region ru-1",
     "deploy:lead-fn": "bash scripts/deploy-lead-intake.sh",
@@ -31,17 +34,25 @@
     "deploy:traffic-fn": "bash scripts/deploy-site-traffic.sh"
   },
   "devDependencies": {
+    "@astrojs/check": "0.9.12",
     "@typescript-eslint/eslint-plugin": "^7.18.0",
     "@typescript-eslint/parser": "^7.18.0",
+    "astro": "7.4.2",
     "clean-css": "^5.3.3",
     "concurrently": "^9.2.1",
     "eslint": "^8.57.1",
     "eslint-config-prettier": "^9.1.0",
     "eslint-import-resolver-typescript": "^3.10.1",
+    "eslint-plugin-astro": "1.7.0",
     "eslint-plugin-import": "^2.31.0",
     "eslint-plugin-prettier": "^5.2.1",
+    "parse5": "8.0.1",
     "prettier": "^3.4.2",
+    "prettier-plugin-astro": "1.1.2",
     "serve": "^14.2.4",
     "typescript": "^5.7.2"
+  },
+  "engines": {
+    "node": ">=22.23.4"
   }
 }
