@@ -1,7 +1,8 @@
 // JSON-LD graph per page. A faithful port of the legacy build-static.cjs
 // generator: same node order, same identifiers, same conditions. Release A
-// keeps the data in scripts/structured-data.config.json (frozen with the
-// legacy build); the trainers block moves to the content collection in A2a.
+// keeps the site data in scripts/structured-data.config.json (frozen with the
+// legacy build until A2b). Trainers come from the content collection: the
+// caller passes them in, and the `trainers` block of the config is not read.
 import {
   appendPromosStructuredData,
   buildBreadcrumbList,
@@ -13,7 +14,7 @@ import {
 } from './structured-data-nodes';
 import config from '../../scripts/structured-data.config.json';
 
-import type { JsonLd, PageMeta, StructuredDataConfig } from './structured-data-types';
+import type { JsonLd, PageMeta, StructuredDataConfig, TrainerConfig } from './structured-data-types';
 
 export { resolveStructuredDataUrl } from './structured-data-nodes';
 export type { LocationConfig, PageMeta, StructuredDataConfig } from './structured-data-types';
@@ -25,6 +26,7 @@ const FULL_GRAPH_PAGES = new Set(['/', '/contacts/platforms/']);
 export function buildStructuredData(
   pagePath: string,
   meta: PageMeta,
+  trainers: Record<string, TrainerConfig>,
   cfg: StructuredDataConfig = structuredDataConfig,
 ): JsonLd | null {
   if (pagePath === '/404.html') {
@@ -73,7 +75,7 @@ export function buildStructuredData(
   }
 
   const trainerMatch = pagePath.match(/^\/trenery\/(trener-[^/]+)\/$/);
-  const trainer = trainerMatch ? cfg.trainers?.[trainerMatch[1] as string] : undefined;
+  const trainer = trainerMatch ? trainers[trainerMatch[1] as string] : undefined;
   if (trainer) {
     const locationKey = trainer.location || 'chekhova';
     const location = cfg.locations[locationKey];
@@ -100,7 +102,7 @@ export function buildStructuredData(
   graph.push(
     buildWebPageNode(pagePath, siteUrl, meta, { mainEntity, includeAbout: pagePath === '/contacts/platforms/' }),
   );
-  const breadcrumb = buildBreadcrumbList(pagePath, siteUrl, cfg);
+  const breadcrumb = buildBreadcrumbList(pagePath, siteUrl, cfg, trainers);
   if (breadcrumb) {
     graph.push(breadcrumb);
   }

@@ -1,6 +1,8 @@
 ---
 // JSON-LD graph for the page; the legacy generator is ported in src/lib.
+// Trainers (Person nodes and breadcrumb labels) come from the content collection.
 import { buildStructuredData } from '../lib/structured-data';
+import { trainerProfiles } from '../lib/trainers';
 
 interface Props {
   pagePath: string;
@@ -9,7 +11,7 @@ interface Props {
 }
 
 const { pagePath, title, description } = Astro.props;
-const payload = buildStructuredData(pagePath, { title, description });
+const payload = buildStructuredData(pagePath, { title, description }, await trainerProfiles());
 const json = payload ? `\n${JSON.stringify(payload, null, 2)}\n` : '';
 ---
 {payload && <script type="application/ld+json" is:inline set:html={json}></script>}

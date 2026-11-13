@@ -1,10 +1,12 @@
 import { SITE_URL } from '../lib/site';
+import { trainerSitemapEntries } from '../lib/trainers';
 
 import type { APIRoute } from 'astro';
 
 // Every static page exports `sitemap = { updated, changefreq, priority }` with
 // the values of the legacy hand-written sitemap. 404 is never indexable and the
-// trainer pages come from the content collection (A2a).
+// trainer pages come from the content collection (`updated` and `sitemap` of
+// each entry).
 export interface SitemapEntry {
   updated: string;
   changefreq: string;
@@ -13,10 +15,13 @@ export interface SitemapEntry {
 
 const CHANGEFREQ = new Set(['always', 'hourly', 'daily', 'weekly', 'monthly', 'yearly', 'never']);
 
-const pages = import.meta.glob<{ sitemap?: SitemapEntry }>(
-  ['./**/*.astro', '!./404.astro', '!./trenery/[slug].astro', '!./**/_*', '!./**/_*/**'],
+const modules = import.meta.glob<{ sitemap?: SitemapEntry }>(
+  ['./**/*.astro', '!./404.astro', '!./**/_*', '!./**/_*/**'],
   { eager: true },
 );
+// Dynamic routes ([slug].astro) are filtered here: square brackets in a glob
+// are a character class, so a negative pattern with the file name matches nothing.
+const pages = Object.fromEntries(Object.entries(modules).filter(([file]) => !/\[[^\]]+\]/.test(file)));
 
 function routeFor(file: string): string {
   const stem = file.replace(/^\.\//, '').replace(/\.astro$/, '');
@@ -48,10 +53,15 @@ function escapeXml(value: string): string {
   return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
-export const GET: APIRoute = () => {
-  const entries = Object.entries(pages)
-    .map(([file, module]) => ({ loc: `${SITE_URL}${routeFor(file)}`, ...validate(file, module.sitemap) }))
-    .sort((a, b) => a.loc.localeCompare(b.loc));
+export const GET: APIRoute = async () => {
+  const trainers = await trainerSitemapEntries();
+  const entries = [
+    ...Object.entries(pages).map(([file, module]) => ({
+      loc: `${SITE_URL}${routeFor(file)}`,
+      ...validate(file, module.sitemap),
+    })),
+    ...trainers.map(({ route, ...entry }) => ({ loc: `${SITE_URL}${route}`, ...validate(route, entry) })),
+  ].sort((a, b) => a.loc.localeCompare(b.loc));
   const urls = entries
     .map(
       entry =>

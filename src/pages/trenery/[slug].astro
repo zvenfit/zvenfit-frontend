@@ -1,0 +1,90 @@
+---
+// One template for every trainer page; the data lives in the `trainers`
+// collection (src/content/trainers/<slug>.json, schema in src/content.config.ts).
+// The six Webflow node ids are constants of this template with the page's own
+// suffix. Whitespace between the nodes reproduces the legacy pages (release A
+// parity): where the legacy pages differ from each other in markup rather than
+// in content, the entry says so in its `legacy` block.
+import { getCollection } from 'astro:content';
+
+import Analytics from '../../components/Analytics.astro';
+import Menu from '../../components/Menu.astro';
+import Base from '../../layouts/Base.astro';
+import { WEBFLOW_SITE_ID } from '../../lib/site';
+import { TRAINER_NODES } from '../../lib/trainers';
+
+import type { CollectionEntry } from 'astro:content';
+import type { GetStaticPaths } from 'astro';
+
+export const getStaticPaths = (async () => {
+  const entries = await getCollection('trainers');
+  const slugs = new Set(entries.map(entry => entry.id));
+  for (const entry of entries) {
+    if (!slugs.has(entry.data.nextSlug)) {
+      throw new Error(`trainers: ${entry.id} points at the missing next trainer "${entry.data.nextSlug}"`);
+    }
+  }
+
+  return entries.map(entry => ({ params: { slug: entry.id }, props: { trainer: entry.data } }));
+}) satisfies GetStaticPaths;
+
+interface Props {
+  trainer: CollectionEntry<'trainers'>['data'];
+}
+
+const { trainer } = Astro.props;
+const legacy = trainer.legacy;
+const suffix = trainer.wfPage.slice(-8);
+const node = (name: keyof typeof TRAINER_NODES) => `${TRAINER_NODES[name]}-${suffix}`;
+const photoModifier = trainer.photoClass ? ` ${trainer.photoClass}` : '';
+const gtm = legacy?.gtm ?? 'commented';
+const handwritten = legacy?.markup === 'handwritten';
+const ctaLabel = `записаться к${legacy?.ctaRegularSpace ? ' ' : '\u00a0'}${trainer.nameDative}`;
+const certificates = trainer.certificates ?? [];
+const certificateLinkLabel = legacy?.certificateLinkRel ? undefined : 'Посмотреть документ';
+// Legacy whitespace between the generated nodes. Directly inside a component's
+// children the compiler drops whitespace that follows an expression, so after
+// the first conditional block of the page every gap is an expression itself.
+const line = (indent: number) => `\n${' '.repeat(indent)}`;
+const card = (offset: number) => line((legacy?.certificateIndent ?? 6) + offset);
+const menuLead = handwritten ? '\n  \n  ' : '\n  ';
+const gtmGap = '\n\n  ';
+const backButton = `
+document.addEventListener("DOMContentLoaded", function() {
+  document.querySelectorAll('[data-back]').forEach(function(btn) {
+    btn.addEventListener('click', function(e) {
+      e.preventDefault();
+      if (history.length <= 1) {
+        window.location.pathname = '${legacy?.backFallbackPath ?? '/'}';
+      } else {
+        history.back();
+      }
+    });
+  });
+});
+`;
+---
+<Base title={trainer.meta.title} description={trainer.meta.description} wfPage={trainer.wfPage} wfSite={WEBFLOW_SITE_ID} webflowComments={legacy?.webflowComments} gtm={gtm}>
+  <div class="grain-overlay">
+    </div>{menuLead}<Menu variant="coach" nextSlug={trainer.nextSlug} wNode={{ back: node('back'), next: node('next') }} />
+  <section>
+    <div class={`photo_coach${photoModifier}`}></div>
+    <div class="card_grid">
+      <div id={node('card')} class="div-block-12">
+        <h2 class="heading-page" set:html={trainer.headingHtml} />
+        <h3 class="text-block" set:html={trainer.roleHtml} />
+      </div>
+      <a id={node('cta')} data-w-id="980bac73-2f9d-6ef2-62fc-7ca3af7945ed" href="/forma-dlya-zayavki/" target="_blank" class="button coach w-button" aria-label="Записаться к тренеру">{ctaLabel}</a>
+    </div>
+  </section>
+  <div class="divider"></div>
+  <section class="card_grid">
+    <div id={node('photo')} class={`photo_coach_mini${photoModifier}`}></div>
+    <ul id={node('list')} role="list" class="list">{trainer.groups.map((group, index) => (<Fragment>{line(6)}<li class={index === 0 ? 'heading-3 space' : 'heading-3 _1'}>{group.heading}</li>{group.itemsHtml.map(item => (<Fragment>{line(6)}<li class="body_txt" set:html={item} /></Fragment>))}</Fragment>))}
+    </ul>
+  </section>{trainer.certificatesSectionEmpty && (<Fragment>{line(2)}<section class="section-2"></section></Fragment>)}{line(2)}<div class="divider"></div>{certificates.length > 0 && (<Fragment>{line(2)}<section class="section-2">
+    <h3 class="heading-3">Сертификаты</h3>
+    <div class="card_grid">{certificates.map(item => (<Fragment>{card(0)}<div id={item.wNode} class="cat_card areas">{card(2)}<div class="text_categ">{card(4)}<h3 class="text-block">{item.title}</h3>{card(4)}<p class="body_txt">{item.plainDescription ? <Fragment set:html={item.descriptionHtml} /> : <strong class="bold-text-2" set:html={item.descriptionHtml} />}</p>{card(2)}</div>{card(2)}<a href={item.href} target="_blank" aria-label={certificateLinkLabel} rel={legacy?.certificateLinkRel} class="button areas w-button">посмотреть</a>{card(0)}</div></Fragment>))}
+    </div>
+  </section>
+  <div class="divider"></div></Fragment>)}{handwritten && (<Fragment>{line(2)}<Analytics placement="body" gtm={gtm} />{gtmGap}</Fragment>)}{!handwritten && line(2)}<Fragment slot="scripts">{!handwritten && (<Fragment>{gtm === 'bare' && line(2)}<Analytics placement="body" gtm={gtm} /></Fragment>)}{line(2)}<script is:inline set:html={backButton}></script>{line(0)}</Fragment></Base>
