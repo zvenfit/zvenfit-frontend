@@ -11,3 +11,18 @@ export function wrapGtm(style: Exclude<GtmStyle, false>, inner: string, label: s
 
   return `<!--${pad}Google Tag Manager${label}${pad}-->\n  ${inner}\n  <!--${pad}End Google Tag Manager${label}${pad}-->`;
 }
+
+// The club card page gave its GTM noscript frame a title; every other page has none.
+export function withFrameTitle(noscript: string, title?: string): string {
+  if (!title) {
+    return noscript;
+  }
+  const marker = '></iframe>';
+  if (!noscript.includes(marker)) {
+    throw new Error('analytics: the GTM noscript snippet has no iframe to title');
+  }
+
+  const escaped = title.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+
+  return noscript.replace(marker, ` title="${escaped}"${marker}`);
+}

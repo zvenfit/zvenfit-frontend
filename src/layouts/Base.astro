@@ -13,7 +13,7 @@ import StructuredData from '../components/StructuredData.astro';
 import TrafficBeacon from '../components/TrafficBeacon.astro';
 import UtmHead from '../components/UtmHead.astro';
 import WebflowRuntime from '../components/WebflowRuntime.astro';
-import { SITE_URL, buildMode } from '../lib/site';
+import { SITE_URL, buildMode, pagePathFromUrl } from '../lib/site';
 import { resolveStructuredDataUrl, structuredDataConfig } from '../lib/structured-data';
 import analyticsEvents from '../scripts/analytics.js?url';
 import siteCss from '../styles/zvenfit.webflow.css?url';
@@ -62,7 +62,7 @@ const {
 } = Astro.props;
 
 const mode = buildMode();
-const pagePath = Astro.url.pathname;
+const pagePath = pagePathFromUrl(Astro.url);
 const pageUrl = canonical ?? `${SITE_URL}${pagePath}`;
 const siteUrl = structuredDataConfig.siteUrl.replace(/\/$/, '');
 const ogImageUrl =
@@ -76,6 +76,7 @@ const tailGap = '\n  ';
 <html lang="ru" data-wf-page={wfPage} data-wf-site={wfSite} data-zvenfit-page={zvenfitPage}>
 <head>
   <meta charset="utf-8">
+  <slot name="head-start" />
   <title>{title}</title>
   <meta name="description" content={description}>
   {mode !== 'staging' && robots && <meta name="robots" content={robots} />}

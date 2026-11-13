@@ -1,7 +1,25 @@
 ---
-// The Webflow logo embeds of the site menus (desktop and compact variants).
+// The Webflow logo embeds of the site menus. Without props it renders the pair
+// of the `plain` menu (compact and full logo); `single` renders only the full
+// logo inside a wrapper with the given classes, as the `service` menu does.
 // The markup is byte-exact from the legacy export and rendered raw: the SVG
 // keeps its lowercase `viewbox` attribute, which Astro's SVG typings reject.
 import markup from './logo-embeds.html?raw';
+
+interface Props {
+  /** Wrapper classes of the single full logo, e.g. "code-embed-3 w-embed". */
+  single?: string;
+}
+
+const { single } = Astro.props;
+
+let html = markup;
+if (single !== undefined) {
+  const full = markup.match(/<div class="code-embed-6 w-embed">(<svg[\s\S]*<\/svg>)<\/div>$/)?.[1];
+  if (!full || !/^[\w -]+$/.test(single)) {
+    throw new Error(`LogoEmbeds: cannot render the single logo with wrapper classes "${single}"`);
+  }
+  html = `<div class="${single}">${full}</div>`;
+}
 ---
-<Fragment set:html={markup} />
+<Fragment set:html={html} />

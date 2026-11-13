@@ -1,28 +1,46 @@
 ---
-// Webflow footer pair: section-4 (desktop) and section-3 (mobile) with the
-// runtime map region and the app badges. Release A1 implements the Chekhova
-// location used by the legal pages and the lead form; the Nakhabinskoe
-// location, the footer grid of the home page and the schedule footer follow in
-// A2a with their pages. The newline between the two sections is part of the
-// legacy markup.
+// Site footer: the Webflow pair section-4 (desktop) and section-3 (mobile).
+// What differs between the legacy pages comes from the page:
+//   location        — the club of the text block: Chekhova, or Nakhabinskoe on
+//                     the group-training page;
+//   withGrid        — the block with both clubs (home, 404, platforms, schedule)
+//                     instead of one club's text block;
+//   withMobile      — the schedule page has no mobile section;
+//   withMap         — the schedule page has no map;
+//   badges          — the app badges of the legacy build markers;
+//   anchorId, mobileAnchorId — `id` of each section, only where the page had it.
+// The newline between the two sections is part of the legacy markup.
 import FooterDesktop from './FooterDesktop.astro';
 import FooterMobile from './FooterMobile.astro';
 
+import type { FooterLocation } from '../lib/footer';
+
 interface Props {
-  location: 'chekhova' | 'nahabinskoe-shosse';
+  location?: FooterLocation;
+  withGrid?: boolean;
   withMobile?: boolean;
   withMap?: boolean;
   badges?: boolean;
+  anchorId?: string;
+  mobileAnchorId?: string;
 }
 
-const { location, withMobile = true, withMap = true, badges = true } = Astro.props;
-if (location !== 'chekhova') {
-  throw new Error(`Footer: location "${location}" is converted in A2a`);
+const {
+  location = 'chekhova',
+  withGrid = false,
+  withMobile = true,
+  withMap = true,
+  badges = true,
+  anchorId,
+  mobileAnchorId,
+} = Astro.props;
+if (withMobile && !withMap) {
+  throw new Error('Footer: the mobile section always carries the map; pass withMobile={false} with withMap={false}');
 }
-if (!withMap) {
-  throw new Error('Footer: the variant without a map is converted in A2a');
+if (!withMobile && mobileAnchorId) {
+  throw new Error('Footer: mobileAnchorId needs the mobile section');
 }
 // Legacy whitespace between the desktop and the mobile section.
 const gap = '\n  ';
 ---
-<FooterDesktop badges={badges} />{withMobile && (<Fragment>{gap}<FooterMobile badges={badges} /></Fragment>)}
+<FooterDesktop location={location} withGrid={withGrid} withMap={withMap} badges={badges} anchorId={anchorId} />{withMobile && (<Fragment>{gap}<FooterMobile location={location} withGrid={withGrid} badges={badges} anchorId={mobileAnchorId} /></Fragment>)}
