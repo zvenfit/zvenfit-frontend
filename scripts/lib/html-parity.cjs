@@ -8,6 +8,13 @@
 // Whitespace is significant except where a rule says it is not:
 //   W1  whitespace-only text directly inside <head>, <html> or the document;
 //   W2  a whitespace-only text node that is the last child of <body>.
+// The comparison of build modes (production against staging of one candidate)
+// has two more rules for the whitespace around a removed analytics block:
+//   M1  a whitespace-only text node after a removed node is dropped unless
+//       staging carries the same text there;
+//   M2  when whitespace-only text stands before the removed block as well, the
+//       two neighbours are one text node on staging, and it must be exactly
+//       the text before the block followed by the text after it.
 // URLs of own assets are mapped through an explicit table (legacy /js and /css
 // paths with ?v= versus hashed /_astro/ files, config endpoints without ?v=);
 // everything else is compared literally. Inline scripts are compared byte for
@@ -198,6 +205,36 @@ class Comparison {
     return parentName === 'body' && isLast;
   }
 
+  // Rule M2. Returns how many analytics nodes follow the whitespace text at
+  // `index` and where the comparison continues, or null when the rule does not
+  // apply: the staging text must equal the text before the removed block plus
+  // the whitespace-only text right after it.
+  mergedAroundRemoval(baseKids, index, candidateNode) {
+    const before = baseKids[index];
+    if (!this.modeRules || !before || !isWhitespaceText(before) || candidateNode?.nodeName !== '#text') {
+      return null;
+    }
+    let removed = 0;
+    let last = index;
+    for (let k = index + 1; k < baseKids.length; k += 1) {
+      if (this.modeRules.removable(baseKids[k])) {
+        removed += 1;
+        last = k;
+      } else if (!(isWhitespaceText(baseKids[k]) && baseKids[k + 1] && this.modeRules.removable(baseKids[k + 1]))) {
+        break;
+      }
+    }
+    if (removed === 0) {
+      return null;
+    }
+    const trailing = baseKids[last + 1];
+    const after = trailing && isWhitespaceText(trailing) ? trailing.value : '';
+    if (candidateNode.value === before.value || candidateNode.value !== before.value + after) {
+      return null;
+    }
+    return { removed, next: last + (after ? 2 : 1) };
+  }
+
   compareChildren(base, candidate, parentName) {
     const baseKids = base.childNodes || [];
     const candidateKids = candidate.childNodes || [];
@@ -212,6 +249,15 @@ class Comparison {
         continue;
       }
       if (c && this.ignorable(c, parentName, j === candidateKids.length - 1)) {
+        j += 1;
+        continue;
+      }
+      const merged = this.mergedAroundRemoval(baseKids, i, c);
+      if (merged) {
+        this.modeCounts.analyticsRemoved += merged.removed;
+        this.nodes += 1;
+        justRemoved = false;
+        i = merged.next;
         j += 1;
         continue;
       }

@@ -149,6 +149,27 @@ test('staging mode rejects missing or wrong robots meta, surviving analytics and
   );
 });
 
+test('whitespace before a removed analytics block merges with the whitespace after it, and only exactly', () => {
+  const head = `\n  ${ANALYTICS_HEAD}`;
+  const robots = '\n  <meta name="robots" content="noindex, nofollow">';
+  // GTM frame in the page body before the runtime scripts, followed by a blank line.
+  const production = page({ head, body: `\n  ${ANALYTICS_BODY}\n\n  <script>x()</script>\n` });
+  const merged = modes(production, page({ head: robots, body: '\n  \n\n  <script>x()</script>\n' }));
+  assert.deepEqual(merged.errors, []);
+  assert.equal(merged.counts.analyticsRemoved, 14);
+  assert.deepEqual(modes(production, page({ head: robots, body: '\n  <script>x()</script>\n' })).errors, []);
+  assert.match(modes(production, page({ head: robots, body: '\n\n\n  <script>x()</script>\n' })).errors[0], /node mismatch inside <body>/);
+  assert.match(modes(production, page({ head: robots, body: '\n  \n\n  <p>new</p><script>x()</script>\n' })).errors[0], /node mismatch inside <body>/);
+  // A bare frame between two scripts.
+  const frame = '<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-1"></iframe></noscript>';
+  const bare = page({ head, body: `\n  <script>a()</script>\n  ${frame}\n<script>b()</script>\n` });
+  assert.deepEqual(modes(bare, page({ head: robots, body: '\n  <script>a()</script>\n  \n<script>b()</script>\n' })).errors, []);
+  assert.match(modes(bare, page({ head: robots, body: '\n  <script>a()</script> <script>b()</script>\n' })).errors[0], /node mismatch inside <body>/);
+  // Without an analytics block in between, whitespace stays significant.
+  const plain = page({ head, body: '\n  <script>a()</script>\n  <script>b()</script>\n' });
+  assert.match(modes(plain, page({ head: robots, body: '\n  <script>a()</script>\n  \n<script>b()</script>\n' })).errors[0], /node mismatch inside <body>/);
+});
+
 test('config assignments, sitemap entries and internal links are extracted', () => {
   const assignments = parseConfigAssignments("// comment\nwindow.ZVENFIT_LEAD_API = 'https://a.test/lead';\n");
   assert.deepEqual([...assignments], [['ZVENFIT_LEAD_API', 'https://a.test/lead']]);
