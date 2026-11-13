@@ -1,0 +1,96 @@
+---
+import Analytics from '../../../components/Analytics.astro';
+import AppDownloadPlatforms from '../../../components/AppDownloadPlatforms.astro';
+import Footer from '../../../components/Footer.astro';
+import Menu from '../../../components/Menu.astro';
+import Base from '../../../layouts/Base.astro';
+
+export const sitemap = { updated: '2026-05-17', changefreq: 'monthly', priority: '0.75' };
+---
+<Base title="Где нас найти? — ZvenFit Звенигород | карты и мессенджеры" description="ZvenFit на Яндекс и Google картах, в 2ГИС, ВКонтакте, Telegram, WhatsApp и MAX. Фитнес-клуб на Чехова 13А и женская студия на Нахабинском шоссе 7А." gtm="bare" hasMaps>
+  <div class="grain-overlay"></div>
+  <Menu variant="plain" secondary={{"label":"оставить заявку","href":"/forma-dlya-zayavki/","block":4}} />
+  <div data-hover="false" data-delay="0" class="dropdown2 w-dropdown">
+    <div class="dropdown-toggle w-dropdown-toggle">
+      <div class="icon-5 w-icon-dropdown-toggle"></div>
+      <div class="text-block-2">меню</div>
+    </div>
+    <nav class="dropdown-list w-dropdown-list">
+      <a href="/forma-dlya-zayavki/" class="dropdown-link w-dropdown-link">Оставить заявку</a>
+      <a href="#contacts" class="dropdown-link w-dropdown-link">Контакты</a>
+      <a href="/" class="dropdown-link w-dropdown-link">На главную</a>
+    </nav>
+  </div>
+  <section>
+    <div class="cover_text">
+      <h1 class="h1-page">Где нас <span class="text-span-3">найти?</span></h1>
+      <p class="p1 left">Оставляйте отзывы, приходите к нам — здесь рады каждому ❤️ Карты, мессенджеры и мобильное приложение в одном месте.</p>
+      <a href="/forma-dlya-zayavki/" class="button page w-button">оставить заявку</a>
+    </div>
+  </section>
+  <div class="divider"></div>
+    <AppDownloadPlatforms />
+
+  <section id="platforms" class="card_grid">
+    <h2 class="heading-page">карты и <span class="text-span">соцсети</span></h2>
+    <div class="cat_card areas_page platforms-card--yandex">
+      <div class="text_categ">
+        <h3 class="text-block">Яндекс Карты</h3>
+        <p class="body_txt"><strong class="bold-text-2">Открыть клуб на Яндекс&nbsp;Картах — маршрут, фото и отзывы</strong></p>
+        <div class="platforms-card-links">
+          <a href="https://yandex.ru/maps/-/CDXxMBp-" target="_blank" rel="noopener noreferrer" class="platforms-card-links__link" aria-label="Открыть фитнес-клуб ZvenFit на Чехова 13А в Яндекс Картах">Фитнес-клуб · Чехова&nbsp;13А</a>
+          <a href="https://yandex.ru/maps/-/CTetMMlI" target="_blank" rel="noopener noreferrer" class="platforms-card-links__link" aria-label="Открыть женскую студию ZvenFit на Нахабинском шоссе 7А в Яндекс Картах">Женская студия · Нахабинское шоссе,&nbsp;7А</a>
+        </div>
+      </div>
+    </div>
+    <div class="cat_card areas_page">
+      <div class="text_categ">
+        <h3 class="text-block">2ГИС</h3>
+        <p class="body_txt"><strong class="bold-text-2">Карточка ZvenFit в&nbsp;2ГИС — как добраться и расписание</strong></p>
+      </div>
+      <a href="https://go.2gis.com/avjzt" target="_blank" rel="noopener noreferrer" class="button areas w-button" aria-label="Открыть ZvenFit в 2ГИС">перейти</a>
+    </div>
+    <div class="cat_card areas_page">
+      <div class="text_categ">
+        <h3 class="text-block">ВКонтакте</h3>
+        <p class="body_txt"><strong class="bold-text-2">Наша группа ВКонтакте — новости клуба и общение</strong></p>
+      </div>
+      <a href="https://vk.com/zvenfit" target="_blank" rel="noopener noreferrer" class="button areas w-button" aria-label="Открыть группу ZvenFit ВКонтакте">перейти</a>
+    </div>
+    <div class="cat_card areas_page">
+      <div class="text_categ">
+        <h3 class="text-block">Google Карты</h3>
+        <p class="body_txt"><strong class="bold-text-2">Мы на Google картах — маршрут, отзывы и точка для навигаторов</strong></p>
+      </div>
+      <a href="https://maps.app.goo.gl/A9Y2pihRDUKALhN96" target="_blank" rel="noopener noreferrer" class="button areas w-button" aria-label="Открыть ZvenFit в Google Картах">перейти</a>
+    </div>
+    <div class="cat_card areas_page">
+      <div class="text_categ">
+        <h3 class="text-block">Telegram</h3>
+        <p class="body_txt"><strong class="bold-text-2">Написать нам в Telegram — быстрые ответы и объявления</strong></p>
+      </div>
+      <a href="https://t.me/zvenfit" target="_blank" rel="noopener noreferrer" class="button areas w-button" aria-label="Открыть Telegram ZvenFit">перейти</a>
+    </div>
+    <div class="cat_card areas_page">
+      <div class="text_categ">
+        <h3 class="text-block">MAX</h3>
+        <p class="body_txt"><strong class="bold-text-2">Написать администратору в MAX — выберите свой клуб</strong></p>
+        <div class="platforms-card-links">
+          <a href="https://max.ru/u/f9LHodD0cOLshYZHRb8mtCUJ24j3xmGPbxoUjWkrPMQ-mLLVW5oSffAuWUA" target="_blank" rel="noopener noreferrer" class="platforms-card-links__link" aria-label="Написать в MAX фитнес-клуба ZvenFit на Чехова 13А">Фитнес-клуб · Чехова&nbsp;13А</a>
+          <a href="https://max.ru/u/f9LHodD0cOKxYlj8JiMiyhIXm9Oc4olk2yK0whp7ysUGrHXWY-X64succW0" target="_blank" rel="noopener noreferrer" class="platforms-card-links__link" aria-label="Написать в MAX женской студии ZvenFit на Нахабинском шоссе 7А">Женская студия · Нахабинское шоссе,&nbsp;7А</a>
+        </div>
+      </div>
+    </div>
+    <div class="cat_card areas_page">
+      <div class="text_categ">
+        <h3 class="text-block">WhatsApp</h3>
+        <p class="body_txt"><strong class="bold-text-2">Связаться с администрацией в WhatsApp по номеру клуба</strong></p>
+      </div>
+      <a href="https://wa.me/79253082323" target="_blank" rel="noopener noreferrer" class="button areas w-button" aria-label="Написать в WhatsApp ZvenFit">перейти</a>
+    </div>
+  </section>
+  <div class="divider"></div>
+  <Footer withGrid badges={false} anchorId="contacts" mobileAnchorId="contact" />
+  <Fragment slot="scripts">
+  <Analytics placement="body" gtm="bare" />
+</Fragment></Base>

@@ -1,0 +1,50 @@
+{
+  "wfPage": "69a51dc65b1d820bcfc99f78",
+  "name": "Артюх Ольга",
+  "nameDative": "ольге",
+  "jobTitle": "Персональный тренер",
+  "location": "chekhova",
+  "headingHtml": "Артюх Ольга",
+  "roleHtml": "Персональный тренер ",
+  "photoClass": "olga",
+  "groups": [
+    {
+      "heading": "Спортивные достижения:",
+      "itemsHtml": [
+        "Опыт работы тренером более 10 лет<br>",
+        "Окончила профессиональную школу бодибилдинга и фитнеса по специализации персональный тренер в\u00a0г. Москва"
+      ]
+    },
+    {
+      "heading": "Специализации:",
+      "itemsHtml": [
+        "Функциональный и силовой тренинг",
+        "Составление программ для снижения веса и улучшения композиции тела",
+        "Знания и направление в области спортивного питания",
+        "Составление программ для набора мышечной массы и снижению веса"
+      ]
+    }
+  ],
+  "certificates": [
+    {
+      "title": "Сертификат",
+      "descriptionHtml": "по программе &quot;Персональный тренер по\u00a0Фитнесу и\u00a0Бодибилдингу&quot;",
+      "href": "https://storage.yandexcloud.net/zvenfit/v2/documents/sertifikat-1-artyuh-olga.jpg"
+    }
+  ],
+  "nextSlug": "trener-anna",
+  "updated": "2026-05-13",
+  "sitemap": {
+    "changefreq": "monthly",
+    "priority": "0.6"
+  },
+  "meta": {
+    "title": "Тренер: Ольга",
+    "description": "Персональный тренер Ольга Артюх ZvenFit: функциональный тренинг, коррекция фигуры, женские программы. Профессиональный подход. Запись в Звенигороде ⭐"
+  },
+  "legacy": {
+    "markup": "webflow",
+    "webflowComments": "<!--  This site was created in Webflow. https://webflow.com  --><!--  Last Published: Sun Mar 22 2026 09:06:04 GMT+0000 (Coordinated Universal Time)  -->",
+    "ctaRegularSpace": true
+  }
+}

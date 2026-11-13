@@ -1,0 +1,45 @@
+{
+  "wfPage": "6a60429de92644b73b7b5673",
+  "name": "Маргарита Грибиниченко",
+  "nameDative": "маргарите",
+  "jobTitle": "Тренер групповых программ",
+  "location": "nahabinskoe-shosse",
+  "headingHtml": "Грибиниченко Маргарита Юрьевна",
+  "roleHtml": "персональный инструктор хатха-йоги и\u00a0тренер групповых программ<br>",
+  "photoClass": "margo",
+  "groups": [
+    {
+      "heading": "направления:",
+      "itemsHtml": [
+        "Хатха-йога",
+        "Женская йога",
+        "Дыхательные практики йоги",
+        "Йога-нидра",
+        "Персональные занятия"
+      ]
+    },
+    {
+      "heading": "образование:",
+      "itemsHtml": [
+        "Институт Восточных Методов Реабилитации г.Спб: Тренер, 2025г",
+        "Институт Восточных Методов Реабилитации г.Спб: Инструктор хатха-йоги, 2025г",
+        "Опыт личной практики свыше 20\u00a0лет",
+        "Стаж работы с\u00a02025\u00a0г"
+      ]
+    }
+  ],
+  "nextSlug": "trener-natalya-didenko",
+  "updated": "2026-08-01",
+  "sitemap": {
+    "changefreq": "monthly",
+    "priority": "0.6"
+  },
+  "meta": {
+    "title": "Тренер: Маргарита",
+    "description": "Тренер групповых программ ZvenFit Звенигород"
+  },
+  "legacy": {
+    "markup": "handwritten",
+    "webflowComments": "<!--  This site was created in Webflow. https://webflow.com  --><!--  Last Published: Sun Jul 26 2026 11:07:12 GMT+0000 (Coordinated Universal Time)  -->"
+  }
+}
