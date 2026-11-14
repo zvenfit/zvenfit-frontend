@@ -27,6 +27,17 @@ const FIXED_ENV = Object.freeze({
     TRAFFIC_API_URL: 'https://staging.zvenfit.ru/api/traffic',
   }),
 });
+// Everything the legacy build reads. The tree is frozen while the migration
+// branch is open: these paths change only through a hotfix on main, and the
+// base of the comparison is pinned to the commit that carries it.
+const LEGACY_INPUTS = Object.freeze([
+  'public',
+  'scripts/snippets',
+  'scripts/build-static.cjs',
+  'scripts/app-links.config.json',
+  'scripts/maps.config.json',
+  'scripts/structured-data.config.json',
+]);
 // Variables that must not leak from the developer shell into a build.
 const SCRUBBED_VARIABLES = ['LEAD_API_URL', 'SCHEDULE_API_URL', 'TRAFFIC_API_URL', 'ASSET_VERSION', 'Y_MAPS_API_KEY', 'NODE_ENV', 'MODE'];
 
@@ -51,6 +62,21 @@ function resolveSha(value, label) {
     throw new Error(`compare-dist: ${label} ${value} is not a commit in this repository (fetch it first)`);
   }
   return value;
+}
+
+// Legacy inputs that differ between the pinned base and the candidate. A
+// hotfix merged into the branch without pinning the new base, or a base pinned
+// without the merge, shows up here; without this the comparison stays green
+// while the Astro components keep the old text. Returns null when the
+// candidate no longer carries the legacy build (after it is removed).
+function legacyInputDrift(baseSha, candidateSha, { cwd = ROOT } = {}) {
+  try {
+    git(['cat-file', '-e', `${candidateSha}:scripts/build-static.cjs`], { cwd });
+  } catch {
+    return null;
+  }
+  const changed = git(['diff', '--name-only', baseSha, candidateSha, '--', ...LEGACY_INPUTS], { cwd });
+  return changed ? changed.split('\n') : [];
 }
 
 function readSnapshot(snapshotPath) {
@@ -199,12 +225,14 @@ function defaultWorkDir() {
 module.exports = {
   ASSET_VERSION,
   FIXED_ENV,
+  LEGACY_INPUTS,
   ROOT,
   assertCandidateSnapshot,
   buildAstro,
   buildLegacy,
   defaultWorkDir,
   install,
+  legacyInputDrift,
   prepareWorktree,
   readSnapshot,
   removeWorktree,
