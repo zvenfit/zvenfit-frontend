@@ -1,4 +1,4 @@
-// Shapes of scripts/structured-data.config.json and of the JSON-LD nodes.
+// Shapes of src/data/structured-data.config.json and of the JSON-LD nodes.
 
 export interface OpeningHours {
   dayOfWeek: string[];

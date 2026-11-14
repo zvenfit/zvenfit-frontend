@@ -20,7 +20,7 @@ const { getProfile } = require('./lib/parity-profile.cjs');
 
 const ROOT_DIR = path.join(__dirname, '..');
 const DEPLOY_CONFIG_PATH = path.join(__dirname, 'deploy.config.json');
-const STRUCTURED_DATA_PATH = path.join(__dirname, 'structured-data.config.json');
+const STRUCTURED_DATA_PATH = path.join(ROOT_DIR, 'src', 'data', 'structured-data.config.json');
 
 const REQUIRED_FILES = [
   'robots.txt',

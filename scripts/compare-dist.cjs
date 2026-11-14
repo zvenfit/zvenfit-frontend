@@ -213,6 +213,13 @@ function compareFileSets({ baseDist, candidateDist, pages, assets, report }) {
   report.check('the candidate ships no file without a counterpart in the base build', unexpected.length === 0, unexpected.join(', '));
 }
 
+// The legacy tree keeps its content configs in scripts/, an Astro tree in src/data/.
+function baseSiteUrl(baseDir, profile) {
+  const directory = profile.base === 'legacy' ? ['scripts'] : ['src', 'data'];
+  const config = JSON.parse(fs.readFileSync(path.join(baseDir, ...directory, 'structured-data.config.json'), 'utf8'));
+  return config.siteUrl.replace(/\/$/, '');
+}
+
 function compareProduction({ baseDir, baseDist, candidateDir, candidateDist, pages, inventory, profile, report }) {
   const allRules = loadAllowlist();
   const assets = parity.createAssetRegistry();
@@ -324,7 +331,7 @@ function compareProduction({ baseDir, baseDist, candidateDir, candidateDist, pag
 
   const baseSitemap = parity.readSitemap((readIfExists(path.join(baseDist, 'sitemap.xml')) || '').toString('utf8'));
   const candidateSitemap = parity.readSitemap((readIfExists(path.join(candidateDist, 'sitemap.xml')) || '').toString('utf8'));
-  const siteUrl = JSON.parse(fs.readFileSync(path.join(baseDir, 'scripts', 'structured-data.config.json'), 'utf8')).siteUrl.replace(/\/$/, '');
+  const siteUrl = baseSiteUrl(baseDir, profile);
   const expectedUrls = pages.filter(route => route !== '404.html').map(route => `${siteUrl}${pageToRoute(route)}`).sort();
   const sitemapErrors = [];
   for (const url of expectedUrls) {
@@ -476,7 +483,7 @@ function run(argv = process.argv.slice(2)) {
   return report;
 }
 
-module.exports = { Report, checkLegacyInputs, compareFileSets, compareProduction, compareStaging, inventoryFromGit, parseArguments };
+module.exports = { Report, baseSiteUrl, checkLegacyInputs, compareFileSets, compareProduction, compareStaging, inventoryFromGit, parseArguments };
 
 if (require.main === module) {
   try {

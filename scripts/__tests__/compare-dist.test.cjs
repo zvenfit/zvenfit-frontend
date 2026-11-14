@@ -7,7 +7,7 @@ const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
 
-const { Report, checkLegacyInputs, compareProduction, compareStaging, parseArguments } = require('../compare-dist.cjs');
+const { Report, baseSiteUrl, checkLegacyInputs, compareProduction, compareStaging, parseArguments } = require('../compare-dist.cjs');
 const { getProfile } = require('../lib/parity-profile.cjs');
 const { LEGACY_INPUTS, legacyInputDrift, readSnapshot, resolveSha } = require('../lib/parity-harness.cjs');
 
@@ -268,6 +268,14 @@ test('the staging comparison accepts exactly the documented mode differences', (
   compareStaging({ candidateProduction: production, candidateStaging: staging, pages: ['offer/index.html'], report: failing });
   assert.ok(failing.errors.some(error => /robots\.txt is byte-exact/.test(error)), failing.render());
   assert.ok(failing.errors.some(error => /node mismatch/.test(error)), failing.render());
+});
+
+test('the site URL of the base is read where its kind of tree keeps the content configs', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'base-site-url-'));
+  write(root, 'scripts/structured-data.config.json', '{"siteUrl":"https://legacy.example/"}');
+  write(root, 'src/data/structured-data.config.json', '{"siteUrl":"https://astro.example"}');
+  assert.equal(baseSiteUrl(root, getProfile('a')), 'https://legacy.example');
+  assert.equal(baseSiteUrl(root, getProfile('b')), 'https://astro.example');
 });
 
 test('the committed allow-list only names routes of the profiles it applies to', () => {
