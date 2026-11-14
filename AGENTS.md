@@ -141,8 +141,12 @@ staging and production fail without a value); `js/maps-config.js.ts` combines
 `sitemap.xml.ts` collects `export const sitemap = { updated, changefreq,
 priority }` from every page and `updated`/`sitemap` of every trainer entry;
 `robots.txt.ts` serves
-`src/data/robots.production.txt` or the staging `Disallow: /`. Content configs
-stay in `scripts/*.config.json` until A2b moves them to `src/data/`.
+`src/data/robots.production.txt` or the staging `Disallow: /`;
+`js/vendor/imask-7.6.1.LICENSE.txt.ts` serves the MIT text of the vendored
+imask from `src/vendor/` at its legacy address (the minified file has no
+licence banner; `check-build` compares the built bytes with the source).
+Content configs stay in `scripts/*.config.json` until A2b moves them to
+`src/data/`.
 
 Compiler facts to respect (details in the plan, section 4): comments passed as
 component children are dropped, emit them via `set:html`; a raw `U+00A0` in a

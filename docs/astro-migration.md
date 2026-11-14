@@ -350,6 +350,7 @@ src/
   pages/                    40 страниц, 404.astro, sitemap.xml.ts, robots.txt.ts,
                             js/lead-config.js.ts, js/schedule-config.js.ts,
                             js/traffic-config.js.ts, js/maps-config.js.ts
+                            js/vendor/imask-7.6.1.LICENSE.txt.ts (текст из vendor/)
     trenery/[slug].astro    из коллекции
   content.config.ts         коллекция trainers (zod из astro/zod, раздел 7, A2)
   content/trainers/*.json   21 запись
@@ -587,6 +588,7 @@ scripts/__tests__/cleanup-bucket-assets.test.cjs   тесты очистки н�
 | JSON-LD из конфига | `StructuredData.astro`: те же данные, полный граф на `/` и `/contacts/platforms/`, `Person` 21 тренера из коллекции |
 | замена iframe карты | `MapRegion.astro` по `maps.config.json`; ключи страниц в прежней конвенции (`'/404.html'`, `'/contacts/platforms/'`) |
 | скрипты карт и трафика | layout по props `hasMaps`, `trackViews`; `traffic-config.js` всегда раньше бикона |
+| лицензия `imask` (`js/vendor/imask-7.6.1.LICENSE.txt`) копируется вместе с `public/` | эндпоинт `src/pages/js/vendor/imask-7.6.1.LICENSE.txt.ts` отдаёт текст из `src/vendor/` по прежнему адресу: в минифицированном файле баннера лицензии нет, а MIT требует текст вместе с копией; `check-build` сверяет байты `dist` с исходником |
 | `?v=ASSET_VERSION` для своих файлов | хэши в `_astro/` через `?url`; `?v=` остаётся только у бакетного `webflow.js` до релиза B |
 | минификация CSS | тот же clean-css level 2 после сборки (интеграция `zvenfit:site-css`), минификатор Vite выключен; байты `zvenfit.webflow.css` равны legacy; `klubnaya-karta.v1.css` импортируется на своей странице и выходит как исходник |
 | `js/*-config.js` с подстановкой URL | эндпоинты `src/pages/js/*-config.js.ts` с теми же путями и содержимым `window.ZVENFIT_* = '…'`; переменные читаются при сборке как есть; в `development` пустые значения заменяются на `http://localhost:3000`, `…/schedule`, `…/traffic`, в `staging` и `production` пустое значение валит сборку |
@@ -924,6 +926,14 @@ PR и проходит `quality`, чтобы откат был готов зар
   - блок `trainers` в `scripts/structured-data.config.json` больше не
     читается, но остаётся в файле: конфиги заморожены до A2b и уходят вместе
     с переездом в `src/data/`.
+  - найдено при проверке PR (2026-11-14): legacy-сборка отдавала
+    `js/vendor/imask-7.6.1.LICENSE.txt` копированием `public/`, а Astro
+    выпускал только сам скрипт через `?url`. Текст возвращён эндпоинтом по
+    прежнему адресу (раздел 5), `check-build` падает, если файла нет или его
+    байты отличаются от `src/vendor/`. `compare-dist` этого не видел: он
+    сверяет страницы, скрипты и стили, на которые ссылается HTML, конфиги,
+    `robots.txt`, `sitemap.xml` и `images/` кандидата, но не набор файлов
+    двух `dist/` целиком.
 - A2b. `build-static.cjs`, `watch-static.cjs`, сниппеты, все `public/**/*.html`,
   `public/css`, `public/js`, `public/sitemap.xml`, `public/robots.txt`
   удаляются; конфиги контента в `src/data/`. `clean-css` остаётся в

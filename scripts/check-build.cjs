@@ -17,11 +17,16 @@ const { builtSiteStylesheets, mediaRangeQueries, minifySiteCss } = require('./li
 const rootDir = path.join(__dirname, '..');
 const distDir = path.join(rootDir, 'dist');
 const stylesDir = path.join(rootDir, 'src', 'styles');
+const vendorDir = path.join(rootDir, 'src', 'vendor');
 const cdnWebflowPrefix = 'https://storage.yandexcloud.net/zvenfit/v2/js/webflow.js?v=';
 const STAGING_ROBOTS = 'User-agent: *\nDisallow: /\n';
 const HASH = '[A-Za-z0-9_-]+';
 const WEBFLOW_PAGE_ID_PATTERN = /^[0-9a-f]{24}$/;
 const MIN_W_NODE_CSS_COVERAGE = 0.9;
+// Licence texts of the vendored code in src/vendor. MIT asks for the notice in
+// every copy and the minified imask carries no banner, so the build serves the
+// text where the legacy site did: /js/vendor/<name> (src/pages/js/vendor/).
+const VENDOR_LICENCES = ['imask-7.6.1.LICENSE.txt'];
 
 function walkFiles(dir, predicate, files = [], base = dir) {
   if (!fs.existsSync(dir)) {
@@ -146,6 +151,20 @@ function checkStylesheets(dist, siteCss, errors) {
     const ranges = mediaRangeQueries(fs.readFileSync(path.join(assetsDir, name), 'utf8'));
     if (ranges.length > 0) {
       errors.push(`_astro/${name} uses media query range syntax (${ranges[0]}), which Safari before 16.4 and Chrome before 104 ignore`);
+    }
+  }
+}
+
+function checkVendorLicences(dist, errors) {
+  for (const name of VENDOR_LICENCES) {
+    const source = path.join(vendorDir, name);
+    const served = path.join(dist, 'js', 'vendor', name);
+    if (!fs.existsSync(source)) {
+      errors.push(`src/vendor/${name} is missing: vendored code keeps its licence text next to it`);
+    } else if (!fs.existsSync(served)) {
+      errors.push(`js/vendor/${name} is missing: the licence text of vendored code must be served with the site`);
+    } else if (!fs.readFileSync(served).equals(fs.readFileSync(source))) {
+      errors.push(`js/vendor/${name} must carry the bytes of src/vendor/${name}`);
     }
   }
 }
@@ -290,6 +309,7 @@ function checkBuild({ dist = distDir, profile }) {
   }
 
   checkStylesheets(dist, siteCss, errors);
+  checkVendorLicences(dist, errors);
 
   const logoPath = path.join(dist, 'images', 'zvenfit-logo.svg');
   if (!fs.existsSync(logoPath)) {
@@ -325,7 +345,7 @@ function checkBuild({ dist = distDir, profile }) {
   return { mode, pages: pages.length, profile: profile.name };
 }
 
-module.exports = { MIN_W_NODE_CSS_COVERAGE, WEBFLOW_PAGE_ID_PATTERN, analyzeWebflowPage, checkBuild, detectMode, extractAttribute, extractIds };
+module.exports = { MIN_W_NODE_CSS_COVERAGE, VENDOR_LICENCES, WEBFLOW_PAGE_ID_PATTERN, analyzeWebflowPage, checkBuild, detectMode, extractAttribute, extractIds };
 
 if (require.main === module) {
   try {
@@ -335,6 +355,7 @@ if (require.main === module) {
     console.log(`check-build: ${result.pages} page(s) verified in ${result.mode} mode (profile ${result.profile})`);
     console.log('check-build: CDN webflow.js, hashed own assets, no-cache runtime configs and generated maps config verified');
     console.log('check-build: site stylesheet equals its legacy clean-css minification, no range media queries');
+    console.log('check-build: licence texts of the vendored code served at /js/vendor/ with the source bytes');
     console.log('check-build: analytics, UTM, traffic beacon and 404 exclusion verified for the build mode');
     console.log('check-build: Webflow page ids, duplicate ids and w-node CSS coverage verified');
     console.log('check-build: branded native-select chevron, reduced-motion fallback and review scoping verified');
