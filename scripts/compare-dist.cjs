@@ -15,8 +15,9 @@
 // side with the same bytes. --mode staging builds the candidate twice
 // (production and staging) and allows only the documented differences between
 // the modes. With a legacy base both modes first check that the legacy inputs
-// in the candidate tree are those of the pinned base; a candidate that no
-// longer carries the legacy build has nothing to hold equal.
+// are those of the pinned base: in the candidate tree while it carries the
+// legacy build, and in every commit merged since the base, which is what still
+// notices a hotfix of main merged without a new base once the tree is gone.
 // Neither main nor the dirty working tree is ever used as a side: both SHAs are
 // explicit (HEAD is accepted for local runs and resolved to its commit).
 
@@ -168,13 +169,25 @@ function inventoryFromGit(baseSha, profile) {
     .sort();
 }
 
+function listFiles(files) {
+  return files.slice(0, 8).join(', ') + (files.length > 8 ? ` and ${files.length - 8} more` : '');
+}
+
 // A legacy hotfix reaches the branch by merging main, and the base of the
 // comparison is pinned to that commit of main in the same step. If only one of
 // the two happens, the pages and the comparison still agree with each other
 // (the converter derives its contracts from the same tree), so nothing else
 // would notice a footer text or an analytics snippet that changed in legacy
 // and not in the Astro components.
-function checkLegacyInputs({ baseSha, candidateSha, profile, report, drift = harness.legacyInputDrift }) {
+//
+// Two checks hold the two together. The first compares the legacy tree of the
+// candidate with the base and has nothing to compare once the legacy build has
+// left the branch. The second looks at the history instead: main merged after
+// the base was pinned shows up as a commit on the way from the base to the
+// candidate that still carries the legacy build with other inputs. Without it
+// a merge of main that resolves "deleted by us" by deleting, with neither the
+// fix carried over nor a new base, would stay green and lose the hotfix.
+function checkLegacyInputs({ baseSha, candidateSha, profile, report, drift = harness.legacyInputDrift, historyDrift = harness.legacyInputDriftInHistory }) {
   if (profile.base !== 'legacy') {
     return;
   }
@@ -182,14 +195,29 @@ function checkLegacyInputs({ baseSha, candidateSha, profile, report, drift = har
   const changed = drift(baseSha, candidateSha);
   if (changed === null) {
     report.check(name, true, 'skipped: the candidate no longer carries scripts/build-static.cjs');
-    return;
+  } else {
+    report.check(
+      name,
+      changed.length === 0,
+      changed.length === 0 ? '' : `${listFiles(changed)} differ(s) from ${baseSha}: after a hotfix of the legacy site merge main into the branch and pin that commit of main as the base in the same change`,
+    );
   }
-  const listed = changed.slice(0, 8).join(', ') + (changed.length > 8 ? ` and ${changed.length - 8} more` : '');
-  report.check(
-    name,
-    changed.length === 0,
-    changed.length === 0 ? '' : `${listed} differ(s) from ${baseSha}: after a hotfix of the legacy site merge main into the branch and pin that commit of main as the base in the same change`,
-  );
+
+  const historyName = 'legacy inputs equal the pinned base in every commit merged since it';
+  const history = historyDrift(baseSha, candidateSha);
+  if (history === null) {
+    report.check(historyName, false, `${baseSha} is not an ancestor of the candidate: merge that commit of main into the branch (a shallow clone needs its whole history fetched)`);
+  } else if (history.drifted.length === 0) {
+    report.check(historyName, true, `${history.carrying} of ${history.commits} commit(s) since the base still carry the legacy build`);
+  } else {
+    const later = history.drifted.length - 1;
+    report.check(
+      historyName,
+      false,
+      `${listFiles(history.files)} differ(s) from ${baseSha} in ${history.drifted[0]}${later > 0 ? ` and ${later} later commit(s)` : ''}: main was merged after the base was pinned. ` +
+        'After a hotfix of the legacy site merge main into the branch, pin that commit of main as the base and carry the fix over to src/ in the same change',
+    );
+  }
 }
 
 // Every file of both builds is accounted for: it was compared above as a page,

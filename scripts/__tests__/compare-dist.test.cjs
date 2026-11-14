@@ -10,7 +10,7 @@ const test = require('node:test');
 const { expectedRoutesFromAstro } = require('../check-routes.cjs');
 const { Report, baseSiteUrl, checkLegacyInputs, compareProduction, compareStaging, parseArguments } = require('../compare-dist.cjs');
 const { getProfile } = require('../lib/parity-profile.cjs');
-const { LEGACY_INPUTS, legacyInputDrift, readSnapshot, resolveSha } = require('../lib/parity-harness.cjs');
+const { LEGACY_INPUTS, legacyInputDrift, legacyInputDriftInHistory, readSnapshot, resolveSha } = require('../lib/parity-harness.cjs');
 
 const ROOT = path.resolve(__dirname, '../..');
 
@@ -211,10 +211,118 @@ test('the legacy inputs of the candidate tree must be those of the pinned base',
   assert.ok(LEGACY_INPUTS.includes('public') && LEGACY_INPUTS.includes('scripts/build-static.cjs') && !LEGACY_INPUTS.includes('scripts/deploy.config.json'));
 });
 
+// The history of a migration branch in a temporary repository: main keeps the
+// legacy site and gets hotfixes, the branch merges main, then drops the legacy
+// tree (stage A2b) and merges main again.
+function migrationHistory() {
+  const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'legacy-history-'));
+  const git = (...args) =>
+    execFileSync('git', ['-c', 'user.name=parity', '-c', 'user.email=parity@example.invalid', '-c', 'commit.gpgsign=false', ...args], { cwd: repo, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
+  const save = message => {
+    git('add', '-A');
+    git('commit', '-q', '-m', message);
+    return git('rev-parse', 'HEAD');
+  };
+  const merge = () => {
+    git('merge', '-q', '--no-ff', '--no-edit', 'main');
+    return git('rev-parse', 'HEAD');
+  };
+  git('init', '-q');
+  git('symbolic-ref', 'HEAD', 'refs/heads/main');
+  write(repo, 'public/offer/index.html', '<p>ИНН: 503245058536О</p>');
+  write(repo, 'scripts/snippets/analytics-head.html', '<script></script>');
+  write(repo, 'scripts/build-static.cjs', '// legacy build');
+  write(repo, 'scripts/structured-data.config.json', '{}');
+  write(repo, 'scripts/deploy.config.json', '{"profile":"legacy"}');
+  write(repo, 'functions/lead-intake/package-lock.json', '{"lockfileVersion":1}');
+  const commits = { repo, legacySite: save('legacy site') };
+
+  git('checkout', '-q', '-b', 'astro');
+  write(repo, 'src/pages/offer/index.astro', '<p>ИНН: 503245058536О</p>');
+  write(repo, 'scripts/deploy.config.json', '{"profile":"a"}');
+  commits.astroPages = save('astro pages');
+
+  git('checkout', '-q', 'main');
+  write(repo, 'public/offer/index.html', '<p>ИНН: 503245058536</p>');
+  commits.firstHotfix = save('hotfix of a page');
+  git('checkout', '-q', 'astro');
+  commits.firstMerge = merge();
+
+  // A branch that removes the legacy inputs in parts keeps the legacy build for a while.
+  git('checkout', '-q', '-b', 'piecemeal');
+  fs.rmSync(path.join(repo, 'public'), { recursive: true });
+  commits.publicRemovedFirst = save('remove public/ and keep the legacy build');
+
+  git('checkout', '-q', 'astro');
+  for (const legacy of ['public', 'scripts/snippets', 'scripts/build-static.cjs', 'scripts/structured-data.config.json']) {
+    fs.rmSync(path.join(repo, legacy), { recursive: true });
+  }
+  commits.legacyRemoved = save('remove the legacy build and the export');
+
+  git('checkout', '-q', 'main');
+  write(repo, 'scripts/snippets/analytics-head.html', '<script>changed()</script>');
+  commits.secondHotfix = save('hotfix of a snippet');
+  git('checkout', '-q', 'astro');
+  // The branch deleted the file that main has just changed: git stops with "deleted by us".
+  assert.throws(merge);
+  assert.equal(git('status', '--porcelain'), 'DU scripts/snippets/analytics-head.html');
+  git('rm', '-q', 'scripts/snippets/analytics-head.html');
+  git('commit', '-q', '--no-edit');
+  commits.secondMerge = git('rev-parse', 'HEAD');
+
+  git('checkout', '-q', 'main');
+  write(repo, 'functions/lead-intake/package-lock.json', '{"lockfileVersion":2}');
+  commits.functionsOnly = save('a release that leaves the site alone');
+  git('checkout', '-q', 'astro');
+  commits.thirdMerge = merge();
+  return commits;
+}
+
+test('main merged after the base was pinned is found in the history, with or without a legacy tree in the candidate', () => {
+  const { repo, legacySite, astroPages, firstHotfix, firstMerge, publicRemovedFirst, legacyRemoved, secondHotfix, secondMerge, functionsOnly, thirdMerge } = migrationHistory();
+  const history = (base, candidate) => legacyInputDriftInHistory(base, candidate, { cwd: repo });
+  const tree = (base, candidate) => legacyInputDrift(base, candidate, { cwd: repo });
+
+  // The branch before any hotfix: what it carries is what the base carries.
+  assert.deepEqual(history(legacySite, astroPages), { commits: 1, carrying: 1, drifted: [], files: [] });
+
+  // The first hotfix is merged and the base stays where it was: both checks see it.
+  assert.deepEqual(history(legacySite, firstMerge), { commits: 3, carrying: 3, drifted: [firstHotfix, firstMerge], files: ['public/offer/index.html'] });
+  assert.deepEqual(tree(legacySite, firstMerge), ['public/offer/index.html']);
+  // With the hotfix pinned the history is clean. The older commit of the branch
+  // carries the inputs of the previous base, and it is not on the way from the new one.
+  assert.deepEqual(history(firstHotfix, firstMerge), { commits: 1, carrying: 1, drifted: [], files: [] });
+  assert.deepEqual(tree(firstHotfix, astroPages), ['public/offer/index.html']);
+
+  // The legacy tree leaves the branch: nothing to compare in the candidate, the history still holds.
+  assert.equal(tree(firstHotfix, legacyRemoved), null);
+  assert.deepEqual(history(firstHotfix, legacyRemoved), { commits: 2, carrying: 1, drifted: [], files: [] });
+
+  // The second hotfix is merged, the conflict is resolved by deleting, nothing
+  // is carried over and the base is not pinned again. Only the history tells.
+  assert.equal(tree(firstHotfix, secondMerge), null);
+  assert.deepEqual(history(firstHotfix, secondMerge), { commits: 4, carrying: 2, drifted: [secondHotfix], files: ['scripts/snippets/analytics-head.html'] });
+  assert.deepEqual(history(secondHotfix, secondMerge), { commits: 1, carrying: 0, drifted: [], files: [] });
+
+  // A commit of main that leaves the legacy inputs alone does not ask for a new base.
+  assert.deepEqual(history(secondHotfix, thirdMerge), { commits: 3, carrying: 1, drifted: [], files: [] });
+  assert.deepEqual(history(firstHotfix, thirdMerge).drifted, [secondHotfix, functionsOnly]);
+
+  // A base the candidate never merged is not a base of its history.
+  assert.equal(history(secondHotfix, legacyRemoved), null);
+  assert.equal(history(functionsOnly, secondMerge), null);
+  assert.throws(() => history('f'.repeat(40), secondMerge));
+
+  // Removing the legacy inputs in parts is a change for as long as the legacy build stays.
+  assert.deepEqual(history(firstHotfix, publicRemovedFirst), { commits: 2, carrying: 2, drifted: [publicRemovedFirst], files: ['public/offer/index.html'] });
+});
+
+const CLEAN_HISTORY = () => ({ commits: 3, carrying: 2, drifted: [], files: [] });
+
 test('a drift of the legacy inputs fails the report and says what to do', () => {
   const run = (profileName, drift) => {
     const report = new Report({ profile: profileName, mode: 'production', baseSha: 'b'.repeat(40), candidateSha: 'c'.repeat(40), baseKind: 'legacy', snapshotPath: 's', snapshotDigest: 'd', fixture: 'f' });
-    checkLegacyInputs({ baseSha: 'b'.repeat(40), candidateSha: 'c'.repeat(40), profile: getProfile(profileName), report, drift });
+    checkLegacyInputs({ baseSha: 'b'.repeat(40), candidateSha: 'c'.repeat(40), profile: getProfile(profileName), report, drift, historyDrift: CLEAN_HISTORY });
     return report;
   };
   assert.deepEqual(run('a', () => []).errors, []);
@@ -226,6 +334,32 @@ test('a drift of the legacy inputs fails the report and says what to do', () => 
   assert.match(run('a', () => null).render(), /ok: legacy inputs of the candidate tree equal the pinned base \(skipped: the candidate no longer carries scripts\/build-static\.cjs\)/);
   // With an Astro base there is no legacy tree to hold equal.
   assert.deepEqual(run('b', () => ['public/offer/index.html']).checks, []);
+});
+
+test('main merged after the base was pinned fails the report of a candidate without a legacy tree', () => {
+  const name = 'legacy inputs equal the pinned base in every commit merged since it';
+  const advice = 'After a hotfix of the legacy site merge main into the branch, pin that commit of main as the base and carry the fix over to src/ in the same change';
+  const run = historyDrift => {
+    const report = new Report({ profile: 'a', mode: 'production', baseSha: 'b'.repeat(40), candidateSha: 'c'.repeat(40), baseKind: 'legacy', snapshotPath: 's', snapshotDigest: 'd', fixture: 'f' });
+    checkLegacyInputs({ baseSha: 'b'.repeat(40), candidateSha: 'c'.repeat(40), profile: getProfile('a'), report, drift: () => null, historyDrift });
+    return report;
+  };
+  const clean = run(() => ({ commits: 17, carrying: 12, drifted: [], files: [] }));
+  assert.deepEqual(clean.errors, []);
+  assert.deepEqual(clean.checks.map(check => check.name), ['legacy inputs of the candidate tree equal the pinned base', name]);
+  assert.match(clean.render(), /ok: legacy inputs equal the pinned base in every commit merged since it \(12 of 17 commit\(s\) since the base still carry the legacy build\)/);
+
+  const merged = run(() => ({ commits: 4, carrying: 2, drifted: ['d'.repeat(40)], files: ['scripts/snippets/analytics-head.html'] }));
+  assert.deepEqual(merged.errors, [`${name}: scripts/snippets/analytics-head.html differ(s) from ${'b'.repeat(40)} in ${'d'.repeat(40)}: main was merged after the base was pinned. ${advice}`]);
+  // The check of the candidate tree has nothing to say here, and says so.
+  assert.match(merged.render(), /ok: legacy inputs of the candidate tree equal the pinned base \(skipped: the candidate no longer carries scripts\/build-static\.cjs\)/);
+
+  const several = run(() => ({ commits: 9, carrying: 5, drifted: ['d'.repeat(40), 'e'.repeat(40), 'f'.repeat(40)], files: Array.from({ length: 10 }, (_, index) => `public/p${index}.html`) }));
+  assert.equal(several.errors.length, 1);
+  assert.match(several.errors[0], /public\/p7\.html and 2 more differ\(s\) from b{40} in d{40} and 2 later commit\(s\): main was merged after the base was pinned\./);
+
+  const unmerged = run(() => null);
+  assert.deepEqual(unmerged.errors, [`${name}: ${'b'.repeat(40)} is not an ancestor of the candidate: merge that commit of main into the branch (a shallow clone needs its whole history fetched)`]);
 });
 
 test('the staging comparison accepts exactly the documented mode differences', () => {
