@@ -4,6 +4,8 @@
 
 export const SITE_URL = 'https://zvenfit.ru';
 export const ASSETS_CDN_BASE = 'https://storage.yandexcloud.net/zvenfit/v2';
+// `data-wf-site` of the Webflow export; the runtime and its interactions read it.
+export const WEBFLOW_SITE_ID = '697f30b67cb029a39716bd07';
 
 export type BuildMode = 'production' | 'staging' | 'development';
 
@@ -24,6 +26,9 @@ export function webflowRuntimeUrl(): string {
   return `${ASSETS_CDN_BASE}/js/webflow.js?v=${assetVersion()}`;
 }
 
+// Page path in the convention of the legacy build, which the content configs
+// are keyed by (scripts/maps.config.json `pageSets`, structured data): Astro
+// reports the 404 page as "/404/" while the legacy key is "/404.html".
 export function pagePathFromUrl(url: URL): string {
-  return url.pathname;
+  return url.pathname === '/404/' || url.pathname === '/404' ? '/404.html' : url.pathname;
 }

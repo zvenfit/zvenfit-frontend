@@ -4,8 +4,10 @@
 Сайт собирается Astro в статический `dist/`: страницы в `src/pages`, общая разметка в
 `src/layouts` и `src/components`, данные в `src/content` и `src/data`. Разметка
 изначально пришла из Webflow-экспорта; релиз A переносит её в Astro со строгим паритетом
-([план](docs/astro-migration.md), ветка `feature/astro-release-a`). После этапа A1 в Astro
-живут юридические страницы, остальные ждут A2a в замороженном `public/`.
+([план](docs/astro-migration.md), ветка `feature/astro-release-a`). После этапа A2a все
+41 маршрут собираются из Astro: 20 страниц в `src/pages` и 21 страница тренера из коллекции
+`src/content/trainers`. Замороженный экспорт в `public/` остаётся до этапа A2b только как
+база сравнения.
 
 - Инструкции для контрибьюторов и AI-агентов: [`AGENTS.md`](AGENTS.md)
 - Связь с Personal AI Workspace и запуск проверок: [`docs/personal-ai-workspace.md`](docs/personal-ai-workspace.md)
@@ -73,11 +75,12 @@ production и публикует тег версии. Подробности и 
 
 | Зона                      | Источник                                               |
 | ------------------------- | ------------------------------------------------------ |
-| Страницы Astro (A1: оферта, конфиденциальность, оплата) | `src/pages/`             |
+| Страницы                  | `src/pages/` (до A2b это вывод конвертера, руками не править) |
+| Тренеры                   | `src/content/trainers/*.json`, шаблон `src/pages/trenery/[slug].astro` |
 | Общая разметка            | `src/layouts/Base.astro`, `src/components/`             |
-| Остальные страницы до A2a | `public/` (заморожен, только hotfix по решению R10)      |
-| Lead form                 | `public/forma-dlya-zayavki/` (до A2a), `src/scripts/lead-form.js` |
-| Расписание                | `public/raspisanie/` (до A2a), `src/scripts/schedule.js` |
+| Legacy-экспорт            | `public/` (заморожен до A2b, только hotfix по решению R10) |
+| Lead form                 | `src/pages/forma-dlya-zayavki/`, `src/scripts/lead-form.js` |
+| Расписание                | `src/pages/raspisanie/`, `src/scripts/schedule.js`      |
 | Lead API / YDB / Telegram | `functions/lead-intake/src/`                           |
 | Fitbase API               | `functions/fitbase-schedule/src/`                      |
 | Staging Basic authorizer  | `functions/staging-authorizer/src/`                    |
@@ -113,7 +116,7 @@ npm run test:build:staging
 
 `test:scripts` покрывает все тесты `scripts/__tests__/`; `test:monitoring` и
 `test:lead-import` запускают их подмножества. Паритет с закреплённой legacy-базой
-проверяет `npm run compare:dist -- --base-sha <SHA> --candidate-sha HEAD --profile a1 --mode production --snapshot src/data/map-photos.json`
+проверяет `npm run compare:dist -- --base-sha <SHA> --candidate-sha HEAD --profile a --mode production --snapshot src/data/map-photos.json`
 (и то же с `--mode staging`); в CI это job `compare-dist` с явными SHA.
 
 После production deploy выполни smoke-test. Он проверяет страницы,

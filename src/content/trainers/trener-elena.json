@@ -1,0 +1,86 @@
+{
+  "wfPage": "69a51893ac49a2eaa989a844",
+  "name": "Ким Елена Алексеевна",
+  "nameDative": "елене",
+  "jobTitle": "Персональный тренер",
+  "location": "chekhova",
+  "headingHtml": "Ким Елена Алексеевна",
+  "roleHtml": "Персональный тренер по фитнесу и бодибилдингу, тренер групповых программ\u00a0",
+  "photoClass": "elena",
+  "groups": [
+    {
+      "heading": "Спортивные достижения:",
+      "itemsHtml": [
+        "Опыт работы тренером более 6 лет<br>",
+        "Победитель Кубка Москвы и Московской области по гиревому спорту среди юниоров и женщин",
+        "Победитель Первенства Москвы по гиревому спорту среди юниоров и женщин\u00a0",
+        "Тренер по фитнесу и бодибилдингу «Академия фитнеса и бодибилдинга», 2019",
+        "Тренер-преподаватель по тяжелоатлетическим видам спорта РУС ГЦОЛИФК, 2023",
+        "Диетолог-нутрициолог МУПП, 2024<br>"
+      ]
+    },
+    {
+      "heading": "Направления:",
+      "itemsHtml": [
+        "Силовой тренинг",
+        "Функциональный тренинг",
+        "Тренировки на снижение веса",
+        "Коррекция осанки",
+        "Тренировки с подростками",
+        "Тренировки с беременными"
+      ]
+    }
+  ],
+  "certificates": [
+    {
+      "title": "диплом",
+      "descriptionHtml": "по программе &quot;Профессиональный тренер по\u00a0Фитнесу и\u00a0Бодибилдингу&quot;",
+      "href": "https://storage.yandexcloud.net/zvenfit/v2/documents/diplom-1-kim-elena.jpeg"
+    },
+    {
+      "title": "Сертификат",
+      "descriptionHtml": "от &quot;Academy of Bodybuilding and\u00a0Fitness&quot;",
+      "href": "https://storage.yandexcloud.net/zvenfit/v2/documents/sertifikat-1-kim-elena.jpeg"
+    },
+    {
+      "title": "Сертификат",
+      "descriptionHtml": "по специальности &quot;Диетология (нутрициология)&quot;",
+      "href": "https://storage.yandexcloud.net/zvenfit/v2/documents/sertifikat-2-kim-elena.jpeg"
+    },
+    {
+      "title": "Диплом",
+      "descriptionHtml": "по программе &quot;Диетология (нутрициология)&quot;",
+      "href": "https://storage.yandexcloud.net/zvenfit/v2/documents/diplom-2-kim-elena.jpeg"
+    },
+    {
+      "title": "Приложение к диплому",
+      "descriptionHtml": "по программе &quot;Персональный тренер по Фитнесу и\u00a0Бодибилдингу&quot; от &quot;Академии Бодибилдинга и\u00a0Фитнеса&quot;",
+      "href": "https://storage.yandexcloud.net/zvenfit/v2/documents/prilozhenie-k-diplomu-1-kim-elena.jpeg"
+    },
+    {
+      "title": "Диплом бакалавра",
+      "descriptionHtml": "по направлению &quot;Физическая культура&quot;, с\u00a0отличием",
+      "href": "https://storage.yandexcloud.net/zvenfit/v2/documents/diplom-bakalavra-1-kim-elena.jpeg"
+    },
+    {
+      "title": "Сертификат",
+      "descriptionHtml": "по специальности &quot;Диетология (нутрициология)&quot; с\u00a0углубленным изучением дисциплин: Детская диетология,\u00a0Спортивная диетология, Расшифровка анализов",
+      "href": "https://storage.yandexcloud.net/zvenfit/v2/documents/sertifikat-3-kim-elena.jpeg"
+    }
+  ],
+  "nextSlug": "trener-oleg",
+  "updated": "2026-05-13",
+  "sitemap": {
+    "changefreq": "monthly",
+    "priority": "0.6"
+  },
+  "meta": {
+    "title": "Тренер: Елена",
+    "description": "Персональный тренер Елена Ким ZvenFit Звенигород: фитнес, бодибилдинг, диетология. Опыт 6+ лет, победитель соревнований. Запись на тренировку ☎ +7 (925) 308-23-23"
+  },
+  "legacy": {
+    "markup": "webflow",
+    "webflowComments": "<!--  This site was created in Webflow. https://webflow.com  --><!--  Last Published: Sun Mar 22 2026 09:06:04 GMT+0000 (Coordinated Universal Time)  -->",
+    "ctaRegularSpace": true
+  }
+}

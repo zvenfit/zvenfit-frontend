@@ -1,6 +1,8 @@
 'use strict';
 
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 const test = require('node:test');
 
 const { LEGACY_DUPLICATES, PROFILES, getProfile, pageToRoute, readProfileArgument } = require('../lib/parity-profile.cjs');
@@ -26,4 +28,23 @@ test('legacy duplicates stay allowed until A2b removes public/**/*.html', () => 
   assert.equal(pageToRoute('index.html'), '/');
   assert.equal(pageToRoute('offer/index.html'), '/offer/');
   assert.equal(pageToRoute('404.html'), '/404.html');
+});
+
+test('since A2a the checks of this branch run the full profile', () => {
+  const root = path.resolve(__dirname, '../..');
+  const scripts = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8')).scripts;
+  for (const [name, command] of Object.entries(scripts)) {
+    assert.doesNotMatch(command, /--profile/, `npm script ${name} must rely on the profile of scripts/deploy.config.json`);
+  }
+  assert.equal(JSON.parse(fs.readFileSync(path.join(root, 'scripts/deploy.config.json'), 'utf8')).profile, 'a');
+  const workflow = fs.readFileSync(path.join(root, '.github/workflows/quality.yml'), 'utf8');
+  assert.match(workflow, /^ {6}PARITY_PROFILE: a$/m);
+  const checks = JSON.parse(fs.readFileSync(path.join(root, 'project-checks.json'), 'utf8')).checks;
+  const parity = checks.filter(check => check.command.includes('scripts/compare-dist.cjs'));
+  assert.equal(parity.length, 2);
+  const pinned = workflow.match(/^ {6}PARITY_BASE_SHA: ([0-9a-f]{40})$/m)?.[1];
+  for (const check of parity) {
+    assert.equal(check.command[check.command.indexOf('--profile') + 1], 'a');
+    assert.equal(check.command[check.command.indexOf('--base-sha') + 1], pinned, 'project-checks.json must pin the base of quality.yml');
+  }
 });

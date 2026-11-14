@@ -8,8 +8,8 @@
     {"name":"staging-authorizer","command":["npm","run","test:staging-authorizer"],"mode":"writes","requires_network":false,"timeout_seconds":300},
     {"name":"site-traffic","command":["npm","run","test:site-traffic"],"mode":"writes","requires_network":false,"timeout_seconds":300},
     {"name":"scripts","command":["npm","run","test:scripts"],"mode":"writes","requires_network":false,"timeout_seconds":300},
-    {"name":"parity","command":["node","scripts/compare-dist.cjs","--base-sha","978b9219d45f858d6d0afcad412f8ed180d8a2f6","--candidate-sha","HEAD","--profile","a1","--mode","production","--snapshot","src/data/map-photos.json"],"mode":"writes","requires_network":true,"timeout_seconds":1500},
-    {"name":"parity-staging","command":["node","scripts/compare-dist.cjs","--base-sha","978b9219d45f858d6d0afcad412f8ed180d8a2f6","--candidate-sha","HEAD","--profile","a1","--mode","staging","--snapshot","src/data/map-photos.json"],"mode":"writes","requires_network":true,"timeout_seconds":1500},
+    {"name":"parity","command":["node","scripts/compare-dist.cjs","--base-sha","b4c7de821bedd2741605f194eaf8ed4334877086","--candidate-sha","HEAD","--profile","a","--mode","production","--snapshot","src/data/map-photos.json"],"mode":"writes","requires_network":true,"timeout_seconds":1500},
+    {"name":"parity-staging","command":["node","scripts/compare-dist.cjs","--base-sha","b4c7de821bedd2741605f194eaf8ed4334877086","--candidate-sha","HEAD","--profile","a","--mode","staging","--snapshot","src/data/map-photos.json"],"mode":"writes","requires_network":true,"timeout_seconds":1500},
     {"name":"build","command":["npm","run","test:build"],"mode":"writes","requires_network":true,"timeout_seconds":180},
     {"name":"staging-build","command":["npm","run","test:build:staging"],"mode":"writes","requires_network":true,"timeout_seconds":300}
   ]

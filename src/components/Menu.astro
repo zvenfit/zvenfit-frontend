@@ -1,38 +1,100 @@
 ---
-// Site menu. Release A1 implements the `plain` variant (Webflow `menu3`): logo
-// link plus one secondary link whose Webflow block class, target and data-back
-// flag come from the page. The home, service and coach variants are added by
-// the converter in A2a together with their pages.
+// Site menu in the four variants of the legacy export:
+//   home    — Webflow `menu1`, the home page: call, lead form, where to find us;
+//   service — `menu2`, service pages: lead form, one page-specific link, logo,
+//             reviews, contacts;
+//   coach   — `menu2-coach`, trainer pages: back and the next trainer;
+//   plain   — `menu3`: logo and one page-specific link.
+// Everything that differs between pages of one variant comes from the page:
+// the secondary link, targets, the logo wrapper class and the exact Webflow
+// `w-node-*` ids (zvenfit.webflow.css positions the grid cells by them, and
+// they do not share one prefix across pages). The whitespace inside each block
+// is the legacy markup; unifying the four variants is a task after release A.
 import LogoEmbeds from './LogoEmbeds.astro';
 
-export interface SecondaryLink {
+export interface MenuLink {
   label: string;
   href: string;
   target?: string;
   dataBack?: boolean;
-  block: 1 | 2 | 3 | 4;
 }
 
-interface Props {
-  variant: 'plain';
-  secondary: SecondaryLink;
-  logo?: 'svg' | 'text';
-  logoLabel?: string;
-  logoText?: string;
-}
+type Props =
+  | {
+      variant: 'plain';
+      /** `block` is the number of the Webflow class `link-block-pageN`. */
+      secondary: MenuLink & { block: 1 | 2 | 3 | 4 };
+      logo?: 'svg' | 'text';
+      logoLabel?: string;
+      logoText?: string;
+    }
+  | { variant: 'home'; wNode: { call: string; cta: string; contacts: string } }
+  | {
+      variant: 'service';
+      secondary: MenuLink;
+      ctaTarget?: string;
+      /** Classes of the logo embed wrapper: "code-embed-3 w-embed" or "w-embed". */
+      logoEmbedClass: string;
+      wNode: { cta: string; secondary: string; reviews: string; contacts: string };
+    }
+  | { variant: 'coach'; nextSlug: string; wNode: { back: string; next: string } };
 
-const { variant, secondary, logo = 'svg', logoLabel, logoText = 'zvenfit' } = Astro.props;
-if (variant !== 'plain') {
-  throw new Error(`Menu: variant "${variant}" is converted in A2a`);
-}
+const props = Astro.props;
 ---
+{props.variant === 'plain' && (
 <section class="menu3">
     <div class="menu_grid-4">
-      <a href="/" class="link-block-4 w-inline-block" aria-label={logoLabel}>
-        {logo === 'svg' ? <LogoEmbeds /> : <div class="menu-txt">{logoText}</div>}
+      <a href="/" class="link-block-4 w-inline-block" aria-label={props.logoLabel}>
+        {props.logo === 'text' ? <div class="menu-txt">{props.logoText ?? 'zvenfit'}</div> : <LogoEmbeds />}
       </a>
-      <a data-back={secondary.dataBack ? 'true' : undefined} href={secondary.href} target={secondary.target} class={`link-block-page${secondary.block} w-inline-block`}>
-        <div class="menu-txt">{secondary.label}</div>
+      <a data-back={props.secondary.dataBack ? 'true' : undefined} href={props.secondary.href} target={props.secondary.target} class={`link-block-page${props.secondary.block} w-inline-block`}>
+        <div class="menu-txt">{props.secondary.label}</div>
       </a>
     </div>
   </section>
+)}{props.variant === 'home' && (
+<section class="menu1">
+    <div class="menu_grid">
+      <a id={props.wNode.call} href="tel:+79253082323" class="link-block w-inline-block" aria-label="Позвонить по телефону +7 (925) 308-23-23">
+        <div class="menu-txt">позвонить нам</div>
+      </a>
+      <a id={props.wNode.cta} href="/forma-dlya-zayavki/" class="link-block-2 w-inline-block">
+        <div class="menu-txt">оставить заявку</div>
+      </a>
+      <a id={props.wNode.contacts} href="/contacts/platforms/" class="link-block-3 w-inline-block" aria-label="Где нас найти — карты и мессенджеры">
+        <div class="menu-txt">где нас найти</div>
+      </a>
+    </div>
+  </section>
+)}{props.variant === 'service' && (
+<section class="menu2">
+    <div class="menu_grid-2">
+      <a id={props.wNode.cta} href="/forma-dlya-zayavki/" target={props.ctaTarget} class="link-block-page1 w-inline-block">
+        <div class="menu-txt">оставить заявку</div>
+      </a>
+      <a id={props.wNode.secondary} href={props.secondary.href} target={props.secondary.target} class="link-block-page2 w-inline-block">
+        <div class="menu-txt">{props.secondary.label}</div>
+      </a>
+      <a href="/" class="link-block-4 w-inline-block">
+        <LogoEmbeds single={props.logoEmbedClass} />
+      </a>
+      <a id={props.wNode.reviews} href="#reviews" class="link-block-page3 w-inline-block">
+        <div class="menu-txt">отзывы</div>
+      </a>
+      <a id={props.wNode.contacts} href="#contacts" class="link-block-page4 w-inline-block">
+        <div class="menu-txt">контакты</div>
+      </a>
+    </div>
+  </section>
+)}{props.variant === 'coach' && (
+<section class="menu2-coach">
+    <div class="menu_grid _1">
+      <a data-back="true" id={props.wNode.back} href="#" class="link-block-page1 w-inline-block">
+        <div class="menu-txt">вернуться назад</div>
+      </a>
+      <a id={props.wNode.next} href={`/trenery/${props.nextSlug}/`} class="link-block-page4 w-inline-block">
+        <div class="menu-txt">следующий тренер</div>
+      </a>
+    </div>
+  </section>
+)}

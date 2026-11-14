@@ -73,14 +73,14 @@ jobs:
 
   # Parity of the Astro output with the pinned legacy base (plan, section 8).
   # The base SHA and the profile are explicit: neither main nor the PR base
-  # branch is used as a side, and the partial profile a1 exists only in branch A1.
+  # branch is used as a side. Profile `a` covers every route of the site.
   compare-dist:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
-      PARITY_BASE_SHA: 12d025bcae0e83821fc86dea66caa004509d59ab
+      PARITY_BASE_SHA: b4c7de821bedd2741605f194eaf8ed4334877086
       PARITY_CANDIDATE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-      PARITY_PROFILE: a1
+      PARITY_PROFILE: a
       PARITY_SNAPSHOT: src/data/map-photos.json
 
     steps:

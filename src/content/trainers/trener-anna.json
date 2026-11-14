@@ -1,0 +1,56 @@
+{
+  "wfPage": "69a51477fb3d58cd7e3ff1ff",
+  "name": "Королева Анна",
+  "nameDative": "анне",
+  "jobTitle": "Персональный тренер",
+  "location": "chekhova",
+  "headingHtml": "Королева Анна",
+  "roleHtml": "Персональный тренер",
+  "photoClass": "anna",
+  "groups": [
+    {
+      "heading": "Спортивные достижения:",
+      "itemsHtml": [
+        "Общий стаж тренировок 13 лет",
+        "Опыт работы тренером более 3 лет\u00a0",
+        "МС по пауэрлифтингу",
+        "МС по становой тяге",
+        "КМС по народному жиму штанги лежа",
+        "Выпускник Ассоциации Профессионалов Фитнеса (FPA) по дисциплине «Персональный тренер» (г.Москва)",
+        "Прохождение курса по повышению квалификации «Профессиональная деятельность тренера по\u00a0физической культуре и спорту» (г.Москва)"
+      ]
+    }
+  ],
+  "certificates": [
+    {
+      "title": "диплом",
+      "descriptionHtml": "по программе &quot;Профессиональная деятельность тренера по физической культуре и спорту&quot;",
+      "href": "https://storage.yandexcloud.net/zvenfit/v2/documents/diplom-1-koroleva-anna.pdf"
+    },
+    {
+      "title": "Диплом",
+      "descriptionHtml": "по программе &quot;Персональный фитнес-тренер&quot;",
+      "href": "https://storage.yandexcloud.net/zvenfit/v2/documents/diplom-2-koroleva-anna.png"
+    },
+    {
+      "title": "сертификат",
+      "descriptionHtml": "по программе &quot;Персональный фитнес-тренер&quot;",
+      "href": "https://storage.yandexcloud.net/zvenfit/v2/documents/sertifikat-1-koroleva-anna.png"
+    }
+  ],
+  "nextSlug": "trener-efim",
+  "updated": "2026-05-13",
+  "sitemap": {
+    "changefreq": "monthly",
+    "priority": "0.6"
+  },
+  "meta": {
+    "title": "Тренер: Анна",
+    "description": "Персональный тренер Анна Королева Звенигород: силовой тренинг, снижение веса, программы для новичков. Эффективные тренировки в ZvenFit. Записаться ⭐"
+  },
+  "legacy": {
+    "markup": "webflow",
+    "webflowComments": "<!--  This site was created in Webflow. https://webflow.com  --><!--  Last Published: Sun Mar 22 2026 09:06:04 GMT+0000 (Coordinated Universal Time)  -->",
+    "ctaRegularSpace": true
+  }
+}

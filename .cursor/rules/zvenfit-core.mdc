@@ -12,8 +12,10 @@ justification in the PR). Do not assume React or Next.
 
 Release A is in progress on branch `feature/astro-release-a` (plan
 `docs/astro-migration.md`, ADR `knowledge-base/decisions/002-astro-migration.md`):
-after A1 only the legal pages are Astro pages; `public/**`, `scripts/snippets/**`,
-`scripts/*.config.json` and `scripts/build-static.cjs` are frozen (hotfixes only).
+after A2a every route is built from Astro sources (20 pages in `src/pages`, 21 trainer
+pages from `src/content/trainers/*.json`); until A2b those files are converter output and
+are not edited by hand. `public/**`, `scripts/snippets/**`, `scripts/*.config.json` and
+`scripts/build-static.cjs` are frozen (hotfixes only).
 Source: `src/`, `scripts/`, `functions/`. **Never edit `dist/` or `.astro/`.**
 
 After changes: `npm run build` or `npm run dev:astro`; verify with `npm run check`,

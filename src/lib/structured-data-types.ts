@@ -48,6 +48,7 @@ export interface PromosPage {
   offers?: PromoOffer[];
 }
 
+// A trainer as JSON-LD needs it; the data comes from the `trainers` collection.
 export interface TrainerConfig {
   name: string;
   jobTitle: string;
@@ -64,7 +65,6 @@ export interface StructuredDataConfig {
   breadcrumbLabels?: Record<string, string>;
   locations: Record<string, LocationConfig>;
   pages?: Record<string, PageConfig>;
-  trainers?: Record<string, TrainerConfig>;
 }
 
 export type JsonLd = Record<string, unknown>;

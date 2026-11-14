@@ -1,0 +1,51 @@
+{
+  "wfPage": "6a6039e1519dbc8a26b9a211",
+  "name": "Евгения Башлакова",
+  "nameDative": "евгении",
+  "jobTitle": "Тренер групповых программ",
+  "location": "nahabinskoe-shosse",
+  "headingHtml": "Башлакова Евгения Владимировна",
+  "roleHtml": "Преподаватель групповых и\u00a0индивидуальных занятий<br>",
+  "photoClass": "evg",
+  "groups": [
+    {
+      "heading": "направления:",
+      "itemsHtml": [
+        "Аэройога",
+        "Хатха-йога"
+      ]
+    },
+    {
+      "heading": "Образование:",
+      "itemsHtml": [
+        "&quot;Преподаватель йоги в\u00a0воздухе&quot;, 2016<br>",
+        "&quot;AIRYOGA KIDS&quot;, 2018<br>",
+        "&quot;Пренатальная йога с\u00a0использованием гамака&quot;, 2018<br>",
+        "&quot;Функциональные и\u00a0креативные возможности йоги в\u00a0гамаках&quot;, 2019<br>",
+        "&quot;Инструктор йоги&quot;, 2016<br>",
+        "&quot;Преподаватель йоги для\u00a0детей с\u00a0особым вниманием к\u00a0здоровью (синдром Дауна , РАС)&quot;<br>",
+        "&quot;Преподаватель\u00a0Кундалини йоги&quot;, 2024<br>",
+        "&quot;Йога нидра и\u00a0шавасана, гипнологический метод релаксации&quot;, 2019<br>",
+        "&quot;Эксперт медитации&quot;, 2024<br>",
+        "&quot;Нейрофизиология Тантры&quot;, 2025<br>",
+        "&quot;Преподаватель TriYoga&quot;, 2020<br>",
+        "&quot;Преподаватель Гонг медитации&quot;, 2024<br>",
+        "Стаж преподавания с\u00a02015<br>"
+      ]
+    }
+  ],
+  "nextSlug": "trener-anastasiya-panova",
+  "updated": "2026-08-01",
+  "sitemap": {
+    "changefreq": "monthly",
+    "priority": "0.6"
+  },
+  "meta": {
+    "title": "Тренер: Евгения Башлакова",
+    "description": "Преподаватель аэройоги и хатха-йоги ZvenFit Звенигород"
+  },
+  "legacy": {
+    "markup": "handwritten",
+    "webflowComments": "<!--  This site was created in Webflow. https://webflow.com  --><!--  Last Published: Sun Jul 26 2026 11:07:12 GMT+0000 (Coordinated Universal Time)  -->"
+  }
+}

@@ -1,0 +1,81 @@
+{
+  "wfPage": "6a5f6279ca61ea8cbdc57907",
+  "name": "Наталья Шулепова",
+  "nameDative": "наталье",
+  "jobTitle": "Тренер групповых программ",
+  "location": "nahabinskoe-shosse",
+  "headingHtml": "Шулепова Наталья Игоревна",
+  "roleHtml": "Тренер персональных и групповых программ<br>",
+  "photoClass": "nata",
+  "groups": [
+    {
+      "heading": "направления:",
+      "itemsHtml": [
+        "&quot;Здоровая спина&quot;<br>",
+        "&quot;Постуральные тренировки&quot;<br>",
+        "&quot;Миофасцеальный релиз&quot;<br>",
+        "&quot;Лимфодренажные тренировки&quot;<br>",
+        "Стаж работы с\u00a02024\u00a0года<br>"
+      ]
+    }
+  ],
+  "certificates": [
+    {
+      "title": "Сертификат",
+      "descriptionHtml": "о\u00a0прохождении курса &quot;Тазовая диафрагма и\u00a0восстановление крестца&quot;",
+      "href": "https://storage.yandexcloud.net/zvenfit/v2/documents/sertifikat-1-shulepova-natalya.webp",
+      "plainDescription": true
+    },
+    {
+      "title": "Сертификат",
+      "descriptionHtml": "по\u00a0программе &quot;Профессиональный марафон стройности&quot;",
+      "href": "https://storage.yandexcloud.net/zvenfit/v2/documents/sertifikat-2-shulepova-natalya.webp",
+      "wNode": "w-node-f394948c-d9ea-9703-61a4-183cf369dda6-bdc57907"
+    },
+    {
+      "title": "Сертификат",
+      "descriptionHtml": "о\u00a0прохождении курса &quot;Грудная диафрагма. Восстановление паттерна дыхания&quot;",
+      "href": "https://storage.yandexcloud.net/zvenfit/v2/documents/sertifikat-3-shulepova-natalya.webp",
+      "wNode": "w-node-_94e522fd-ad3e-99c5-df1d-576529bdc41c-bdc57907"
+    },
+    {
+      "title": "Сертификат",
+      "descriptionHtml": "о\u00a0прохождении курса &quot;Скрининг тела\u00a0І&quot;",
+      "href": "https://storage.yandexcloud.net/zvenfit/v2/documents/sertifikat-4-shulepova-natalya.webp",
+      "wNode": "w-node-_4674331d-173a-a1a6-9e67-4277ffcb0a5a-bdc57907"
+    },
+    {
+      "title": "Сертификат",
+      "descriptionHtml": "о\u00a0прохождении курса &quot;Парадигма снижения веса&quot;",
+      "href": "https://storage.yandexcloud.net/zvenfit/v2/documents/sertifikat-5-shulepova-natalya.webp",
+      "wNode": "w-node-_975b8795-b6f4-9401-33b6-bfa7faca11ff-bdc57907"
+    },
+    {
+      "title": "Сертификат",
+      "descriptionHtml": "о\u00a0прохождении курса &quot;Коррекционная тренировка при\u00a0нарушении осанки и\u00a0сколиозе&quot;",
+      "href": "https://storage.yandexcloud.net/zvenfit/v2/documents/sertifikat-6-shulepova-natalya.webp",
+      "wNode": "w-node-fe11c8bb-e40d-3198-f05c-572c0dbdaa6f-bdc57907"
+    },
+    {
+      "title": "Сертификат",
+      "descriptionHtml": "о\u00a0прохождении курса &quot;Здоровая спина. Тренировка при\u00a0межпозвоночных грыжах и\u00a0протрузиях&quot;",
+      "href": "https://storage.yandexcloud.net/zvenfit/v2/documents/sertifikat-7-shulepova-natalya.webp",
+      "wNode": "w-node-bd58dcf7-f798-466b-5841-768e1c8df610-bdc57907"
+    }
+  ],
+  "nextSlug": "trener-veronika-voznaya",
+  "updated": "2026-08-01",
+  "sitemap": {
+    "changefreq": "monthly",
+    "priority": "0.6"
+  },
+  "meta": {
+    "title": "Тренер: Наталья Шулепова",
+    "description": "Тренер персональных и групповых программ ZvenFit"
+  },
+  "legacy": {
+    "markup": "handwritten",
+    "webflowComments": "<!--  This site was created in Webflow. https://webflow.com  --><!--  Last Published: Sun Jul 26 2026 11:07:12 GMT+0000 (Coordinated Universal Time)  -->",
+    "certificateLinkRel": "noopener noreferrer"
+  }
+}

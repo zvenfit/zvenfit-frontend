@@ -1,9 +1,122 @@
 {
-  "$comment": "Pages the converter must not generate: their shared blocks differ from the Menu/Footer components and are ported by hand. Keys are page paths; `since` is the legacy base SHA the entry was recorded against. The converter exits with code 1 for these pages unless --force is passed, after which the manual changes are re-applied and recorded here again.",
+  "$comment": "What the converter (scripts/migrate/html-to-astro.cjs) does not reduce to the shared components and the trainer template. `pages`: pages it refuses to generate unless --force is passed; with --force the blocks listed in `keep` stay in the page as markup, and their map iframes and app-badge markers still become components. `trainers.legacy`: differences between the legacy trainer pages that are markup, not content; each is a field of the collection entry (src/content/trainers/*.json, mostly in its `legacy` block) and is listed here with the reason and the entries that carry it. `--all` fails when this list and the generated entries disagree. `since` is the legacy base SHA an entry was recorded against.",
   "pages": {
     "/klubnaya-karta/": {
-      "since": "978b9219d45f858d6d0afcad412f8ed180d8a2f6",
-      "reason": "Own menus with an <img> logo and a footer whose rel attributes and opening hours differ from the shared Footer; GTM comments use single spaces and the noscript iframe carries a title. Ported by hand in A2a."
+      "since": "12d025bcae0e83821fc86dea66caa004509d59ab",
+      "reason": "Own menu (an <img> logo, aria-label, rel on the map link, no Webflow node ids) and own footer (wrapped in div#contacts.club-card-contacts, opening hours with an en dash, rel on the legal links, phone heading on one line); GTM comments use single spaces and the noscript iframe carries a title. Menu.astro and Footer.astro are not applied.",
+      "keep": [
+        "menu",
+        "footer"
+      ]
+    }
+  },
+  "trainers": {
+    "since": "12d025bcae0e83821fc86dea66caa004509d59ab",
+    "legacy": {
+      "markup=webflow": {
+        "reason": "Pages exported from Webflow: the GTM noscript frame follows webflow.js in the body tail.",
+        "entries": [
+          "trener-anna",
+          "trener-efim",
+          "trener-elena",
+          "trener-ella",
+          "trener-oksana",
+          "trener-oleg",
+          "trener-olga"
+        ]
+      },
+      "markup=handwritten": {
+        "reason": "Pages written by hand after the export: a blank line precedes the menu, and the GTM noscript frame stands in the page body before jQuery, followed by a blank line.",
+        "entries": [
+          "trener-anastasiya-dachevskaya",
+          "trener-anastasiya-izvekova",
+          "trener-anastasiya-panova",
+          "trener-elena-isaeva",
+          "trener-evgeniya-bashlakova",
+          "trener-kseniya-dubrovskaya",
+          "trener-kseniya-oschepkova",
+          "trener-margarita-gribinichenko",
+          "trener-nadezhda-alekseeva",
+          "trener-natalya-didenko",
+          "trener-natalya-illarionova",
+          "trener-natalya-shulepova",
+          "trener-shorena-dzhakhaya",
+          "trener-veronika-voznaya"
+        ]
+      },
+      "webflowComments": {
+        "reason": "Webflow export comments after the doctype; the publication date differs between the two families, and the page of Efim has none.",
+        "entries": [
+          "trener-anastasiya-dachevskaya",
+          "trener-anastasiya-izvekova",
+          "trener-anastasiya-panova",
+          "trener-anna",
+          "trener-elena",
+          "trener-elena-isaeva",
+          "trener-ella",
+          "trener-evgeniya-bashlakova",
+          "trener-kseniya-dubrovskaya",
+          "trener-kseniya-oschepkova",
+          "trener-margarita-gribinichenko",
+          "trener-nadezhda-alekseeva",
+          "trener-natalya-didenko",
+          "trener-natalya-illarionova",
+          "trener-natalya-shulepova",
+          "trener-oksana",
+          "trener-oleg",
+          "trener-olga",
+          "trener-shorena-dzhakhaya",
+          "trener-veronika-voznaya"
+        ]
+      },
+      "gtm": {
+        "reason": "GTM loader in the head and GTM noscript frame in the body without the surrounding comments.",
+        "entries": [
+          "trener-efim"
+        ]
+      },
+      "backFallbackPath": {
+        "reason": "The back button falls back to /trenery/ instead of / when the tab has no history.",
+        "entries": [
+          "trener-efim"
+        ]
+      },
+      "ctaRegularSpace": {
+        "reason": "The sign-up button separates «к» and the name with a regular space; the other pages use a non-breaking space.",
+        "entries": [
+          "trener-anna",
+          "trener-efim",
+          "trener-elena",
+          "trener-ella",
+          "trener-kseniya-dubrovskaya",
+          "trener-oleg",
+          "trener-olga"
+        ]
+      },
+      "certificateIndent": {
+        "reason": "Certificate cards are indented by twelve spaces instead of six.",
+        "entries": [
+          "trener-oksana"
+        ]
+      },
+      "certificateLinkRel": {
+        "reason": "Certificate links carry rel=\"noopener noreferrer\" and no aria-label; the other pages carry aria-label=\"Посмотреть документ\" and no rel.",
+        "entries": [
+          "trener-natalya-shulepova"
+        ]
+      },
+      "certificates.plainDescription": {
+        "reason": "The description of the first certificate is not wrapped in <strong class=\"bold-text-2\">.",
+        "entries": [
+          "trener-natalya-shulepova#1"
+        ]
+      },
+      "certificatesSectionEmpty": {
+        "reason": "An empty <section class=\"section-2\"> stands between the list and the divider; the page has no certificates.",
+        "entries": [
+          "trener-oleg"
+        ]
+      }
     }
   }
 }

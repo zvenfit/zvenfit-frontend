@@ -1,5 +1,12 @@
 // JSON-LD node builders ported one to one from the legacy build-static.cjs.
-import type { JsonLd, LocationConfig, PageMeta, PromoOffer, StructuredDataConfig } from './structured-data-types';
+import type {
+  JsonLd,
+  LocationConfig,
+  PageMeta,
+  PromoOffer,
+  StructuredDataConfig,
+  TrainerConfig,
+} from './structured-data-types';
 
 export function resolveStructuredDataUrl(siteUrl: string, pathOrUrl?: string): string | undefined {
   if (!pathOrUrl) {
@@ -76,8 +83,12 @@ export function buildLocationNode(location: LocationConfig, siteUrl: string): Js
   };
 }
 
-export function getBreadcrumbLabel(segment: string, cfg: StructuredDataConfig): string {
-  const trainer = cfg.trainers?.[segment];
+export function getBreadcrumbLabel(
+  segment: string,
+  cfg: StructuredDataConfig,
+  trainers: Record<string, TrainerConfig>,
+): string {
+  const trainer = trainers[segment];
   if (trainer) {
     return trainer.name;
   }
@@ -85,7 +96,12 @@ export function getBreadcrumbLabel(segment: string, cfg: StructuredDataConfig): 
   return cfg.breadcrumbLabels?.[segment] || segment.replace(/-/g, ' ');
 }
 
-export function buildBreadcrumbList(pagePath: string, siteUrl: string, cfg: StructuredDataConfig): JsonLd | null {
+export function buildBreadcrumbList(
+  pagePath: string,
+  siteUrl: string,
+  cfg: StructuredDataConfig,
+  trainers: Record<string, TrainerConfig>,
+): JsonLd | null {
   if (pagePath === '/') {
     return null;
   }
@@ -110,7 +126,7 @@ export function buildBreadcrumbList(pagePath: string, siteUrl: string, cfg: Stru
     items.push({
       '@type': 'ListItem',
       position: index + 2,
-      name: getBreadcrumbLabel(segment, cfg),
+      name: getBreadcrumbLabel(segment, cfg, trainers),
       ...(isLast ? {} : { item: `${siteUrl}${currentPath}/` }),
     });
   });

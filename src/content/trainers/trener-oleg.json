@@ -1,0 +1,38 @@
+{
+  "wfPage": "69a51aaea9efa2d570db865a",
+  "name": "Иванов Олег Владимирович",
+  "nameDative": "олегу",
+  "jobTitle": "Персональный тренер",
+  "location": "chekhova",
+  "headingHtml": "Иванов Олег Владимирович",
+  "roleHtml": "Персональный тренер",
+  "photoClass": "oleg",
+  "groups": [
+    {
+      "heading": "Спортивные достижения:",
+      "itemsHtml": [
+        "Стаж тренерской деятельности более 20 лет<br>",
+        "КМС по спортивной гимнастике",
+        "Дипломированный специалист в области физического развития",
+        "Окончил Ленинградский институт физической культуры и спорта имени Лезговта в 1998г.",
+        "Победитель и призер чемпионатов стран Варшавского договора, участник международных турниров по\u00a0спортивной гимнастике"
+      ]
+    }
+  ],
+  "certificatesSectionEmpty": true,
+  "nextSlug": "trener-olga",
+  "updated": "2026-05-13",
+  "sitemap": {
+    "changefreq": "monthly",
+    "priority": "0.6"
+  },
+  "meta": {
+    "title": "Тренер: Олег",
+    "description": "Персональный тренер Олег Иванов ZvenFit Звенигород: работа с любым уровнем подготовки, индивидуальный подход, внимание к здоровью. Опыт 3+ года. Записаться"
+  },
+  "legacy": {
+    "markup": "webflow",
+    "webflowComments": "<!--  This site was created in Webflow. https://webflow.com  --><!--  Last Published: Sun Mar 22 2026 09:06:04 GMT+0000 (Coordinated Universal Time)  -->",
+    "ctaRegularSpace": true
+  }
+}

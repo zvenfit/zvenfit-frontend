@@ -17,11 +17,26 @@ const { builtSiteStylesheets, mediaRangeQueries, minifySiteCss } = require('./li
 const rootDir = path.join(__dirname, '..');
 const distDir = path.join(rootDir, 'dist');
 const stylesDir = path.join(rootDir, 'src', 'styles');
+const vendorDir = path.join(rootDir, 'src', 'vendor');
 const cdnWebflowPrefix = 'https://storage.yandexcloud.net/zvenfit/v2/js/webflow.js?v=';
 const STAGING_ROBOTS = 'User-agent: *\nDisallow: /\n';
 const HASH = '[A-Za-z0-9_-]+';
 const WEBFLOW_PAGE_ID_PATTERN = /^[0-9a-f]{24}$/;
 const MIN_W_NODE_CSS_COVERAGE = 0.9;
+// Licence texts of the vendored code in src/vendor. MIT asks for the notice in
+// every copy and the minified imask carries no banner, so the build serves the
+// text where the legacy site did: /js/vendor/<name> (src/pages/js/vendor/).
+const VENDOR_LICENCES = ['imask-7.6.1.LICENSE.txt'];
+// Trainer pages come from one template and the `trainers` collection. Only the
+// site stylesheet styles them: the grid by the #w-node-…-<suffix> rules of the
+// entry's wfPage, the two photos by .photo_coach.<photoClass> and
+// .photo_coach_mini.<photoClass>. There is no fallback by class, and the photo
+// rules without a modifier carry the photos of the page listed below, so an
+// entry with a new wfPage or a mistyped photoClass builds without an error and
+// renders a broken grid and another trainer's photo.
+const TRAINER_ROUTE = /^trenery\/(trener-[a-z0-9-]+)\/index\.html$/;
+const TRAINER_PHOTO_BLOCKS = ['photo_coach', 'photo_coach_mini'];
+const BASE_PHOTO_TRAINERS = ['trener-efim'];
 
 function walkFiles(dir, predicate, files = [], base = dir) {
   if (!fs.existsSync(dir)) {
@@ -82,6 +97,42 @@ function analyzeWebflowPage({ cssSource, minCoverage = MIN_W_NODE_CSS_COVERAGE, 
   return { coverage, errors, matchedWNodeCount: matchedWNodeIds.length, pageId, wNodeCount: wNodeIds.length };
 }
 
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+// A rule for exactly this selector (alone or in a selector list) that sets the property.
+function hasDeclaration(cssSource, selector, property) {
+  return new RegExp(`(?:^|[\\s,}])${escapeRegExp(selector)}\\s*(?:,[^{}]*)?\\{[^{}]*\\b${escapeRegExp(property)}\\s*:`).test(cssSource);
+}
+
+function analyzeTrainerPage({ cssSource, relativePath, slug, sourceHtml }) {
+  const errors = [];
+  const wNodeIds = extractIds(sourceHtml).filter(id => id.startsWith('w-node-'));
+  const withoutRule = wNodeIds.filter(id => !new RegExp(`#${escapeRegExp(id)}(?![0-9A-Za-z_-])`).test(cssSource));
+  if (withoutRule.length > 0) {
+    errors.push(
+      `${relativePath}: zvenfit.webflow.css has no rule for ${withoutRule.length} of ${wNodeIds.length} w-node ids (${withoutRule.join(', ')}); ` +
+        'a trainer page is laid out only by the ids of its wfPage, so the entry needs the wfPage of an existing page with the same layout or its own rules',
+    );
+  }
+  for (const block of TRAINER_PHOTO_BLOCKS) {
+    for (const match of sourceHtml.matchAll(new RegExp(`class="${block}((?: [^" ]+)*)"`, 'g'))) {
+      const modifiers = match[1].split(' ').filter(Boolean);
+      if (modifiers.length === 0 && !BASE_PHOTO_TRAINERS.includes(slug)) {
+        errors.push(`${relativePath}: .${block} has no photo class and shows the base photo, which belongs to ${BASE_PHOTO_TRAINERS.join(', ')}; set photoClass in the entry`);
+      }
+      for (const modifier of modifiers.filter(name => !hasDeclaration(cssSource, `.${block}.${name}`, 'background-image'))) {
+        errors.push(
+          `${relativePath}: zvenfit.webflow.css has no .${block}.${modifier} rule with a background-image; ` +
+            `the block shows the base photo, which belongs to ${BASE_PHOTO_TRAINERS.join(', ')}`,
+        );
+      }
+    }
+  }
+  return { errors, wNodeCount: wNodeIds.length };
+}
+
 function detectMode(dist) {
   const robots = path.join(dist, 'robots.txt');
   return fs.existsSync(robots) && fs.readFileSync(robots, 'utf8') === STAGING_ROBOTS ? 'staging' : 'production';
@@ -127,7 +178,12 @@ function checkPage(route, html, { mode, siteCss, errors }) {
       }
     }
   }
-  errors.push(...analyzeWebflowPage({ cssSource: siteCss, relativePath: route, sourceHtml: html }).errors);
+  // Trainer pages are checked id by id; the coverage threshold is for the exported Webflow pages.
+  const trainer = route.match(TRAINER_ROUTE);
+  errors.push(...analyzeWebflowPage({ cssSource: siteCss, minCoverage: trainer ? 0 : MIN_W_NODE_CSS_COVERAGE, relativePath: route, sourceHtml: html }).errors);
+  if (trainer) {
+    errors.push(...analyzeTrainerPage({ cssSource: siteCss, relativePath: route, slug: trainer[1], sourceHtml: html }).errors);
+  }
 }
 
 // The built site stylesheet must be the clean-css output of its source, the
@@ -146,6 +202,20 @@ function checkStylesheets(dist, siteCss, errors) {
     const ranges = mediaRangeQueries(fs.readFileSync(path.join(assetsDir, name), 'utf8'));
     if (ranges.length > 0) {
       errors.push(`_astro/${name} uses media query range syntax (${ranges[0]}), which Safari before 16.4 and Chrome before 104 ignore`);
+    }
+  }
+}
+
+function checkVendorLicences(dist, errors) {
+  for (const name of VENDOR_LICENCES) {
+    const source = path.join(vendorDir, name);
+    const served = path.join(dist, 'js', 'vendor', name);
+    if (!fs.existsSync(source)) {
+      errors.push(`src/vendor/${name} is missing: vendored code keeps its licence text next to it`);
+    } else if (!fs.existsSync(served)) {
+      errors.push(`js/vendor/${name} is missing: the licence text of vendored code must be served with the site`);
+    } else if (!fs.readFileSync(served).equals(fs.readFileSync(source))) {
+      errors.push(`js/vendor/${name} must carry the bytes of src/vendor/${name}`);
     }
   }
 }
@@ -290,6 +360,7 @@ function checkBuild({ dist = distDir, profile }) {
   }
 
   checkStylesheets(dist, siteCss, errors);
+  checkVendorLicences(dist, errors);
 
   const logoPath = path.join(dist, 'images', 'zvenfit-logo.svg');
   if (!fs.existsSync(logoPath)) {
@@ -325,7 +396,18 @@ function checkBuild({ dist = distDir, profile }) {
   return { mode, pages: pages.length, profile: profile.name };
 }
 
-module.exports = { MIN_W_NODE_CSS_COVERAGE, WEBFLOW_PAGE_ID_PATTERN, analyzeWebflowPage, checkBuild, detectMode, extractAttribute, extractIds };
+module.exports = {
+  BASE_PHOTO_TRAINERS,
+  MIN_W_NODE_CSS_COVERAGE,
+  VENDOR_LICENCES,
+  WEBFLOW_PAGE_ID_PATTERN,
+  analyzeTrainerPage,
+  analyzeWebflowPage,
+  checkBuild,
+  detectMode,
+  extractAttribute,
+  extractIds,
+};
 
 if (require.main === module) {
   try {
@@ -335,8 +417,10 @@ if (require.main === module) {
     console.log(`check-build: ${result.pages} page(s) verified in ${result.mode} mode (profile ${result.profile})`);
     console.log('check-build: CDN webflow.js, hashed own assets, no-cache runtime configs and generated maps config verified');
     console.log('check-build: site stylesheet equals its legacy clean-css minification, no range media queries');
+    console.log('check-build: licence texts of the vendored code served at /js/vendor/ with the source bytes');
     console.log('check-build: analytics, UTM, traffic beacon and 404 exclusion verified for the build mode');
     console.log('check-build: Webflow page ids, duplicate ids and w-node CSS coverage verified');
+    console.log('check-build: every trainer page has rules for its w-node ids and its photo class');
     console.log('check-build: branded native-select chevron, reduced-motion fallback and review scoping verified');
   } catch (error) {
     console.error(error instanceof Error ? error.message : error);
