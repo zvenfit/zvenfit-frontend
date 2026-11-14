@@ -7,18 +7,23 @@ alwaysApply: true
 
 Static site built by Astro into `dist/`: pages in `src/pages`, shared markup in
 `src/layouts` and `src/components`, data in `src/content` and `src/data`, classic
-browser scripts in `src/scripts`. No client framework on pages (an island needs a
-justification in the PR). Do not assume React or Next.
+browser scripts in `src/scripts`, static files copied as they are in `public/`. No
+client framework on pages (an island needs a justification in the PR). Do not assume
+React or Next.
 
 Release A is in progress on branch `feature/astro-release-a` (plan
 `docs/astro-migration.md`, ADR `knowledge-base/decisions/002-astro-migration.md`):
-after A2a every route is built from Astro sources (20 pages in `src/pages`, 21 trainer
-pages from `src/content/trainers/*.json`); until A2b those files are converter output and
-are not edited by hand. `public/**`, `scripts/snippets/**`, `scripts/*.config.json` and
-`scripts/build-static.cjs` are frozen (hotfixes only).
-Source: `src/`, `scripts/`, `functions/`. **Never edit `dist/` or `.astro/`.**
+every route is built from Astro sources (20 pages in `src/pages`, 21 trainer pages from
+`src/content/trainers/*.json`); until release A those files are converter output and are
+not edited by hand. The legacy build (`scripts/build-static.cjs`, `scripts/snippets/`,
+the pages, styles and scripts of `public/`) left the branch in stage A2b and lives only
+on `main`: a fix of the live site is made there and carried over by merging `main`,
+pinning that commit as `PARITY_BASE_SHA` and porting the fix to `src/` in one change.
+Never put a file into `public/` at the path of a route: Astro ships it instead of the
+page or the endpoint.
+Source: `src/`, `public/`, `scripts/`, `functions/`. **Never edit `dist/` or `.astro/`.**
 
-After changes: `npm run build` or `npm run dev:astro`; verify with `npm run check`,
+After changes: `npm run build` or `npm run dev`; verify with `npm run check`,
 `npm run lint`, `npm run test:build`. Parity with the legacy base: `npm run compare:dist`.
 
 ## APIs (endpoints built from env)

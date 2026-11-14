@@ -34,18 +34,20 @@
   виджета с обоснованием в PR. Не предполагать React или Next.
 - **Release A in progress** (branch `feature/astro-release-a`, plan
   [`docs/astro-migration.md`](docs/astro-migration.md), ADR
-  `knowledge-base/decisions/002-astro-migration.md`). After stage A2a every
-  route is built from Astro sources: 20 pages in `src/pages` and 21 trainer
-  pages rendered by `src/pages/trenery/[slug].astro` from the `trainers`
-  collection (`src/content/trainers/*.json`). The legacy export in `public/`
-  and `scripts/build-static.cjs` stay until A2b only as the parity base:
-  `astro.config.mjs` serves `static/` (two SVG logos) instead of `public/`,
-  and `public/**`, `scripts/snippets/**`, `scripts/*.config.json`,
-  `scripts/build-static.cjs` are frozen: hotfixes only (decision R10), through
-  `main` and `git merge main` into the branch, after which the converter
-  regenerates the affected pages. Until A2b the pages and the trainer entries
-  are converter output (a test compares them): change the converter, the
-  components or `scripts/migrate/manual.json`, not the generated files.
+  `knowledge-base/decisions/002-astro-migration.md`). Every route is built
+  from Astro sources: 20 pages in `src/pages` and 21 trainer pages rendered by
+  `src/pages/trenery/[slug].astro` from the `trainers` collection
+  (`src/content/trainers/*.json`). Stage A2b removed the legacy build from the
+  branch: `scripts/build-static.cjs`, `scripts/snippets/` and the pages,
+  styles and scripts of `public/` now exist only on `main` and in the pinned
+  base of the parity check, which builds that base from its own commit.
+  `public/` holds static files that Astro copies to `dist/` as they are (two
+  SVG logos). Strict parity holds until release A: the pages and the trainer
+  entries stay converter output (a test compares them with the converter run
+  against the pinned base), so change the converter, the components or
+  `scripts/migrate/manual.json`, not the generated files. A fix of the live
+  site is made on `main` (decision R10) and carried over as the plan says
+  ("Перенос исправлений из legacy").
 - **Build:** `npm run build` = `astro build --mode $NODE_ENV` (production,
   staging or development) → `dist/`. Strict parity with the pinned legacy base
   is proven by `scripts/compare-dist.cjs` (see Verification).
@@ -62,7 +64,7 @@
   and Chrome before 104 ignore. The clean-css version is pinned in that
   module: the built file name follows the source bytes, not the minifier.
 - **Backend:** 4 TypeScript Yandex Cloud Functions in `functions/` (compiled to CommonJS): `lead-intake`, `fitbase-schedule`, `site-traffic`, `staging-authorizer`
-- **CI:** `quality.yml` checks pull requests (lint, tests, `astro check`, production-like and staging builds, `compare-dist` against the pinned base). `main.yml` (**Release**) runs on every push to `main`: staging deploy → E2E from `zvenfit-autotests` → production deploy (functions → build → S3 → smoke) → release tag; production is skipped unless E2E passes. An emergency dispatch with `skip_staging` and a `reason` deploys production without staging. `staging.yml` re-runs staging and E2E manually without a release. All deploys share `_deploy-environment.yml` and the `deploy` concurrency group.
+- **CI:** `quality.yml` checks pull requests (lint, tests, `astro check`, production-like and staging builds, `compare-dist` against the pinned base; that job also runs the converter tests, which need the base commit in the checkout). `main.yml` (**Release**) runs on every push to `main`: staging deploy → E2E from `zvenfit-autotests` → production deploy (functions → build → S3 → smoke) → release tag; production is skipped unless E2E passes. An emergency dispatch with `skip_staging` and a `reason` deploys production without staging. `staging.yml` re-runs staging and E2E manually without a release. All deploys share `_deploy-environment.yml` and the `deploy` concurrency group.
 
 TypeScript is used for Cloud Functions, Astro frontmatter, endpoints and the
 `src/lib` helpers; the browser scripts remain classic vanilla JS until the
@@ -73,12 +75,16 @@ post-migration revision.
 | Edit                                                       | Do not edit                                                    |
 | ---------------------------------------------------------- | -------------------------------------------------------------- |
 | `src/` (pages, layouts, components, scripts, styles, data) | `dist/`, `.astro/`                                             |
-| `scripts/` (checks, deploy, migration tooling)             | `public/**`, `scripts/snippets/**`, `scripts/*.config.json`, `scripts/build-static.cjs` — frozen, hotfix rule R10 only |
+| `public/` (static files copied to `dist/` as they are)     | a file in `public/` at the path of a route: it replaces the page or the endpoint |
+| `scripts/` (checks, deploy, migration tooling)             | the generated `src/pages/**` and `src/content/trainers/*.json` by hand, until release A |
 | `functions/`                                               | committed secrets                                              |
 
-After any change in `src/`: run `npm run build` or use `npm run dev:astro`. A
-legacy hotfix in `public/` is verified with the legacy pipeline
-(`npm run dev:watch`) and lands through `main`.
+After any change in `src/`: run `npm run build` or use `npm run dev`. The
+legacy site (`public/**/*.html`, `scripts/snippets/**`,
+`scripts/build-static.cjs`) is not in this branch. A fix of the live site is
+made and verified on `main`, where the legacy pipeline lives until release A,
+and reaches the branch through `git merge main`, a new pinned base and the
+converter.
 
 ## Module conventions
 
@@ -102,14 +108,14 @@ staging.zvenfit.ru → API Gateway + Basic auth (functions/staging-authorizer)
 
 Local dev (npm run dev):
   mock-server :3000  ← lead POST + GET /schedule + POST /traffic
-  serve dist :4173   ← static site
+  astro dev :4173    ← pages and endpoints from src/
 ```
 
-Build injects API URLs into:
+The build renders the API URLs into endpoints:
 
-- `public/js/lead-config.js` → `window.ZVENFIT_LEAD_API`
-- `public/js/schedule-config.js` → `window.ZVENFIT_SCHEDULE_API`
-- `public/js/traffic-config.js` → `window.ZVENFIT_TRAFFIC_API`
+- `src/pages/js/lead-config.js.ts` → `/js/lead-config.js` → `window.ZVENFIT_LEAD_API`
+- `src/pages/js/schedule-config.js.ts` → `/js/schedule-config.js` → `window.ZVENFIT_SCHEDULE_API`
+- `src/pages/js/traffic-config.js.ts` → `/js/traffic-config.js` → `window.ZVENFIT_TRAFFIC_API`
 
 ## Build pipeline markers
 
@@ -125,19 +131,19 @@ and `src/pages`, do not reformat them.
 | ----------------------------------------------- | ----------------------------------------------------------------- | ---------------------------------------------------------------- |
 | `Analytics.astro`                               | GTM + Top.Mail.Ru + Metrika, production only; `placement`, GTM comment style | raw legacy snippets in `src/components/analytics/`              |
 | `UtmHead.astro`                                 | UTM attribution script (every mode)                               | `src/scripts/utm-attribution.js`                                 |
-| `OpenGraph.astro`                               | OG/Twitter meta in the legacy order                               | page props, `scripts/structured-data.config.json`                |
-| `StructuredData.astro`                          | JSON-LD graph                                                     | `src/lib/structured-data*.ts`, `scripts/structured-data.config.json` |
+| `OpenGraph.astro`                               | OG/Twitter meta in the legacy order                               | page props, `src/data/structured-data.config.json`               |
+| `StructuredData.astro`                          | JSON-LD graph                                                     | `src/lib/structured-data*.ts`, `src/data/structured-data.config.json` |
 | `Menu.astro` + `LogoEmbeds.astro`               | variants `home`, `service`, `coach`, `plain` (Webflow `menu1`, `menu2`, `menu2-coach`, `menu3`) | page props, exact `w-node-*` ids of the page |
 | `Footer.astro` (`FooterDesktop`, `FooterMobile`, `FooterGrid`) | `section-4`/`section-3` pair: `location`, `withGrid`, `withMobile`, `withMap`, `badges`, `anchorId`, `mobileAnchorId` | `src/lib/footer.ts` |
-| `MapRegion.astro`, `MapScripts.astro`           | runtime map region and scripts                                    | `scripts/maps.config.json`, `src/data/map-photos.json`           |
-| `AppDownloadBadges/Platforms/Promo.astro`       | store badges and app sections                                     | `scripts/app-links.config.json`                                  |
+| `MapRegion.astro`, `MapScripts.astro`           | runtime map region and scripts                                    | `src/data/maps.config.json`, `src/data/map-photos.json`          |
+| `AppDownloadBadges/Platforms/Promo.astro`       | store badges and app sections                                     | `src/data/app-links.config.json`                                 |
 | `TrafficBeacon.astro`                           | technical page views (not on 404)                                 | `src/scripts/traffic-beacon.js`                                  |
 
 Endpoints in `src/pages`: `js/lead-config.js.ts`, `js/schedule-config.js.ts`,
 `js/traffic-config.js.ts` read `LEAD_API_URL`, `SCHEDULE_API_URL`,
 `TRAFFIC_API_URL` at build time (development falls back to the mock server,
 staging and production fail without a value); `js/maps-config.js.ts` combines
-`scripts/maps.config.json`, the committed photo snapshot and `Y_MAPS_API_KEY`;
+`src/data/maps.config.json`, the committed photo snapshot and `Y_MAPS_API_KEY`;
 `sitemap.xml.ts` collects `export const sitemap = { updated, changefreq,
 priority }` from every page and `updated`/`sitemap` of every trainer entry
 (`src/lib/sitemap.ts` validates them);
@@ -146,8 +152,8 @@ priority }` from every page and `updated`/`sitemap` of every trainer entry
 `js/vendor/imask-7.6.1.LICENSE.txt.ts` serves the MIT text of the vendored
 imask from `src/vendor/` at its legacy address (the minified file has no
 licence banner; `check-build` compares the built bytes with the source).
-Content configs stay in `scripts/*.config.json` until A2b moves them to
-`src/data/`.
+Content configs live in `src/data/*.config.json`. An endpoint is a route like
+a page: a file in `public/` at its path would be shipped instead of it.
 
 Compiler facts to respect (details in the plan, section 4): comments passed as
 component children are dropped, emit them via `set:html`; a raw `U+00A0` in a
@@ -160,11 +166,9 @@ directly inside a component's children, whitespace that follows an expression
 The `trainers` collection (`src/content.config.ts`, schema in
 `src/lib/trainer-schema.ts`): one JSON entry per trainer, the file name is the
 slug and must be `trener-<name>.json`. `StructuredData.astro` (Person,
-breadcrumb) and the sitemap read it; the `trainers` block of
-`scripts/structured-data.config.json` is no longer read, and A2b deletes it
-(it does not move to `src/data/` with the rest of the config). The optional
-`legacy` block of an entry holds markup differences between the legacy pages;
-a new trainer does not need it.
+breadcrumb) and the sitemap read it; the structured-data config has no
+`trainers` block any more. The optional `legacy` block of an entry holds
+markup differences between the legacy pages; a new trainer does not need it.
 
 A trainer page is styled by the site stylesheet alone, with no fallback by
 class. The grid is laid out by the `#w-node-…-<suffix>` rules of the entry's
@@ -184,8 +188,9 @@ bytes are part of the parity contract.
 | -------------------------- | ----------------------------------------------------------------------------------------- |
 | Pages (Astro)              | `src/pages/**/index.astro`, `src/pages/404.astro`                                          |
 | Trainer pages              | `src/content/trainers/*.json`, `src/lib/trainer-schema.ts`, `src/pages/trenery/[slug].astro`; grid and photo rules in `src/styles/zvenfit.webflow.css`, guard in `scripts/check-build.cjs` |
-| Page conversion            | `scripts/migrate/html-to-astro.cjs`, `shared-blocks.cjs`, `trainer-page.cjs`, `manual.json` |
-| Parity check               | `scripts/compare-dist.cjs`, `scripts/parity-allowlist.json`, `scripts/lib/html-parity.cjs`, `scripts/lib/parity-harness.cjs` |
+| Page conversion            | `scripts/migrate/html-to-astro.cjs`, `shared-blocks.cjs`, `trainer-page.cjs`, `manual.json`; reads the legacy pages from git (`--ref <pinned base>`), stays until release A |
+| Parity check               | `scripts/compare-dist.cjs`, `scripts/parity-allowlist.json`, `scripts/lib/html-parity.cjs`, `scripts/lib/parity-harness.cjs`, `scripts/lib/parity-profile.cjs` |
+| Static files               | `public/` (two SVG logos); guard against a file at the path of a route in `scripts/check-build.cjs` |
 | CSS minification           | `scripts/lib/site-css.cjs`, `astro.config.mjs`; guards in `scripts/check-build.cjs` and `scripts/compare-dist.cjs` |
 | Layout and shared blocks   | `src/layouts/Base.astro`, `src/components/`                                                 |
 | Lead form UI/validation    | `src/pages/forma-dlya-zayavki/index.astro`, `src/scripts/lead-form.js`                      |
@@ -195,9 +200,9 @@ bytes are part of the parity contract.
 | Schedule API / Fitbase     | `functions/fitbase-schedule/src/handler.ts`, `src/adapters/fitbase/`                        |
 | Technical site traffic     | `src/scripts/traffic-beacon.js`, `src/components/TrafficBeacon.astro`, `functions/site-traffic/src/` |
 | UTM in leads               | `src/scripts/utm-attribution.js`, `docs/utm-attribution-marketing.md`                      |
-| App store badges/links     | `scripts/app-links.config.json`, `src/components/AppDownload*.astro`                        |
-| SEO / JSON-LD / Open Graph | `scripts/structured-data.config.json`, `src/lib/structured-data*.ts`, `src/components/OpenGraph.astro`, page props |
-| Maps                       | `scripts/maps.config.json`, `src/data/map-photos.json` (`npm run maps:snapshot`), `src/scripts/yandex-map.js`, `src/components/MapRegion.astro` |
+| App store badges/links     | `src/data/app-links.config.json`, `src/components/AppDownload*.astro`                       |
+| SEO / JSON-LD / Open Graph | `src/data/structured-data.config.json`, `src/lib/structured-data*.ts`, `src/components/OpenGraph.astro`, page props |
+| Maps                       | `src/data/maps.config.json`, `src/data/map-photos.json` (`npm run maps:snapshot`), `src/scripts/yandex-map.js`, `src/components/MapRegion.astro` |
 | Runtime API configs        | `src/pages/js/*-config.js.ts`, `src/lib/runtime-config.ts`                                  |
 | Prices and page ownership  | `knowledge-base/site-information-architecture.md`                                           |
 | Club card page             | `src/pages/klubnaya-karta/index.astro` (own menu and footer, see `manual.json`), `src/styles/klubnaya-karta.v1.css` |
@@ -215,15 +220,19 @@ npm ci --prefix functions/lead-intake
 npm ci --prefix functions/fitbase-schedule
 npm ci --prefix functions/site-traffic
 npm ci --prefix functions/staging-authorizer
-npm run dev:astro                  # mock API :3000 + astro dev :4173 (converted pages)
+npm run dev                        # mock API :3000 + astro dev :4173
 ```
 
 - Node ≥ 22.23.4 (`.nvmrc`): Astro 7.4 refuses older releases; CI uses
   `setup-node` with `check-latest: true`.
 - `astro dev --mode development` reads `.env.development`; the lead form posts to
   `http://localhost:3000` when `LEAD_API_URL` is empty.
-- `npm run dev:watch` still builds the frozen legacy tree with
-  `scripts/build-static.cjs` for verifying a hotfix in `public/`.
+- `npm run dev:dist` builds in development mode and serves `dist/` on :4173
+  with the same mock API: the built output (hashed assets, the minified site
+  stylesheet, endpoints as files) instead of the dev server.
+- `npm run dev:watch` is `npm run dev` under its old name: the error hint of
+  the schedule page (`src/scripts/schedule.js`) names it, and the bytes of
+  that script are part of the parity contract until release A.
 - Schedule uses dynamic fixture by default (`SCHEDULE_PROVIDER=fixture`)
 - Live local data requires both `SCHEDULE_PROVIDER=fitbase` and `FITBASE_API_TOKEN`
 
@@ -234,7 +243,7 @@ The Workspace check contract is `project-checks.json`. Run `python3 scripts/chec
 ```bash
 npm run check                    # astro check: types of components, props and endpoints
 npm run build                    # must produce dist/ (NODE_ENV selects production, staging, development)
-npm run lint                     # JS in public/, src/ (js, ts, astro) and all functions
+npm run lint                     # src/ (js, ts, astro), astro.config.mjs and all functions
 npm run test:lead-fn             # durable storage, Telegram failure paths, metrics export deadline (needs openssl)
 npm run test:schedule-fn         # schedule contract, Fitbase and synthetic adapters
 npm run test:site-traffic        # page-view validation/classification/logging contract
@@ -249,15 +258,25 @@ npm run maps:snapshot            # refresh src/data/map-photos.json from Yandex 
 
 `compare:dist` builds both commits in disposable worktrees (`npm ci` inside) and
 needs the network once; `HEAD` is accepted only as the candidate and only
-locally — CI passes explicit SHAs. Since A2a every check runs the full profile
-`a` from `scripts/deploy.config.json`: 41 HTML routes and 40 sitemap URLs. The
-legacy base SHA is `PARITY_BASE_SHA` in `.github/workflows/quality.yml`.
-`compare-dist` first checks that the legacy inputs of the candidate tree
-(`public/`, `scripts/snippets/`, `scripts/build-static.cjs` and the three
-configs the legacy build reads) equal that base: after a legacy hotfix, merge
-`main` and pin the new base in the same change. With the full profile it also
-accounts for every file of both builds, so a file that legacy shipped by
-copying `public/` must exist in the Astro build with the same bytes.
+locally — CI passes explicit SHAs. Every check runs the full profile `a` from
+`scripts/deploy.config.json`: 41 HTML routes and 40 sitemap URLs; the partial
+profile `a1` of stage A1 no longer exists. The legacy base SHA is
+`PARITY_BASE_SHA` in `.github/workflows/quality.yml`, and the base is built
+from that commit: the branch itself has no legacy build.
+`compare-dist` first holds the legacy inputs (`public/`, `scripts/snippets/`,
+`scripts/build-static.cjs` and the three configs the legacy build reads) to
+that base. The candidate tree no longer carries them, so that part of the
+report says `skipped`; what applies is the history: the base must be an
+ancestor of the candidate, and every commit merged since the base that still
+carries the legacy build must carry the inputs of the base. A fix of the live
+site therefore needs all three in one change: merge `main`, pin that commit as
+the base, carry the fix over to `src/`. The comparison also accounts for every
+file of both builds, so a file that legacy shipped by copying `public/` must
+exist in the Astro build with the same bytes.
+The converter tests read the legacy pages from the pinned base. A shallow
+checkout does not have that commit and skips them with a reason; the
+`compare-dist` job has the whole history and runs them with
+`REQUIRE_LEGACY_BASE=1`, where a missing base is a failure.
 `test:monitoring` and `test:lead-import` run subsets of `test:scripts` when only that area changed.
 
 Manual smoke:
@@ -286,12 +305,13 @@ From `TODO.md` — keep current identity:
 
 1. Editing `dist/` directly — changes are lost on next build
 2. Copy-pasting footer/header into pages — use `Footer.astro`, `Menu.astro` and the other components; a block that does not fit the component contract goes to `scripts/migrate/manual.json` with a reason
-3. Editing `public/**` for anything but a hotfix (decision R10), or editing the generated `src/pages/**` and `src/content/trainers/*.json` by hand — both are frozen while branch A is open; new trainers, promos and texts wait for release A, a hotfix goes through `main` and the converter
+3. Editing the generated `src/pages/**` and `src/content/trainers/*.json` by hand — they stay converter output until release A; new trainers, promos and texts wait for release A, a fix of the live site goes through `main` (decision R10) and the converter (`--ref <new base>`)
 4. Reformatting `src/layouts`, `src/components` or `src/pages` — the whitespace is part of the parity contract and `compare-dist` fails
 5. Raw `U+00A0` or HTML comments inside component children in `.astro` templates — the compiler rewrites the first and drops the second; use `&nbsp;` and `set:html`
-6. Breaking marker comments in the frozen legacy pages — the legacy build skips injection silently
+6. Putting a file into `public/` at the path of a route (a page, a trainer page, `robots.txt`, `sitemap.xml`, `/js/*-config.js`) — Astro ships the file instead of the route and only warns; `check-build` fails. When `git merge main` reports "deleted by us" for a legacy file, delete it
 7. Pushing to `main` — it starts a release (staging, E2E, then production); work on a branch and open a pull request. During branch A the stacked PRs target `feature/astro-release-a`
 8. Turning Vite's CSS minification back on, or setting `build.cssTarget` or a browser `build.target` — stylesheets get media range syntax and old Safari and Chrome lose the responsive layout; a config test, `check-build` and `compare-dist` fail
+9. Merging `main` after a fix of the live site without pinning that commit as `PARITY_BASE_SHA` and carrying the fix over to `src/` — the fix would be lost in release A; `compare-dist` fails on the history of the branch
 
 ## Git branches
 
@@ -312,7 +332,8 @@ pages come from `src/content/trainers/*.json` through
 `robots.txt.ts` generate the crawl files, so there is no hand-written sitemap.
 All of them were generated by
 `node scripts/migrate/html-to-astro.cjs --ref <legacy SHA> --all --force`; the
-frozen legacy export `public/**/*.html` stays until A2b as the parity base.
+legacy export they came from is no longer in the branch and is read from the
+pinned base.
 
 ## Docs index
 

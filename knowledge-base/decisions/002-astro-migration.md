@@ -91,7 +91,7 @@ production, tag and GitHub release.
 | --- | --- | --- |
 | normalize.css 8 | bucket, into the repository in B | MIT |
 | jQuery 3.5.1 | bucket, into the repository in B | MIT |
-| imask 7.6.1 | `public/js/vendor/` since PR #85 | MIT, licence file next to it |
+| imask 7.6.1 | `src/vendor/` (on legacy `main`: `public/js/vendor/` since PR #85) | MIT; the licence text lies next to the script in `src/vendor/` and is served at its legacy address `/js/vendor/imask-7.6.1.LICENSE.txt` by the endpoint `src/pages/js/vendor/imask-7.6.1.LICENSE.txt.ts` |
 | Roboto, Roboto Condensed | fonts.bunny.net | Apache 2.0 |
 | Webflow runtime (`webflow.js`, `webflow.min.css`) | exported with the site, bucket | Webflow terms for exported sites; confirm against the account's terms |
 | Road Rage, Cyrillic build "RUS BY LYAJKA" | bucket `fonts/roadrage.ttf` | embedded licence text says "Free for personal use only" (© 2016 Youssef Habchi); the owner holds a purchased commercial licence (confirmed 2026-10-26), kept outside the repository. |
