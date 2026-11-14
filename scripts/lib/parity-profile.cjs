@@ -11,8 +11,6 @@ const PROFILES = Object.freeze({
   b: Object.freeze({ base: 'astro' }),
 });
 
-const LEGACY_DUPLICATES = 'allowed'; // becomes 'forbidden' in A2b when public/**/*.html is removed
-
 function getProfile(name) {
   if (!Object.hasOwn(PROFILES, name)) {
     throw new Error(`parity: unknown profile "${name}" (expected a or b)`);
@@ -30,4 +28,4 @@ function pageToRoute(page) {
   return `/${page}`;
 }
 
-module.exports = { LEGACY_DUPLICATES, PROFILES, getProfile, pageToRoute };
+module.exports = { PROFILES, getProfile, pageToRoute };

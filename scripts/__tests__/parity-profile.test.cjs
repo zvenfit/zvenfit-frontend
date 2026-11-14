@@ -6,7 +6,7 @@ const path = require('node:path');
 const test = require('node:test');
 
 const { pinnedBaseSha } = require('../lib/parity-harness.cjs');
-const { LEGACY_DUPLICATES, PROFILES, getProfile, pageToRoute } = require('../lib/parity-profile.cjs');
+const { PROFILES, getProfile, pageToRoute } = require('../lib/parity-profile.cjs');
 
 test('both profiles cover the whole site and differ only in the base of the comparison', () => {
   assert.deepEqual(Object.keys(PROFILES), ['a', 'b']);
@@ -18,10 +18,6 @@ test('the partial profile of stage A1 and any other name are refused', () => {
   for (const name of ['a1', 'legacy', 'constructor', '', undefined]) {
     assert.throws(() => getProfile(name), /unknown profile ".*" \(expected a or b\)/, String(name));
   }
-});
-
-test('legacy duplicates stay allowed until A2b removes public/**/*.html', () => {
-  assert.equal(LEGACY_DUPLICATES, 'allowed');
 });
 
 test('a page of the build maps to its route', () => {

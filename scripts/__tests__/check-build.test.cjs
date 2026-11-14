@@ -6,7 +6,15 @@ const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
 
-const { BASE_PHOTO_TRAINERS, VENDOR_LICENCES, analyzeTrainerPage, analyzeWebflowPage, checkBuild, detectMode } = require('../check-build.cjs');
+const {
+  BASE_PHOTO_TRAINERS,
+  VENDOR_LICENCES,
+  analyzeTrainerPage,
+  analyzeWebflowPage,
+  checkBuild,
+  detectMode,
+  publicFilesShadowingRoutes,
+} = require('../check-build.cjs');
 const { minifySiteCss } = require('../lib/site-css.cjs');
 
 const SITE_CSS = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'styles', 'zvenfit.webflow.css'), 'utf8');
@@ -97,9 +105,9 @@ function fixture({ pages, robots = 'User-agent: *\nAllow: /\n', styles = { 'zven
 
 // Every problem the build contract reports for the fixture, so a test can show
 // that one broken thing yields exactly its own message.
-function problems(pages, options = {}) {
+function problems(pages, { sources, ...options } = {}) {
   try {
-    checkBuild({ dist: fixture({ pages, ...options }) });
+    checkBuild({ dist: fixture({ pages, ...options }), sources });
   } catch (error) {
     return error.message.split('\n- ').slice(1);
   }
@@ -197,6 +205,47 @@ test('the full-site checks read the lead form, the club card, the gym page, the 
   assert.deepEqual(changed('index.html', 'https://zvenfit.ru/images/zvenfit-logo.svg', 'https://zvenfit.ru/images/logo.png'), ['Organization JSON-LD does not reference the dedicated logo']);
   assert.deepEqual(changed('gruppovye-trenirovki/index.html', ' data-zvenfit-page="group-fitness"', ''), ['gruppovye-trenirovki/index.html must carry the semantic page marker group-fitness']);
   assert.deepEqual(changed('trenazhernyj-zal/mini-gruppy/index.html', 'mini-groups', 'gym'), ['trenazhernyj-zal/mini-gruppy/index.html must carry the semantic page marker mini-groups']);
+});
+
+function sourceTree(files) {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'check-build-sources-'));
+  for (const file of files) {
+    fs.mkdirSync(path.dirname(path.join(root, file)), { recursive: true });
+    fs.writeFileSync(path.join(root, file), '');
+  }
+  return { publicDir: path.join(root, 'public'), pagesDir: path.join(root, 'src/pages'), contentDir: path.join(root, 'src/content') };
+}
+
+const ROUTE_SOURCES = [
+  'src/pages/index.astro',
+  'src/pages/404.astro',
+  'src/pages/offer/index.astro',
+  'src/pages/trenery/[slug].astro',
+  'src/pages/robots.txt.ts',
+  'src/pages/js/lead-config.js.ts',
+  'src/pages/_drafts/note.astro',
+  'src/content/trainers/trener-a.json',
+];
+
+test('a file in public/ may not take the path of a page, a trainer page of the collection or an endpoint', () => {
+  // Without public/, and with files that are nobody's route.
+  assert.deepEqual(publicFilesShadowingRoutes(sourceTree(ROUTE_SOURCES)), []);
+  const harmless = ['public/images/logo.svg', 'public/offer/terms.pdf', 'public/_drafts/note/index.html', 'public/trenery/[slug]/index.html', 'public/robots.txt.ts'];
+  assert.deepEqual(publicFilesShadowingRoutes(sourceTree([...ROUTE_SOURCES, ...harmless])), []);
+  const shadowing = ['public/404.html', 'public/index.html', 'public/js/lead-config.js', 'public/offer/index.html', 'public/robots.txt', 'public/trenery/trener-a/index.html'];
+  assert.deepEqual(
+    publicFilesShadowingRoutes(sourceTree([...ROUTE_SOURCES, ...harmless, ...shadowing])),
+    shadowing.map(file => file.slice('public/'.length)),
+  );
+});
+
+test('the build contract refuses a public file that shadows a route, and the committed public/ has none', () => {
+  assert.deepEqual(publicFilesShadowingRoutes(), []);
+  const sources = sourceTree([...ROUTE_SOURCES, 'public/offer/index.html', 'public/robots.txt']);
+  assert.deepEqual(problems(SITE, { sources }), [
+    'public/ holds a file with the path of a route, and Astro ships it instead of the route: offer/index.html, robots.txt',
+  ]);
+  assert.deepEqual(problems(SITE, { sources: sourceTree(ROUTE_SOURCES) }), []);
 });
 
 // The six node ids of the trainer template (src/lib/trainers.ts) with the page's own suffix.

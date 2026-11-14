@@ -113,10 +113,12 @@ function astroPageToRoute(relativePath) {
   return `${stem.replace(/\/index$/, '')}/index.html`;
 }
 
+function isStaticRouteFile(file) {
+  return !file.split('/').some(segment => segment.startsWith('_')) && !/\[[^\]]+\]/.test(file);
+}
+
 function expectedRoutesFromAstro(pagesDir, contentDir) {
-  const pages = walkFiles(pagesDir, name => name.endsWith('.astro')).filter(
-    file => !file.split('/').some(segment => segment.startsWith('_')) && !/\[[^\]]+\]/.test(file),
-  );
+  const pages = walkFiles(pagesDir, name => name.endsWith('.astro')).filter(isStaticRouteFile);
   const routes = pages.map(astroPageToRoute);
   const trainersDir = path.join(contentDir, 'trainers');
   if (fs.existsSync(trainersDir)) {
@@ -132,6 +134,15 @@ function expectedRoutesFromAstro(pagesDir, contentDir) {
     throw new Error(`check-routes: Astro sources produce the same route twice: ${duplicates.join(', ')}`);
   }
   return routes.sort();
+}
+
+// An endpoint is built at its own path without the script extension:
+// src/pages/robots.txt.ts -> robots.txt, src/pages/js/lead-config.js.ts -> js/lead-config.js.
+function endpointFilesFromAstro(pagesDir) {
+  return walkFiles(pagesDir, name => /\.[jt]s$/.test(name) && !name.endsWith('.d.ts'))
+    .filter(isStaticRouteFile)
+    .map(file => file.replace(/\.[jt]s$/, ''))
+    .sort();
 }
 
 function verifyDist({ distDir, expectedRoutes, siteUrl }) {
@@ -236,6 +247,7 @@ module.exports = {
   REQUIRED_FILES,
   SOURCES_BY_PROFILE,
   astroPageToRoute,
+  endpointFilesFromAstro,
   expectedRoutesFromAstro,
   expectedRoutesFromPublic,
   readProfile,

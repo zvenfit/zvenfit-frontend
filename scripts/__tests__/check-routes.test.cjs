@@ -10,6 +10,7 @@ const {
   REQUIRED_FILES,
   SOURCES_BY_PROFILE,
   astroPageToRoute,
+  endpointFilesFromAstro,
   expectedRoutesFromAstro,
   expectedRoutesFromPublic,
   readProfile,
@@ -138,6 +139,18 @@ test('Astro pages map to directory routes and private or dynamic files are skipp
     'trenery/trener-b/index.html',
   ]);
   assert.throws(() => expectedRoutesFromAstro(path.join(root, 'nowhere'), path.join(root, 'nowhere-either')), /no Astro pages/);
+});
+
+test('endpoints are built at their own path without the script extension', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'check-routes-endpoints-'));
+  for (const file of ['index.astro', 'robots.txt.ts', 'sitemap.xml.ts', 'js/lead-config.js.ts', 'js/vendor/licence.txt.js', 'env.d.ts', '_lib/helper.ts', 'feeds/[name].xml.ts']) {
+    writeFile(path.join(root, 'src/pages'), file, '');
+  }
+  assert.deepEqual(endpointFilesFromAstro(path.join(root, 'src/pages')), ['js/lead-config.js', 'js/vendor/licence.txt', 'robots.txt', 'sitemap.xml']);
+  assert.deepEqual(endpointFilesFromAstro(path.join(root, 'nowhere')), []);
+  // The endpoints of this repository are the files the deploy requires in dist, and the licence text.
+  const endpoints = endpointFilesFromAstro(path.join(__dirname, '..', '..', 'src', 'pages'));
+  assert.deepEqual(endpoints, [...REQUIRED_FILES, 'js/vendor/imask-7.6.1.LICENSE.txt'].sort());
 });
 
 test('the sources must define a 404 route: there is no partial route set', () => {
