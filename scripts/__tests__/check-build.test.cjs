@@ -6,7 +6,7 @@ const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
 
-const { VENDOR_LICENCES, analyzeWebflowPage, checkBuild, detectMode } = require('../check-build.cjs');
+const { BASE_PHOTO_TRAINERS, VENDOR_LICENCES, analyzeTrainerPage, analyzeWebflowPage, checkBuild, detectMode } = require('../check-build.cjs');
 const { getProfile } = require('../lib/parity-profile.cjs');
 const { minifySiteCss } = require('../lib/site-css.cjs');
 
@@ -124,4 +124,101 @@ test('the licence text of the vendored code is served at /js/vendor/ with the so
   assert.throws(() => checkBuild({ dist: fixture({ pages: LEGAL, licences: () => null }), profile: A1 }), /js\/vendor\/imask-7\.6\.1\.LICENSE\.txt is missing: the licence text of vendored code must be served with the site/);
   const trimmed = name => fs.readFileSync(path.join(VENDOR_DIR, name), 'utf8').trimEnd();
   assert.throws(() => checkBuild({ dist: fixture({ pages: LEGAL, licences: trimmed }), profile: A1 }), /js\/vendor\/imask-7\.6\.1\.LICENSE\.txt must carry the bytes of src\/vendor\/imask-7\.6\.1\.LICENSE\.txt/);
+});
+
+// The six node ids of the trainer template (src/lib/trainers.ts) with the page's own suffix.
+const TRAINER_NODE_IDS = [
+  'w-node-e11a7337-bde2-19aa-1b4b-c032af4154f2',
+  'w-node-e11a7337-bde2-19aa-1b4b-c032af4154f5',
+  'w-node-_3a3877c5-6cff-fbf8-e343-fd2c16920b2f',
+  'w-node-_980bac73-2f9d-6ef2-62fc-7ca3af7945ed',
+  'w-node-ef656b17-654a-462b-e243-174727480d7f',
+  'w-node-_56762e99-7fb7-f4e5-d9ce-ad52ba56dcbf',
+];
+
+// trener-veronika-voznaya by default: wfPage suffix a2c8310c, photo class veron.
+function trainerBody({ suffix = 'a2c8310c', photoClass = 'veron', extraIds = [] } = {}) {
+  const modifier = photoClass ? ` ${photoClass}` : '';
+  const ids = [...TRAINER_NODE_IDS.map(id => `${id}-${suffix}`), ...extraIds].map(id => `<div id="${id}"></div>`).join('');
+  return `<div class="photo_coach${modifier}"></div>${ids}<div class="photo_coach_mini${modifier}"></div>`;
+}
+
+function trainerErrors(slug, options) {
+  return analyzeTrainerPage({ cssSource: SITE_CSS, relativePath: `trenery/${slug}/index.html`, slug, sourceHtml: `<html><body>${trainerBody(options)}</body></html>` }).errors;
+}
+
+test('a trainer page passes when the stylesheet has rules for its w-node ids and both photo rules', () => {
+  assert.deepEqual(trainerErrors('trener-veronika-voznaya'), []);
+  // A new entry may reuse the wfPage of an existing page with the same layout.
+  assert.deepEqual(trainerErrors('trener-new', { suffix: 'a2c8310c', photoClass: 'nat' }), []);
+  // The six certificate cards of trener-natalya-shulepova carry ids of their own.
+  const certificate = 'w-node-f394948c-d9ea-9703-61a4-183cf369dda6-bdc57907';
+  assert.ok(SITE_CSS.includes(`#${certificate}`));
+  assert.deepEqual(trainerErrors('trener-natalya-shulepova', { suffix: 'bdc57907', photoClass: 'nata', extraIds: [certificate] }), []);
+});
+
+test('a trainer page with a wfPage the stylesheet does not know fails id by id', () => {
+  const unknown = trainerErrors('trener-new', { suffix: 'bbbbbbbb' });
+  assert.equal(unknown.length, 1);
+  assert.match(unknown[0], /^trenery\/trener-new\/index\.html: zvenfit\.webflow\.css has no rule for 6 of 6 w-node ids \(w-node-e11a7337-bde2-19aa-1b4b-c032af4154f2-bbbbbbbb, /);
+  assert.match(unknown[0], /needs the wfPage of an existing page with the same layout or its own rules$/);
+  // One id without a rule is enough: the 90% threshold of the exported pages does not apply.
+  // The certificate card id exists in the stylesheet for another page only.
+  const single = trainerErrors('trener-new', { extraIds: ['w-node-f394948c-d9ea-9703-61a4-183cf369dda6-a2c8310c'] });
+  assert.match(single.join('\n'), /has no rule for 1 of 7 w-node ids \(w-node-f394948c-d9ea-9703-61a4-183cf369dda6-a2c8310c\)/);
+});
+
+test('a trainer page with a photo class the stylesheet does not know fails for both photo blocks', () => {
+  const mistyped = trainerErrors('trener-new', { photoClass: 'veronn' });
+  assert.equal(mistyped.length, 2);
+  assert.match(mistyped[0], /has no \.photo_coach\.veronn rule with a background-image; the block shows the base photo, which belongs to trener-efim$/);
+  assert.match(mistyped[1], /has no \.photo_coach_mini\.veronn rule with a background-image/);
+  // `natal` is only the beginning of the existing class `nataly`.
+  assert.ok(SITE_CSS.includes('.photo_coach.nataly {'));
+  assert.equal(trainerErrors('trener-new', { photoClass: 'natal' }).length, 2);
+  // A rule of another kind for the selector is not a photo.
+  const withoutImage = analyzeTrainerPage({
+    cssSource: '.photo_coach.pavel { background-position: 50% 30%; }\n.photo_coach_mini.pavel, .photo_coach_mini.other {\n  background-image: url(pavel.webp);\n}\n',
+    relativePath: 'trenery/trener-pavel/index.html',
+    slug: 'trener-pavel',
+    sourceHtml: '<div class="photo_coach pavel"></div><div class="photo_coach_mini pavel"></div>',
+  });
+  assert.equal(withoutImage.errors.length, 1);
+  assert.match(withoutImage.errors[0], /has no \.photo_coach\.pavel rule with a background-image/);
+});
+
+test('only the trainer whose photos are the base rules may go without a photo class', () => {
+  assert.deepEqual(BASE_PHOTO_TRAINERS, ['trener-efim']);
+  assert.match(SITE_CSS, /\n\.photo_coach \{\n {2}background-image: url\('[^']*\/coaches\/efim-4\.jpeg'\);/);
+  assert.match(SITE_CSS, /\n\.photo_coach_mini \{\n {2}background-image: url\('[^']*\/coaches\/efim-3\.jpeg'\);/);
+  assert.deepEqual(trainerErrors('trener-efim', { suffix: '2008aa7b', photoClass: '' }), []);
+  const bare = trainerErrors('trener-new', { photoClass: '' });
+  assert.equal(bare.length, 2);
+  assert.match(bare[0], /\.photo_coach has no photo class and shows the base photo, which belongs to trener-efim; set photoClass in the entry$/);
+  assert.match(bare[1], /\.photo_coach_mini has no photo class/);
+});
+
+test('the build contract runs the trainer check on trainer routes only', () => {
+  const full = { ...getProfile('a'), pages: null };
+  const trainerPage = body => distPage().replace('<p id="a">x</p>', body);
+  const pages = { ...LEGAL, 'index.html': distPage() };
+  const failure = dist => {
+    try {
+      checkBuild({ dist, profile: full });
+    } catch (error) {
+      return error.message;
+    }
+    return '';
+  };
+  const broken = failure(fixture({ pages: { ...pages, 'trenery/trener-new/index.html': trainerPage(trainerBody({ suffix: 'bbbbbbbb', photoClass: 'veronn' })) } }));
+  assert.match(broken, /trenery\/trener-new\/index\.html: zvenfit\.webflow\.css has no rule for 6 of 6 w-node ids/);
+  assert.match(broken, /trenery\/trener-new\/index\.html: zvenfit\.webflow\.css has no \.photo_coach\.veronn rule/);
+  // The id-by-id check replaces the coverage threshold on trainer routes instead of repeating it.
+  assert.doesNotMatch(broken, /trener-new\/index\.html: Webflow CSS covers only/);
+  const valid = failure(fixture({ pages: { ...pages, 'trenery/trener-veronika-voznaya/index.html': trainerPage(trainerBody()) } }));
+  assert.doesNotMatch(valid, /trenery\/trener-veronika-voznaya/);
+  // The same markup on another route is not a trainer page: only the coverage threshold applies there.
+  const elsewhere = failure(fixture({ pages: { ...pages, 'promos/index.html': trainerPage(trainerBody({ suffix: 'bbbbbbbb', photoClass: 'veronn' })) } }));
+  assert.match(elsewhere, /promos\/index\.html: Webflow CSS covers only 0\/6 w-node ids/);
+  assert.doesNotMatch(elsewhere, /photo_coach/);
 });
