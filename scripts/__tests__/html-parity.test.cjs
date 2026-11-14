@@ -110,6 +110,19 @@ test('inline scripts compare byte for byte, JSON-LD as parsed JSON, noscript as 
   assert.match(compare(page({ head: noscript }), page({ head: noscript.replace(' />', '>') })).errors[0], /noscript content differs/);
 });
 
+test('the content of template and the elements inside pre take part in the comparison', () => {
+  const template = '<template id="row"><td>Name</td></template>';
+  assert.deepEqual(compare(page({ body: template }), page({ body: template })).errors, []);
+  assert.match(compare(page({ body: template }), page({ body: '<template id="row"><td>Other</td><td>x</td></template>' })).errors[0], /node mismatch inside <td>/);
+  assert.match(compare(page({ body: template }), page({ body: '<template id="row"></template>' })).errors[0], /node mismatch inside <template>/);
+  const pre = '<pre>a <b>X</b>\n  b</pre>';
+  assert.deepEqual(compare(page({ body: pre }), page({ body: pre })).errors, []);
+  assert.match(compare(page({ body: '<pre>a<b>X</b></pre>' }), page({ body: '<pre>a<i>Y</i></pre>' })).errors[0], /node mismatch inside <pre>/);
+  assert.match(compare(page({ body: '<pre>a<a href="/x/">X</a></pre>' }), page({ body: '<pre>aX</pre>' })).errors[0], /node mismatch inside <pre>/);
+  assert.match(compare(page({ body: '<pre>a  b</pre>' }), page({ body: '<pre>a b</pre>' })).errors[0], /node mismatch inside <pre>/);
+  assert.match(compare(page({ body: '<textarea>a</textarea>' }), page({ body: '<textarea>b</textarea>' })).errors[0], /textarea content differs/);
+});
+
 test('rulesForRoute scopes rules by profile, mode, route and exceptions', () => {
   const rules = [
     { id: 'all', profiles: ['a1', 'a'], mode: 'production', routes: ['*'], exceptRoutes: ['404.html'] },
@@ -168,6 +181,30 @@ test('whitespace before a removed analytics block merges with the whitespace aft
   // Without an analytics block in between, whitespace stays significant.
   const plain = page({ head, body: '\n  <script>a()</script>\n  <script>b()</script>\n' });
   assert.match(modes(plain, page({ head: robots, body: '\n  <script>a()</script>\n  \n<script>b()</script>\n' })).errors[0], /node mismatch inside <body>/);
+});
+
+test('whitespace after a removed analytics block may vanish only where it cannot render', () => {
+  const head = `\n  ${ANALYTICS_HEAD}`;
+  const robots = '\n  <meta name="robots" content="noindex, nofollow">';
+  const frame = '<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-1"></iframe></noscript>';
+  const staging = body => page({ head: robots, body });
+  // Between two blocks, at the edge of a block and next to whitespace that staging keeps, the gap draws nothing.
+  assert.deepEqual(modes(page({ head, body: `<section>a</section>${frame}\n<section>b</section>` }), staging('<section>a</section><section>b</section>')).errors, []);
+  assert.deepEqual(modes(page({ head, body: `<div>${frame}\n<span>b</span></div>` }), staging('<div><span>b</span></div>')).errors, []);
+  assert.deepEqual(modes(page({ head, body: `<div><span>a</span>${frame}\n</div>` }), staging('<div><span>a</span></div>')).errors, []);
+  assert.deepEqual(modes(page({ head, body: `<p>foo ${frame}\n<span>bar</span></p>` }), staging('<p>foo <span>bar</span></p>')).errors, []);
+  assert.deepEqual(modes(page({ head, body: `<p><span>a</span>${frame}\n<script>x()</script> b</p>` }), staging('<p><span>a</span><script>x()</script> b</p>')).errors, []);
+  // Between inline content it is a visible space: "foo bar" would read "foobar" on staging.
+  const lost = /whitespace after a removed analytics block is lost between inline content inside <p>/;
+  assert.match(modes(page({ head, body: `<p>foo${frame}\n<span>bar</span></p>` }), staging('<p>foo<span>bar</span></p>')).errors[0], lost);
+  assert.match(modes(page({ head, body: `<p><b>a</b>${frame} <b>b</b></p>` }), staging('<p><b>a</b><b>b</b></p>')).errors[0], lost);
+  // A script or a comment between the neighbours draws nothing and does not separate them.
+  assert.match(modes(page({ head, body: `<p><b>a</b>${frame} <script>x()</script><!-- c --><b>b</b></p>` }), staging('<p><b>a</b><script>x()</script><!-- c --><b>b</b></p>')).errors[0], lost);
+  // The edge of an inline parent is not the edge of a block.
+  assert.match(
+    modes(page({ head, body: `<p><span>a${frame} </span><span>b</span></p>` }), staging('<p><span>a</span><span>b</span></p>')).errors[0],
+    /whitespace after a removed analytics block is lost between inline content inside <span>/,
+  );
 });
 
 test('config assignments, sitemap entries and internal links are extracted', () => {
