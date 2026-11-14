@@ -185,7 +185,7 @@ bytes are part of the parity contract.
 | Pages (Astro)              | `src/pages/**/index.astro`, `src/pages/404.astro`                                          |
 | Trainer pages              | `src/content/trainers/*.json`, `src/lib/trainer-schema.ts`, `src/pages/trenery/[slug].astro`; grid and photo rules in `src/styles/zvenfit.webflow.css`, guard in `scripts/check-build.cjs` |
 | Page conversion            | `scripts/migrate/html-to-astro.cjs`, `shared-blocks.cjs`, `trainer-page.cjs`, `manual.json` |
-| Parity check               | `scripts/compare-dist.cjs`, `scripts/parity-allowlist.json`, `scripts/lib/html-parity.cjs` |
+| Parity check               | `scripts/compare-dist.cjs`, `scripts/parity-allowlist.json`, `scripts/lib/html-parity.cjs`, `scripts/lib/parity-harness.cjs` |
 | CSS minification           | `scripts/lib/site-css.cjs`, `astro.config.mjs`; guards in `scripts/check-build.cjs` and `scripts/compare-dist.cjs` |
 | Layout and shared blocks   | `src/layouts/Base.astro`, `src/components/`                                                 |
 | Lead form UI/validation    | `src/pages/forma-dlya-zayavki/index.astro`, `src/scripts/lead-form.js`                      |
@@ -252,6 +252,12 @@ needs the network once; `HEAD` is accepted only as the candidate and only
 locally — CI passes explicit SHAs. Since A2a every check runs the full profile
 `a` from `scripts/deploy.config.json`: 41 HTML routes and 40 sitemap URLs. The
 legacy base SHA is `PARITY_BASE_SHA` in `.github/workflows/quality.yml`.
+`compare-dist` first checks that the legacy inputs of the candidate tree
+(`public/`, `scripts/snippets/`, `scripts/build-static.cjs` and the three
+configs the legacy build reads) equal that base: after a legacy hotfix, merge
+`main` and pin the new base in the same change. With the full profile it also
+accounts for every file of both builds, so a file that legacy shipped by
+copying `public/` must exist in the Astro build with the same bytes.
 `test:monitoring` and `test:lead-import` run subsets of `test:scripts` when only that area changed.
 
 Manual smoke:

@@ -1,14 +1,15 @@
 'use strict';
 
 const assert = require('node:assert/strict');
+const { execFileSync } = require('node:child_process');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
 
-const { Report, compareProduction, compareStaging, parseArguments } = require('../compare-dist.cjs');
+const { Report, checkLegacyInputs, compareProduction, compareStaging, parseArguments } = require('../compare-dist.cjs');
 const { getProfile } = require('../lib/parity-profile.cjs');
-const { readSnapshot, resolveSha } = require('../lib/parity-harness.cjs');
+const { LEGACY_INPUTS, legacyInputDrift, readSnapshot, resolveSha } = require('../lib/parity-harness.cjs');
 
 const ROOT = path.resolve(__dirname, '../..');
 
@@ -137,6 +138,107 @@ test('the production comparison catches changed scripts, configs, sitemap entrie
   assert.ok(report.errors.some(error => /sitemap\.xml entries equal/.test(error)), report.render());
   assert.ok(report.errors.some(error => /links to \/ghost\//.test(error)), report.render());
   assert.match(report.render(), /Result: FAIL/);
+});
+
+const FULL_PROFILE = getProfile('a');
+
+function runFull(fixture) {
+  const report = new Report({ profile: 'a', mode: 'production', baseSha: 'b'.repeat(40), candidateSha: 'c'.repeat(40), baseKind: 'legacy', snapshotPath: 's', snapshotDigest: 'd', fixture: 'f' });
+  compareProduction({ ...fixture, pages: ['offer/index.html'], inventory: ['offer/index.html'], profile: FULL_PROFILE, report });
+  return report;
+}
+
+function fullFixture() {
+  const fixture = productionFixture();
+  // Shipped by the legacy build as a copy of public/; no page references it.
+  write(fixture.baseDist, 'js/vendor/imask-7.6.1.LICENSE.txt', 'The MIT License\n');
+  write(fixture.candidateDist, 'js/vendor/imask-7.6.1.LICENSE.txt', 'The MIT License\n');
+  return fixture;
+}
+
+test('with a full profile every file of both builds is accounted for', () => {
+  const faithful = runFull(fullFixture());
+  assert.deepEqual(faithful.errors, [], faithful.render());
+  assert.match(faithful.render(), /ok: js\/vendor\/imask-7\.6\.1\.LICENSE\.txt bytes equal/);
+  assert.match(faithful.render(), /ok: images\/logo\.svg bytes equal/);
+  assert.match(faithful.render(), /ok: the candidate ships no file without a counterpart in the base build/);
+
+  const dropped = fullFixture();
+  fs.rmSync(path.join(dropped.candidateDist, 'js/vendor/imask-7.6.1.LICENSE.txt'));
+  fs.rmSync(path.join(dropped.candidateDist, 'images/logo.svg'));
+  const missing = runFull(dropped);
+  assert.ok(missing.errors.includes('js/vendor/imask-7.6.1.LICENSE.txt bytes equal: the base build ships it and the candidate does not'), missing.render());
+  assert.ok(missing.errors.includes('images/logo.svg bytes equal: the base build ships it and the candidate does not'), missing.render());
+
+  const changed = fullFixture();
+  write(changed.candidateDist, 'js/vendor/imask-7.6.1.LICENSE.txt', 'Another licence\n');
+  assert.ok(runFull(changed).errors.includes('js/vendor/imask-7.6.1.LICENSE.txt bytes equal: bytes differ'));
+
+  const grown = fullFixture();
+  write(grown.candidateDist, '_astro/orphan.Mn34Op56.js', 'orphan();');
+  write(grown.candidateDist, 'favicon.ico', 'icon');
+  const extra = runFull(grown);
+  assert.ok(extra.errors.includes('the candidate ships no file without a counterpart in the base build: _astro/orphan.Mn34Op56.js, favicon.ico'), extra.render());
+});
+
+test('a partial profile compares the images of the candidate and leaves the file sets alone', () => {
+  const fixture = fullFixture();
+  fs.rmSync(path.join(fixture.candidateDist, 'js/vendor/imask-7.6.1.LICENSE.txt'));
+  const report = runProduction(fixture);
+  assert.deepEqual(report.errors, [], report.render());
+  assert.match(report.render(), /ok: images\/logo\.svg bytes equal/);
+});
+
+function commit(repo, message) {
+  const git = (...args) => execFileSync('git', ['-c', 'user.name=parity', '-c', 'user.email=parity@example.invalid', '-c', 'commit.gpgsign=false', ...args], { cwd: repo, encoding: 'utf8' }).trim();
+  git('add', '-A');
+  git('commit', '-q', '-m', message);
+  return git('rev-parse', 'HEAD');
+}
+
+test('the legacy inputs of the candidate tree must be those of the pinned base', () => {
+  const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'legacy-inputs-'));
+  execFileSync('git', ['init', '-q'], { cwd: repo });
+  write(repo, 'public/offer/index.html', '<p>ИНН: 503245058536О</p>');
+  write(repo, 'scripts/snippets/analytics-head.html', '<script></script>');
+  write(repo, 'scripts/build-static.cjs', '// legacy build');
+  write(repo, 'scripts/structured-data.config.json', '{}');
+  write(repo, 'scripts/deploy.config.json', '{"profile":"legacy"}');
+  const base = commit(repo, 'base');
+  // The branch owns everything else: Astro sources and its own deploy profile.
+  write(repo, 'src/pages/offer/index.astro', '<p>ИНН: 503245058536О</p>');
+  write(repo, 'scripts/deploy.config.json', '{"profile":"a"}');
+  const branch = commit(repo, 'astro pages');
+  assert.deepEqual(legacyInputDrift(base, branch, { cwd: repo }), []);
+  // A hotfix merged from main without pinning the new base.
+  write(repo, 'public/offer/index.html', '<p>ИНН: 503245058536</p>');
+  write(repo, 'scripts/snippets/analytics-head.html', '<script>changed()</script>');
+  const merged = commit(repo, 'hotfix merged');
+  assert.deepEqual(legacyInputDrift(base, merged, { cwd: repo }), ['public/offer/index.html', 'scripts/snippets/analytics-head.html']);
+  assert.deepEqual(legacyInputDrift(merged, merged, { cwd: repo }), []);
+  // Once the legacy build is gone from the branch there is nothing to hold equal.
+  fs.rmSync(path.join(repo, 'scripts/build-static.cjs'));
+  fs.rmSync(path.join(repo, 'public'), { recursive: true });
+  const removed = commit(repo, 'legacy removed');
+  assert.equal(legacyInputDrift(base, removed, { cwd: repo }), null);
+  assert.ok(LEGACY_INPUTS.includes('public') && LEGACY_INPUTS.includes('scripts/build-static.cjs') && !LEGACY_INPUTS.includes('scripts/deploy.config.json'));
+});
+
+test('a drift of the legacy inputs fails the report and says what to do', () => {
+  const run = (profileName, drift) => {
+    const report = new Report({ profile: profileName, mode: 'production', baseSha: 'b'.repeat(40), candidateSha: 'c'.repeat(40), baseKind: 'legacy', snapshotPath: 's', snapshotDigest: 'd', fixture: 'f' });
+    checkLegacyInputs({ baseSha: 'b'.repeat(40), candidateSha: 'c'.repeat(40), profile: getProfile(profileName), report, drift });
+    return report;
+  };
+  assert.deepEqual(run('a', () => []).errors, []);
+  assert.match(run('a', () => []).render(), /ok: legacy inputs of the candidate tree equal the pinned base/);
+  const drifted = run('a', () => ['public/offer/index.html', 'public/privacy/index.html']);
+  assert.equal(drifted.errors.length, 1);
+  assert.match(drifted.errors[0], /public\/offer\/index\.html, public\/privacy\/index\.html differ\(s\) from b{40}: after a hotfix of the legacy site merge main into the branch and pin that commit of main as the base/);
+  assert.match(run('a', () => Array.from({ length: 11 }, (_, index) => `public/p${index}.html`)).errors[0], /public\/p7\.html and 3 more differ/);
+  assert.match(run('a', () => null).render(), /ok: legacy inputs of the candidate tree equal the pinned base \(skipped: the candidate no longer carries scripts\/build-static\.cjs\)/);
+  // With an Astro base there is no legacy tree to hold equal.
+  assert.deepEqual(run('b', () => ['public/offer/index.html']).checks, []);
 });
 
 test('the staging comparison accepts exactly the documented mode differences', () => {

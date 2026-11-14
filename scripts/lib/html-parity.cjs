@@ -11,16 +11,20 @@
 // The comparison of build modes (production against staging of one candidate)
 // has two more rules for the whitespace around a removed analytics block:
 //   M1  a whitespace-only text node after a removed node is dropped unless
-//       staging carries the same text there;
+//       staging carries the same text there, and only where the whitespace
+//       could not render: next to text that already ends or starts with
+//       whitespace, next to an element that is a block by default, or at the
+//       edge of such a block (nodes that draw nothing are looked through);
 //   M2  when whitespace-only text stands before the removed block as well, the
 //       two neighbours are one text node on staging, and it must be exactly
 //       the text before the block followed by the text after it.
 // URLs of own assets are mapped through an explicit table (legacy /js and /css
 // paths with ?v= versus hashed /_astro/ files, config endpoints without ?v=);
 // everything else is compared literally. Inline scripts are compared byte for
-// byte, JSON-LD as parsed JSON. Exceptions come from an allow-list with
-// expected match counts; unexpected differences are reported with the source
-// location of both sides.
+// byte, JSON-LD as parsed JSON; the content fragment of <template> and the
+// children of <pre> are compared like any other children. Exceptions come
+// from an allow-list with expected match counts; unexpected differences are
+// reported with the source location of both sides.
 
 const parse5 = require('parse5');
 
@@ -40,6 +44,16 @@ const VENDOR_SCRIPTS = { 'imask-7.6.1.min.js': '/js/vendor/imask-7.6.1.min.js' }
 const HASH = '[A-Za-z0-9_-]{6,}';
 const WHITESPACE = /^[ \t\r\n]*$/;
 const URL_ATTRIBUTES = new Set(['src', 'href']);
+// Rule M1 decides by tag name whether whitespace can render. Elements that draw
+// nothing are looked through; the others count as blocks only when the default
+// style sheet makes them blocks. A page that turns a block into inline content
+// with CSS is outside what a comparison of markup can see.
+const UNRENDERED = new Set(['script', 'style', 'noscript', 'link', 'meta', 'title', 'base', 'template']);
+const DEFAULT_BLOCKS = new Set([
+  'address', 'article', 'aside', 'blockquote', 'body', 'dd', 'details', 'dialog', 'div', 'dl', 'dt', 'fieldset',
+  'figcaption', 'figure', 'footer', 'form', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'head', 'header', 'hgroup', 'hr',
+  'html', 'li', 'main', 'nav', 'ol', 'p', 'pre', 'section', 'table', 'tbody', 'td', 'tfoot', 'th', 'thead', 'tr', 'ul',
+]);
 
 // Maps an asset URL of either side to a canonical token and records the file
 // behind it, so compare-dist can verify existence and bytes afterwards.
@@ -143,6 +157,10 @@ function isWhitespaceText(node) {
   return node.nodeName === '#text' && WHITESPACE.test(node.value);
 }
 
+function drawsNothing(node) {
+  return node.nodeName === '#comment' || UNRENDERED.has(node.nodeName);
+}
+
 function matchesSelector(node, selector, side, assets) {
   if (node.nodeName !== selector.tag) {
     return false;
@@ -235,6 +253,28 @@ class Comparison {
     return { removed, next: last + (after ? 2 : 1) };
   }
 
+  // Rule M1. On staging the removed block leaves a gap between
+  // `candidateKids[j - 1]` and `candidateKids[j]`; the whitespace that stood
+  // there in production may be absent only when it could not render.
+  gapCollapses(candidateKids, j, parentName) {
+    const atBlockEdge = parentName === 'document' || DEFAULT_BLOCKS.has(parentName);
+    let before = j - 1;
+    while (before >= 0 && drawsNothing(candidateKids[before])) {
+      before -= 1;
+    }
+    let after = j;
+    while (after < candidateKids.length && drawsNothing(candidateKids[after])) {
+      after += 1;
+    }
+    const collapses = (node, edgeOfText) => {
+      if (!node) {
+        return atBlockEdge;
+      }
+      return node.nodeName === '#text' ? edgeOfText.test(node.value) : DEFAULT_BLOCKS.has(node.nodeName);
+    };
+    return collapses(candidateKids[before], /[ \t\r\n]$/) || collapses(candidateKids[after], /^[ \t\r\n]/);
+  }
+
   compareChildren(base, candidate, parentName) {
     const baseKids = base.childNodes || [];
     const candidateKids = candidate.childNodes || [];
@@ -268,6 +308,10 @@ class Comparison {
         continue;
       }
       if (b && justRemoved && isWhitespaceText(b) && !(c && c.nodeName === '#text' && c.value === b.value)) {
+        if (!this.gapCollapses(candidateKids, j, parentName)) {
+          this.fail(`whitespace after a removed analytics block is lost between inline content inside <${parentName}>`, b, c);
+          return;
+        }
         i += 1;
         continue;
       }
@@ -350,10 +394,16 @@ class Comparison {
       this.compareJsonLd(b, c);
       return;
     }
-    if (b.tagName === 'script' || b.tagName === 'style' || b.tagName === 'noscript' || b.tagName === 'pre' || b.tagName === 'textarea') {
+    // These elements hold nothing but text (scripting is on, so <noscript> is raw text too).
+    if (b.tagName === 'script' || b.tagName === 'style' || b.tagName === 'noscript' || b.tagName === 'textarea') {
       if (textOf(b) !== textOf(c)) {
         this.fail(`${b.tagName} content differs`, b, c);
       }
+      return;
+    }
+    if (b.tagName === 'template') {
+      // parse5 keeps the children of <template> in its content fragment, not in childNodes.
+      this.compareChildren(b.content || { childNodes: [] }, c.content || { childNodes: [] }, 'template');
       return;
     }
     this.compareChildren(b, c, b.tagName);

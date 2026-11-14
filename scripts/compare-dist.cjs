@@ -11,8 +11,11 @@
 // and a, Astro for b) and the candidate in disposable worktrees with fixed
 // non-secret variables and the committed map-photo snapshot, then compares the
 // profile pages node by node, the own assets, the runtime configs, robots.txt
-// and sitemap.xml. --mode staging builds the candidate twice (production and
-// staging) and allows only the documented differences between the modes.
+// and sitemap.xml; with a full profile every other file of both builds must be
+// present on the other side with the same bytes. --mode staging builds the
+// candidate twice (production and staging) and allows only the documented
+// differences between the modes. With a legacy base both modes first check
+// that the legacy inputs in the candidate tree are those of the pinned base.
 // Neither main nor the dirty working tree is ever used as a side: both SHAs are
 // explicit (HEAD is accepted for local runs and resolved to its commit).
 
@@ -165,6 +168,51 @@ function inventoryFromGit(baseSha, profile) {
     .sort();
 }
 
+// A legacy hotfix reaches the branch by merging main, and the base of the
+// comparison is pinned to that commit of main in the same step. If only one of
+// the two happens, the pages and the comparison still agree with each other
+// (the converter derives its contracts from the same tree), so nothing else
+// would notice a footer text or an analytics snippet that changed in legacy
+// and not in the Astro components.
+function checkLegacyInputs({ baseSha, candidateSha, profile, report, drift = harness.legacyInputDrift }) {
+  if (profile.base !== 'legacy') {
+    return;
+  }
+  const name = 'legacy inputs of the candidate tree equal the pinned base';
+  const changed = drift(baseSha, candidateSha);
+  if (changed === null) {
+    report.check(name, true, 'skipped: the candidate no longer carries scripts/build-static.cjs');
+    return;
+  }
+  const listed = changed.slice(0, 8).join(', ') + (changed.length > 8 ? ` and ${changed.length - 8} more` : '');
+  report.check(
+    name,
+    changed.length === 0,
+    changed.length === 0 ? '' : `${listed} differ(s) from ${baseSha}: after a hotfix of the legacy site merge main into the branch and pin that commit of main as the base in the same change`,
+  );
+}
+
+// Every file of both builds is accounted for: it was compared above as a page,
+// an own asset, a runtime config or a crawl file, or it must be present on the
+// other side with the same bytes. This is what notices a file that the legacy
+// build shipped by copying public/ and that no page references, such as the
+// licence text of vendored code.
+function compareFileSets({ baseDist, candidateDist, pages, assets, report }) {
+  const compared = new Set([...pages, 'robots.txt', 'sitemap.xml', ...parity.CONFIGS.map(name => `js/${name}`)]);
+  const baseAssets = new Set([...assets.base.scripts.values(), ...assets.base.styles.values()]);
+  const candidateAssets = new Set([...assets.candidate.scripts.values(), ...assets.candidate.styles.values()]);
+  const baseFiles = walkFiles(baseDist, () => true).filter(file => !compared.has(file) && !baseAssets.has(file));
+  const candidateFiles = walkFiles(candidateDist, () => true).filter(file => !compared.has(file) && !candidateAssets.has(file));
+  for (const file of baseFiles) {
+    const left = fs.readFileSync(path.join(baseDist, file));
+    const right = readIfExists(path.join(candidateDist, file));
+    const ok = Boolean(right && left.equals(right));
+    report.check(`${file} bytes equal`, ok, ok ? '' : right ? 'bytes differ' : 'the base build ships it and the candidate does not');
+  }
+  const unexpected = candidateFiles.filter(file => !baseFiles.includes(file));
+  report.check('the candidate ships no file without a counterpart in the base build', unexpected.length === 0, unexpected.join(', '));
+}
+
 function compareProduction({ baseDir, baseDist, candidateDir, candidateDist, pages, inventory, profile, report }) {
   const allRules = loadAllowlist();
   const assets = parity.createAssetRegistry();
@@ -291,10 +339,15 @@ function compareProduction({ baseDir, baseDist, candidateDir, candidateDist, pag
   }
   report.check(`sitemap.xml entries equal for ${expectedUrls.length} URL(s)`, sitemapErrors.length === 0, sitemapErrors.join('; '));
 
-  for (const image of walkFiles(path.join(candidateDist, 'images'), () => true)) {
-    const left = readIfExists(path.join(baseDist, 'images', image));
-    const right = readIfExists(path.join(candidateDist, 'images', image));
-    report.check(`images/${image} bytes equal`, Boolean(left && right && left.equals(right)));
+  if (profile.partial) {
+    // A partial profile builds only its own pages, so the file sets cannot match; the images still must.
+    for (const image of walkFiles(path.join(candidateDist, 'images'), () => true)) {
+      const left = readIfExists(path.join(baseDist, 'images', image));
+      const right = readIfExists(path.join(candidateDist, 'images', image));
+      report.check(`images/${image} bytes equal`, Boolean(left && right && left.equals(right)));
+    }
+  } else {
+    compareFileSets({ baseDist, candidateDist, pages, assets, report });
   }
 }
 
@@ -386,6 +439,8 @@ function run(argv = process.argv.slice(2)) {
         : 'none (both sides read src/data/map-photos.json)',
   });
 
+  checkLegacyInputs({ baseSha, candidateSha, profile, report });
+
   try {
     harness.prepareWorktree(candidateSha, candidateDir, log);
     harness.install(candidateDir, log);
@@ -421,7 +476,7 @@ function run(argv = process.argv.slice(2)) {
   return report;
 }
 
-module.exports = { Report, compareProduction, compareStaging, inventoryFromGit, parseArguments };
+module.exports = { Report, checkLegacyInputs, compareFileSets, compareProduction, compareStaging, inventoryFromGit, parseArguments };
 
 if (require.main === module) {
   try {
