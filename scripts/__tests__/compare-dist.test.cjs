@@ -7,20 +7,21 @@ const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
 
-const { Report, checkLegacyInputs, compareProduction, compareStaging, parseArguments } = require('../compare-dist.cjs');
+const { expectedRoutesFromAstro } = require('../check-routes.cjs');
+const { Report, baseSiteUrl, checkLegacyInputs, compareProduction, compareStaging, parseArguments } = require('../compare-dist.cjs');
 const { getProfile } = require('../lib/parity-profile.cjs');
-const { LEGACY_INPUTS, legacyInputDrift, readSnapshot, resolveSha } = require('../lib/parity-harness.cjs');
+const { LEGACY_INPUTS, legacyInputDrift, legacyInputDriftInHistory, readSnapshot, resolveSha } = require('../lib/parity-harness.cjs');
 
 const ROOT = path.resolve(__dirname, '../..');
 
 test('every argument is explicit: SHAs, profile, mode and snapshot', () => {
-  const full = ['--base-sha', 'a'.repeat(40), '--candidate-sha', 'HEAD', '--profile', 'a1', '--mode', 'production', '--snapshot', 'src/data/map-photos.json'];
+  const full = ['--base-sha', 'a'.repeat(40), '--candidate-sha', 'HEAD', '--profile', 'a', '--mode', 'production', '--snapshot', 'src/data/map-photos.json'];
   assert.deepEqual(parseArguments(full), {
     baseSha: 'a'.repeat(40),
     candidateSha: 'HEAD',
     clean: false,
     mode: 'production',
-    profile: 'a1',
+    profile: 'a',
     snapshot: 'src/data/map-photos.json',
   });
   assert.throws(() => parseArguments(full.slice(2)), /--base-sha is required/);
@@ -66,8 +67,6 @@ function productionFixture() {
   const baseDist = path.join(baseDir, 'dist');
   const candidateDist = path.join(candidateDir, 'dist');
   write(baseDir, 'public/css/zvenfit.webflow.css', '.a{color:red}\n');
-  write(baseDir, 'public/offer/index.html', '<html></html>');
-  write(baseDir, 'public/privacy/index.html', '<html></html>');
   write(baseDir, 'scripts/structured-data.config.json', '{"siteUrl":"https://zvenfit.ru"}');
   write(candidateDir, 'src/styles/zvenfit.webflow.css', '.a{color:red}\n');
   write(baseDist, 'offer/index.html', legacyPage());
@@ -95,11 +94,11 @@ function productionFixture() {
   return { baseDir, baseDist, candidateDir, candidateDist };
 }
 
-const PROFILE = { ...getProfile('a1'), pages: ['offer/index.html'] };
+const PROFILE = getProfile('a');
 
 function runProduction(fixture) {
-  const report = new Report({ profile: 'a1', mode: 'production', baseSha: 'b'.repeat(40), candidateSha: 'c'.repeat(40), baseKind: 'legacy', snapshotPath: 's', snapshotDigest: 'd', fixture: 'f' });
-  compareProduction({ ...fixture, pages: PROFILE.pages, inventory: ['offer/index.html', 'privacy/index.html'], profile: PROFILE, report });
+  const report = new Report({ profile: 'a', mode: 'production', baseSha: 'b'.repeat(40), candidateSha: 'c'.repeat(40), baseKind: 'legacy', snapshotPath: 's', snapshotDigest: 'd', fixture: 'f' });
+  compareProduction({ ...fixture, pages: ['offer/index.html'], profile: PROFILE, report });
   return report;
 }
 
@@ -125,28 +124,24 @@ test('a stylesheet minified differently from the legacy build fails even when th
   assert.ok(source.errors.some(error => /stylesheet zvenfit\.webflow\.css: source differs between public\/css and src\/styles/.test(error)), source.render());
 });
 
-test('the production comparison catches changed scripts, configs, sitemap entries and links to unknown routes', () => {
+test('the production comparison catches changed scripts, configs, sitemap entries and a page missing on one side', () => {
   const fixture = productionFixture();
   write(fixture.candidateDist, '_astro/traffic-beacon.Ij90Kl12.js', 'beacon(); // changed');
   write(fixture.candidateDist, 'js/lead-config.js', "window.ZVENFIT_LEAD_API = 'https://other.invalid/lead';\n");
   write(fixture.candidateDist, 'sitemap.xml', SITEMAP.replace('0.3', '0.5'));
-  write(fixture.candidateDist, 'offer/index.html', astroPage().replace('<a href="/privacy/">p</a>', '<a href="/privacy/">p</a><a href="/ghost/">g</a>'));
-  write(fixture.baseDist, 'offer/index.html', legacyPage().replace('<a href="/privacy/">p</a>', '<a href="/privacy/">p</a><a href="/ghost/">g</a>'));
   const report = runProduction(fixture);
   assert.ok(report.errors.some(error => /script traffic-beacon\.js/.test(error)), report.render());
   assert.ok(report.errors.some(error => /lead-config\.js assignments equal/.test(error)), report.render());
   assert.ok(report.errors.some(error => /sitemap\.xml entries equal/.test(error)), report.render());
-  assert.ok(report.errors.some(error => /links to \/ghost\//.test(error)), report.render());
+  assert.equal(report.errors.length, 3, report.render());
   assert.match(report.render(), /Result: FAIL/);
+
+  const dropped = productionFixture();
+  fs.rmSync(path.join(dropped.candidateDist, 'offer/index.html'));
+  const missing = runProduction(dropped);
+  assert.ok(missing.errors.includes('offer/index.html: missing in candidate dist'), missing.render());
+  assert.ok(missing.errors.some(error => /candidate dist contains exactly the profile pages/.test(error)), missing.render());
 });
-
-const FULL_PROFILE = getProfile('a');
-
-function runFull(fixture) {
-  const report = new Report({ profile: 'a', mode: 'production', baseSha: 'b'.repeat(40), candidateSha: 'c'.repeat(40), baseKind: 'legacy', snapshotPath: 's', snapshotDigest: 'd', fixture: 'f' });
-  compareProduction({ ...fixture, pages: ['offer/index.html'], inventory: ['offer/index.html'], profile: FULL_PROFILE, report });
-  return report;
-}
 
 function fullFixture() {
   const fixture = productionFixture();
@@ -156,8 +151,8 @@ function fullFixture() {
   return fixture;
 }
 
-test('with a full profile every file of both builds is accounted for', () => {
-  const faithful = runFull(fullFixture());
+test('every file of both builds is accounted for', () => {
+  const faithful = runProduction(fullFixture());
   assert.deepEqual(faithful.errors, [], faithful.render());
   assert.match(faithful.render(), /ok: js\/vendor\/imask-7\.6\.1\.LICENSE\.txt bytes equal/);
   assert.match(faithful.render(), /ok: images\/logo\.svg bytes equal/);
@@ -166,27 +161,19 @@ test('with a full profile every file of both builds is accounted for', () => {
   const dropped = fullFixture();
   fs.rmSync(path.join(dropped.candidateDist, 'js/vendor/imask-7.6.1.LICENSE.txt'));
   fs.rmSync(path.join(dropped.candidateDist, 'images/logo.svg'));
-  const missing = runFull(dropped);
+  const missing = runProduction(dropped);
   assert.ok(missing.errors.includes('js/vendor/imask-7.6.1.LICENSE.txt bytes equal: the base build ships it and the candidate does not'), missing.render());
   assert.ok(missing.errors.includes('images/logo.svg bytes equal: the base build ships it and the candidate does not'), missing.render());
 
   const changed = fullFixture();
   write(changed.candidateDist, 'js/vendor/imask-7.6.1.LICENSE.txt', 'Another licence\n');
-  assert.ok(runFull(changed).errors.includes('js/vendor/imask-7.6.1.LICENSE.txt bytes equal: bytes differ'));
+  assert.ok(runProduction(changed).errors.includes('js/vendor/imask-7.6.1.LICENSE.txt bytes equal: bytes differ'));
 
   const grown = fullFixture();
   write(grown.candidateDist, '_astro/orphan.Mn34Op56.js', 'orphan();');
   write(grown.candidateDist, 'favicon.ico', 'icon');
-  const extra = runFull(grown);
+  const extra = runProduction(grown);
   assert.ok(extra.errors.includes('the candidate ships no file without a counterpart in the base build: _astro/orphan.Mn34Op56.js, favicon.ico'), extra.render());
-});
-
-test('a partial profile compares the images of the candidate and leaves the file sets alone', () => {
-  const fixture = fullFixture();
-  fs.rmSync(path.join(fixture.candidateDist, 'js/vendor/imask-7.6.1.LICENSE.txt'));
-  const report = runProduction(fixture);
-  assert.deepEqual(report.errors, [], report.render());
-  assert.match(report.render(), /ok: images\/logo\.svg bytes equal/);
 });
 
 function commit(repo, message) {
@@ -224,10 +211,118 @@ test('the legacy inputs of the candidate tree must be those of the pinned base',
   assert.ok(LEGACY_INPUTS.includes('public') && LEGACY_INPUTS.includes('scripts/build-static.cjs') && !LEGACY_INPUTS.includes('scripts/deploy.config.json'));
 });
 
+// The history of a migration branch in a temporary repository: main keeps the
+// legacy site and gets hotfixes, the branch merges main, then drops the legacy
+// tree (stage A2b) and merges main again.
+function migrationHistory() {
+  const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'legacy-history-'));
+  const git = (...args) =>
+    execFileSync('git', ['-c', 'user.name=parity', '-c', 'user.email=parity@example.invalid', '-c', 'commit.gpgsign=false', ...args], { cwd: repo, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
+  const save = message => {
+    git('add', '-A');
+    git('commit', '-q', '-m', message);
+    return git('rev-parse', 'HEAD');
+  };
+  const merge = () => {
+    git('merge', '-q', '--no-ff', '--no-edit', 'main');
+    return git('rev-parse', 'HEAD');
+  };
+  git('init', '-q');
+  git('symbolic-ref', 'HEAD', 'refs/heads/main');
+  write(repo, 'public/offer/index.html', '<p>ИНН: 503245058536О</p>');
+  write(repo, 'scripts/snippets/analytics-head.html', '<script></script>');
+  write(repo, 'scripts/build-static.cjs', '// legacy build');
+  write(repo, 'scripts/structured-data.config.json', '{}');
+  write(repo, 'scripts/deploy.config.json', '{"profile":"legacy"}');
+  write(repo, 'functions/lead-intake/package-lock.json', '{"lockfileVersion":1}');
+  const commits = { repo, legacySite: save('legacy site') };
+
+  git('checkout', '-q', '-b', 'astro');
+  write(repo, 'src/pages/offer/index.astro', '<p>ИНН: 503245058536О</p>');
+  write(repo, 'scripts/deploy.config.json', '{"profile":"a"}');
+  commits.astroPages = save('astro pages');
+
+  git('checkout', '-q', 'main');
+  write(repo, 'public/offer/index.html', '<p>ИНН: 503245058536</p>');
+  commits.firstHotfix = save('hotfix of a page');
+  git('checkout', '-q', 'astro');
+  commits.firstMerge = merge();
+
+  // A branch that removes the legacy inputs in parts keeps the legacy build for a while.
+  git('checkout', '-q', '-b', 'piecemeal');
+  fs.rmSync(path.join(repo, 'public'), { recursive: true });
+  commits.publicRemovedFirst = save('remove public/ and keep the legacy build');
+
+  git('checkout', '-q', 'astro');
+  for (const legacy of ['public', 'scripts/snippets', 'scripts/build-static.cjs', 'scripts/structured-data.config.json']) {
+    fs.rmSync(path.join(repo, legacy), { recursive: true });
+  }
+  commits.legacyRemoved = save('remove the legacy build and the export');
+
+  git('checkout', '-q', 'main');
+  write(repo, 'scripts/snippets/analytics-head.html', '<script>changed()</script>');
+  commits.secondHotfix = save('hotfix of a snippet');
+  git('checkout', '-q', 'astro');
+  // The branch deleted the file that main has just changed: git stops with "deleted by us".
+  assert.throws(merge);
+  assert.equal(git('status', '--porcelain'), 'DU scripts/snippets/analytics-head.html');
+  git('rm', '-q', 'scripts/snippets/analytics-head.html');
+  git('commit', '-q', '--no-edit');
+  commits.secondMerge = git('rev-parse', 'HEAD');
+
+  git('checkout', '-q', 'main');
+  write(repo, 'functions/lead-intake/package-lock.json', '{"lockfileVersion":2}');
+  commits.functionsOnly = save('a release that leaves the site alone');
+  git('checkout', '-q', 'astro');
+  commits.thirdMerge = merge();
+  return commits;
+}
+
+test('main merged after the base was pinned is found in the history, with or without a legacy tree in the candidate', () => {
+  const { repo, legacySite, astroPages, firstHotfix, firstMerge, publicRemovedFirst, legacyRemoved, secondHotfix, secondMerge, functionsOnly, thirdMerge } = migrationHistory();
+  const history = (base, candidate) => legacyInputDriftInHistory(base, candidate, { cwd: repo });
+  const tree = (base, candidate) => legacyInputDrift(base, candidate, { cwd: repo });
+
+  // The branch before any hotfix: what it carries is what the base carries.
+  assert.deepEqual(history(legacySite, astroPages), { commits: 1, carrying: 1, drifted: [], files: [] });
+
+  // The first hotfix is merged and the base stays where it was: both checks see it.
+  assert.deepEqual(history(legacySite, firstMerge), { commits: 3, carrying: 3, drifted: [firstHotfix, firstMerge], files: ['public/offer/index.html'] });
+  assert.deepEqual(tree(legacySite, firstMerge), ['public/offer/index.html']);
+  // With the hotfix pinned the history is clean. The older commit of the branch
+  // carries the inputs of the previous base, and it is not on the way from the new one.
+  assert.deepEqual(history(firstHotfix, firstMerge), { commits: 1, carrying: 1, drifted: [], files: [] });
+  assert.deepEqual(tree(firstHotfix, astroPages), ['public/offer/index.html']);
+
+  // The legacy tree leaves the branch: nothing to compare in the candidate, the history still holds.
+  assert.equal(tree(firstHotfix, legacyRemoved), null);
+  assert.deepEqual(history(firstHotfix, legacyRemoved), { commits: 2, carrying: 1, drifted: [], files: [] });
+
+  // The second hotfix is merged, the conflict is resolved by deleting, nothing
+  // is carried over and the base is not pinned again. Only the history tells.
+  assert.equal(tree(firstHotfix, secondMerge), null);
+  assert.deepEqual(history(firstHotfix, secondMerge), { commits: 4, carrying: 2, drifted: [secondHotfix], files: ['scripts/snippets/analytics-head.html'] });
+  assert.deepEqual(history(secondHotfix, secondMerge), { commits: 1, carrying: 0, drifted: [], files: [] });
+
+  // A commit of main that leaves the legacy inputs alone does not ask for a new base.
+  assert.deepEqual(history(secondHotfix, thirdMerge), { commits: 3, carrying: 1, drifted: [], files: [] });
+  assert.deepEqual(history(firstHotfix, thirdMerge).drifted, [secondHotfix, functionsOnly]);
+
+  // A base the candidate never merged is not a base of its history.
+  assert.equal(history(secondHotfix, legacyRemoved), null);
+  assert.equal(history(functionsOnly, secondMerge), null);
+  assert.throws(() => history('f'.repeat(40), secondMerge));
+
+  // Removing the legacy inputs in parts is a change for as long as the legacy build stays.
+  assert.deepEqual(history(firstHotfix, publicRemovedFirst), { commits: 2, carrying: 2, drifted: [publicRemovedFirst], files: ['public/offer/index.html'] });
+});
+
+const CLEAN_HISTORY = () => ({ commits: 3, carrying: 2, drifted: [], files: [] });
+
 test('a drift of the legacy inputs fails the report and says what to do', () => {
   const run = (profileName, drift) => {
     const report = new Report({ profile: profileName, mode: 'production', baseSha: 'b'.repeat(40), candidateSha: 'c'.repeat(40), baseKind: 'legacy', snapshotPath: 's', snapshotDigest: 'd', fixture: 'f' });
-    checkLegacyInputs({ baseSha: 'b'.repeat(40), candidateSha: 'c'.repeat(40), profile: getProfile(profileName), report, drift });
+    checkLegacyInputs({ baseSha: 'b'.repeat(40), candidateSha: 'c'.repeat(40), profile: getProfile(profileName), report, drift, historyDrift: CLEAN_HISTORY });
     return report;
   };
   assert.deepEqual(run('a', () => []).errors, []);
@@ -239,6 +334,32 @@ test('a drift of the legacy inputs fails the report and says what to do', () => 
   assert.match(run('a', () => null).render(), /ok: legacy inputs of the candidate tree equal the pinned base \(skipped: the candidate no longer carries scripts\/build-static\.cjs\)/);
   // With an Astro base there is no legacy tree to hold equal.
   assert.deepEqual(run('b', () => ['public/offer/index.html']).checks, []);
+});
+
+test('main merged after the base was pinned fails the report of a candidate without a legacy tree', () => {
+  const name = 'legacy inputs equal the pinned base in every commit merged since it';
+  const advice = 'After a hotfix of the legacy site merge main into the branch, pin that commit of main as the base and carry the fix over to src/ in the same change';
+  const run = historyDrift => {
+    const report = new Report({ profile: 'a', mode: 'production', baseSha: 'b'.repeat(40), candidateSha: 'c'.repeat(40), baseKind: 'legacy', snapshotPath: 's', snapshotDigest: 'd', fixture: 'f' });
+    checkLegacyInputs({ baseSha: 'b'.repeat(40), candidateSha: 'c'.repeat(40), profile: getProfile('a'), report, drift: () => null, historyDrift });
+    return report;
+  };
+  const clean = run(() => ({ commits: 17, carrying: 12, drifted: [], files: [] }));
+  assert.deepEqual(clean.errors, []);
+  assert.deepEqual(clean.checks.map(check => check.name), ['legacy inputs of the candidate tree equal the pinned base', name]);
+  assert.match(clean.render(), /ok: legacy inputs equal the pinned base in every commit merged since it \(12 of 17 commit\(s\) since the base still carry the legacy build\)/);
+
+  const merged = run(() => ({ commits: 4, carrying: 2, drifted: ['d'.repeat(40)], files: ['scripts/snippets/analytics-head.html'] }));
+  assert.deepEqual(merged.errors, [`${name}: scripts/snippets/analytics-head.html differ(s) from ${'b'.repeat(40)} in ${'d'.repeat(40)}: main was merged after the base was pinned. ${advice}`]);
+  // The check of the candidate tree has nothing to say here, and says so.
+  assert.match(merged.render(), /ok: legacy inputs of the candidate tree equal the pinned base \(skipped: the candidate no longer carries scripts\/build-static\.cjs\)/);
+
+  const several = run(() => ({ commits: 9, carrying: 5, drifted: ['d'.repeat(40), 'e'.repeat(40), 'f'.repeat(40)], files: Array.from({ length: 10 }, (_, index) => `public/p${index}.html`) }));
+  assert.equal(several.errors.length, 1);
+  assert.match(several.errors[0], /public\/p7\.html and 2 more differ\(s\) from b{40} in d{40} and 2 later commit\(s\): main was merged after the base was pinned\./);
+
+  const unmerged = run(() => null);
+  assert.deepEqual(unmerged.errors, [`${name}: ${'b'.repeat(40)} is not an ancestor of the candidate: merge that commit of main into the branch (a shallow clone needs its whole history fetched)`]);
 });
 
 test('the staging comparison accepts exactly the documented mode differences', () => {
@@ -258,29 +379,39 @@ test('the staging comparison accepts exactly the documented mode differences', (
     write(dir, 'sitemap.xml', SITEMAP);
     write(dir, '_astro/traffic-beacon.Ij90Kl12.js', 'beacon();');
   }
-  const report = new Report({ profile: 'a1', mode: 'staging', baseSha: 'b'.repeat(40), candidateSha: 'c'.repeat(40), baseKind: 'legacy', snapshotPath: 's', snapshotDigest: 'd', fixture: 'f' });
+  const report = new Report({ profile: 'a', mode: 'staging', baseSha: 'b'.repeat(40), candidateSha: 'c'.repeat(40), baseKind: 'legacy', snapshotPath: 's', snapshotDigest: 'd', fixture: 'f' });
   compareStaging({ candidateProduction: production, candidateStaging: staging, pages: ['offer/index.html'], report });
   assert.deepEqual(report.errors, [], report.render());
 
   write(staging, 'robots.txt', 'User-agent: *\nDisallow: /\n\n');
   write(staging, 'offer/index.html', astroPage({ analytics: false, robots: '\n  <meta name="robots" content="noindex, nofollow">' }).replace('Текст', 'Text'));
-  const failing = new Report({ profile: 'a1', mode: 'staging', baseSha: 'b'.repeat(40), candidateSha: 'c'.repeat(40), baseKind: 'legacy', snapshotPath: 's', snapshotDigest: 'd', fixture: 'f' });
+  const failing = new Report({ profile: 'a', mode: 'staging', baseSha: 'b'.repeat(40), candidateSha: 'c'.repeat(40), baseKind: 'legacy', snapshotPath: 's', snapshotDigest: 'd', fixture: 'f' });
   compareStaging({ candidateProduction: production, candidateStaging: staging, pages: ['offer/index.html'], report: failing });
   assert.ok(failing.errors.some(error => /robots\.txt is byte-exact/.test(error)), failing.render());
   assert.ok(failing.errors.some(error => /node mismatch/.test(error)), failing.render());
 });
 
+test('the site URL of the base is read where its kind of tree keeps the content configs', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'base-site-url-'));
+  write(root, 'scripts/structured-data.config.json', '{"siteUrl":"https://legacy.example/"}');
+  write(root, 'src/data/structured-data.config.json', '{"siteUrl":"https://astro.example"}');
+  assert.equal(baseSiteUrl(root, getProfile('a')), 'https://legacy.example');
+  assert.equal(baseSiteUrl(root, getProfile('b')), 'https://astro.example');
+});
+
 test('the committed allow-list only names routes of the profiles it applies to', () => {
   const { rules } = JSON.parse(fs.readFileSync(path.join(ROOT, 'scripts/parity-allowlist.json'), 'utf8'));
+  const routes = expectedRoutesFromAstro(path.join(ROOT, 'src/pages'), path.join(ROOT, 'src/content'));
+  assert.ok(rules.length >= 1);
   for (const rule of rules) {
     assert.ok(rule.id && rule.reason && rule.count >= 1 && ['comment-removed', 'attribute'].includes(rule.kind), rule.id);
+    assert.ok(rule.profiles.length >= 1, `${rule.id} applies to no profile`);
     for (const profileName of rule.profiles) {
-      const profile = getProfile(profileName);
-      for (const route of rule.routes.filter(route => route !== '*')) {
-        if (profile.partial) {
-          assert.ok(profile.pages.includes(route), `${rule.id}: ${route} is not a page of ${profileName}`);
-        }
-      }
+      // Throws for a name that is not a profile, such as the retired a1.
+      getProfile(profileName);
+    }
+    for (const route of [...rule.routes.filter(route => route !== '*'), ...(rule.exceptRoutes || [])]) {
+      assert.ok(routes.includes(route), `${rule.id}: ${route} is not a route of the site`);
     }
   }
 });

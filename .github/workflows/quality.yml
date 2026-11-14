@@ -101,6 +101,15 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # The legacy tree left the branch in stage A2b. The converter stays until
+      # release A to carry hotfixes over, and its tests read the legacy pages
+      # from the pinned base. Only this job has that commit in its checkout:
+      # the quality job is shallow and skips these tests with a reason.
+      - name: Test the converter against the legacy base
+        env:
+          REQUIRE_LEGACY_BASE: '1'
+        run: node --test scripts/__tests__/html-to-astro.test.cjs scripts/__tests__/shared-blocks.test.cjs scripts/__tests__/trainer-page.test.cjs
+
       - name: Compare production output with the legacy base
         run: |
           node scripts/compare-dist.cjs \

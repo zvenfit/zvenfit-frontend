@@ -2,8 +2,8 @@
 // committed snapshot src/data/map-photos.json (refreshed by `npm run
 // maps:snapshot`); the build never touches the network.
 import { structuredDataConfig, type LocationConfig } from './structured-data';
-import mapsConfig from '../../scripts/maps.config.json';
 import mapPhotos from '../data/map-photos.json';
+import mapsConfig from '../data/maps.config.json';
 
 interface LocationPin {
   pinIcon?: string;

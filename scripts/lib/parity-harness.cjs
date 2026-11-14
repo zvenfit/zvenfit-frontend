@@ -27,19 +27,21 @@ const FIXED_ENV = Object.freeze({
     TRAFFIC_API_URL: 'https://staging.zvenfit.ru/api/traffic',
   }),
 });
-// Everything the legacy build reads. The tree is frozen while the migration
-// branch is open: these paths change only through a hotfix on main, and the
-// base of the comparison is pinned to the commit that carries it.
+// Everything the legacy build reads. These paths change only through a hotfix
+// on main, and the base of the comparison is pinned to the commit that carries
+// it. The migration branch kept them frozen until stage A2b removed them.
+const LEGACY_BUILD = 'scripts/build-static.cjs';
 const LEGACY_INPUTS = Object.freeze([
   'public',
   'scripts/snippets',
-  'scripts/build-static.cjs',
+  LEGACY_BUILD,
   'scripts/app-links.config.json',
   'scripts/maps.config.json',
   'scripts/structured-data.config.json',
 ]);
 // Variables that must not leak from the developer shell into a build.
 const SCRUBBED_VARIABLES = ['LEAD_API_URL', 'SCHEDULE_API_URL', 'TRAFFIC_API_URL', 'ASSET_VERSION', 'Y_MAPS_API_KEY', 'NODE_ENV', 'MODE'];
+const QUALITY_WORKFLOW = path.join(ROOT, '.github', 'workflows', 'quality.yml');
 
 function git(args, options = {}) {
   return execFileSync('git', args, { cwd: ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], ...options }).trim();
@@ -47,6 +49,16 @@ function git(args, options = {}) {
 
 function sha256(content) {
   return crypto.createHash('sha256').update(content).digest('hex');
+}
+
+// The base of the comparison is pinned in one place, the quality workflow.
+// project-checks.json repeats it for local runs, and a test keeps the two equal.
+function pinnedBaseSha(workflowPath = QUALITY_WORKFLOW) {
+  const sha = fs.readFileSync(workflowPath, 'utf8').match(/^ {6}PARITY_BASE_SHA: ([0-9a-f]{40})$/m)?.[1];
+  if (!sha) {
+    throw new Error(`compare-dist: ${path.relative(ROOT, workflowPath)} pins no PARITY_BASE_SHA`);
+  }
+  return sha;
 }
 
 function resolveSha(value, label) {
@@ -71,12 +83,60 @@ function resolveSha(value, label) {
 // candidate no longer carries the legacy build (after it is removed).
 function legacyInputDrift(baseSha, candidateSha, { cwd = ROOT } = {}) {
   try {
-    git(['cat-file', '-e', `${candidateSha}:scripts/build-static.cjs`], { cwd });
+    git(['cat-file', '-e', `${candidateSha}:${LEGACY_BUILD}`], { cwd });
   } catch {
     return null;
   }
   const changed = git(['diff', '--name-only', baseSha, candidateSha, '--', ...LEGACY_INPUTS], { cwd });
   return changed ? changed.split('\n') : [];
+}
+
+function isAncestor(ancestor, descendant, cwd) {
+  try {
+    git(['merge-base', '--is-ancestor', ancestor, descendant], { cwd });
+    return true;
+  } catch (error) {
+    if (error.status === 1) {
+      return false;
+    }
+    throw error;
+  }
+}
+
+// The object id of every legacy input in every commit, 'missing' where the
+// commit has no such path. One git process for the whole list.
+function legacyInputStates(commits, cwd) {
+  const input = `${commits.flatMap(commit => LEGACY_INPUTS.map(file => `${commit}:${file}`)).join('\n')}\n`;
+  const lines = execFileSync('git', ['cat-file', '--batch-check=%(objectname)'], { cwd, input, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 })
+    .trimEnd()
+    .split('\n');
+  return commits.map((_, index) =>
+    lines.slice(index * LEGACY_INPUTS.length, (index + 1) * LEGACY_INPUTS.length).map(line => (line.endsWith(' missing') ? 'missing' : line)),
+  );
+}
+
+// The same question for the history instead of the candidate tree, which is
+// what is left to ask once the candidate has no legacy tree. A hotfix reaches
+// the branch as a merge of main, so the hotfix commit lies on the way from the
+// pinned base to the candidate: it descends from the base and the candidate
+// descends from it. Every commit on that way that still carries the legacy
+// build must carry the legacy inputs of the base; one that does not means main
+// was merged after the base was pinned. Commits of the branch older than the
+// base are not on the way and are not looked at, whatever base they had.
+// Returns null when the base is not an ancestor of the candidate.
+function legacyInputDriftInHistory(baseSha, candidateSha, { cwd = ROOT } = {}) {
+  if (!isAncestor(baseSha, candidateSha, cwd)) {
+    return null;
+  }
+  const listed = git(['rev-list', '--ancestry-path', '--topo-order', '--reverse', `${baseSha}..${candidateSha}`], { cwd });
+  const commits = listed ? listed.split('\n') : [];
+  const [expected, ...states] = legacyInputStates([baseSha, ...commits], cwd);
+  const build = LEGACY_INPUTS.indexOf(LEGACY_BUILD);
+  const carrying = commits.filter((_, index) => states[index][build] !== 'missing');
+  const drifted = commits.filter((_, index) => states[index][build] !== 'missing' && states[index].join() !== expected.join());
+  // The newest of them holds every change made to the legacy inputs since the base.
+  const changed = drifted.length > 0 ? git(['diff', '--name-only', baseSha, drifted.at(-1), '--', ...LEGACY_INPUTS], { cwd }) : '';
+  return { commits: commits.length, carrying: carrying.length, drifted, files: changed ? changed.split('\n') : [] };
 }
 
 function readSnapshot(snapshotPath) {
@@ -233,6 +293,8 @@ module.exports = {
   defaultWorkDir,
   install,
   legacyInputDrift,
+  legacyInputDriftInHistory,
+  pinnedBaseSha,
   prepareWorktree,
   readSnapshot,
   removeWorktree,

@@ -1,13 +1,11 @@
 'use strict';
 
 const assert = require('node:assert/strict');
-const { execFileSync } = require('node:child_process');
-const path = require('node:path');
 const test = require('node:test');
 
+const { legacyBase, listLegacy, showLegacy } = require('./helpers/legacy-base.cjs');
 const { BACK_SCRIPT_RE, NODES, extractTrainer, matchBody } = require('../migrate/trainer-page.cjs');
 
-const ROOT = path.resolve(__dirname, '../..');
 const NBSP = String.fromCharCode(0xa0);
 const SUFFIX = 'bd908423';
 const WF_PAGE = `6a603de510930fd2${SUFFIX}`;
@@ -183,17 +181,15 @@ test('a page that leaves the skeleton is refused with the part that failed', () 
   assert.equal(BACK_SCRIPT_RE.test('document.addEventListener("DOMContentLoaded", function() {});\n'), false);
 });
 
-test('every legacy trainer page at HEAD fits the skeleton: seven Webflow pages and fourteen hand-written ones', t => {
-  const git = (...args) => execFileSync('git', args, { cwd: ROOT, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
-  const pages = git('ls-files', 'public/trenery').split('\n').filter(file => /\/trener-[a-z-]+\/index\.html$/.test(file));
-  if (pages.length === 0) {
-    t.skip('the legacy public/ tree is no longer tracked');
+test('every legacy trainer page at the pinned base fits the skeleton: seven Webflow pages and fourteen hand-written ones', t => {
+  if (!legacyBase(t)) {
     return;
   }
+  const pages = listLegacy('public/trenery').filter(file => /\/trener-[a-z-]+\/index\.html$/.test(file));
   const families = { webflow: 0, handwritten: 0 };
   for (const file of pages) {
     const slug = file.split('/')[2];
-    const page = extractTrainer({ slug, source: git('show', `HEAD:${file}`), text: identity, html: identity });
+    const page = extractTrainer({ slug, source: showLegacy(file), text: identity, html: identity });
     families[page.markup] += 1;
     assert.ok(page.groups.length >= 1 && page.groups.every(group => group.itemsHtml.length > 0), slug);
   }

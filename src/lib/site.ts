@@ -27,7 +27,7 @@ export function webflowRuntimeUrl(): string {
 }
 
 // Page path in the convention of the legacy build, which the content configs
-// are keyed by (scripts/maps.config.json `pageSets`, structured data): Astro
+// are keyed by (src/data/maps.config.json `pageSets`, structured data): Astro
 // reports the 404 page as "/404/" while the legacy key is "/404.html".
 export function pagePathFromUrl(url: URL): string {
   return url.pathname === '/404/' || url.pathname === '/404' ? '/404.html' : url.pathname;

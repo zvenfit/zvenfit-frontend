@@ -527,23 +527,6 @@ function readSitemap(xml) {
   return entries;
 }
 
-function internalLinks(html) {
-  const links = new Set();
-  const document = parse(html);
-  const walk = node => {
-    for (const attribute of node.attrs || []) {
-      if (attribute.name === 'href' && /^\/(?!\/)/.test(attribute.value)) {
-        links.add(attribute.value.replace(/[?#].*$/, ''));
-      }
-    }
-    for (const child of node.childNodes || []) {
-      walk(child);
-    }
-  };
-  walk(document);
-  return links;
-}
-
 module.exports = {
   CONFIGS,
   OWN_SCRIPTS,
@@ -551,7 +534,6 @@ module.exports = {
   compareHtml,
   compareModes,
   createAssetRegistry,
-  internalLinks,
   normalizeAssetUrl,
   parse,
   parseConfigAssignments,

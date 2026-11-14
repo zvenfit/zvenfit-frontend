@@ -1,23 +1,26 @@
 'use strict';
 
 // Content contract of the built site (dist/). Runs after `npm run build` in the
-// quality job and in the deploy before the first upload. The parity profile
-// selects the page set: `a1` (branch A1 only) covers the three legal pages,
-// `a` and `b` cover the whole site. The mode is detected from robots.txt:
-// staging is byte-exact "Disallow: /", everything else is production-like.
+// quality job and in the deploy before the first upload, always against the
+// whole site. The mode is detected from robots.txt: staging is byte-exact
+// "Disallow: /", everything else is production-like.
 
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 
-const { LEGACY_DUPLICATES, readProfileArgument } = require('./lib/parity-profile.cjs');
-const { astroPageToRoute } = require('./check-routes.cjs');
+const { endpointFilesFromAstro, expectedRoutesFromAstro, readProfile } = require('./check-routes.cjs');
 const { builtSiteStylesheets, mediaRangeQueries, minifySiteCss } = require('./lib/site-css.cjs');
 
 const rootDir = path.join(__dirname, '..');
 const distDir = path.join(rootDir, 'dist');
 const stylesDir = path.join(rootDir, 'src', 'styles');
 const vendorDir = path.join(rootDir, 'src', 'vendor');
+const SOURCES = Object.freeze({
+  publicDir: path.join(rootDir, 'public'),
+  pagesDir: path.join(rootDir, 'src', 'pages'),
+  contentDir: path.join(rootDir, 'src', 'content'),
+});
 const cdnWebflowPrefix = 'https://storage.yandexcloud.net/zvenfit/v2/js/webflow.js?v=';
 const STAGING_ROBOTS = 'User-agent: *\nDisallow: /\n';
 const HASH = '[A-Za-z0-9_-]+';
@@ -297,32 +300,24 @@ function checkFullSite(dist, errors) {
   }
 }
 
-function checkLegacyDuplicates(errors) {
-  const legacyPages = walkFiles(path.join(rootDir, 'public'), name => name.endsWith('.html'));
-  const astroRoutes = walkFiles(path.join(rootDir, 'src', 'pages'), name => name.endsWith('.astro'))
-    .filter(file => !file.split('/').some(segment => segment.startsWith('_')) && !/\[[^\]]+\]/.test(file))
-    .map(astroPageToRoute);
-  const duplicates = legacyPages.filter(page => astroRoutes.includes(page));
-  if (duplicates.length > 0) {
-    errors.push(`pages exist both in public/ and src/pages: ${duplicates.join(', ')}`);
-  }
+// A file in public/ with the path of a route wins over the route: Astro 7.4
+// skips the page or the endpoint with a warning, ships the public file and
+// exits with code 0, and the route count stays the same. A legacy page kept by
+// mistake when a merge of main reports "deleted by us" would be served as it
+// is. Pages, the trainer pages of the collection and endpoints are all routes.
+function publicFilesShadowingRoutes({ publicDir, pagesDir, contentDir } = SOURCES) {
+  const routes = new Set([...expectedRoutesFromAstro(pagesDir, contentDir), ...endpointFilesFromAstro(pagesDir)]);
+  return walkFiles(publicDir, () => true).filter(file => routes.has(file));
 }
 
-function checkBuild({ dist = distDir, profile }) {
+function checkBuild({ dist = distDir, sources = SOURCES } = {}) {
   const errors = [];
   const pages = walkFiles(dist, name => name.endsWith('.html'));
   if (pages.length === 0) {
     throw new Error('check-build: dist has no HTML pages');
   }
-  if (!profile.partial && !fs.existsSync(path.join(dist, 'index.html'))) {
+  if (!fs.existsSync(path.join(dist, 'index.html'))) {
     throw new Error('check-build: dist/index.html is missing');
-  }
-  if (profile.partial) {
-    const unexpected = pages.filter(page => !profile.pages.includes(page));
-    const missing = profile.pages.filter(page => !pages.includes(page));
-    if (unexpected.length || missing.length) {
-      throw new Error(`check-build: profile ${profile.name} expects exactly ${profile.pages.join(', ')}; missing ${missing.join(', ') || 'none'}, unexpected ${unexpected.join(', ') || 'none'}`);
-    }
   }
   if (fs.existsSync(path.join(dist, 'js', 'webflow.js'))) {
     errors.push('dist/js/webflow.js must be served from the assets CDN');
@@ -383,17 +378,16 @@ function checkBuild({ dist = distDir, profile }) {
     errors.push('review visibility must be scoped by the semantic page marker, not a Webflow page id');
   }
 
-  if (!profile.partial) {
-    checkFullSite(dist, errors);
-  }
-  if (LEGACY_DUPLICATES === 'forbidden') {
-    checkLegacyDuplicates(errors);
+  checkFullSite(dist, errors);
+  const shadowing = publicFilesShadowingRoutes(sources);
+  if (shadowing.length > 0) {
+    errors.push(`public/ holds a file with the path of a route, and Astro ships it instead of the route: ${shadowing.join(', ')}`);
   }
 
   if (errors.length > 0) {
     throw new Error(`check-build failed:\n- ${errors.join('\n- ')}`);
   }
-  return { mode, pages: pages.length, profile: profile.name };
+  return { mode, pages: pages.length };
 }
 
 module.exports = {
@@ -407,14 +401,14 @@ module.exports = {
   detectMode,
   extractAttribute,
   extractIds,
+  publicFilesShadowingRoutes,
 };
 
 if (require.main === module) {
   try {
-    const deployProfile = JSON.parse(fs.readFileSync(path.join(__dirname, 'deploy.config.json'), 'utf8')).profile;
-    const profile = readProfileArgument(process.argv.slice(2), deployProfile === 'legacy' ? 'a' : deployProfile);
-    const result = checkBuild({ profile });
-    console.log(`check-build: ${result.pages} page(s) verified in ${result.mode} mode (profile ${result.profile})`);
+    const profile = readProfile();
+    const result = checkBuild();
+    console.log(`check-build: ${result.pages} page(s) verified in ${result.mode} mode (profile ${profile})`);
     console.log('check-build: CDN webflow.js, hashed own assets, no-cache runtime configs and generated maps config verified');
     console.log('check-build: site stylesheet equals its legacy clean-css minification, no range media queries');
     console.log('check-build: licence texts of the vendored code served at /js/vendor/ with the source bytes');
@@ -422,6 +416,7 @@ if (require.main === module) {
     console.log('check-build: Webflow page ids, duplicate ids and w-node CSS coverage verified');
     console.log('check-build: every trainer page has rules for its w-node ids and its photo class');
     console.log('check-build: branded native-select chevron, reduced-motion fallback and review scoping verified');
+    console.log('check-build: no file in public/ takes the path of a page or an endpoint');
   } catch (error) {
     console.error(error instanceof Error ? error.message : error);
     process.exitCode = 1;

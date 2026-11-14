@@ -104,7 +104,7 @@ module.exports = {
   overrides: [
     {
       // Existing browser runtime files stay as single scripts until they are modularized.
-      files: ['public/js/schedule.js', 'public/js/yandex-map.js', 'src/scripts/schedule.js', 'src/scripts/yandex-map.js'],
+      files: ['src/scripts/schedule.js', 'src/scripts/yandex-map.js'],
       rules: {
         'max-lines': 'off',
       },

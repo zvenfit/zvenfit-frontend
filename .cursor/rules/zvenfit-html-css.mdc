@@ -1,6 +1,6 @@
 ---
 description: Astro, HTML, CSS and JS conventions for the ZvenFit static site
-globs: src/**/*.{astro,css,js,ts},public/**/*.{html,css,js}
+globs: src/**/*.{astro,css,js,ts},public/**
 alwaysApply: false
 ---
 
@@ -18,20 +18,21 @@ alwaysApply: false
   the parity contract: do not run Prettier on them
 - Pages export `sitemap = { updated, changefreq, priority }` for `sitemap.xml.ts`
 
-## Legacy export (`public/`, frozen during branch A)
+## Static files (`public/`)
 
-- Only hotfixes (lead form breakage, prices, legal texts) through `main`; new content waits
-  for release A
-- Keep marker comments intact: `<!-- ZvenFit: ... -->` — the legacy build and the
-  converter rely on them
+- Copied to `dist/` as they are; today these are two SVG logos in `public/images/`
+- No pages, styles or scripts here: the legacy export left the branch in stage A2b. A
+  file at the path of a route (a page, `robots.txt`, `sitemap.xml`, `/js/*-config.js`)
+  replaces that route in the build; `check-build` fails on it
+- Fixes of the live site (lead form breakage, prices, legal texts) go through `main`
+  until release A; new content waits for release A
 
 ## CSS
 
-- Source: `src/styles/zvenfit.webflow.css` (identical to the frozen `public/css/` copy
-  until A2b); the build minifies it with clean-css exactly as the legacy build did
-  (`scripts/lib/site-css.cjs`), Vite's own CSS minifier stays off because it rewrites
-  media queries into range syntax that old Safari and Chrome ignore; do not commit
-  minified output
+- Source: `src/styles/zvenfit.webflow.css`; the build minifies it with clean-css exactly
+  as the legacy build did (`scripts/lib/site-css.cjs`), Vite's own CSS minifier stays off
+  because it rewrites media queries into range syntax that old Safari and Chrome ignore;
+  do not commit minified output
 - a11y backlog in `TODO.md` Critical: focus states, contrast, touch targets, reduced motion
 
 ## JS

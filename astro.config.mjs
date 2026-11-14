@@ -12,9 +12,6 @@ export default defineConfig({
   site: 'https://zvenfit.ru',
   trailingSlash: 'always',
   compressHTML: false,
-  // Release A1–A2a: the legacy public/ tree is frozen and must not be copied into
-  // dist/. Only the two SVG logos live here until public/ is retired in A2b.
-  publicDir: 'static',
   build: {
     format: 'directory',
     inlineStylesheets: 'never',

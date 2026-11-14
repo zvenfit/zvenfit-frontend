@@ -55,14 +55,6 @@ test('the minifier version is pinned, because the built file name does not follo
   assert.throws(() => assertMinifierVersion('5.3.4'), /clean-css 5\.3\.4 is installed, 5\.3\.3 is expected/);
 });
 
-// Vacuous once A2b deletes the legacy build; until then it keeps both pipelines aligned.
-test('the legacy build still minifies with the same options while it exists', () => {
-  const legacy = path.join(ROOT, 'scripts/build-static.cjs');
-  if (fs.existsSync(legacy)) {
-    assert.ok(fs.readFileSync(legacy, 'utf8').includes('new CleanCSS({ level: 2 }).minify(source)'));
-  }
-});
-
 test('the Astro config keeps Vite away from the stylesheets', () => {
   const config = fs.readFileSync(path.join(ROOT, 'astro.config.mjs'), 'utf8');
   assert.match(config, /cssMinify:\s*false/);

@@ -1,26 +1,18 @@
 'use strict';
 
 const assert = require('node:assert/strict');
-const { execFileSync, spawnSync } = require('node:child_process');
+const { spawnSync } = require('node:child_process');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
 
+const { LEGACY_BASE_SHA, legacyBase, showLegacy } = require('./helpers/legacy-base.cjs');
 const converter = require('../migrate/html-to-astro.cjs');
 const blocks = require('../migrate/shared-blocks.cjs');
 
 const ROOT = path.resolve(__dirname, '../..');
 const CLI = path.join(ROOT, 'scripts/migrate/html-to-astro.cjs');
-
-function git(...args) {
-  return execFileSync('git', args, { cwd: ROOT, encoding: 'utf8' }).trim();
-}
-
-// A pull-request checkout is shallow, so the pinned legacy base SHA may be
-// missing; HEAD carries the same frozen public/ tree until A2b removes it.
-const legacyTracked = git('ls-files', 'public/sitemap.xml') !== '';
-const HEAD = git('rev-parse', 'HEAD');
 
 function walk(dir, files = [], base = dir) {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -34,13 +26,13 @@ function walk(dir, files = [], base = dir) {
   return files.sort();
 }
 
+// The legacy tree is read from the pinned base, as the converter reads it.
 function legacyContext() {
-  const show = file => git('show', `${HEAD}:${file}`);
   return {
-    ref: HEAD,
+    ref: LEGACY_BASE_SHA,
     logo: converter.logoMarkup(),
-    templates: blocks.footerTemplates({ classicSource: `${show('public/privacy/index.html')}\n`, gridSource: `${show('public/index.html')}\n` }),
-    profiles: JSON.parse(show('scripts/structured-data.config.json')).trainers,
+    templates: blocks.footerTemplates({ classicSource: showLegacy('public/privacy/index.html'), gridSource: showLegacy('public/index.html') }),
+    profiles: JSON.parse(showLegacy('scripts/structured-data.config.json')).trainers,
     sitemapEntries: new Map([
       ['https://zvenfit.ru/', { updated: '2026-05-13', changefreq: 'weekly', priority: '1.0' }],
       ['https://zvenfit.ru/offer/', { updated: '2026-05-13', changefreq: 'yearly', priority: '0.3' }],
@@ -157,9 +149,8 @@ test('head parsing accepts the extra metas of the home page, a robots meta, page
   ]);
 });
 
-test('a legal page at HEAD converts into a Base page with Menu, Footer and Analytics calls', t => {
-  if (!legacyTracked) {
-    t.skip('the legacy public/ tree is no longer tracked');
+test('a legal page of the legacy base converts into a Base page with Menu, Footer and Analytics calls', t => {
+  if (!legacyBase(t)) {
     return;
   }
   const result = converter.convertPage({ ...legacyContext(), relativePath: 'offer/index.html' });
@@ -181,8 +172,7 @@ test('a legal page at HEAD converts into a Base page with Menu, Footer and Analy
 });
 
 test('the home page gets the home menu, the grid footer and its extra head metas', t => {
-  if (!legacyTracked) {
-    t.skip('the legacy public/ tree is no longer tracked');
+  if (!legacyBase(t)) {
     return;
   }
   const { output } = converter.convertPage({ ...legacyContext(), relativePath: 'index.html' });
@@ -194,8 +184,7 @@ test('the home page gets the home menu, the grid footer and its extra head metas
 });
 
 test('a service page keeps its own scripts as hashed imports and its GTM frame before the runtime', t => {
-  if (!legacyTracked) {
-    t.skip('the legacy public/ tree is no longer tracked');
+  if (!legacyBase(t)) {
     return;
   }
   const { output } = converter.convertPage({ ...legacyContext(), relativePath: 'gruppovye-trenirovki/index.html' });
@@ -208,8 +197,7 @@ test('a service page keeps its own scripts as hashed imports and its GTM frame b
 });
 
 test('the lead form keeps its config endpoint on the legacy path and imports the vendor mask', t => {
-  if (!legacyTracked) {
-    t.skip('the legacy public/ tree is no longer tracked');
+  if (!legacyBase(t)) {
     return;
   }
   const { output } = converter.convertPage({ ...legacyContext(), relativePath: 'forma-dlya-zayavki/index.html' });
@@ -219,8 +207,7 @@ test('the lead form keeps its config endpoint on the legacy path and imports the
 });
 
 test('a manual page keeps the listed blocks as markup and still gets map and badge components', t => {
-  if (!legacyTracked) {
-    t.skip('the legacy public/ tree is no longer tracked');
+  if (!legacyBase(t)) {
     return;
   }
   const context = { ...legacyContext(), relativePath: 'klubnaya-karta/index.html' };
@@ -239,8 +226,7 @@ test('a manual page keeps the listed blocks as markup and still gets map and bad
 });
 
 test('trainer pages become collection entries with their legacy deviations', t => {
-  if (!legacyTracked) {
-    t.skip('the legacy public/ tree is no longer tracked');
+  if (!legacyBase(t)) {
     return;
   }
   const context = legacyContext();
@@ -307,31 +293,29 @@ test('manual.json names its pages, kept blocks and trainer deviations with reaso
 });
 
 test('pages listed in manual.json are refused without --force', t => {
-  if (!legacyTracked) {
-    t.skip('the legacy public/ tree is no longer tracked');
+  if (!legacyBase(t)) {
     return;
   }
   const out = fs.mkdtempSync(path.join(os.tmpdir(), 'html-to-astro-'));
-  const result = spawnSync(process.execPath, [CLI, '--ref', HEAD, '--page', '/klubnaya-karta/', '--out', out, '--content', path.join(out, 'trainers')], { cwd: ROOT, encoding: 'utf8' });
+  const result = spawnSync(process.execPath, [CLI, '--ref', LEGACY_BASE_SHA, '--page', '/klubnaya-karta/', '--out', out, '--content', path.join(out, 'trainers')], { cwd: ROOT, encoding: 'utf8' });
   assert.equal(result.status, 1);
   assert.match(result.stderr, /maintained by hand/);
   assert.deepEqual(walk(out), []);
 });
 
 test('the committed pages and trainer entries are exactly what the converter produces', t => {
-  if (!legacyTracked) {
-    t.skip('the legacy public/ tree is no longer tracked');
+  if (!legacyBase(t)) {
     return;
   }
   const out = fs.mkdtempSync(path.join(os.tmpdir(), 'html-to-astro-'));
   const pages = path.join(out, 'pages');
   const content = path.join(out, 'trainers');
-  const partial = spawnSync(process.execPath, [CLI, '--ref', HEAD, '--all', '--out', pages, '--content', content], { cwd: ROOT, encoding: 'utf8' });
+  const partial = spawnSync(process.execPath, [CLI, '--ref', LEGACY_BASE_SHA, '--all', '--out', pages, '--content', content], { cwd: ROOT, encoding: 'utf8' });
   assert.equal(partial.status, 1, 'without --force the run must end with a non-zero code');
   assert.match(partial.stderr, /\/klubnaya-karta\/ is maintained by hand/);
   assert.equal(fs.existsSync(path.join(pages, 'klubnaya-karta')), false);
 
-  const full = spawnSync(process.execPath, [CLI, '--ref', HEAD, '--all', '--force', '--out', pages, '--content', content], { cwd: ROOT, encoding: 'utf8' });
+  const full = spawnSync(process.execPath, [CLI, '--ref', LEGACY_BASE_SHA, '--all', '--force', '--out', pages, '--content', content], { cwd: ROOT, encoding: 'utf8' });
   assert.equal(full.status, 0, full.stderr);
   const generatedPages = walk(pages);
   const committedPages = walk(path.join(ROOT, 'src/pages')).filter(file => file.endsWith('.astro') && !file.includes('['));

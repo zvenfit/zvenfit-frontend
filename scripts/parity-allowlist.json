@@ -3,7 +3,7 @@
   "rules": [
     {
       "id": "offer-webflow-defer",
-      "profiles": ["a1", "a"],
+      "profiles": ["a"],
       "mode": "production",
       "routes": ["offer/index.html"],
       "kind": "attribute",
@@ -16,7 +16,7 @@
     },
     {
       "id": "legacy-marker-analytics",
-      "profiles": ["a1", "a"],
+      "profiles": ["a"],
       "mode": "production",
       "routes": ["*"],
       "kind": "comment-removed",
@@ -26,7 +26,7 @@
     },
     {
       "id": "legacy-marker-utm",
-      "profiles": ["a1", "a"],
+      "profiles": ["a"],
       "mode": "production",
       "routes": ["*"],
       "kind": "comment-removed",
@@ -36,7 +36,7 @@
     },
     {
       "id": "legacy-marker-open-graph",
-      "profiles": ["a1", "a"],
+      "profiles": ["a"],
       "mode": "production",
       "routes": ["*"],
       "kind": "comment-removed",
@@ -46,7 +46,7 @@
     },
     {
       "id": "legacy-marker-structured-data",
-      "profiles": ["a1", "a"],
+      "profiles": ["a"],
       "mode": "production",
       "routes": ["*"],
       "exceptRoutes": ["404.html"],

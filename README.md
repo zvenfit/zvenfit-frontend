@@ -4,10 +4,11 @@
 Сайт собирается Astro в статический `dist/`: страницы в `src/pages`, общая разметка в
 `src/layouts` и `src/components`, данные в `src/content` и `src/data`. Разметка
 изначально пришла из Webflow-экспорта; релиз A переносит её в Astro со строгим паритетом
-([план](docs/astro-migration.md), ветка `feature/astro-release-a`). После этапа A2a все
-41 маршрут собираются из Astro: 20 страниц в `src/pages` и 21 страница тренера из коллекции
-`src/content/trainers`. Замороженный экспорт в `public/` остаётся до этапа A2b только как
-база сравнения.
+([план](docs/astro-migration.md), ветка `feature/astro-release-a`). Все 41 маршрут собираются
+из Astro: 20 страниц в `src/pages` и 21 страница тренера из коллекции `src/content/trainers`.
+Прежней сборки (`scripts/build-static.cjs`) и экспорта в `public/` в ветке нет с этапа A2b:
+они остались в `main` и в закреплённой базе сравнения. В `public/` лежит только статика,
+которую Astro копирует в `dist/` как есть.
 
 - Инструкции для контрибьюторов и AI-агентов: [`AGENTS.md`](AGENTS.md)
 - Связь с Personal AI Workspace и запуск проверок: [`docs/personal-ai-workspace.md`](docs/personal-ai-workspace.md)
@@ -32,12 +33,12 @@ npm ci --prefix functions/lead-intake
 npm ci --prefix functions/fitbase-schedule
 npm ci --prefix functions/site-traffic
 npm ci --prefix functions/staging-authorizer
-npm run dev:astro
+npm run dev
 ```
 
 Нужен Node ≥ 22.23.4 (`.nvmrc`). Локально Astro dev открывается на `http://localhost:4173`,
-mock API — на `http://localhost:3000`; `npm run dev:watch` по-прежнему собирает замороженный
-legacy-экспорт `public/` для проверки hotfix.
+mock API — на `http://localhost:3000`. `npm run dev:dist` собирает сайт в режиме development
+и раздаёт готовый `dist/` на том же порту с тем же mock API.
 Локальный mock-server использует staging-артефакт с динамическими синтетическими данными. Для live Fitbase локально
 явно задай `SCHEDULE_PROVIDER=fitbase` и `FITBASE_API_TOKEN` в `.env.development`; этот переключатель существует
 только в локальном сервере и не попадает в cloud runtime.
@@ -61,7 +62,7 @@ Browser page-view beacon → stateless site-traffic function → Cloud Logging �
 
 Local development
   ├─ mock-server :3000
-  └─ static site :4173
+  └─ astro dev :4173
 ```
 
 Заявка считается принятой после сохранения в YDB. Telegram служит каналом уведомления: при временном сбое retry timer повторит доставку сохранённой заявки.
@@ -75,10 +76,11 @@ production и публикует тег версии. Подробности и 
 
 | Зона                      | Источник                                               |
 | ------------------------- | ------------------------------------------------------ |
-| Страницы                  | `src/pages/` (до A2b это вывод конвертера, руками не править) |
+| Страницы                  | `src/pages/` (до релиза A это вывод конвертера, руками не править) |
 | Тренеры                   | `src/content/trainers/*.json`, шаблон `src/pages/trenery/[slug].astro` |
 | Общая разметка            | `src/layouts/Base.astro`, `src/components/`             |
-| Legacy-экспорт            | `public/` (заморожен до A2b, только hotfix по решению R10) |
+| Данные сайта              | `src/data/` (ссылки на приложения, карты, JSON-LD, снимок фото карт) |
+| Статика как есть          | `public/` (два SVG-логотипа); файл с путём маршрута класть нельзя |
 | Lead form                 | `src/pages/forma-dlya-zayavki/`, `src/scripts/lead-form.js` |
 | Расписание                | `src/pages/raspisanie/`, `src/scripts/schedule.js`      |
 | Lead API / YDB / Telegram | `functions/lead-intake/src/`                           |
@@ -96,9 +98,13 @@ frontend deploy workflows call that repository's reusable workflow at the same
 immutable commit SHA after the staging deploy.
 
 `dist/` генерируется и не редактируется вручную. После изменений в `src/` запускай `npm run build`
-(режим берётся из `NODE_ENV`: production, staging, development) либо используй `npm run dev:astro`.
+(режим берётся из `NODE_ENV`: production, staging, development) либо используй `npm run dev`.
 Шаблоны в `src/layouts`, `src/components` и `src/pages` воспроизводят пробелы legacy-разметки
 байт в байт: их не форматируют, иначе падает `compare:dist`.
+
+Исправление боевого сайта до релиза A делается в `main`, где ещё живёт прежняя сборка. В ветку
+миграции оно попадает одним изменением: слияние `main`, новая закреплённая база и перенос
+исправления в `src/` ([порядок](docs/astro-migration.md#перенос-исправлений-из-legacy)).
 
 ## Проверки
 
@@ -117,7 +123,9 @@ npm run test:build:staging
 `test:scripts` покрывает все тесты `scripts/__tests__/`; `test:monitoring` и
 `test:lead-import` запускают их подмножества. Паритет с закреплённой legacy-базой
 проверяет `npm run compare:dist -- --base-sha <SHA> --candidate-sha HEAD --profile a --mode production --snapshot src/data/map-photos.json`
-(и то же с `--mode staging`); в CI это job `compare-dist` с явными SHA.
+(и то же с `--mode staging`); в CI это job `compare-dist` с явными SHA. База собирается из своего
+коммита, поэтому нужна полная история репозитория. Тесты конвертера читают legacy-страницы из
+той же базы: в мелком клоне они пропускаются с причиной, job `compare-dist` запускает их обязательно.
 
 После production deploy выполни smoke-test. Он проверяет страницы,
 runtime-конфиги, CORS lead API, schedule API и пишет один page view класса

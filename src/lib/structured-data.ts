@@ -1,8 +1,8 @@
 // JSON-LD graph per page. A faithful port of the legacy build-static.cjs
-// generator: same node order, same identifiers, same conditions. Release A
-// keeps the site data in scripts/structured-data.config.json (frozen with the
-// legacy build until A2b). Trainers come from the content collection: the
-// caller passes them in, and the `trainers` block of the config is not read.
+// generator: same node order, same identifiers, same conditions. The site
+// data lives in src/data/structured-data.config.json. Trainers come from the
+// content collection and the caller passes them in; the config has no
+// `trainers` block any more.
 import {
   appendPromosStructuredData,
   buildBreadcrumbList,
@@ -12,7 +12,7 @@ import {
   buildWebPageNode,
   buildWebSiteNode,
 } from './structured-data-nodes';
-import config from '../../scripts/structured-data.config.json';
+import config from '../data/structured-data.config.json';
 
 import type { JsonLd, PageMeta, StructuredDataConfig, TrainerConfig } from './structured-data-types';
 

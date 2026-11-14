@@ -4,18 +4,20 @@
 // (docs/astro-migration.md, section 8).
 //
 //   node scripts/compare-dist.cjs --base-sha <40-hex> --candidate-sha <40-hex|HEAD> \
-//     --profile a1|a|b --mode production|staging --snapshot src/data/map-photos.json \
+//     --profile a|b --mode production|staging --snapshot src/data/map-photos.json \
 //     [--work-dir <dir>] [--report <file>] [--clean]
 //
-// --mode production builds the base (legacy build-static.cjs for profiles a1
-// and a, Astro for b) and the candidate in disposable worktrees with fixed
-// non-secret variables and the committed map-photo snapshot, then compares the
-// profile pages node by node, the own assets, the runtime configs, robots.txt
-// and sitemap.xml; with a full profile every other file of both builds must be
-// present on the other side with the same bytes. --mode staging builds the
-// candidate twice (production and staging) and allows only the documented
-// differences between the modes. With a legacy base both modes first check
-// that the legacy inputs in the candidate tree are those of the pinned base.
+// --mode production builds the base (legacy build-static.cjs for profile a,
+// Astro for b) and the candidate in disposable worktrees with fixed non-secret
+// variables and the committed map-photo snapshot, then compares every page of
+// the base node by node, the own assets, the runtime configs, robots.txt and
+// sitemap.xml; every other file of both builds must be present on the other
+// side with the same bytes. --mode staging builds the candidate twice
+// (production and staging) and allows only the documented differences between
+// the modes. With a legacy base both modes first check that the legacy inputs
+// are those of the pinned base: in the candidate tree while it carries the
+// legacy build, and in every commit merged since the base, which is what still
+// notices a hotfix of main merged without a new base once the tree is gone.
 // Neither main nor the dirty working tree is ever used as a side: both SHAs are
 // explicit (HEAD is accepted for local runs and resolved to its commit).
 
@@ -29,7 +31,6 @@ const { getProfile, pageToRoute } = require('./lib/parity-profile.cjs');
 
 const ALLOWLIST_PATH = path.join(__dirname, 'parity-allowlist.json');
 const STAGING_ROBOTS = 'User-agent: *\nDisallow: /\n';
-const ASSET_PREFIXES = ['/js/', '/css/', '/_astro/', '/images/'];
 
 function parseArguments(argv) {
   const options = { clean: false };
@@ -168,13 +169,25 @@ function inventoryFromGit(baseSha, profile) {
     .sort();
 }
 
+function listFiles(files) {
+  return files.slice(0, 8).join(', ') + (files.length > 8 ? ` and ${files.length - 8} more` : '');
+}
+
 // A legacy hotfix reaches the branch by merging main, and the base of the
 // comparison is pinned to that commit of main in the same step. If only one of
 // the two happens, the pages and the comparison still agree with each other
 // (the converter derives its contracts from the same tree), so nothing else
 // would notice a footer text or an analytics snippet that changed in legacy
 // and not in the Astro components.
-function checkLegacyInputs({ baseSha, candidateSha, profile, report, drift = harness.legacyInputDrift }) {
+//
+// Two checks hold the two together. The first compares the legacy tree of the
+// candidate with the base and has nothing to compare once the legacy build has
+// left the branch. The second looks at the history instead: main merged after
+// the base was pinned shows up as a commit on the way from the base to the
+// candidate that still carries the legacy build with other inputs. Without it
+// a merge of main that resolves "deleted by us" by deleting, with neither the
+// fix carried over nor a new base, would stay green and lose the hotfix.
+function checkLegacyInputs({ baseSha, candidateSha, profile, report, drift = harness.legacyInputDrift, historyDrift = harness.legacyInputDriftInHistory }) {
   if (profile.base !== 'legacy') {
     return;
   }
@@ -182,14 +195,29 @@ function checkLegacyInputs({ baseSha, candidateSha, profile, report, drift = har
   const changed = drift(baseSha, candidateSha);
   if (changed === null) {
     report.check(name, true, 'skipped: the candidate no longer carries scripts/build-static.cjs');
-    return;
+  } else {
+    report.check(
+      name,
+      changed.length === 0,
+      changed.length === 0 ? '' : `${listFiles(changed)} differ(s) from ${baseSha}: after a hotfix of the legacy site merge main into the branch and pin that commit of main as the base in the same change`,
+    );
   }
-  const listed = changed.slice(0, 8).join(', ') + (changed.length > 8 ? ` and ${changed.length - 8} more` : '');
-  report.check(
-    name,
-    changed.length === 0,
-    changed.length === 0 ? '' : `${listed} differ(s) from ${baseSha}: after a hotfix of the legacy site merge main into the branch and pin that commit of main as the base in the same change`,
-  );
+
+  const historyName = 'legacy inputs equal the pinned base in every commit merged since it';
+  const history = historyDrift(baseSha, candidateSha);
+  if (history === null) {
+    report.check(historyName, false, `${baseSha} is not an ancestor of the candidate: merge that commit of main into the branch (a shallow clone needs its whole history fetched)`);
+  } else if (history.drifted.length === 0) {
+    report.check(historyName, true, `${history.carrying} of ${history.commits} commit(s) since the base still carry the legacy build`);
+  } else {
+    const later = history.drifted.length - 1;
+    report.check(
+      historyName,
+      false,
+      `${listFiles(history.files)} differ(s) from ${baseSha} in ${history.drifted[0]}${later > 0 ? ` and ${later} later commit(s)` : ''}: main was merged after the base was pinned. ` +
+        'After a hotfix of the legacy site merge main into the branch, pin that commit of main as the base and carry the fix over to src/ in the same change',
+    );
+  }
 }
 
 // Every file of both builds is accounted for: it was compared above as a page,
@@ -213,16 +241,18 @@ function compareFileSets({ baseDist, candidateDist, pages, assets, report }) {
   report.check('the candidate ships no file without a counterpart in the base build', unexpected.length === 0, unexpected.join(', '));
 }
 
-function compareProduction({ baseDir, baseDist, candidateDir, candidateDist, pages, inventory, profile, report }) {
+// The legacy tree keeps its content configs in scripts/, an Astro tree in src/data/.
+function baseSiteUrl(baseDir, profile) {
+  const directory = profile.base === 'legacy' ? ['scripts'] : ['src', 'data'];
+  const config = JSON.parse(fs.readFileSync(path.join(baseDir, ...directory, 'structured-data.config.json'), 'utf8'));
+  return config.siteUrl.replace(/\/$/, '');
+}
+
+function compareProduction({ baseDir, baseDist, candidateDir, candidateDist, pages, profile, report }) {
   const allRules = loadAllowlist();
   const assets = parity.createAssetRegistry();
-  const inventoryRoutes = new Set(inventory.map(pageToRoute));
 
   for (const route of pages) {
-    if (!inventory.includes(route)) {
-      report.errors.push(`${route}: profile page is not in the base inventory`);
-      continue;
-    }
     const baseHtml = readIfExists(path.join(baseDist, route));
     const candidateHtml = readIfExists(path.join(candidateDist, route));
     if (!baseHtml || !candidateHtml) {
@@ -233,14 +263,6 @@ function compareProduction({ baseDir, baseDist, candidateDir, candidateDist, pag
     const result = parity.compareHtml({ route, baseHtml: baseHtml.toString('utf8'), candidateHtml: candidateHtml.toString('utf8'), rules, assets });
     report.routes.push({ route, nodes: result.nodes, exceptions: [...result.ruleMatches].map(([id, count]) => `${id}×${count}`) });
     report.errors.push(...result.errors);
-
-    if (profile.partial) {
-      for (const link of parity.internalLinks(candidateHtml.toString('utf8'))) {
-        if (!inventoryRoutes.has(link) && !ASSET_PREFIXES.some(prefix => link.startsWith(prefix))) {
-          report.errors.push(`${route}: links to ${link}, which is neither a base route nor an asset`);
-        }
-      }
-    }
   }
 
   for (const rule of allRules.filter(rule => rule.profiles.includes(profile.name) && rule.mode === 'production')) {
@@ -324,7 +346,7 @@ function compareProduction({ baseDir, baseDist, candidateDir, candidateDist, pag
 
   const baseSitemap = parity.readSitemap((readIfExists(path.join(baseDist, 'sitemap.xml')) || '').toString('utf8'));
   const candidateSitemap = parity.readSitemap((readIfExists(path.join(candidateDist, 'sitemap.xml')) || '').toString('utf8'));
-  const siteUrl = JSON.parse(fs.readFileSync(path.join(baseDir, 'scripts', 'structured-data.config.json'), 'utf8')).siteUrl.replace(/\/$/, '');
+  const siteUrl = baseSiteUrl(baseDir, profile);
   const expectedUrls = pages.filter(route => route !== '404.html').map(route => `${siteUrl}${pageToRoute(route)}`).sort();
   const sitemapErrors = [];
   for (const url of expectedUrls) {
@@ -339,16 +361,7 @@ function compareProduction({ baseDir, baseDist, candidateDir, candidateDist, pag
   }
   report.check(`sitemap.xml entries equal for ${expectedUrls.length} URL(s)`, sitemapErrors.length === 0, sitemapErrors.join('; '));
 
-  if (profile.partial) {
-    // A partial profile builds only its own pages, so the file sets cannot match; the images still must.
-    for (const image of walkFiles(path.join(candidateDist, 'images'), () => true)) {
-      const left = readIfExists(path.join(baseDist, 'images', image));
-      const right = readIfExists(path.join(candidateDist, 'images', image));
-      report.check(`images/${image} bytes equal`, Boolean(left && right && left.equals(right)));
-    }
-  } else {
-    compareFileSets({ baseDist, candidateDist, pages, assets, report });
-  }
+  compareFileSets({ baseDist, candidateDist, pages, assets, report });
 }
 
 function compareStaging({ candidateProduction, candidateStaging, pages, report }) {
@@ -451,14 +464,12 @@ function run(argv = process.argv.slice(2)) {
       harness.prepareWorktree(baseSha, baseDir, log);
       harness.install(baseDir, log);
       const baseDist = profile.base === 'legacy' ? harness.buildLegacy({ dir: baseDir, snapshot, log }) : harness.buildAstro({ dir: baseDir, mode: 'production', log });
-      const inventory = profile.base === 'legacy' ? listHtml(path.join(baseDir, 'public')) : listHtml(baseDist);
-      const pages = profile.partial ? [...profile.pages] : inventory;
-      compareProduction({ baseDir, baseDist, candidateDir, candidateDist: candidateProduction, pages, inventory, profile, report });
+      // The pages of the base: its sources for a legacy base, its build for an Astro one.
+      const pages = profile.base === 'legacy' ? listHtml(path.join(baseDir, 'public')) : listHtml(baseDist);
+      compareProduction({ baseDir, baseDist, candidateDir, candidateDist: candidateProduction, pages, profile, report });
     } else {
       const candidateStaging = harness.buildAstro({ dir: candidateDir, mode: 'staging', log });
-      const inventory = inventoryFromGit(baseSha, profile);
-      const pages = profile.partial ? [...profile.pages] : inventory;
-      compareStaging({ candidateProduction, candidateStaging, pages, report });
+      compareStaging({ candidateProduction, candidateStaging, pages: inventoryFromGit(baseSha, profile), report });
     }
   } finally {
     if (options.clean) {
@@ -476,7 +487,7 @@ function run(argv = process.argv.slice(2)) {
   return report;
 }
 
-module.exports = { Report, checkLegacyInputs, compareFileSets, compareProduction, compareStaging, inventoryFromGit, parseArguments };
+module.exports = { Report, baseSiteUrl, checkLegacyInputs, compareFileSets, compareProduction, compareStaging, inventoryFromGit, parseArguments };
 
 if (require.main === module) {
   try {

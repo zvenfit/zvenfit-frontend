@@ -1,7 +1,7 @@
 'use strict';
 
 // Refreshes src/data/map-photos.json: organisation photos from Yandex Maps for
-// every location in scripts/maps.config.json, falling back to the configured
+// every location in src/data/maps.config.json, falling back to the configured
 // `locationPhotos` when the page cannot be fetched. The regular build never
 // touches the network; it reads this snapshot (plan, section 5).
 //
@@ -13,7 +13,7 @@ const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 
 const ROOT = path.resolve(__dirname, '..');
-const MAPS_CONFIG_PATH = path.join(__dirname, 'maps.config.json');
+const MAPS_CONFIG_PATH = path.join(ROOT, 'src', 'data', 'maps.config.json');
 const SNAPSHOT_PATH = path.join(ROOT, 'src', 'data', 'map-photos.json');
 const ALTAY_URL_RE = /https:\/\/avatars\.mds\.yandex\.net\/get-altay\/[^"'\\)\s]+/g;
 const MAX_PHOTOS = 12;
@@ -83,7 +83,7 @@ function run(argv = process.argv.slice(2)) {
   console.log('snapshot-map-photos: wrote src/data/map-photos.json');
 }
 
-module.exports = { buildSnapshot, fetchOrganizationPhotos, normalizeAltayPhotoUrl };
+module.exports = { MAPS_CONFIG_PATH, SNAPSHOT_PATH, buildSnapshot, fetchOrganizationPhotos, normalizeAltayPhotoUrl };
 
 if (require.main === module) {
   try {

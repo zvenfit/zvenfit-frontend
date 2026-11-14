@@ -1,13 +1,11 @@
 'use strict';
 
 const assert = require('node:assert/strict');
-const { execFileSync } = require('node:child_process');
-const path = require('node:path');
 const test = require('node:test');
 
+const { legacyBase, showLegacy } = require('./helpers/legacy-base.cjs');
 const blocks = require('../migrate/shared-blocks.cjs');
 
-const ROOT = path.resolve(__dirname, '../..');
 const PAIR = '<div class="code-embed-5 w-embed"><svg></svg></div>\n        <div class="code-embed-6 w-embed"><svg id="full"></svg></div>';
 const LOGO = { pair: PAIR, full: '<svg id="full"></svg>' };
 const decode = text => text.replace(/&amp;/g, '&');
@@ -173,14 +171,11 @@ test('the grid footer covers the pages without badges, without the mobile sectio
   assert.throws(() => blocks.expectedFooter(TEMPLATES, { pagePath: '/x/', location: 'elsewhere' }), /unknown footer location/);
 });
 
-test('every footer of the legacy pages at HEAD fits the Footer contract', t => {
-  const git = (...args) => execFileSync('git', args, { cwd: ROOT, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
-  if (git('ls-files', 'public/sitemap.xml').trim() === '') {
-    t.skip('the legacy public/ tree is no longer tracked');
+test('every footer of the legacy pages at the pinned base fits the Footer contract', t => {
+  if (!legacyBase(t)) {
     return;
   }
-  const show = file => git('show', `HEAD:${file}`);
-  const templates = blocks.footerTemplates({ classicSource: show('public/privacy/index.html'), gridSource: show('public/index.html') });
+  const templates = blocks.footerTemplates({ classicSource: showLegacy('public/privacy/index.html'), gridSource: showLegacy('public/index.html') });
   const expected = {
     '404.html': '<Footer withGrid anchorId="contacts" mobileAnchorId="contact" />',
     'contacts/platforms/index.html': '<Footer withGrid badges={false} anchorId="contacts" mobileAnchorId="contact" />',
@@ -193,6 +188,6 @@ test('every footer of the legacy pages at HEAD fits the Footer contract', t => {
   };
   for (const [page, call] of Object.entries(expected)) {
     const pagePath = page === 'index.html' ? '/' : `/${page.replace(/index\.html$/, '')}`;
-    assert.equal(blocks.convertFooter(show(`public/${page}`).match(blocks.FOOTER_RE)[0], { pagePath, templates }), call, page);
+    assert.equal(blocks.convertFooter(showLegacy(`public/${page}`).match(blocks.FOOTER_RE)[0], { pagePath, templates }), call, page);
   }
 });

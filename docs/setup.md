@@ -25,8 +25,9 @@ cp .env.example .env.development
 npm ci
 npm ci --prefix functions/lead-intake
 npm ci --prefix functions/fitbase-schedule
+npm ci --prefix functions/site-traffic
 npm ci --prefix functions/staging-authorizer
-npm run dev:watch
+npm run dev
 ```
 
 Сайт доступен на `http://localhost:4173`, локальный API — на

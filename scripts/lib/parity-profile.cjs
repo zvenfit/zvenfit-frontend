@@ -1,44 +1,21 @@
 'use strict';
 
-// Parity profiles shared by compare-dist, check-routes, check-build and the
-// staging build test (plan docs/astro-migration.md, sections 7 and 8).
-//
-// `a1` is the only partial profile: it covers the three legal pages converted
-// in PR A1 and is allowed only inside branch A1. Deploy guards and the final
-// pull requests into main use the full profiles `a` (legacy base) and `b`
-// (accepted Astro main as base).
+// Parity profiles of compare-dist (plan docs/astro-migration.md, section 8).
+// Both cover the whole site and differ in the base of the comparison: `a`
+// compares with the pinned legacy commit, `b` with the accepted Astro main.
+// The partial profile `a1` of stage A1 (three legal pages) is gone, and with
+// it every partial mode of the checks: they always see the full route set.
 
 const PROFILES = Object.freeze({
-  a1: Object.freeze({
-    partial: true,
-    base: 'legacy',
-    pages: Object.freeze(['offer/index.html', 'privacy/index.html', 'payment-policy/index.html']),
-    requires404: false,
-  }),
-  a: Object.freeze({ partial: false, base: 'legacy', pages: null, requires404: true }),
-  b: Object.freeze({ partial: false, base: 'astro', pages: null, requires404: true }),
+  a: Object.freeze({ base: 'legacy' }),
+  b: Object.freeze({ base: 'astro' }),
 });
 
-const LEGACY_DUPLICATES = 'allowed'; // becomes 'forbidden' in A2b when public/**/*.html is removed
-
 function getProfile(name) {
-  const profile = PROFILES[name];
-  if (!profile) {
-    throw new Error(`parity: unknown profile "${name}" (expected a1, a or b)`);
+  if (!Object.hasOwn(PROFILES, name)) {
+    throw new Error(`parity: unknown profile "${name}" (expected a or b)`);
   }
-  return { name, ...profile };
-}
-
-function readProfileArgument(argv, fallback) {
-  const index = argv.indexOf('--profile');
-  if (index === -1) {
-    return getProfile(fallback);
-  }
-  const value = argv[index + 1];
-  if (!value) {
-    throw new Error('parity: --profile requires a value (a1, a or b)');
-  }
-  return getProfile(value);
+  return { name, ...PROFILES[name] };
 }
 
 function pageToRoute(page) {
@@ -51,4 +28,4 @@ function pageToRoute(page) {
   return `/${page}`;
 }
 
-module.exports = { LEGACY_DUPLICATES, PROFILES, getProfile, pageToRoute, readProfileArgument };
+module.exports = { PROFILES, getProfile, pageToRoute };
