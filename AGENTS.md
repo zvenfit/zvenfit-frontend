@@ -139,7 +139,8 @@ Endpoints in `src/pages`: `js/lead-config.js.ts`, `js/schedule-config.js.ts`,
 staging and production fail without a value); `js/maps-config.js.ts` combines
 `scripts/maps.config.json`, the committed photo snapshot and `Y_MAPS_API_KEY`;
 `sitemap.xml.ts` collects `export const sitemap = { updated, changefreq,
-priority }` from every page and `updated`/`sitemap` of every trainer entry;
+priority }` from every page and `updated`/`sitemap` of every trainer entry
+(`src/lib/sitemap.ts` validates them);
 `robots.txt.ts` serves
 `src/data/robots.production.txt` or the staging `Disallow: /`;
 `js/vendor/imask-7.6.1.LICENSE.txt.ts` serves the MIT text of the vendored
@@ -156,19 +157,33 @@ expressions, escape them as `&#123;`/`&#125;`; every classic `<script>` needs
 directly inside a component's children, whitespace that follows an expression
 `{…}` is dropped (keep such gaps as expressions, as `trenery/[slug].astro` does).
 
-The `trainers` collection (`src/content.config.ts`): one JSON entry per trainer,
-the file name is the slug. `StructuredData.astro` (Person, breadcrumb) and the
-sitemap read it; the `trainers` block of `scripts/structured-data.config.json`
-is no longer read and leaves with the frozen configs in A2b. The optional
+The `trainers` collection (`src/content.config.ts`, schema in
+`src/lib/trainer-schema.ts`): one JSON entry per trainer, the file name is the
+slug and must be `trener-<name>.json`. `StructuredData.astro` (Person,
+breadcrumb) and the sitemap read it; the `trainers` block of
+`scripts/structured-data.config.json` is no longer read, and A2b deletes it
+(it does not move to `src/data/` with the rest of the config). The optional
 `legacy` block of an entry holds markup differences between the legacy pages;
 a new trainer does not need it.
+
+A trainer page is styled by the site stylesheet alone, with no fallback by
+class. The grid is laid out by the `#w-node-…-<suffix>` rules of the entry's
+`wfPage` (the suffix is its last eight digits), the two photos by
+`.photo_coach.<photoClass>` and `.photo_coach_mini.<photoClass>`; the photo
+rules without a modifier show Efim's photos. A new entry therefore needs the
+`wfPage` of an existing page with the same layout or its own `w-node` rules in
+`src/styles/zvenfit.webflow.css`, and a `photoClass` that has both photo rules
+there. Such an entry still builds: `check-build` is what fails on a trainer
+page whose ids or photo class have no rules, and on a page without a photo
+class other than Efim's. New rules wait for release A, because the stylesheet
+bytes are part of the parity contract.
 
 ## Task → file map
 
 | Task                       | Files                                                                                     |
 | -------------------------- | ----------------------------------------------------------------------------------------- |
 | Pages (Astro)              | `src/pages/**/index.astro`, `src/pages/404.astro`                                          |
-| Trainer pages              | `src/content/trainers/*.json`, `src/content.config.ts`, `src/pages/trenery/[slug].astro`    |
+| Trainer pages              | `src/content/trainers/*.json`, `src/lib/trainer-schema.ts`, `src/pages/trenery/[slug].astro`; grid and photo rules in `src/styles/zvenfit.webflow.css`, guard in `scripts/check-build.cjs` |
 | Page conversion            | `scripts/migrate/html-to-astro.cjs`, `shared-blocks.cjs`, `trainer-page.cjs`, `manual.json` |
 | Parity check               | `scripts/compare-dist.cjs`, `scripts/parity-allowlist.json`, `scripts/lib/html-parity.cjs` |
 | CSS minification           | `scripts/lib/site-css.cjs`, `astro.config.mjs`; guards in `scripts/check-build.cjs` and `scripts/compare-dist.cjs` |
