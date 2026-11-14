@@ -46,8 +46,19 @@ Legacy-база общего контракта после слияния
 Обновление `@grpc/grpc-js` до 1.14.7 из
 [PR #104](https://github.com/zvenfit/zvenfit-frontend/pull/104) (релиз `v3.1.2`)
 меняет только `functions/lead-intake/package-lock.json`: фронтенд, legacy-сборка
-и корневой lock-файл не затронуты, переносить в `src/` нечего. Текущая
-legacy-база: `12d025bcae0e83821fc86dea66caa004509d59ab`.
+и корневой lock-файл не затронуты, переносить в `src/` нечего. Legacy-база
+после #104: `12d025bcae0e83821fc86dea66caa004509d59ab`.
+
+Исправление реквизитов из
+[PR #106](https://github.com/zvenfit/zvenfit-frontend/pull/106) (релиз `v3.1.3`)
+меняет по одной строке в `public/offer/index.html` и
+`public/privacy/index.html`: буква «О» из «ОГРНИП» стояла в конце номера ИНН.
+Обе страницы перегенерированы конвертером с `--ref` на новую базу; в
+`src/pages/offer/index.astro` и `src/pages/privacy/index.astro` изменилась
+только эта строка. Остальные 18 страниц и 21 запись тренеров на новой базе
+конвертер выдаёт без изменений; `lastmod` обеих страниц в исправлении не
+менялся. Текущая legacy-база:
+`b4c7de821bedd2741605f194eaf8ed4334877086`.
 
 ## 1. Решение и его границы
 
