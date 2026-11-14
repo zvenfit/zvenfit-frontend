@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "npm run build:functions && ASTRO_TELEMETRY_DISABLED=1 concurrently -k \"node mock-server.js\" \"astro dev --mode development --port 4173\" --names \"API,WEB\" --prefix-colors \"cyan,green\"",
+    "dev:watch": "npm run dev",
     "dev:dist": "npm run build:functions && NODE_ENV=development npm run build && concurrently -k \"node mock-server.js\" \"serve dist -l 4173\" --names \"API,WEB\" --prefix-colors \"cyan,green\"",
     "dev:mock": "npm run build:functions && node mock-server.js",
     "build": "MODE=${NODE_ENV:-production}; ASTRO_TELEMETRY_DISABLED=1 NODE_ENV=production astro build --mode \"$MODE\"",
