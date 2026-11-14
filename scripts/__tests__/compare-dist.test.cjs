@@ -7,6 +7,7 @@ const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
 
+const { expectedRoutesFromAstro } = require('../check-routes.cjs');
 const { Report, baseSiteUrl, checkLegacyInputs, compareProduction, compareStaging, parseArguments } = require('../compare-dist.cjs');
 const { getProfile } = require('../lib/parity-profile.cjs');
 const { LEGACY_INPUTS, legacyInputDrift, readSnapshot, resolveSha } = require('../lib/parity-harness.cjs');
@@ -14,13 +15,13 @@ const { LEGACY_INPUTS, legacyInputDrift, readSnapshot, resolveSha } = require('.
 const ROOT = path.resolve(__dirname, '../..');
 
 test('every argument is explicit: SHAs, profile, mode and snapshot', () => {
-  const full = ['--base-sha', 'a'.repeat(40), '--candidate-sha', 'HEAD', '--profile', 'a1', '--mode', 'production', '--snapshot', 'src/data/map-photos.json'];
+  const full = ['--base-sha', 'a'.repeat(40), '--candidate-sha', 'HEAD', '--profile', 'a', '--mode', 'production', '--snapshot', 'src/data/map-photos.json'];
   assert.deepEqual(parseArguments(full), {
     baseSha: 'a'.repeat(40),
     candidateSha: 'HEAD',
     clean: false,
     mode: 'production',
-    profile: 'a1',
+    profile: 'a',
     snapshot: 'src/data/map-photos.json',
   });
   assert.throws(() => parseArguments(full.slice(2)), /--base-sha is required/);
@@ -66,8 +67,6 @@ function productionFixture() {
   const baseDist = path.join(baseDir, 'dist');
   const candidateDist = path.join(candidateDir, 'dist');
   write(baseDir, 'public/css/zvenfit.webflow.css', '.a{color:red}\n');
-  write(baseDir, 'public/offer/index.html', '<html></html>');
-  write(baseDir, 'public/privacy/index.html', '<html></html>');
   write(baseDir, 'scripts/structured-data.config.json', '{"siteUrl":"https://zvenfit.ru"}');
   write(candidateDir, 'src/styles/zvenfit.webflow.css', '.a{color:red}\n');
   write(baseDist, 'offer/index.html', legacyPage());
@@ -95,11 +94,11 @@ function productionFixture() {
   return { baseDir, baseDist, candidateDir, candidateDist };
 }
 
-const PROFILE = { ...getProfile('a1'), pages: ['offer/index.html'] };
+const PROFILE = getProfile('a');
 
 function runProduction(fixture) {
-  const report = new Report({ profile: 'a1', mode: 'production', baseSha: 'b'.repeat(40), candidateSha: 'c'.repeat(40), baseKind: 'legacy', snapshotPath: 's', snapshotDigest: 'd', fixture: 'f' });
-  compareProduction({ ...fixture, pages: PROFILE.pages, inventory: ['offer/index.html', 'privacy/index.html'], profile: PROFILE, report });
+  const report = new Report({ profile: 'a', mode: 'production', baseSha: 'b'.repeat(40), candidateSha: 'c'.repeat(40), baseKind: 'legacy', snapshotPath: 's', snapshotDigest: 'd', fixture: 'f' });
+  compareProduction({ ...fixture, pages: ['offer/index.html'], profile: PROFILE, report });
   return report;
 }
 
@@ -125,28 +124,24 @@ test('a stylesheet minified differently from the legacy build fails even when th
   assert.ok(source.errors.some(error => /stylesheet zvenfit\.webflow\.css: source differs between public\/css and src\/styles/.test(error)), source.render());
 });
 
-test('the production comparison catches changed scripts, configs, sitemap entries and links to unknown routes', () => {
+test('the production comparison catches changed scripts, configs, sitemap entries and a page missing on one side', () => {
   const fixture = productionFixture();
   write(fixture.candidateDist, '_astro/traffic-beacon.Ij90Kl12.js', 'beacon(); // changed');
   write(fixture.candidateDist, 'js/lead-config.js', "window.ZVENFIT_LEAD_API = 'https://other.invalid/lead';\n");
   write(fixture.candidateDist, 'sitemap.xml', SITEMAP.replace('0.3', '0.5'));
-  write(fixture.candidateDist, 'offer/index.html', astroPage().replace('<a href="/privacy/">p</a>', '<a href="/privacy/">p</a><a href="/ghost/">g</a>'));
-  write(fixture.baseDist, 'offer/index.html', legacyPage().replace('<a href="/privacy/">p</a>', '<a href="/privacy/">p</a><a href="/ghost/">g</a>'));
   const report = runProduction(fixture);
   assert.ok(report.errors.some(error => /script traffic-beacon\.js/.test(error)), report.render());
   assert.ok(report.errors.some(error => /lead-config\.js assignments equal/.test(error)), report.render());
   assert.ok(report.errors.some(error => /sitemap\.xml entries equal/.test(error)), report.render());
-  assert.ok(report.errors.some(error => /links to \/ghost\//.test(error)), report.render());
+  assert.equal(report.errors.length, 3, report.render());
   assert.match(report.render(), /Result: FAIL/);
+
+  const dropped = productionFixture();
+  fs.rmSync(path.join(dropped.candidateDist, 'offer/index.html'));
+  const missing = runProduction(dropped);
+  assert.ok(missing.errors.includes('offer/index.html: missing in candidate dist'), missing.render());
+  assert.ok(missing.errors.some(error => /candidate dist contains exactly the profile pages/.test(error)), missing.render());
 });
-
-const FULL_PROFILE = getProfile('a');
-
-function runFull(fixture) {
-  const report = new Report({ profile: 'a', mode: 'production', baseSha: 'b'.repeat(40), candidateSha: 'c'.repeat(40), baseKind: 'legacy', snapshotPath: 's', snapshotDigest: 'd', fixture: 'f' });
-  compareProduction({ ...fixture, pages: ['offer/index.html'], inventory: ['offer/index.html'], profile: FULL_PROFILE, report });
-  return report;
-}
 
 function fullFixture() {
   const fixture = productionFixture();
@@ -156,8 +151,8 @@ function fullFixture() {
   return fixture;
 }
 
-test('with a full profile every file of both builds is accounted for', () => {
-  const faithful = runFull(fullFixture());
+test('every file of both builds is accounted for', () => {
+  const faithful = runProduction(fullFixture());
   assert.deepEqual(faithful.errors, [], faithful.render());
   assert.match(faithful.render(), /ok: js\/vendor\/imask-7\.6\.1\.LICENSE\.txt bytes equal/);
   assert.match(faithful.render(), /ok: images\/logo\.svg bytes equal/);
@@ -166,27 +161,19 @@ test('with a full profile every file of both builds is accounted for', () => {
   const dropped = fullFixture();
   fs.rmSync(path.join(dropped.candidateDist, 'js/vendor/imask-7.6.1.LICENSE.txt'));
   fs.rmSync(path.join(dropped.candidateDist, 'images/logo.svg'));
-  const missing = runFull(dropped);
+  const missing = runProduction(dropped);
   assert.ok(missing.errors.includes('js/vendor/imask-7.6.1.LICENSE.txt bytes equal: the base build ships it and the candidate does not'), missing.render());
   assert.ok(missing.errors.includes('images/logo.svg bytes equal: the base build ships it and the candidate does not'), missing.render());
 
   const changed = fullFixture();
   write(changed.candidateDist, 'js/vendor/imask-7.6.1.LICENSE.txt', 'Another licence\n');
-  assert.ok(runFull(changed).errors.includes('js/vendor/imask-7.6.1.LICENSE.txt bytes equal: bytes differ'));
+  assert.ok(runProduction(changed).errors.includes('js/vendor/imask-7.6.1.LICENSE.txt bytes equal: bytes differ'));
 
   const grown = fullFixture();
   write(grown.candidateDist, '_astro/orphan.Mn34Op56.js', 'orphan();');
   write(grown.candidateDist, 'favicon.ico', 'icon');
-  const extra = runFull(grown);
+  const extra = runProduction(grown);
   assert.ok(extra.errors.includes('the candidate ships no file without a counterpart in the base build: _astro/orphan.Mn34Op56.js, favicon.ico'), extra.render());
-});
-
-test('a partial profile compares the images of the candidate and leaves the file sets alone', () => {
-  const fixture = fullFixture();
-  fs.rmSync(path.join(fixture.candidateDist, 'js/vendor/imask-7.6.1.LICENSE.txt'));
-  const report = runProduction(fixture);
-  assert.deepEqual(report.errors, [], report.render());
-  assert.match(report.render(), /ok: images\/logo\.svg bytes equal/);
 });
 
 function commit(repo, message) {
@@ -258,13 +245,13 @@ test('the staging comparison accepts exactly the documented mode differences', (
     write(dir, 'sitemap.xml', SITEMAP);
     write(dir, '_astro/traffic-beacon.Ij90Kl12.js', 'beacon();');
   }
-  const report = new Report({ profile: 'a1', mode: 'staging', baseSha: 'b'.repeat(40), candidateSha: 'c'.repeat(40), baseKind: 'legacy', snapshotPath: 's', snapshotDigest: 'd', fixture: 'f' });
+  const report = new Report({ profile: 'a', mode: 'staging', baseSha: 'b'.repeat(40), candidateSha: 'c'.repeat(40), baseKind: 'legacy', snapshotPath: 's', snapshotDigest: 'd', fixture: 'f' });
   compareStaging({ candidateProduction: production, candidateStaging: staging, pages: ['offer/index.html'], report });
   assert.deepEqual(report.errors, [], report.render());
 
   write(staging, 'robots.txt', 'User-agent: *\nDisallow: /\n\n');
   write(staging, 'offer/index.html', astroPage({ analytics: false, robots: '\n  <meta name="robots" content="noindex, nofollow">' }).replace('Текст', 'Text'));
-  const failing = new Report({ profile: 'a1', mode: 'staging', baseSha: 'b'.repeat(40), candidateSha: 'c'.repeat(40), baseKind: 'legacy', snapshotPath: 's', snapshotDigest: 'd', fixture: 'f' });
+  const failing = new Report({ profile: 'a', mode: 'staging', baseSha: 'b'.repeat(40), candidateSha: 'c'.repeat(40), baseKind: 'legacy', snapshotPath: 's', snapshotDigest: 'd', fixture: 'f' });
   compareStaging({ candidateProduction: production, candidateStaging: staging, pages: ['offer/index.html'], report: failing });
   assert.ok(failing.errors.some(error => /robots\.txt is byte-exact/.test(error)), failing.render());
   assert.ok(failing.errors.some(error => /node mismatch/.test(error)), failing.render());
@@ -280,15 +267,17 @@ test('the site URL of the base is read where its kind of tree keeps the content 
 
 test('the committed allow-list only names routes of the profiles it applies to', () => {
   const { rules } = JSON.parse(fs.readFileSync(path.join(ROOT, 'scripts/parity-allowlist.json'), 'utf8'));
+  const routes = expectedRoutesFromAstro(path.join(ROOT, 'src/pages'), path.join(ROOT, 'src/content'));
+  assert.ok(rules.length >= 1);
   for (const rule of rules) {
     assert.ok(rule.id && rule.reason && rule.count >= 1 && ['comment-removed', 'attribute'].includes(rule.kind), rule.id);
+    assert.ok(rule.profiles.length >= 1, `${rule.id} applies to no profile`);
     for (const profileName of rule.profiles) {
-      const profile = getProfile(profileName);
-      for (const route of rule.routes.filter(route => route !== '*')) {
-        if (profile.partial) {
-          assert.ok(profile.pages.includes(route), `${rule.id}: ${route} is not a page of ${profileName}`);
-        }
-      }
+      // Throws for a name that is not a profile, such as the retired a1.
+      getProfile(profileName);
+    }
+    for (const route of [...rule.routes.filter(route => route !== '*'), ...(rule.exceptRoutes || [])]) {
+      assert.ok(routes.includes(route), `${rule.id}: ${route} is not a route of the site`);
     }
   }
 });

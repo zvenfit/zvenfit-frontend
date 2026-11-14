@@ -1,17 +1,16 @@
 'use strict';
 
 // Content contract of the built site (dist/). Runs after `npm run build` in the
-// quality job and in the deploy before the first upload. The parity profile
-// selects the page set: `a1` (branch A1 only) covers the three legal pages,
-// `a` and `b` cover the whole site. The mode is detected from robots.txt:
-// staging is byte-exact "Disallow: /", everything else is production-like.
+// quality job and in the deploy before the first upload, always against the
+// whole site. The mode is detected from robots.txt: staging is byte-exact
+// "Disallow: /", everything else is production-like.
 
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 
-const { LEGACY_DUPLICATES, readProfileArgument } = require('./lib/parity-profile.cjs');
-const { astroPageToRoute } = require('./check-routes.cjs');
+const { LEGACY_DUPLICATES } = require('./lib/parity-profile.cjs');
+const { astroPageToRoute, readProfile } = require('./check-routes.cjs');
 const { builtSiteStylesheets, mediaRangeQueries, minifySiteCss } = require('./lib/site-css.cjs');
 
 const rootDir = path.join(__dirname, '..');
@@ -308,21 +307,14 @@ function checkLegacyDuplicates(errors) {
   }
 }
 
-function checkBuild({ dist = distDir, profile }) {
+function checkBuild({ dist = distDir } = {}) {
   const errors = [];
   const pages = walkFiles(dist, name => name.endsWith('.html'));
   if (pages.length === 0) {
     throw new Error('check-build: dist has no HTML pages');
   }
-  if (!profile.partial && !fs.existsSync(path.join(dist, 'index.html'))) {
+  if (!fs.existsSync(path.join(dist, 'index.html'))) {
     throw new Error('check-build: dist/index.html is missing');
-  }
-  if (profile.partial) {
-    const unexpected = pages.filter(page => !profile.pages.includes(page));
-    const missing = profile.pages.filter(page => !pages.includes(page));
-    if (unexpected.length || missing.length) {
-      throw new Error(`check-build: profile ${profile.name} expects exactly ${profile.pages.join(', ')}; missing ${missing.join(', ') || 'none'}, unexpected ${unexpected.join(', ') || 'none'}`);
-    }
   }
   if (fs.existsSync(path.join(dist, 'js', 'webflow.js'))) {
     errors.push('dist/js/webflow.js must be served from the assets CDN');
@@ -383,9 +375,7 @@ function checkBuild({ dist = distDir, profile }) {
     errors.push('review visibility must be scoped by the semantic page marker, not a Webflow page id');
   }
 
-  if (!profile.partial) {
-    checkFullSite(dist, errors);
-  }
+  checkFullSite(dist, errors);
   if (LEGACY_DUPLICATES === 'forbidden') {
     checkLegacyDuplicates(errors);
   }
@@ -393,7 +383,7 @@ function checkBuild({ dist = distDir, profile }) {
   if (errors.length > 0) {
     throw new Error(`check-build failed:\n- ${errors.join('\n- ')}`);
   }
-  return { mode, pages: pages.length, profile: profile.name };
+  return { mode, pages: pages.length };
 }
 
 module.exports = {
@@ -411,10 +401,9 @@ module.exports = {
 
 if (require.main === module) {
   try {
-    const deployProfile = JSON.parse(fs.readFileSync(path.join(__dirname, 'deploy.config.json'), 'utf8')).profile;
-    const profile = readProfileArgument(process.argv.slice(2), deployProfile === 'legacy' ? 'a' : deployProfile);
-    const result = checkBuild({ profile });
-    console.log(`check-build: ${result.pages} page(s) verified in ${result.mode} mode (profile ${result.profile})`);
+    const profile = readProfile();
+    const result = checkBuild();
+    console.log(`check-build: ${result.pages} page(s) verified in ${result.mode} mode (profile ${profile})`);
     console.log('check-build: CDN webflow.js, hashed own assets, no-cache runtime configs and generated maps config verified');
     console.log('check-build: site stylesheet equals its legacy clean-css minification, no range media queries');
     console.log('check-build: licence texts of the vendored code served at /js/vendor/ with the source bytes');

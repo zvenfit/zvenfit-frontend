@@ -641,7 +641,7 @@ test('the built site is verified before the first upload and no upload step can 
   assert.doesNotMatch(job, /continue-on-error|always\(\)/);
 });
 
-test('the deploy guard runs with the deploy profile and never with a partial parity profile', () => {
+test('the deploy guard takes its profile from deploy.config.json and no arguments', () => {
   const start = reusableWorkflow.indexOf('\n  deploy-site:');
   const job = reusableWorkflow.slice(start, reusableWorkflow.indexOf('\n  rollback-staging-authorizer:'));
   const verify = job.slice(job.indexOf('name: Verify built site before upload'));
@@ -651,7 +651,7 @@ test('the deploy guard runs with the deploy profile and never with a partial par
   assert.match(step, /node scripts\/check-build\.cjs\n/);
   assert.doesNotMatch(step, /--profile|--source/, 'the guard must derive its profile from scripts/deploy.config.json');
   const deployConfig = JSON.parse(fs.readFileSync(path.join(ROOT, 'scripts/deploy.config.json'), 'utf8'));
-  assert.ok(['legacy', 'a', 'b'].includes(deployConfig.profile), 'deploy.config.json knows no partial profile');
+  assert.ok(['legacy', 'a', 'b'].includes(deployConfig.profile), 'deploy.config.json names a deploy profile');
 });
 
 test('every Node.js setup resolves the latest release of the pinned major', () => {

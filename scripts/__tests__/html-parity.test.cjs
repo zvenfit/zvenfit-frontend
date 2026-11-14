@@ -7,7 +7,6 @@ const {
   compareHtml,
   compareModes,
   createAssetRegistry,
-  internalLinks,
   parseConfigAssignments,
   readSitemap,
   rulesForRoute,
@@ -125,11 +124,11 @@ test('the content of template and the elements inside pre take part in the compa
 
 test('rulesForRoute scopes rules by profile, mode, route and exceptions', () => {
   const rules = [
-    { id: 'all', profiles: ['a1', 'a'], mode: 'production', routes: ['*'], exceptRoutes: ['404.html'] },
-    { id: 'offer', profiles: ['a1'], mode: 'production', routes: ['offer/index.html'] },
-    { id: 'staging', profiles: ['a1'], mode: 'staging', routes: ['*'] },
+    { id: 'all', profiles: ['b', 'a'], mode: 'production', routes: ['*'], exceptRoutes: ['404.html'] },
+    { id: 'offer', profiles: ['b'], mode: 'production', routes: ['offer/index.html'] },
+    { id: 'staging', profiles: ['b'], mode: 'staging', routes: ['*'] },
   ];
-  assert.deepEqual(rulesForRoute(rules, { profile: 'a1', mode: 'production', route: 'offer/index.html' }).map(rule => rule.id), ['all', 'offer']);
+  assert.deepEqual(rulesForRoute(rules, { profile: 'b', mode: 'production', route: 'offer/index.html' }).map(rule => rule.id), ['all', 'offer']);
   assert.deepEqual(rulesForRoute(rules, { profile: 'a', mode: 'production', route: '404.html' }).map(rule => rule.id), []);
   assert.deepEqual(rulesForRoute(rules, { profile: 'a', mode: 'production', route: 'privacy/index.html' }).map(rule => rule.id), ['all']);
 });
@@ -207,14 +206,10 @@ test('whitespace after a removed analytics block may vanish only where it cannot
   );
 });
 
-test('config assignments, sitemap entries and internal links are extracted', () => {
+test('config assignments and sitemap entries are extracted', () => {
   const assignments = parseConfigAssignments("// comment\nwindow.ZVENFIT_LEAD_API = 'https://a.test/lead';\n");
   assert.deepEqual([...assignments], [['ZVENFIT_LEAD_API', 'https://a.test/lead']]);
   assert.throws(() => parseConfigAssignments('window.x = 1;'), /unexpected config line/);
   const sitemap = readSitemap('<urlset><!-- c --><url>\n<loc>https://z.ru/offer/</loc><lastmod>2026-05-13</lastmod><changefreq>yearly</changefreq><priority>0.3</priority></url></urlset>');
   assert.deepEqual(sitemap.get('https://z.ru/offer/'), { lastmod: '2026-05-13', changefreq: 'yearly', priority: '0.3' });
-  assert.deepEqual(
-    [...internalLinks('<a href="/offer/#x">a</a><a href="/privacy/?u=1">b</a><a href="https://x.test/">c</a><a href="//cdn/x">d</a><link href="/_astro/x.css">')].sort(),
-    ['/_astro/x.css', '/offer/', '/privacy/'],
-  );
 });

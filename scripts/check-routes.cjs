@@ -8,15 +8,13 @@
 // partial build must never reach the bucket.
 //
 // Sources: `--source astro` (src/pages plus the trainer collection) for the
-// deploy profiles `a` and `b`, `--source public` for `legacy`. The partial
-// parity profile `--profile a1` is allowed only inside branch A1 and must never
-// be passed by a deploy workflow: the deploy test asserts the guard runs with
-// the defaults from scripts/deploy.config.json.
+// deploy profiles `a` and `b`, `--source public` for `legacy`. The deploy
+// workflow passes neither: the deploy test asserts the guard runs with the
+// defaults from scripts/deploy.config.json. The route set is always the whole
+// site, 404.html included.
 
 const fs = require('node:fs');
 const path = require('node:path');
-
-const { getProfile } = require('./lib/parity-profile.cjs');
 
 const ROOT_DIR = path.join(__dirname, '..');
 const DEPLOY_CONFIG_PATH = path.join(__dirname, 'deploy.config.json');
@@ -136,7 +134,7 @@ function expectedRoutesFromAstro(pagesDir, contentDir) {
   return routes.sort();
 }
 
-function verifyDist({ distDir, expectedRoutes, siteUrl, requires404 = true }) {
+function verifyDist({ distDir, expectedRoutes, siteUrl }) {
   const errors = [];
   const distRoutes = listHtml(distDir);
 
@@ -145,7 +143,7 @@ function verifyDist({ distDir, expectedRoutes, siteUrl, requires404 = true }) {
     return { errors, stats: { routes: 0, indexable: 0, references: 0 } };
   }
 
-  if (requires404 && !expectedRoutes.includes('404.html')) {
+  if (!expectedRoutes.includes('404.html')) {
     errors.push('sources define no 404.html route');
   }
 
@@ -203,9 +201,8 @@ function parseArguments(argv) {
 
 function run(argv = process.argv.slice(2)) {
   const options = parseArguments(argv);
-  const deployProfile = readProfile();
-  const source = options.source || SOURCES_BY_PROFILE[deployProfile];
-  const parity = getProfile(options.profile || (deployProfile === 'legacy' ? 'a' : deployProfile));
+  const profile = readProfile();
+  const source = options.source || SOURCES_BY_PROFILE[profile];
   const distDir = path.resolve(ROOT_DIR, options.dist || 'dist');
   const siteUrl = options.site || JSON.parse(fs.readFileSync(STRUCTURED_DATA_PATH, 'utf8')).siteUrl;
 
@@ -221,18 +218,7 @@ function run(argv = process.argv.slice(2)) {
     throw new Error(`check-routes: unknown source "${source}"`);
   }
 
-  if (parity.partial) {
-    const missing = parity.pages.filter(page => !expectedRoutes.includes(page));
-    if (missing.length > 0) {
-      throw new Error(`check-routes: partial profile ${parity.name} expects sources for ${missing.join(', ')}`);
-    }
-    const extra = expectedRoutes.filter(route => !parity.pages.includes(route));
-    if (extra.length > 0) {
-      throw new Error(`check-routes: partial profile ${parity.name} does not cover ${extra.join(', ')}; switch to the full profile`);
-    }
-  }
-
-  const { errors, stats } = verifyDist({ distDir, expectedRoutes, siteUrl, requires404: parity.requires404 });
+  const { errors, stats } = verifyDist({ distDir, expectedRoutes, siteUrl });
 
   if (errors.length > 0) {
     for (const error of errors) {
@@ -242,7 +228,7 @@ function run(argv = process.argv.slice(2)) {
   }
 
   console.log(
-    `check-routes: ${stats.routes} HTML route(s), ${stats.indexable} in sitemap, ${stats.references} local reference(s) verified in ${path.relative(ROOT_DIR, distDir) || 'dist'} (source ${source}, profile ${parity.name})`,
+    `check-routes: ${stats.routes} HTML route(s), ${stats.indexable} in sitemap, ${stats.references} local reference(s) verified in ${path.relative(ROOT_DIR, distDir) || 'dist'} (source ${source}, profile ${profile})`,
   );
 }
 

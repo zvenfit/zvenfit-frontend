@@ -7,7 +7,6 @@ const path = require('node:path');
 const test = require('node:test');
 
 const { BASE_PHOTO_TRAINERS, VENDOR_LICENCES, analyzeTrainerPage, analyzeWebflowPage, checkBuild, detectMode } = require('../check-build.cjs');
-const { getProfile } = require('../lib/parity-profile.cjs');
 const { minifySiteCss } = require('../lib/site-css.cjs');
 
 const SITE_CSS = fs.readFileSync(path.join(__dirname, '..', '..', 'src', 'styles', 'zvenfit.webflow.css'), 'utf8');
@@ -34,12 +33,38 @@ test('rejects pages whose generated w-node ids are mostly absent from Webflow CS
   assert.match(duplicate.errors.join('\n'), /contains duplicate ids/);
 });
 
-function distPage({ beacon = true, analytics = true, webflow = 'https://storage.yandexcloud.net/zvenfit/v2/js/webflow.js?v=ci', configQuery = '' } = {}) {
-  const head = analytics
+function distPage({ beacon = true, analytics = true, webflow = 'https://storage.yandexcloud.net/zvenfit/v2/js/webflow.js?v=ci', configQuery = '', attributes = '', head = '', body = '<p id="a">x</p>' } = {}) {
+  const counters = analytics
     ? '<script>https://www.googletagmanager.com/gtm.js</script><script>https://top-fwz1.mail.ru/js/code.js</script><script>https://mc.yandex.ru/metrika/tag.js</script>'
     : '';
   const tail = beacon ? `<script src="/js/traffic-config.js${configQuery}" defer></script><script src="/_astro/traffic-beacon.DgQiCINO.js" defer></script>` : '';
-  return `<!DOCTYPE html><html lang="ru" data-wf-page="69ae68a15d10e15990081f0d"><head>${head}<script src="/_astro/utm-attribution.DdMN3-Dg.js" defer></script><script src="/_astro/analytics.Ab123456.js" data-analytics-timer="true" defer></script></head><body><p id="a">x</p><script src="${webflow}" type="text/javascript" defer></script>${tail}</body></html>`;
+  return `<!DOCTYPE html><html lang="ru" data-wf-page="69ae68a15d10e15990081f0d"${attributes}><head>${counters}${head}<script src="/_astro/utm-attribution.DdMN3-Dg.js" defer></script><script src="/_astro/analytics.Ab123456.js" data-analytics-timer="true" defer></script></head><body>${body}<script src="${webflow}" type="text/javascript" defer></script>${tail}</body></html>`;
+}
+
+// The smallest site the build contract accepts: the pages its full-site checks
+// read, each with the markup they look for, and two pages without any.
+function sitePages({ analytics = true } = {}) {
+  const page = options => distPage({ analytics, ...options });
+  const cta = '<a href="/forma-dlya-zayavki/">записаться</a>';
+  return {
+    'index.html': page({ body: '<script type="application/ld+json">{"logo":"https://zvenfit.ru/images/zvenfit-logo.svg"}</script>' }),
+    'forma-dlya-zayavki/index.html': page({ body: '<form method="post"><select id="service"></select><div role="alert" aria-live="assertive"></div></form>' }),
+    'klubnaya-karta/index.html': page({
+      head: '<link rel="canonical" href="https://zvenfit.ru/klubnaya-karta/"><link href="/_astro/klubnaya-karta.v1.Ef56Gh78.css" rel="stylesheet" type="text/css">',
+      body: `<main id="main-content" tabindex="-1">${cta.repeat(8)}<a href="#contacts">контакты</a><a href="#contacts">как добраться</a><div data-map-set="chekhova"></div></main><script src="/_astro/yandex-map.5Ve8yguv.js" defer></script>`,
+    }),
+    'trenazhernyj-zal/index.html': page({ body: '<h3 class="text-block">Самостоятельно</h3><a href="/klubnaya-karta/">клубная карта</a>' }),
+    'gruppovye-trenirovki/index.html': page({ attributes: ' data-zvenfit-page="group-fitness"' }),
+    'trenazhernyj-zal/mini-gruppy/index.html': page({ attributes: ' data-zvenfit-page="mini-groups"' }),
+    'offer/index.html': page(),
+    'privacy/index.html': page(),
+  };
+}
+
+const SITE = sitePages();
+
+function without(pages, ...routes) {
+  return Object.fromEntries(Object.entries(pages).filter(([route]) => !routes.includes(route)));
 }
 
 function fixture({ pages, robots = 'User-agent: *\nAllow: /\n', styles = { 'zvenfit.webflow.Ab12Cd34.css': BUILT_SITE_CSS }, licences = name => fs.readFileSync(path.join(VENDOR_DIR, name)) }) {
@@ -70,50 +95,77 @@ function fixture({ pages, robots = 'User-agent: *\nAllow: /\n', styles = { 'zven
   return dist;
 }
 
-const A1 = getProfile('a1');
-const LEGAL = { 'offer/index.html': distPage(), 'privacy/index.html': distPage(), 'payment-policy/index.html': distPage() };
+// Every problem the build contract reports for the fixture, so a test can show
+// that one broken thing yields exactly its own message.
+function problems(pages, options = {}) {
+  try {
+    checkBuild({ dist: fixture({ pages, ...options }) });
+  } catch (error) {
+    return error.message.split('\n- ').slice(1);
+  }
+  return [];
+}
 
-test('a complete partial build passes in production mode and detects staging from robots.txt', () => {
-  const result = checkBuild({ dist: fixture({ pages: LEGAL }), profile: A1 });
-  assert.deepEqual(result, { mode: 'production', pages: 3, profile: 'a1' });
-  const stagingPages = Object.fromEntries(Object.keys(LEGAL).map(route => [route, distPage({ analytics: false })]));
-  const stagingDist = fixture({ pages: stagingPages, robots: 'User-agent: *\nDisallow: /\n' });
+test('a complete build passes in production mode and detects staging from robots.txt', () => {
+  assert.deepEqual(checkBuild({ dist: fixture({ pages: SITE }) }), { mode: 'production', pages: 8 });
+  const stagingDist = fixture({ pages: sitePages({ analytics: false }), robots: 'User-agent: *\nDisallow: /\n' });
   assert.equal(detectMode(stagingDist), 'staging');
-  assert.equal(checkBuild({ dist: stagingDist, profile: A1 }).mode, 'staging');
+  assert.deepEqual(checkBuild({ dist: stagingDist }), { mode: 'staging', pages: 8 });
 });
 
-test('the partial profile demands exactly its pages', () => {
-  assert.throws(() => checkBuild({ dist: fixture({ pages: { 'offer/index.html': distPage() } }), profile: A1 }), /missing privacy\/index\.html, payment-policy\/index\.html/);
-  assert.throws(() => checkBuild({ dist: fixture({ pages: { ...LEGAL, 'index.html': distPage() } }), profile: A1 }), /unexpected index\.html/);
+test('there is no partial build: an empty dist, a missing home page and a missing page of the full-site checks are refused', () => {
+  assert.throws(() => checkBuild({ dist: fixture({ pages: {} }) }), /^Error: check-build: dist has no HTML pages$/);
+  assert.throws(() => checkBuild({ dist: fixture({ pages: without(SITE, 'index.html') }) }), /^Error: check-build: dist\/index\.html is missing$/);
+  assert.deepEqual(problems(without(SITE, 'forma-dlya-zayavki/index.html', 'trenazhernyj-zal/mini-gruppy/index.html')), [
+    'full-site checks need forma-dlya-zayavki/index.html, trenazhernyj-zal/mini-gruppy/index.html',
+  ]);
+  // The three legal pages were a complete build for the partial profile of stage A1.
+  const legal = { 'offer/index.html': distPage(), 'privacy/index.html': distPage(), 'payment-policy/index.html': distPage() };
+  assert.throws(() => checkBuild({ dist: fixture({ pages: legal }) }), /dist\/index\.html is missing/);
 });
 
 test('missing analytics, versioned configs, local webflow and a reporting 404 fail the build contract', () => {
-  const failing = { ...LEGAL, 'offer/index.html': distPage({ analytics: false }) };
-  assert.throws(() => checkBuild({ dist: fixture({ pages: failing }), profile: A1 }), /offer\/index\.html is missing Yandex Metrika in a production build/);
-  assert.throws(() => checkBuild({ dist: fixture({ pages: { ...LEGAL, 'privacy/index.html': distPage({ configQuery: '?v=1' }) } }), profile: A1 }), /versions a runtime config/);
-  assert.throws(() => checkBuild({ dist: fixture({ pages: { ...LEGAL, 'privacy/index.html': distPage({ webflow: '/js/webflow.js' }) } }), profile: A1 }), /still references local webflow\.js/);
-  assert.throws(() => checkBuild({ dist: fixture({ pages: { ...LEGAL, 'offer/index.html': distPage({ beacon: false }) } }), profile: A1 }), /missing the technical traffic config and beacon/);
-  const full = { ...getProfile('a'), pages: null };
-  assert.throws(() => checkBuild({ dist: fixture({ pages: { ...LEGAL, 'index.html': distPage(), '404.html': distPage() } }), profile: full }), /404 page must not emit technical page views/);
+  assert.deepEqual(problems({ ...SITE, 'offer/index.html': distPage({ analytics: false }) }), [
+    'offer/index.html is missing Yandex Metrika in a production build',
+    'offer/index.html is missing Top.Mail.Ru in a production build',
+    'offer/index.html is missing Google Tag Manager in a production build',
+  ]);
+  assert.deepEqual(problems({ ...SITE, 'privacy/index.html': distPage({ configQuery: '?v=1' }) }), [
+    'privacy/index.html is missing the technical traffic config and beacon',
+    'privacy/index.html versions a runtime config with ?v=; configs are served with no-cache',
+  ]);
+  assert.deepEqual(problems({ ...SITE, 'privacy/index.html': distPage({ webflow: '/js/webflow.js' }) }), [
+    'privacy/index.html still references local webflow.js',
+    'privacy/index.html is missing the versioned CDN webflow.js',
+  ]);
+  assert.deepEqual(problems({ ...SITE, 'offer/index.html': distPage({ beacon: false }) }), ['offer/index.html is missing the technical traffic config and beacon']);
+  assert.deepEqual(problems({ ...SITE, '404.html': distPage() }), ['404 page must not emit technical page views', '404.html must have 0 hashed analytics event loader(s)']);
+  // The 404 page of a real build has neither the beacon nor the event loader.
+  const notFound = distPage({ beacon: false }).replace('<script src="/_astro/analytics.Ab123456.js" data-analytics-timer="true" defer></script>', '');
+  assert.deepEqual(problems({ ...SITE, '404.html': notFound }), []);
 });
-
 
 test('rejects a missing, duplicated or non-deferred analytics event loader', () => {
   const script = '<script src="/_astro/analytics.Ab123456.js" data-analytics-timer="true" defer></script>';
-  for (const replacement of ['', script + script, script.replace(' defer', '')]) {
-    const failing = { ...LEGAL, 'offer/index.html': distPage().replace(script, replacement) };
-    assert.throws(() => checkBuild({ dist: fixture({ pages: failing }), profile: A1 }), /analytics event loader/);
+  for (const replacement of ['', script + script]) {
+    assert.deepEqual(problems({ ...SITE, 'offer/index.html': distPage().replace(script, replacement) }), ['offer/index.html must have 1 hashed analytics event loader(s)']);
   }
+  assert.deepEqual(problems({ ...SITE, 'offer/index.html': distPage().replace(script, script.replace(' defer', '')) }), ['offer/index.html analytics event loader must be deferred in head']);
 });
 
 test('the built site stylesheet must be the legacy minification and no stylesheet may use range media queries', () => {
-  assert.throws(() => checkBuild({ dist: fixture({ pages: LEGAL, styles: {} }), profile: A1 }), /expected exactly one built site stylesheet in _astro\/, found 0/);
-  assert.throws(() => checkBuild({ dist: fixture({ pages: LEGAL, styles: { 'zvenfit.webflow.Ab12Cd34.css': SITE_CSS } }), profile: A1 }), /must be the clean-css level 2 output/);
+  const notMinified = 'zvenfit.webflow.Ab12Cd34.css must be the clean-css level 2 output of src/styles/zvenfit.webflow.css, as in the legacy build';
+  const oldBrowsers = 'which Safari before 16.4 and Chrome before 104 ignore';
+  assert.deepEqual(problems(SITE, { styles: {} }), ['expected exactly one built site stylesheet in _astro/, found 0']);
+  assert.deepEqual(problems(SITE, { styles: { 'zvenfit.webflow.Ab12Cd34.css': SITE_CSS } }), [notMinified]);
   const ranged = BUILT_SITE_CSS.replace('(max-width:767px)', '(width<=767px)');
   assert.notEqual(ranged, BUILT_SITE_CSS);
-  assert.throws(() => checkBuild({ dist: fixture({ pages: LEGAL, styles: { 'zvenfit.webflow.Ab12Cd34.css': ranged } }), profile: A1 }), /must be the clean-css level 2 output[\s\S]*uses media query range syntax \(@media screen and \(width<=767px\)\)/);
+  assert.deepEqual(problems(SITE, { styles: { 'zvenfit.webflow.Ab12Cd34.css': ranged } }), [
+    notMinified,
+    `_astro/zvenfit.webflow.Ab12Cd34.css uses media query range syntax (@media screen and (width<=767px)), ${oldBrowsers}`,
+  ]);
   const pageScoped = { 'zvenfit.webflow.Ab12Cd34.css': BUILT_SITE_CSS, 'klubnaya-karta.v1.Ef56Gh78.css': '@media (width>=992px){.card{display:grid}}' };
-  assert.throws(() => checkBuild({ dist: fixture({ pages: LEGAL, styles: pageScoped }), profile: A1 }), /_astro\/klubnaya-karta\.v1\.Ef56Gh78\.css uses media query range syntax/);
+  assert.deepEqual(problems(SITE, { styles: pageScoped }), [`_astro/klubnaya-karta.v1.Ef56Gh78.css uses media query range syntax (@media (width>=992px)), ${oldBrowsers}`]);
 });
 
 test('the licence text of the vendored code is served at /js/vendor/ with the source bytes', () => {
@@ -121,9 +173,30 @@ test('the licence text of the vendored code is served at /js/vendor/ with the so
   for (const name of VENDOR_LICENCES) {
     assert.ok(fs.existsSync(path.join(VENDOR_DIR, name.replace(/\.LICENSE\.txt$/, '.min.js'))), `${name} has no vendored script next to it`);
   }
-  assert.throws(() => checkBuild({ dist: fixture({ pages: LEGAL, licences: () => null }), profile: A1 }), /js\/vendor\/imask-7\.6\.1\.LICENSE\.txt is missing: the licence text of vendored code must be served with the site/);
+  assert.deepEqual(problems(SITE, { licences: () => null }), ['js/vendor/imask-7.6.1.LICENSE.txt is missing: the licence text of vendored code must be served with the site']);
   const trimmed = name => fs.readFileSync(path.join(VENDOR_DIR, name), 'utf8').trimEnd();
-  assert.throws(() => checkBuild({ dist: fixture({ pages: LEGAL, licences: trimmed }), profile: A1 }), /js\/vendor\/imask-7\.6\.1\.LICENSE\.txt must carry the bytes of src\/vendor\/imask-7\.6\.1\.LICENSE\.txt/);
+  assert.deepEqual(problems(SITE, { licences: trimmed }), ['js/vendor/imask-7.6.1.LICENSE.txt must carry the bytes of src/vendor/imask-7.6.1.LICENSE.txt']);
+});
+
+test('the full-site checks read the lead form, the club card, the gym page, the logo reference and the page markers', () => {
+  const changed = (route, from, to) => {
+    assert.ok(SITE[route].includes(from), `${route} has no ${from}`);
+    return problems({ ...SITE, [route]: SITE[route].replace(from, to) });
+  };
+  assert.deepEqual(changed('forma-dlya-zayavki/index.html', 'method="post"', 'method="get"'), ['lead form must use method="post"']);
+  assert.deepEqual(changed('forma-dlya-zayavki/index.html', '<select id="service">', '<select id="service" class="custom-select">'), ['lead form must use the native service select']);
+  assert.deepEqual(changed('forma-dlya-zayavki/index.html', ' aria-live="assertive"', ''), ['lead form error feedback must be announced to assistive technology']);
+  assert.deepEqual(changed('klubnaya-karta/index.html', '<link rel="canonical" href="https://zvenfit.ru/klubnaya-karta/">', ''), ['club card page canonical URL is missing']);
+  assert.deepEqual(changed('klubnaya-karta/index.html', '/_astro/klubnaya-karta.v1.Ef56Gh78.css', '/css/klubnaya-karta.v1.css'), ['club card page-scoped stylesheet is missing its hashed asset']);
+  assert.deepEqual(changed('klubnaya-karta/index.html', 'data-map-set="chekhova"', 'data-map-set="home"'), ['club card page map was not converted to the shared runtime map']);
+  assert.deepEqual(changed('klubnaya-karta/index.html', '<a href="/forma-dlya-zayavki/">записаться</a>', ''), ['club card page exposes only 7 lead CTA(s)']);
+  assert.deepEqual(changed('klubnaya-karta/index.html', ' tabindex="-1"', ''), ['club card skip-link target must accept keyboard focus']);
+  assert.deepEqual(changed('klubnaya-karta/index.html', '<a href="#contacts">контакты</a>', '<a href="#contact">контакты</a>'), ['club card navigation must use the shared visible contacts anchor']);
+  assert.deepEqual(problems(without(SITE, 'klubnaya-karta/index.html')), ['club card page is missing']);
+  assert.deepEqual(changed('trenazhernyj-zal/index.html', 'href="/klubnaya-karta/"', 'href="/forma-dlya-zayavki/"'), ['gym self-training card must link to the club card page']);
+  assert.deepEqual(changed('index.html', 'https://zvenfit.ru/images/zvenfit-logo.svg', 'https://zvenfit.ru/images/logo.png'), ['Organization JSON-LD does not reference the dedicated logo']);
+  assert.deepEqual(changed('gruppovye-trenirovki/index.html', ' data-zvenfit-page="group-fitness"', ''), ['gruppovye-trenirovki/index.html must carry the semantic page marker group-fitness']);
+  assert.deepEqual(changed('trenazhernyj-zal/mini-gruppy/index.html', 'mini-groups', 'gym'), ['trenazhernyj-zal/mini-gruppy/index.html must carry the semantic page marker mini-groups']);
 });
 
 // The six node ids of the trainer template (src/lib/trainers.ts) with the page's own suffix.
@@ -199,26 +272,16 @@ test('only the trainer whose photos are the base rules may go without a photo cl
 });
 
 test('the build contract runs the trainer check on trainer routes only', () => {
-  const full = { ...getProfile('a'), pages: null };
-  const trainerPage = body => distPage().replace('<p id="a">x</p>', body);
-  const pages = { ...LEGAL, 'index.html': distPage() };
-  const failure = dist => {
-    try {
-      checkBuild({ dist, profile: full });
-    } catch (error) {
-      return error.message;
-    }
-    return '';
-  };
-  const broken = failure(fixture({ pages: { ...pages, 'trenery/trener-new/index.html': trainerPage(trainerBody({ suffix: 'bbbbbbbb', photoClass: 'veronn' })) } }));
-  assert.match(broken, /trenery\/trener-new\/index\.html: zvenfit\.webflow\.css has no rule for 6 of 6 w-node ids/);
-  assert.match(broken, /trenery\/trener-new\/index\.html: zvenfit\.webflow\.css has no \.photo_coach\.veronn rule/);
+  const trainerPage = options => distPage({ body: trainerBody(options) });
+  const broken = problems({ ...SITE, 'trenery/trener-new/index.html': trainerPage({ suffix: 'bbbbbbbb', photoClass: 'veronn' }) });
   // The id-by-id check replaces the coverage threshold on trainer routes instead of repeating it.
-  assert.doesNotMatch(broken, /trener-new\/index\.html: Webflow CSS covers only/);
-  const valid = failure(fixture({ pages: { ...pages, 'trenery/trener-veronika-voznaya/index.html': trainerPage(trainerBody()) } }));
-  assert.doesNotMatch(valid, /trenery\/trener-veronika-voznaya/);
+  assert.equal(broken.length, 3, broken.join('\n'));
+  assert.match(broken[0], /^trenery\/trener-new\/index\.html: zvenfit\.webflow\.css has no rule for 6 of 6 w-node ids/);
+  assert.match(broken[1], /^trenery\/trener-new\/index\.html: zvenfit\.webflow\.css has no \.photo_coach\.veronn rule/);
+  assert.match(broken[2], /^trenery\/trener-new\/index\.html: zvenfit\.webflow\.css has no \.photo_coach_mini\.veronn rule/);
+  assert.deepEqual(problems({ ...SITE, 'trenery/trener-veronika-voznaya/index.html': trainerPage() }), []);
   // The same markup on another route is not a trainer page: only the coverage threshold applies there.
-  const elsewhere = failure(fixture({ pages: { ...pages, 'promos/index.html': trainerPage(trainerBody({ suffix: 'bbbbbbbb', photoClass: 'veronn' })) } }));
-  assert.match(elsewhere, /promos\/index\.html: Webflow CSS covers only 0\/6 w-node ids/);
-  assert.doesNotMatch(elsewhere, /photo_coach/);
+  const elsewhere = problems({ ...SITE, 'promos/index.html': trainerPage({ suffix: 'bbbbbbbb', photoClass: 'veronn' }) });
+  assert.equal(elsewhere.length, 1, elsewhere.join('\n'));
+  assert.match(elsewhere[0], /^promos\/index\.html: Webflow CSS covers only 0\/6 w-node ids/);
 });

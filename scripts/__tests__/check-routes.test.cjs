@@ -140,13 +140,12 @@ test('Astro pages map to directory routes and private or dynamic files are skipp
   assert.throws(() => expectedRoutesFromAstro(path.join(root, 'nowhere'), path.join(root, 'nowhere-either')), /no Astro pages/);
 });
 
-test('the full profile requires a 404 route while the partial profile does not', () => {
+test('the sources must define a 404 route: there is no partial route set', () => {
   const pages = ['offer/index.html', 'privacy/index.html'];
   const { distDir } = fixture({ pages, distPages: pages, sitemapPages: pages });
-  const partial = verifyDist({ distDir, expectedRoutes: pages, siteUrl: SITE_URL, requires404: false });
-  assert.deepEqual(partial.errors, []);
-  const full = verifyDist({ distDir, expectedRoutes: pages, siteUrl: SITE_URL });
-  assert.deepEqual(full.errors, ['sources define no 404.html route']);
+  assert.deepEqual(verifyDist({ distDir, expectedRoutes: pages, siteUrl: SITE_URL }).errors, ['sources define no 404.html route']);
+  // An option that used to waive the 404 route for the partial profile of stage A1 changes nothing.
+  assert.deepEqual(verifyDist({ distDir, expectedRoutes: pages, siteUrl: SITE_URL, requires404: false }).errors, ['sources define no 404.html route']);
 });
 
 test('hashed Astro assets referenced by a page must exist in dist', () => {

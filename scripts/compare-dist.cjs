@@ -4,18 +4,19 @@
 // (docs/astro-migration.md, section 8).
 //
 //   node scripts/compare-dist.cjs --base-sha <40-hex> --candidate-sha <40-hex|HEAD> \
-//     --profile a1|a|b --mode production|staging --snapshot src/data/map-photos.json \
+//     --profile a|b --mode production|staging --snapshot src/data/map-photos.json \
 //     [--work-dir <dir>] [--report <file>] [--clean]
 //
-// --mode production builds the base (legacy build-static.cjs for profiles a1
-// and a, Astro for b) and the candidate in disposable worktrees with fixed
-// non-secret variables and the committed map-photo snapshot, then compares the
-// profile pages node by node, the own assets, the runtime configs, robots.txt
-// and sitemap.xml; with a full profile every other file of both builds must be
-// present on the other side with the same bytes. --mode staging builds the
-// candidate twice (production and staging) and allows only the documented
-// differences between the modes. With a legacy base both modes first check
-// that the legacy inputs in the candidate tree are those of the pinned base.
+// --mode production builds the base (legacy build-static.cjs for profile a,
+// Astro for b) and the candidate in disposable worktrees with fixed non-secret
+// variables and the committed map-photo snapshot, then compares every page of
+// the base node by node, the own assets, the runtime configs, robots.txt and
+// sitemap.xml; every other file of both builds must be present on the other
+// side with the same bytes. --mode staging builds the candidate twice
+// (production and staging) and allows only the documented differences between
+// the modes. With a legacy base both modes first check that the legacy inputs
+// in the candidate tree are those of the pinned base; a candidate that no
+// longer carries the legacy build has nothing to hold equal.
 // Neither main nor the dirty working tree is ever used as a side: both SHAs are
 // explicit (HEAD is accepted for local runs and resolved to its commit).
 
@@ -29,7 +30,6 @@ const { getProfile, pageToRoute } = require('./lib/parity-profile.cjs');
 
 const ALLOWLIST_PATH = path.join(__dirname, 'parity-allowlist.json');
 const STAGING_ROBOTS = 'User-agent: *\nDisallow: /\n';
-const ASSET_PREFIXES = ['/js/', '/css/', '/_astro/', '/images/'];
 
 function parseArguments(argv) {
   const options = { clean: false };
@@ -220,16 +220,11 @@ function baseSiteUrl(baseDir, profile) {
   return config.siteUrl.replace(/\/$/, '');
 }
 
-function compareProduction({ baseDir, baseDist, candidateDir, candidateDist, pages, inventory, profile, report }) {
+function compareProduction({ baseDir, baseDist, candidateDir, candidateDist, pages, profile, report }) {
   const allRules = loadAllowlist();
   const assets = parity.createAssetRegistry();
-  const inventoryRoutes = new Set(inventory.map(pageToRoute));
 
   for (const route of pages) {
-    if (!inventory.includes(route)) {
-      report.errors.push(`${route}: profile page is not in the base inventory`);
-      continue;
-    }
     const baseHtml = readIfExists(path.join(baseDist, route));
     const candidateHtml = readIfExists(path.join(candidateDist, route));
     if (!baseHtml || !candidateHtml) {
@@ -240,14 +235,6 @@ function compareProduction({ baseDir, baseDist, candidateDir, candidateDist, pag
     const result = parity.compareHtml({ route, baseHtml: baseHtml.toString('utf8'), candidateHtml: candidateHtml.toString('utf8'), rules, assets });
     report.routes.push({ route, nodes: result.nodes, exceptions: [...result.ruleMatches].map(([id, count]) => `${id}×${count}`) });
     report.errors.push(...result.errors);
-
-    if (profile.partial) {
-      for (const link of parity.internalLinks(candidateHtml.toString('utf8'))) {
-        if (!inventoryRoutes.has(link) && !ASSET_PREFIXES.some(prefix => link.startsWith(prefix))) {
-          report.errors.push(`${route}: links to ${link}, which is neither a base route nor an asset`);
-        }
-      }
-    }
   }
 
   for (const rule of allRules.filter(rule => rule.profiles.includes(profile.name) && rule.mode === 'production')) {
@@ -346,16 +333,7 @@ function compareProduction({ baseDir, baseDist, candidateDir, candidateDist, pag
   }
   report.check(`sitemap.xml entries equal for ${expectedUrls.length} URL(s)`, sitemapErrors.length === 0, sitemapErrors.join('; '));
 
-  if (profile.partial) {
-    // A partial profile builds only its own pages, so the file sets cannot match; the images still must.
-    for (const image of walkFiles(path.join(candidateDist, 'images'), () => true)) {
-      const left = readIfExists(path.join(baseDist, 'images', image));
-      const right = readIfExists(path.join(candidateDist, 'images', image));
-      report.check(`images/${image} bytes equal`, Boolean(left && right && left.equals(right)));
-    }
-  } else {
-    compareFileSets({ baseDist, candidateDist, pages, assets, report });
-  }
+  compareFileSets({ baseDist, candidateDist, pages, assets, report });
 }
 
 function compareStaging({ candidateProduction, candidateStaging, pages, report }) {
@@ -458,14 +436,12 @@ function run(argv = process.argv.slice(2)) {
       harness.prepareWorktree(baseSha, baseDir, log);
       harness.install(baseDir, log);
       const baseDist = profile.base === 'legacy' ? harness.buildLegacy({ dir: baseDir, snapshot, log }) : harness.buildAstro({ dir: baseDir, mode: 'production', log });
-      const inventory = profile.base === 'legacy' ? listHtml(path.join(baseDir, 'public')) : listHtml(baseDist);
-      const pages = profile.partial ? [...profile.pages] : inventory;
-      compareProduction({ baseDir, baseDist, candidateDir, candidateDist: candidateProduction, pages, inventory, profile, report });
+      // The pages of the base: its sources for a legacy base, its build for an Astro one.
+      const pages = profile.base === 'legacy' ? listHtml(path.join(baseDir, 'public')) : listHtml(baseDist);
+      compareProduction({ baseDir, baseDist, candidateDir, candidateDist: candidateProduction, pages, profile, report });
     } else {
       const candidateStaging = harness.buildAstro({ dir: candidateDir, mode: 'staging', log });
-      const inventory = inventoryFromGit(baseSha, profile);
-      const pages = profile.partial ? [...profile.pages] : inventory;
-      compareStaging({ candidateProduction, candidateStaging, pages, report });
+      compareStaging({ candidateProduction, candidateStaging, pages: inventoryFromGit(baseSha, profile), report });
     }
   } finally {
     if (options.clean) {
