@@ -11,6 +11,7 @@ import Analytics from '../../components/Analytics.astro';
 import Menu from '../../components/Menu.astro';
 import Base from '../../layouts/Base.astro';
 import { WEBFLOW_SITE_ID } from '../../lib/site';
+import { collectionProblems } from '../../lib/trainer-schema';
 import { TRAINER_NODES } from '../../lib/trainers';
 
 import type { CollectionEntry } from 'astro:content';
@@ -18,11 +19,9 @@ import type { GetStaticPaths } from 'astro';
 
 export const getStaticPaths = (async () => {
   const entries = await getCollection('trainers');
-  const slugs = new Set(entries.map(entry => entry.id));
-  for (const entry of entries) {
-    if (!slugs.has(entry.data.nextSlug)) {
-      throw new Error(`trainers: ${entry.id} points at the missing next trainer "${entry.data.nextSlug}"`);
-    }
+  const problems = collectionProblems(entries);
+  if (problems.length > 0) {
+    throw new Error(`trainers: ${problems.join('; ')}`);
   }
 
   return entries.map(entry => ({ params: { slug: entry.id }, props: { trainer: entry.data } }));
