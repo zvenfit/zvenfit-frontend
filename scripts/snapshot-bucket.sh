@@ -28,8 +28,10 @@ fail() {
   exit 1
 }
 
+USAGE='usage: scripts/snapshot-bucket.sh <directory outside the repository> [--dry-run]'
+
 usage() {
-  echo 'usage: scripts/snapshot-bucket.sh <directory outside the repository> [--dry-run]' >&2
+  echo "${USAGE}" >&2
   exit 2
 }
 
@@ -38,7 +40,10 @@ DRY_RUN=0
 for argument in "$@"; do
   case "${argument}" in
     --dry-run) DRY_RUN=1 ;;
-    -h | --help) usage ;;
+    -h | --help)
+      echo "${USAGE}"
+      exit 0
+      ;;
     -*) usage ;;
     *)
       [[ -z "${TARGET}" ]] || usage
@@ -85,8 +90,11 @@ TARGET_REAL="${EXISTING_REAL%/}${MISSING}"
 # checkout that holds this script and, for a linked worktree, the main checkout
 # are refused.
 REPOSITORY_ROOTS=("$(cd "${SCRIPT_DIR}/.." && pwd -P)")
-if COMMON_DIR="$(git -C "${SCRIPT_DIR}" rev-parse --path-format=absolute --git-common-dir 2> /dev/null)"; then
-  REPOSITORY_ROOTS+=("$(cd "$(dirname "${COMMON_DIR}")" && pwd -P)")
+# git prints the common directory relative to the directory it ran in for the
+# main checkout and as an absolute path for a linked worktree.
+if COMMON_DIR="$(git -C "${SCRIPT_DIR}" rev-parse --git-common-dir 2> /dev/null)"; then
+  [[ "${COMMON_DIR}" == /* ]] || COMMON_DIR="${SCRIPT_DIR}/${COMMON_DIR}"
+  REPOSITORY_ROOTS+=("$(cd "${COMMON_DIR}/.." && pwd -P)")
 fi
 for root in "${REPOSITORY_ROOTS[@]}"; do
   case "${TARGET_REAL}/" in

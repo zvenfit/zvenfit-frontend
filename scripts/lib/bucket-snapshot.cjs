@@ -71,7 +71,8 @@ function walk(directory, base = directory, files = []) {
 // Compares the downloaded tree with the listing: every listed object is on
 // disk with its size and, where the ETag is a plain MD5 (not a multipart
 // upload), with its bytes; nothing else is on disk. A key that ends with a
-// slash is a folder placeholder of the web console and has no file.
+// slash is a folder placeholder of the web console and has no file. A listing
+// without objects fails: an empty or mistyped bucket is not a snapshot.
 function verifySnapshot(objectsDir, pages) {
   const problems = [];
   const listed = new Map();
@@ -94,6 +95,10 @@ function verifySnapshot(objectsDir, pages) {
       listed.set(object.key, object);
     }
   });
+
+  if (!listed.size) {
+    problems.push('the bucket lists no objects: there is nothing to keep');
+  }
 
   const onDisk = new Set(fs.existsSync(objectsDir) ? walk(objectsDir) : []);
   let bytes = 0;

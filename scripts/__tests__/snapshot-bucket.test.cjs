@@ -1,7 +1,7 @@
 'use strict';
 
 const assert = require('node:assert/strict');
-const { spawnSync } = require('node:child_process');
+const { execFileSync, spawnSync } = require('node:child_process');
 const crypto = require('node:crypto');
 const fs = require('node:fs');
 const os = require('node:os');
@@ -12,6 +12,7 @@ const { parseListing, verifySnapshot } = require('../lib/bucket-snapshot.cjs');
 
 const ROOT = path.resolve(__dirname, '../..');
 const SCRIPT = path.join(ROOT, 'scripts', 'snapshot-bucket.sh');
+const HELPER = path.join(ROOT, 'scripts', 'lib', 'bucket-snapshot.cjs');
 const BUCKET_FILES = { 'index.html': '<html>home</html>\n', 'js/lead-config.js': "window.ZVENFIT_LEAD_API = 'x';\n", '_astro/site.abc.css': '.a{color:red}' };
 
 const md5 = text => crypto.createHash('md5').update(text).digest('hex');
@@ -34,6 +35,7 @@ const AWS_STUB = `#!/usr/bin/env bash
 printf '%s\\n' "$*" >> "$STUB_LOG"
 if [ "$1 $2" = 's3 sync' ]; then
   case " $* " in *' --dryrun '*) echo "(dryrun) download: $3"; exit 0 ;; esac
+  if [ -n "$STUB_COPY_FAILS" ]; then echo 'fatal error: access denied' >&2; exit 1; fi
   mkdir -p "$4" && cp -R "$STUB_BUCKET/." "$4/"
 elif [ "$1 $2" = 's3api list-objects-v2' ]; then
   cat "$STUB_LISTINGS/first.json"
@@ -45,6 +47,7 @@ const YC_STUB = `#!/usr/bin/env bash
 printf '%s\\n' "$*" >> "$STUB_LOG"
 if [ "$1 $2 $3" = 'storage s3 cp' ]; then
   case " $* " in *' --dryrun '*) echo "(dryrun) download: $5"; exit 0 ;; esac
+  if [ -n "$STUB_COPY_FAILS" ]; then echo 'ERROR: access denied' >&2; exit 1; fi
   mkdir -p "$6" && cp -R "$STUB_BUCKET/." "$6"
 elif [ "$1 $2 $3" = 'storage s3api list-objects' ]; then
   page=first
@@ -58,13 +61,14 @@ fi
 function sandbox(t, { bucket = BUCKET_FILES, listings }) {
   const directory = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'snapshot-bucket-')));
   t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  fs.mkdirSync(path.join(directory, 'bucket'));
   write(path.join(directory, 'bucket'), bucket);
   write(path.join(directory, 'listings'), listings);
   write(path.join(directory, 'bin'), { aws: AWS_STUB, yc: YC_STUB });
   fs.chmodSync(path.join(directory, 'bin', 'aws'), 0o755);
   fs.chmodSync(path.join(directory, 'bin', 'yc'), 0o755);
   fs.writeFileSync(path.join(directory, 'calls.log'), '');
-  const env = { ...process.env, PATH: `${path.join(directory, 'bin')}${path.delimiter}${process.env.PATH}`, STUB_LOG: path.join(directory, 'calls.log'), STUB_BUCKET: path.join(directory, 'bucket'), STUB_LISTINGS: path.join(directory, 'listings') };
+  const env = { ...process.env, PATH: `${path.join(directory, 'bin')}${path.delimiter}${process.env.PATH}`, STUB_LOG: path.join(directory, 'calls.log'), STUB_BUCKET: path.join(directory, 'bucket'), STUB_LISTINGS: path.join(directory, 'listings'), STUB_COPY_FAILS: '' };
   for (const name of ['SNAPSHOT_BUCKET', 'SNAPSHOT_TOOL', 'SNAPSHOT_ENDPOINT', 'AWS_REGION']) {
     delete env[name];
   }
@@ -72,7 +76,7 @@ function sandbox(t, { bucket = BUCKET_FILES, listings }) {
     directory,
     target: path.join(directory, 'snapshots'),
     calls: () => fs.readFileSync(path.join(directory, 'calls.log'), 'utf8').split('\n').filter(Boolean),
-    run: (args, extraEnv = {}) => spawnSync('bash', [SCRIPT, ...args], { env: { ...env, ...extraEnv }, encoding: 'utf8' }),
+    run: (args, extraEnv = {}, script = SCRIPT) => spawnSync('bash', [script, ...args], { env: { ...env, ...extraEnv }, encoding: 'utf8' }),
   };
 }
 
@@ -120,6 +124,10 @@ test('the snapshot is held to the listing: every object, its size and its bytes,
   assert.deepEqual(verifySnapshot(directory, [page(BUCKET_FILES), page(BUCKET_FILES)]).problems.length, 3);
   assert.deepEqual(verifySnapshot(directory, [parseListing(awsListing(BUCKET_FILES, { IsTruncated: true }))]).problems, ['the listing is incomplete: its last page says more objects follow']);
   assert.ok(verifySnapshot(directory, [parseListing('{"Contents":[{"Key":"js/","Size":5}]}')]).problems.includes('js/: a key that ends with a slash carries 5 byte(s) and cannot be stored as a file'));
+  // An empty or mistyped bucket must not pass as a snapshot of nothing.
+  const empty = fs.mkdtempSync(path.join(os.tmpdir(), 'snapshot-verify-empty-'));
+  t.after(() => fs.rmSync(empty, { recursive: true, force: true }));
+  assert.deepEqual(verifySnapshot(empty, [parseListing('')]), { objects: 0, bytes: 0, problems: ['the bucket lists no objects: there is nothing to keep'] });
 });
 
 test('with aws the bucket is synced into a new directory, listed and verified, and only read', t => {
@@ -157,6 +165,26 @@ test('a copy that does not match the listing fails and names the objects', t => 
   assert.doesNotMatch(result.stdout, /done/);
 });
 
+test('an empty bucket is an error, not a snapshot of nothing', t => {
+  // `aws s3api list-objects-v2` prints nothing at all for a bucket without objects.
+  const box = sandbox(t, { bucket: {}, listings: { 'first.json': '' } });
+  const result = box.run([box.target]);
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /snapshot-bucket: the bucket lists no objects: there is nothing to keep\n/);
+  assert.doesNotMatch(result.stdout, /done/);
+});
+
+test('a copy that the tool fails stops the script before the listing', t => {
+  for (const tool of ['aws', 'yc']) {
+    const box = sandbox(t, { listings: { 'first.json': awsListing(BUCKET_FILES) } });
+    const result = box.run([box.target], { SNAPSHOT_TOOL: tool, STUB_COPY_FAILS: '1' });
+    assert.notEqual(result.status, 0, tool);
+    assert.match(result.stderr, /access denied/);
+    assert.doesNotMatch(result.stdout, /verified|done/);
+    assert.equal(box.calls().length, 1, tool);
+  }
+});
+
 test('a dry run downloads nothing and creates nothing', t => {
   const box = sandbox(t, { listings: { 'first.json': awsListing(BUCKET_FILES) } });
   const result = box.run(['--dry-run', box.target]);
@@ -186,8 +214,44 @@ test('the target must lie outside the repository, and nothing is called before t
   assert.deepEqual(box.calls(), []);
 });
 
+// The script lives in one checkout and knows the main one through git: a
+// snapshot must land in neither. A temporary repository with a linked worktree
+// stands in for this layout.
+test('run from a linked worktree, the script refuses the main checkout as well', t => {
+  const box = sandbox(t, { listings: { 'first.json': awsListing(BUCKET_FILES) } });
+  const main = path.join(box.directory, 'repository');
+  const linked = path.join(box.directory, 'linked-worktree');
+  fs.mkdirSync(path.join(main, 'scripts', 'lib'), { recursive: true });
+  fs.copyFileSync(SCRIPT, path.join(main, 'scripts', 'snapshot-bucket.sh'));
+  fs.copyFileSync(HELPER, path.join(main, 'scripts', 'lib', 'bucket-snapshot.cjs'));
+  const git = (...args) => execFileSync('git', ['-c', 'user.name=test', '-c', 'user.email=test@example.invalid', '-c', 'commit.gpgsign=false', ...args], { cwd: main, stdio: 'pipe' });
+  git('init', '-q');
+  git('add', '.');
+  git('commit', '-q', '-m', 'the script');
+  git('worktree', 'add', '-q', '--detach', linked);
+  const script = path.join(linked, 'scripts', 'snapshot-bucket.sh');
+
+  for (const [target, root] of [
+    [path.join(main, 'snapshots'), main],
+    [path.join(linked, 'snapshots'), linked],
+  ]) {
+    const result = box.run([target], {}, script);
+    assert.equal(result.status, 1, target);
+    assert.ok(result.stderr.includes(`snapshot-bucket: the target is inside the repository (${root}); choose a directory outside it`), result.stderr);
+    assert.equal(fs.existsSync(target), false);
+  }
+  assert.deepEqual(box.calls(), []);
+  // The same copy of the script works for a target outside both checkouts.
+  const outside = box.run([box.target], {}, script);
+  assert.equal(outside.status, 0, outside.stderr);
+  assert.match(outside.stdout, /verified 3 object\(s\)/);
+});
+
 test('wrong arguments, an unknown tool and a wrong bucket name are refused before any call', t => {
   const box = sandbox(t, { listings: { 'first.json': awsListing(BUCKET_FILES) } });
+  const help = box.run(['--help']);
+  assert.equal(help.status, 0);
+  assert.match(help.stdout, /^usage: scripts\/snapshot-bucket\.sh <directory outside the repository> \[--dry-run\]\n$/);
   assert.equal(box.run([]).status, 2);
   assert.equal(box.run([box.target, 'second']).status, 2);
   assert.equal(box.run([box.target, '--delete']).status, 2);
