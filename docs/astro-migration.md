@@ -897,7 +897,9 @@ scripts/__tests__/cleanup-bucket-assets.test.cjs   тесты очистки н�
   `docs/future/README.md`, `repo-manifest.json.project_ids` со всеми
   связанными карточками (сверить с Workspace, включая PRJ-009), карточка
   проекта в Workspace с зависимостью из PRJ-007. `.cursor/rules/*` на этом
-  этапе не переписываются, только пометка.
+  этапе не переписываются, только пометка. PRJ-009 добавлен в `project_ids`
+  на этапе A3 (2026-11-16), в ветке A, а не отдельным PR в `main`: мост
+  Workspace для REP-001 перечисляет PRJ-006, PRJ-007 и PRJ-009.
 - Правило координации с другими проектами на время ветки A: `functions/`
   свободны; `AGENTS.md`, `repo-manifest.json`, корневой `package.json`,
   `.github/` меняются маленькими PR в `main` (защита деплоя уже там), затем
