@@ -56,6 +56,9 @@
   comes after, or together with, the follow-up to release A that removes the
   converter with its tests and CI step and decides what `compare-dist`
   compares next (plan, "Этап A3").
+  An urgent fix of the live site (the lead form, a price, a legal text) does
+  not wait for that follow-up: `compare-dist` is not a required check, so such
+  a fix is merged with that job red and its pull request says so.
 - **Build:** `npm run build` = `astro build --mode $NODE_ENV` (production,
   staging or development) → `dist/`. Strict parity with the pinned legacy base
   is proven by `scripts/compare-dist.cjs` (see Verification).

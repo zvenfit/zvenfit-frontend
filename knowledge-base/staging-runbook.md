@@ -132,8 +132,12 @@ Steps:
    gh pr create --base main --title 'Revert "<title of the release commit>"' --body '<why>'
    ```
 
-   A title that starts with `Revert` does not match `feat:`, so the rollback
-   release gets a patch version.
+   The version of the rollback release follows from every commit since the
+   last tag. A title that starts with `Revert` does not match `feat:`, so the
+   rollback is a patch release when the reverted release already has its tag.
+   A release that failed before **Publish production release** has no tag: its
+   commit is counted too, and the rollback takes the version that release
+   would have had.
 2. Wait for `quality` and CodeQL on the pull request. Before a real rollback
    repeat the E2E gate (decision R8) for the revert SHA: the full suite of the
    pinned `zvenfit-autotests` revision against a local build of that commit
@@ -148,9 +152,11 @@ What the revert does:
 
 - The first upload pass puts the assets of the reverted build back before the
   HTML switches, even if a manual cleanup has removed them. The assets of the
-  rolled-back release stay in the bucket: a release never deletes assets. Do
-  not run the cleanup while the rollback window is open, that is for the time
-  HTML may stay cached after the last release or rollback.
+  rolled-back release stay in the bucket: a release never deletes assets. The
+  cleanup of stale assets is a separate manual procedure that the migration
+  plan adds after release A and that does not exist yet; once it does, do not
+  run it while the rollback window is open, that is for the time HTML may stay
+  cached after the last release or rollback.
 - If an upload pass fails, the later passes do not run. Re-run the failed jobs
   of the same run, or go through a new pull request; never finish the upload
   by hand.
@@ -179,6 +185,11 @@ revert, the tree of the revert equal to the tree of `main`, then the build,
 the revert of the actual release SHA is opened as a draft pull request and
 must pass `quality`; it stays open and unmerged until the owner accepts the
 release.
+
+The revert of release A also takes this section and
+`scripts/snapshot-bucket.sh` out of `main`: they arrived with the release
+commit. After such a rollback read them from that commit, for example
+`git show <release SHA>:knowledge-base/staging-runbook.md`.
 
 ## Bucket snapshot before a release
 
@@ -213,7 +224,12 @@ SNAPSHOT_TOOL=yc bash scripts/snapshot-bucket.sh ~/zvenfit-bucket-snapshots
 - `SNAPSHOT_TOOL=yc` uses the active profile of the Yandex Cloud CLI and needs
   no static key. The CLI marks its `storage s3` and `storage s3api` commands
   as preview. Run it from an interactive terminal: the owner's profile
-  authenticates through the browser.
+  authenticates through the browser. As of 2026-11-16 this path has run only
+  against stand-ins of the CLI in the script's test, so its first real run is
+  its validation: the dry run lists what the copy would download and does not
+  exercise the listing or the verification. If the listing comes in a shape
+  the script cannot read, the run fails instead of passing; nothing in the
+  bucket is affected.
 - Without `SNAPSHOT_TOOL` the script uses the AWS CLI (`aws s3 sync`) and its
   credential chain: `AWS_PROFILE`, or `AWS_ACCESS_KEY_ID` with
   `AWS_SECRET_ACCESS_KEY` and, for a temporary key, `AWS_SESSION_TOKEN`. The
