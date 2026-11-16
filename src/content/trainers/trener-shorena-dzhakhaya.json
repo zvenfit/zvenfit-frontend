@@ -1,0 +1,36 @@
+{
+  "wfPage": "6a603f465e4a8e31073b992c",
+  "name": "Шорэна Джахая",
+  "nameDative": "шорэне",
+  "jobTitle": "Тренер групповых программ",
+  "location": "nahabinskoe-shosse",
+  "headingHtml": "Шорэна Джахая",
+  "roleHtml": "Тренер групповых программ для детей и\u00a0взрослых<br>",
+  "photoClass": "shore",
+  "groups": [
+    {
+      "heading": "образование:",
+      "itemsHtml": [
+        "Сертификат курса &quot;Йога в гамаке&quot; (теория и практика). &quot;Высшая школа йога технологий&quot;. Москва 2022 г",
+        "Диплом о профессиональной переподготовке ООО &quot;Инфоурок&quot; по\u00a0программе &quot;Физическая культура и спорт. Организация деятельности фитнес-тренера&quot;",
+        "Удостоверение о повышении квалификации &quot;Инструктор детского фитнеса&quot;, Смоленск, 2024\u00a0г",
+        "Удостоверение о\u00a0повышении квалификации ООО\u00a0&quot;Инфоурок&quot; по\u00a0программе &quot;Тибетские поющие чаши&quot;, Смоленск, 2023\u00a0г",
+        "Практикует &quot;Воздушную йогу&quot; с\u00a02022\u00a0года"
+      ]
+    }
+  ],
+  "nextSlug": "trener-elena-isaeva",
+  "updated": "2026-08-01",
+  "sitemap": {
+    "changefreq": "monthly",
+    "priority": "0.6"
+  },
+  "meta": {
+    "title": "Тренер: Шорэна Джахая",
+    "description": "Тренер по фитнесу и воздушной йоге ZvenFit"
+  },
+  "legacy": {
+    "markup": "handwritten",
+    "webflowComments": "<!--  This site was created in Webflow. https://webflow.com  --><!--  Last Published: Sun Jul 26 2026 11:07:12 GMT+0000 (Coordinated Universal Time)  -->"
+  }
+}

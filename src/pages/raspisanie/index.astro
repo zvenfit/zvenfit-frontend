@@ -1,0 +1,42 @@
+---
+import Analytics from '../../components/Analytics.astro';
+import Footer from '../../components/Footer.astro';
+import Menu from '../../components/Menu.astro';
+import Base from '../../layouts/Base.astro';
+import schedule from '../../scripts/schedule.js?url';
+
+export const sitemap = { updated: '2026-07-06', changefreq: 'daily', priority: '0.85' };
+---
+<Base title="Расписание — ZvenFit Звенигород | групповые и персональные занятия" description="Актуальное расписание занятий ZvenFit в Звенигороде: групповые тренировки, пилатес, персональные занятия. Фитнес-клуб на Чехова 13А и женская студия на Нахабинском шоссе 7А." gtm="bare">
+  <div class="grain-overlay"></div>
+  <Menu variant="plain" logo="text" logoText="zvenfit" logoLabel="На главную ZvenFit" secondary={{"label":"вернуться назад","href":"#","dataBack":true,"block":1}} />
+  <section class="schedule-page">
+    <div class="cover_text">
+      <h1 class="h1-page"><span class="text-span-3">расписание</span> занятий</h1>
+    </div>
+    <div class="schedule-page__content">
+      <div data-schedule-root class="schedule-root" aria-live="polite"></div>
+      <p class="schedule-page__note body_txt"><strong class="bold-text-2">Расписание обновляется автоматически. Для записи на занятие используйте мобильное приложение или свяжитесь с администратором.</strong></p>
+    </div>
+  </section>
+  <div class="divider"></div>
+  <Footer withGrid withMobile={false} withMap={false} badges={false} anchorId="contacts" />
+  <Fragment slot="scripts">
+  <script is:inline src="/js/schedule-config.js" defer></script>
+  <script is:inline src={schedule} defer></script>
+  <Analytics placement="body" gtm="bare" />
+  <script is:inline>
+document.addEventListener('DOMContentLoaded', function() {
+  document.querySelectorAll('[data-back]').forEach(function(btn) {
+    btn.addEventListener('click', function(e) {
+      e.preventDefault();
+      if (history.length <= 1) {
+        window.location.pathname = '/';
+      } else {
+        history.back();
+      }
+    });
+  });
+});
+  </script>
+</Fragment></Base>

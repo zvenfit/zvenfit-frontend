@@ -91,7 +91,7 @@ function mount(kind, fetchResult = async () => response(), dataLayer) {
     clearTimeout() {},
   });
   for (const file of runtimeFiles(kind)) {
-    vm.runInContext(fs.readFileSync(path.join(__dirname, '../../public/js', file), 'utf8'), context);
+    vm.runInContext(fs.readFileSync(path.join(__dirname, '../../src/scripts', file), 'utf8'), context);
   }
   ready.forEach(callback => callback());
   return {

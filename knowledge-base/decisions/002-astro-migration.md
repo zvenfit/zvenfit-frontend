@@ -1,11 +1,15 @@
 # Static site generation with Astro in two releases
 
 Status: approved by the owner on 2026-10-19, 2026-10-21 and 2026-10-22; stage 0
-(preparation on the legacy build) in progress since 2026-10-22. The detailed
-plan with stages, parity rules, rollback and estimates lives in
-[`docs/future/astro-migration-plan.md`](../../docs/future/astro-migration-plan.md).
-This record is the canonical list of decisions and their consequences; the plan
-moves to `docs/astro-migration.md` when branch A opens.
+(preparation on the legacy build) closed on 2026-10-26 with v3.0.15; branch
+`feature/astro-release-a` opened on 2026-10-27 from `978b921`. Stages A1
+(tooling and checks), A2a (all pages and the trainer collection), A2b (the
+legacy build removed) and A3 (documentation, the release gate, the rollback
+recipe) were complete in that branch on 2026-11-16. Release A is that branch
+squashed into `main` as one `feat(frontend)` commit; release B (assets) has not
+started. The detailed plan with stages, parity rules, rollback and estimates
+lives in [`docs/astro-migration.md`](../../docs/astro-migration.md). This
+record is the canonical list of decisions and their consequences.
 
 ## Decision
 
@@ -43,7 +47,8 @@ widget with a justification in the PR). The migration ships in two releases:
 | R16 | 2026-10-26 | After release B the CDN cache key drops the `v` query parameter; until then the whitelist stays. |
 
 Defaults that can be revisited on request: a bucket snapshot before release A
-instead of bucket versioning; the phone mask served from our host before
+instead of bucket versioning (`scripts/snapshot-bucket.sh`, usage in the
+[staging runbook](../staging-runbook.md)); the phone mask served from our host before
 branch A (PR #85); weekly Dependabot version updates with grouped minor and
 patch; Yandex Maps organisation photos snapshotted into `src/data/`.
 
@@ -53,6 +58,7 @@ patch; Yandex Maps organisation photos snapshotted into `src/data/`.
   `scripts/build-static.cjs` freeze when branch A opens, for 2–4 weeks, with
   the hotfix rule R10. The legacy stack rule in `AGENTS.md` holds until
   release A; branch A carries the new rule text from stage A1 (plan, section 14).
+  The freeze and R10 end with release A, which removes those paths from `main`.
 - Deploy protection shipped as v3.0.12: a guard before the first upload, four
   upload passes, assets never deleted in a release. Branch A inherits the
   workflow and changes only the deploy profile.
@@ -91,12 +97,12 @@ production, tag and GitHub release.
 | --- | --- | --- |
 | normalize.css 8 | bucket, into the repository in B | MIT |
 | jQuery 3.5.1 | bucket, into the repository in B | MIT |
-| imask 7.6.1 | `public/js/vendor/` since PR #85 | MIT, licence file next to it |
+| imask 7.6.1 | `src/vendor/` (on legacy `main`: `public/js/vendor/` since PR #85) | MIT; the licence text lies next to the script in `src/vendor/` and is served at its legacy address `/js/vendor/imask-7.6.1.LICENSE.txt` by the endpoint `src/pages/js/vendor/imask-7.6.1.LICENSE.txt.ts` |
 | Roboto, Roboto Condensed | fonts.bunny.net | Apache 2.0 |
 | Webflow runtime (`webflow.js`, `webflow.min.css`) | exported with the site, bucket | Webflow terms for exported sites; confirm against the account's terms |
 | Road Rage, Cyrillic build "RUS BY LYAJKA" | bucket `fonts/roadrage.ttf` | embedded licence text says "Free for personal use only" (© 2016 Youssef Habchi); the owner holds a purchased commercial licence (confirmed 2026-10-26), kept outside the repository. |
 
-Sources: [migration plan](../../docs/future/astro-migration-plan.md),
+Sources: [migration plan](../../docs/astro-migration.md),
 [staging runbook](../staging-runbook.md),
 [CDN runbook](../cdn-runbook.md), font name table of
 `fonts/roadrage.ttf`, CDN resource settings from `yc cdn resource list`.

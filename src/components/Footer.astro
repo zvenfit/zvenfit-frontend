@@ -1,0 +1,46 @@
+---
+// Site footer: the Webflow pair section-4 (desktop) and section-3 (mobile).
+// What differs between the legacy pages comes from the page:
+//   location        — the club of the text block: Chekhova, or Nakhabinskoe on
+//                     the group-training page;
+//   withGrid        — the block with both clubs (home, 404, platforms, schedule)
+//                     instead of one club's text block;
+//   withMobile      — the schedule page has no mobile section;
+//   withMap         — the schedule page has no map;
+//   badges          — the app badges of the legacy build markers;
+//   anchorId, mobileAnchorId — `id` of each section, only where the page had it.
+// The newline between the two sections is part of the legacy markup.
+import FooterDesktop from './FooterDesktop.astro';
+import FooterMobile from './FooterMobile.astro';
+
+import type { FooterLocation } from '../lib/footer';
+
+interface Props {
+  location?: FooterLocation;
+  withGrid?: boolean;
+  withMobile?: boolean;
+  withMap?: boolean;
+  badges?: boolean;
+  anchorId?: string;
+  mobileAnchorId?: string;
+}
+
+const {
+  location = 'chekhova',
+  withGrid = false,
+  withMobile = true,
+  withMap = true,
+  badges = true,
+  anchorId,
+  mobileAnchorId,
+} = Astro.props;
+if (withMobile && !withMap) {
+  throw new Error('Footer: the mobile section always carries the map; pass withMobile={false} with withMap={false}');
+}
+if (!withMobile && mobileAnchorId) {
+  throw new Error('Footer: mobileAnchorId needs the mobile section');
+}
+// Legacy whitespace between the desktop and the mobile section.
+const gap = '\n  ';
+---
+<FooterDesktop location={location} withGrid={withGrid} withMap={withMap} badges={badges} anchorId={anchorId} />{withMobile && (<Fragment>{gap}<FooterMobile location={location} withGrid={withGrid} badges={badges} anchorId={mobileAnchorId} /></Fragment>)}

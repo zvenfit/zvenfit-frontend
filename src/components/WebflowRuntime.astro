@@ -1,0 +1,10 @@
+---
+// jQuery and the Webflow runtime exactly as the legacy pages load them from
+// the bucket: jQuery first, then webflow.js with the release ASSET_VERSION.
+// The newline between the two tags is part of the legacy markup.
+import { webflowRuntimeUrl } from '../lib/site';
+
+const webflowUrl = webflowRuntimeUrl();
+---
+<script src="https://storage.yandexcloud.net/zvenfit/v2/js/jquery-3.5.1.min.js" type="text/javascript" defer is:inline></script>
+  <script src={webflowUrl} type="text/javascript" defer is:inline></script>

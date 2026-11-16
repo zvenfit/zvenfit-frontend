@@ -1,0 +1,48 @@
+{
+  "wfPage": "6a6043d7dbbd7f6e216ff5d5",
+  "name": "Наталья Диденко",
+  "nameDative": "наталье",
+  "jobTitle": "Тренер групповых программ",
+  "location": "nahabinskoe-shosse",
+  "headingHtml": "Диденко Наталья Михайловна\u00a0",
+  "roleHtml": "Инструктор групповых программ, тренер тренажерного зала, тренер по\u00a0аквафитнесу<br>",
+  "photoClass": "nat",
+  "groups": [
+    {
+      "heading": "направления:",
+      "itemsHtml": [
+        "Подвесные петли TRX",
+        "МФР",
+        "BOSU",
+        "Силовой тренинг",
+        "Растяжка",
+        "Тренировки на\u00a0снижение веса",
+        "Коррекция осанки"
+      ]
+    },
+    {
+      "heading": "образование:",
+      "itemsHtml": [
+        "Школа Варвары Медведевой: Тренер групповых программ, 2019\u00a0г",
+        "Школа фитнеса Варвары Медведевой: Персональный тренер\u00a0тренажерного зала, 2023\u00a0г ",
+        "&quot;Школа диетологов&quot;: Диетолог -консультант, 2019\u00a0г",
+        "ООО &quot;НЦРО&quot; Аквафитнес иаквааэробика, 2022\u00a0г",
+        "Стаж работы с\u00a02019\u00a0года"
+      ]
+    }
+  ],
+  "nextSlug": "trener-natalya-illarionova",
+  "updated": "2026-08-01",
+  "sitemap": {
+    "changefreq": "monthly",
+    "priority": "0.6"
+  },
+  "meta": {
+    "title": "Тренер: Наталья Диденко",
+    "description": "Инструктор групповых программ, тренер тренажерного зала ZvenFit"
+  },
+  "legacy": {
+    "markup": "handwritten",
+    "webflowComments": "<!--  This site was created in Webflow. https://webflow.com  --><!--  Last Published: Sun Jul 26 2026 11:07:12 GMT+0000 (Coordinated Universal Time)  -->"
+  }
+}

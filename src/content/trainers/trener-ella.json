@@ -1,0 +1,67 @@
+{
+  "wfPage": "69a522d963ec7c7abb4a2ca1",
+  "name": "Горовая Элла Алексеевна",
+  "nameDative": "Элле",
+  "jobTitle": "Инструктор пилатеса",
+  "location": "chekhova",
+  "headingHtml": "Горовая Элла Алексеевна",
+  "roleHtml": "Инструктор пилатеса и Хатха-йоги",
+  "photoClass": "ella",
+  "groups": [
+    {
+      "heading": "Спортивные достижения:",
+      "itemsHtml": [
+        "Стаж работы более 3-х лет<br>"
+      ]
+    },
+    {
+      "heading": "Специализации:",
+      "itemsHtml": [
+        "Инструктор пилатеса на большом оборудовании",
+        "Инструктор Хатха-йоги",
+        "Адаптивная физическая культура и йогатерапия"
+      ]
+    },
+    {
+      "heading": "Образование:",
+      "itemsHtml": [
+        "Инструктор Хатха-йоги\u00a0в\u00a0соответствии с\u00a0требованием государственной образовательной лицензии РФ и\u00a0Международными стандартами YTTC-200 подготовки специалистов в\u00a0области йоги Международной Федерации Йоги, Международного Альянса Йоги и Альянса Йоги США (2 сентября -15 октября 2023г.)<br>",
+        "Сертификат Федерации Йоги России<br>",
+        "Свидетельство о повышении квалификации Автономной некоммерческой организации дополнительного профессионального образования &quot;Школа инструкторов Йоги&quot;<br>",
+        "Сертификат Yoga Alliance International (2023г.)<br>",
+        "Инструктор пилатеса на большом оборудовании<br>",
+        "Студия пилатеса &quot;Мой шаг&quot;. Курс &quot;Инструктор по кинезиопилатесу: большое оборудование КАДИЛЛАК-КОМБО&quot; (август 2025г.)<br>",
+        "Международная система обучения инструкторов по пилатесу &quot;BALANCED BODY EDUCATION&quot;. Курс &quot;Принципы движения&quot; (октябрь 2025г.)<br>",
+        "Международная система обучения инструкторов по пилатесу &quot;BALANCED BODY EDUCATION&quot;. Курс &quot;Reformer 1 Instructor Training&quot; (24.11.2025г.)<br>",
+        "Студентка АНО ДПО &quot;ИТСО&quot; &quot;Институт традиционных систем оздоровления&quot; - специальность: &quot;Инструктор-методист адаптивной физической культуры (АФК) и йогатерапии&quot; (2025-2026г.)<br>"
+      ]
+    }
+  ],
+  "certificates": [
+    {
+      "title": "Сертификат",
+      "descriptionHtml": "Инструктора Хатха-Йоги",
+      "href": "https://storage.yandexcloud.net/zvenfit/v2/documents/sertifikat-1-gorovaya-ella.jpeg"
+    },
+    {
+      "title": "Сертификат",
+      "descriptionHtml": "по программе &quot;Balanced Body Movement Principles &amp; Pilates Essentials&quot; (пилатес)",
+      "href": "https://storage.yandexcloud.net/zvenfit/v2/documents/sertifikat-2-gorovaya-ella.jpeg"
+    }
+  ],
+  "nextSlug": "trener-oksana",
+  "updated": "2026-05-13",
+  "sitemap": {
+    "changefreq": "monthly",
+    "priority": "0.6"
+  },
+  "meta": {
+    "title": "Тренер: Элла",
+    "description": "Инструктор по пилатесу Элла ZvenFit: реформер-пилатес для любого уровня, реабилитация после травм, улучшение гибкости. Запись в Звенигороде ☎ +7 (925) 308-23-23"
+  },
+  "legacy": {
+    "markup": "webflow",
+    "webflowComments": "<!--  This site was created in Webflow. https://webflow.com  --><!--  Last Published: Sun Mar 22 2026 09:06:04 GMT+0000 (Coordinated Universal Time)  -->",
+    "ctaRegularSpace": true
+  }
+}

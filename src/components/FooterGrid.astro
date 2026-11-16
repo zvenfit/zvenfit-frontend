@@ -1,0 +1,41 @@
+---
+// Footer text block with both clubs (`footer-grid`): home, 404, the platforms
+// page and the schedule page. The desktop and the mobile section of the legacy
+// markup differ in one character: the mobile hours line keeps a non-breaking
+// space after "пн-вс:".
+import { legalClass, legalCurrent } from '../lib/footer';
+
+interface Props {
+  section: 'desktop' | 'mobile';
+}
+
+const { section } = Astro.props;
+const path = Astro.url.pathname;
+const hours = section === 'mobile' ? 'Звенигород · пн-вс:\u00a008:00-22:00' : 'Звенигород · пн-вс: 08:00-22:00';
+---
+<div class="footer-grid">
+        <div class="footer-locations">
+          <div class="footer-location">
+            <p class="footer-location__label slash-prefix">фитнес-клуб</p>
+            <h2 class="footer footer-location__address">Чехова&nbsp;13А</h2>
+            <a href="tel:+79253082323" class="footer-location__phone" aria-label="Позвонить в фитнес-клуб +7 (925) 308-23-23">+7 (925) 308-23-23</a>
+          </div>
+          <div class="footer-location">
+            <p class="footer-location__label slash-prefix">женская студия</p>
+            <h2 class="footer footer-location__address">Нахабинское шоссе,&nbsp;7А</h2>
+            <a href="tel:+79688440088" class="footer-location__phone" aria-label="Позвонить в женскую студию +7 (968) 844-00-88">+7 (968) 844-00-88</a>
+          </div>
+          <div class="footer-locations__schedule body_txt cont">
+            <p class="footer-grid__hours"><strong class="bold-text-2">{hours}</strong></p>
+            <a href="mailto:zvenfit-reception@yandex.ru" class="link _1 footer-locations__email">zvenfit-reception@yandex.ru</a>
+          </div>
+        </div>
+        <div class="footer-meta">
+          <nav class="footer-meta__legal" aria-label="Правовая информация">
+            <a href="/privacy/" target="_blank" aria-current={legalCurrent(path, '/privacy/')} class={legalClass(path, '/privacy/', 'link')}>Политика конфиденциальности</a>
+            <a href="/payment-policy/" target="_blank" aria-current={legalCurrent(path, '/payment-policy/')} class={legalClass(path, '/payment-policy/', 'link')}>Политика оплаты, возврата и&nbsp;отмены</a>
+            <a href="/offer/" target="_blank" aria-current={legalCurrent(path, '/offer/')} class={legalClass(path, '/offer/', 'link text-span-2 _2')}>Публичная оферта</a>
+          </nav>
+          <a href="https://kaya-li.com" target="_blank" rel="noopener noreferrer" aria-label="Перейти на сайт автора vverlyne" class="link _2 footer-meta__credits">Сайт создан&nbsp;<span class="text-span-2">@vverlyne</span>&nbsp;с&nbsp;любовью</a>
+        </div>
+      </div>

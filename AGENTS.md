@@ -27,29 +27,76 @@
 
 ## Stack
 
-- **Frontend:** static HTML in `public/`. The markup started as a Webflow export, but Webflow is no longer used: edit `public/` directly and never re-import a Webflow export over it.
-- **Build:** `scripts/build-static.cjs` → `dist/` (gitignored)
-- **Runtime JS:** vanilla JS in `public/js/`
+- **Frontend:** фронтенд собирается Astro в статический `dist/`; страницы живут в
+  `src/pages`, общая разметка в `src/layouts` и `src/components`, данные в
+  `src/content` и `src/data`, статика как есть в `public/`. Клиентский
+  фреймворк на страницах не используется; островок допустим для отдельного
+  виджета с обоснованием в PR. Не предполагать React или Next.
+- **Astro since release A** (plan
+  [`docs/astro-migration.md`](docs/astro-migration.md), ADR
+  `knowledge-base/decisions/002-astro-migration.md`). Every route is built
+  from Astro sources: 20 pages in `src/pages` and 21 trainer pages rendered by
+  `src/pages/trenery/[slug].astro` from the `trainers` collection
+  (`src/content/trainers/*.json`). The legacy build is no longer in the tree:
+  `scripts/build-static.cjs`, `scripts/snippets/` and the pages, styles and
+  scripts of `public/` exist only in git history, at the pinned base of the
+  parity check, which builds that base from its own commit. `public/` holds
+  static files that Astro copies to `dist/` as they are (two SVG logos).
+  Release B (assets) has not started.
+- **Parity tooling is still switched on.** Release A shipped with strict
+  parity to the pinned legacy base, and two leftovers of the migration keep
+  holding the site to it: a converter test compares the pages and the trainer
+  entries with the converter run against the base, and the `compare-dist` job
+  compares the built site with the base. A change of markup, of a text, of the
+  site stylesheet or of a browser script fails both. The `quality` job, the
+  status check a merge requires, shows neither: its checkout is shallow, so
+  the tests that read the base are skipped there, and the comparison is a job
+  of its own. The failure shows only in the `compare-dist` job and in a local
+  `npm run test:scripts` on a full clone. The first such change therefore
+  comes after, or together with, the follow-up to release A that removes the
+  converter with its tests and CI step and decides what `compare-dist`
+  compares next (plan, "Этап A3").
+  An urgent fix of the live site (the lead form, a price, a legal text) does
+  not wait for that follow-up: `compare-dist` is not a required check, so such
+  a fix is merged with that job red and its pull request says so.
+- **Build:** `npm run build` = `astro build --mode $NODE_ENV` (production,
+  staging or development) → `dist/`. Strict parity with the pinned legacy base
+  is proven by `scripts/compare-dist.cjs` (see Verification).
+- **Runtime JS:** classic vanilla scripts in `src/scripts/`, referenced through
+  `?url` and served hashed from `/_astro/`; vendor files in `src/vendor/`;
+  stylesheets in `src/styles/`. The runtime configs stay at `/js/*-config.js`
+  as endpoints.
+- **CSS:** Vite's minifier is off (`vite.build.cssMinify: false`). The
+  `zvenfit:site-css` integration (`scripts/lib/site-css.cjs`) minifies
+  `zvenfit.webflow.<hash>.css` after the build with clean-css level 2, the
+  same bytes as the legacy `zvenfit.webflow.min.css`; other stylesheets are
+  emitted unminified. lightningcss with the `esnext` target of Astro
+  rewrites `(max-width: 767px)` into `(width<=767px)`, which Safari before 16.4
+  and Chrome before 104 ignore. The clean-css version is pinned in that
+  module: the built file name follows the source bytes, not the minifier.
 - **Backend:** 4 TypeScript Yandex Cloud Functions in `functions/` (compiled to CommonJS): `lead-intake`, `fitbase-schedule`, `site-traffic`, `staging-authorizer`
-- **CI:** `quality.yml` checks pull requests. `main.yml` (**Release**) runs on every push to `main`: staging deploy → E2E from `zvenfit-autotests` → production deploy (functions → build → S3 → smoke) → release tag; production is skipped unless E2E passes. An emergency dispatch with `skip_staging` and a `reason` deploys production without staging. `staging.yml` re-runs staging and E2E manually without a release. All deploys share `_deploy-environment.yml` and the `deploy` concurrency group.
+- **CI:** `quality.yml` checks pull requests (lint, tests, `astro check`, production-like and staging builds, `compare-dist` against the pinned base; that job also runs the converter tests, which need the base commit in the checkout). `main.yml` (**Release**) runs on every push to `main`: staging deploy → E2E from `zvenfit-autotests` → production deploy (functions → build → S3 → smoke) → release tag; production is skipped unless E2E passes. An emergency dispatch with `skip_staging` and a `reason` deploys production without staging. `staging.yml` re-runs staging and E2E manually without a release. All deploys share `_deploy-environment.yml` and the `deploy` concurrency group.
 
-TypeScript is used only for Cloud Functions; the frontend remains static vanilla JS. Do not assume React/Vite/Next.
-
-Миграция сборки страниц на Astro со статическим выводом согласована
-(ADR `knowledge-base/decisions/002-astro-migration.md`, план
-`docs/future/astro-migration-plan.md`) и идёт в ветке `feature/astro-release-a`.
-До её merge правило выше действует без изменений, а правки `public/**` на это
-время ограничены hotfix-правилом плана (решение R10).
+TypeScript is used for Cloud Functions, Astro frontmatter, endpoints and the
+`src/lib` helpers; the browser scripts remain classic vanilla JS until the
+post-migration revision.
 
 ## Source of truth
 
-| Edit         | Do not edit                   |
-| ------------ | ----------------------------- |
-| `public/`    | `dist/`                       |
-| `scripts/`   | generated `*.min.css` in dist |
-| `functions/` | committed secrets             |
+| Edit                                                       | Do not edit                                                    |
+| ---------------------------------------------------------- | -------------------------------------------------------------- |
+| `src/` (pages, layouts, components, scripts, styles, data) | `dist/`, `.astro/`                                             |
+| `public/` (static files copied to `dist/` as they are)     | a file in `public/` at the path of a route: it replaces the page or the endpoint |
+| `scripts/` (checks, deploy, migration tooling)             | `src/pages/**` and `src/content/trainers/*.json` while the converter test still holds them to converter output (see Stack) |
+| `functions/`                                               | committed secrets                                              |
 
-After any change that affects HTML/CSS/JS/config injection: run `npm run build` or use `npm run dev:watch`.
+After any change in `src/`: run `npm run build` or use `npm run dev`. The
+legacy site (`public/**/*.html`, `scripts/snippets/**`,
+`scripts/build-static.cjs`) is not in the tree: release A replaced it, and the
+parity check reads it from the pinned base in git history. A fix of the live
+site is a pull request into `main` that changes `src/`; how fixes were carried
+over from the legacy build during the migration is recorded in the plan
+("Перенос исправлений из legacy").
 
 ## Module conventions
 
@@ -73,56 +120,111 @@ staging.zvenfit.ru → API Gateway + Basic auth (functions/staging-authorizer)
 
 Local dev (npm run dev):
   mock-server :3000  ← lead POST + GET /schedule + POST /traffic
-  serve dist :4173   ← static site
+  astro dev :4173    ← pages and endpoints from src/
 ```
 
-Build injects API URLs into:
+The build renders the API URLs into endpoints:
 
-- `public/js/lead-config.js` → `window.ZVENFIT_LEAD_API`
-- `public/js/schedule-config.js` → `window.ZVENFIT_SCHEDULE_API`
-- `public/js/traffic-config.js` → `window.ZVENFIT_TRAFFIC_API`
+- `src/pages/js/lead-config.js.ts` → `/js/lead-config.js` → `window.ZVENFIT_LEAD_API`
+- `src/pages/js/schedule-config.js.ts` → `/js/schedule-config.js` → `window.ZVENFIT_SCHEDULE_API`
+- `src/pages/js/traffic-config.js.ts` → `/js/traffic-config.js` → `window.ZVENFIT_TRAFFIC_API`
 
 ## Build pipeline markers
 
-`build-static.cjs` replaces HTML comments with snippets/config. **Prefer editing snippets/config over duplicating HTML across pages.**
+`src/layouts/Base.astro` renders the shared document: head (bucket-hosted
+normalize/webflow CSS, the site stylesheet, Webflow bootstrap, icons,
+analytics, UTM, Open Graph, JSON-LD) and the body tail (jQuery, bucket
+`webflow.js?v=ASSET_VERSION`, the page's own scripts in slot `scripts`, map
+scripts, traffic beacon). **Whitespace in these templates is part of the
+parity contract**: Prettier is disabled for `src/layouts`, `src/components`
+and `src/pages`, do not reformat them.
 
-| Marker                                                | Source                                                 |
-| ----------------------------------------------------- | ------------------------------------------------------ |
-| `<!-- ZvenFit: VK + Yandex Metrika -->`               | `scripts/snippets/analytics-head.html`                 |
-| `<!-- ZvenFit: UTM attribution -->`                   | `scripts/snippets/utm-head.html`                       |
-| `<!-- ZvenFit: structured-data -->`                   | `scripts/structured-data.config.json`                  |
-| `<!-- ZvenFit: open-graph -->`                        | derived from page meta at build time                   |
-| `<!-- ZvenFit: app-download-links-desktop/mobile -->` | `scripts/snippets/app-download-badges.html`            |
-| `<!-- ZvenFit: app-download-platforms-section -->`    | `scripts/snippets/app-download-platforms-section.html` |
-| `<!-- ZvenFit: app-download-promo-section -->`        | `scripts/snippets/app-download-promo-section.html`     |
+| Component                                       | Purpose                                                           | Data                                                             |
+| ----------------------------------------------- | ----------------------------------------------------------------- | ---------------------------------------------------------------- |
+| `Analytics.astro`                               | GTM + Top.Mail.Ru + Metrika, production only; `placement`, GTM comment style | raw legacy snippets in `src/components/analytics/`              |
+| `UtmHead.astro`                                 | UTM attribution script (every mode)                               | `src/scripts/utm-attribution.js`                                 |
+| `OpenGraph.astro`                               | OG/Twitter meta in the legacy order                               | page props, `src/data/structured-data.config.json`               |
+| `StructuredData.astro`                          | JSON-LD graph                                                     | `src/lib/structured-data*.ts`, `src/data/structured-data.config.json` |
+| `Menu.astro` + `LogoEmbeds.astro`               | variants `home`, `service`, `coach`, `plain` (Webflow `menu1`, `menu2`, `menu2-coach`, `menu3`) | page props, exact `w-node-*` ids of the page |
+| `Footer.astro` (`FooterDesktop`, `FooterMobile`, `FooterGrid`) | `section-4`/`section-3` pair: `location`, `withGrid`, `withMobile`, `withMap`, `badges`, `anchorId`, `mobileAnchorId` | `src/lib/footer.ts` |
+| `MapRegion.astro`, `MapScripts.astro`           | runtime map region and scripts                                    | `src/data/maps.config.json`, `src/data/map-photos.json`          |
+| `AppDownloadBadges/Platforms/Promo.astro`       | store badges and app sections                                     | `src/data/app-links.config.json`                                 |
+| `TrafficBeacon.astro`                           | technical page views (not on 404)                                 | `src/scripts/traffic-beacon.js`                                  |
 
-Also at build time:
+Endpoints in `src/pages`: `js/lead-config.js.ts`, `js/schedule-config.js.ts`,
+`js/traffic-config.js.ts` read `LEAD_API_URL`, `SCHEDULE_API_URL`,
+`TRAFFIC_API_URL` at build time (development falls back to the mock server,
+staging and production fail without a value); `js/maps-config.js.ts` combines
+`src/data/maps.config.json`, the committed photo snapshot and `Y_MAPS_API_KEY`;
+`sitemap.xml.ts` collects `export const sitemap = { updated, changefreq,
+priority }` from every page and `updated`/`sitemap` of every trainer entry
+(`src/lib/sitemap.ts` validates them);
+`robots.txt.ts` serves
+`src/data/robots.production.txt` or the staging `Disallow: /`;
+`js/vendor/imask-7.6.1.LICENSE.txt.ts` serves the MIT text of the vendored
+imask from `src/vendor/` at its legacy address (the minified file has no
+licence banner; `check-build` compares the built bytes with the source).
+Content configs live in `src/data/*.config.json`. An endpoint is a route like
+a page: a file in `public/` at its path would be shipped instead of it.
 
-- minifies `zvenfit.webflow.css` → `zvenfit.webflow.min.css`
-- cache-busts listed JS/CSS files via `ASSET_VERSION`
-- writes `maps-config.js` from `maps.config.json` + structured data
-- fetches Yandex Maps organization photos for the map panels (needs network; falls back to `locationPhotos` from `maps.config.json`). Production visitors see these build-time photos: the in-browser `ymaps.findOrganization` lookup currently fails
+Compiler facts to respect (details in the plan, section 4): comments passed as
+component children are dropped, emit them via `set:html`; a raw `U+00A0` in a
+template becomes a plain space, write `&nbsp;`; `{`/`}` in text are
+expressions, escape them as `&#123;`/`&#125;`; every classic `<script>` needs
+`is:inline`; component templates lose leading and trailing whitespace;
+directly inside a component's children, whitespace that follows an expression
+`{…}` is dropped (keep such gaps as expressions, as `trenery/[slug].astro` does).
+
+The `trainers` collection (`src/content.config.ts`, schema in
+`src/lib/trainer-schema.ts`): one JSON entry per trainer, the file name is the
+slug and must be `trener-<name>.json`. `StructuredData.astro` (Person,
+breadcrumb) and the sitemap read it; the structured-data config has no
+`trainers` block any more. The optional `legacy` block of an entry holds
+markup differences between the legacy pages; a new trainer does not need it.
+
+A trainer page is styled by the site stylesheet alone, with no fallback by
+class. The grid is laid out by the `#w-node-…-<suffix>` rules of the entry's
+`wfPage` (the suffix is its last eight digits), the two photos by
+`.photo_coach.<photoClass>` and `.photo_coach_mini.<photoClass>`; the photo
+rules without a modifier show Efim's photos. A new entry therefore needs the
+`wfPage` of an existing page with the same layout or its own `w-node` rules in
+`src/styles/zvenfit.webflow.css`, and a `photoClass` that has both photo rules
+there. Such an entry still builds: `check-build` is what fails on a trainer
+page whose ids or photo class have no rules, and on a page without a photo
+class other than Efim's. New rules change the bytes of the site stylesheet,
+which `compare-dist` still compares with the legacy base (see Stack): add them
+once that comparison is retired or pinned to a new base.
 
 ## Task → file map
 
-| Task                       | Files                                                               |
-| -------------------------- | ------------------------------------------------------------------- |
-| Lead form UI/validation    | `public/forma-dlya-zayavki/index.html`, `public/js/lead-form.js`    |
-| Lead API / Telegram        | `functions/lead-intake/src/handler.ts`, `src/telegram/`             |
-| Lead storage / retry state | `functions/lead-intake/src/ydb/`                                    |
-| Schedule UI                | `public/raspisanie/index.html`, `public/js/schedule.js`             |
-| Schedule API / Fitbase     | `functions/fitbase-schedule/src/handler.ts`, `src/adapters/fitbase/` |
-| Technical site traffic     | `public/js/traffic-beacon.js`, `functions/site-traffic/src/`        |
-| UTM in leads               | `public/js/utm-attribution.js`, `docs/utm-attribution-marketing.md` |
-| App store badges/links     | `scripts/app-links.config.json`, snippets in `scripts/snippets/`    |
-| SEO / JSON-LD              | `scripts/structured-data.config.json`, page `<meta>`                |
-| Maps                       | `scripts/maps.config.json`, `public/js/yandex-map.js`               |
-| Prices and page ownership  | `knowledge-base/site-information-architecture.md`                   |
-| Club card page             | `public/klubnaya-karta/`, `public/css/klubnaya-karta.v1.css`        |
-| Global styles              | `public/css/zvenfit.webflow.css`                                    |
-| Alerts / dashboard         | `scripts/monitoring.config.json`, `docs/monitoring.md`              |
-| Staging access             | `functions/staging-authorizer/`, `docs/staging-environment.md`      |
-| Deploy                     | `.github/workflows/`, `scripts/deploy-*.sh`                         |
+| Task                       | Files                                                                                     |
+| -------------------------- | ----------------------------------------------------------------------------------------- |
+| Pages (Astro)              | `src/pages/**/index.astro`, `src/pages/404.astro`                                          |
+| Trainer pages              | `src/content/trainers/*.json`, `src/lib/trainer-schema.ts`, `src/pages/trenery/[slug].astro`; grid and photo rules in `src/styles/zvenfit.webflow.css`, guard in `scripts/check-build.cjs` |
+| Page conversion            | `scripts/migrate/html-to-astro.cjs`, `shared-blocks.cjs`, `trainer-page.cjs`, `manual.json`; reads the legacy pages from git (`--ref <pinned base>`); removed by the follow-up to release A |
+| Parity check               | `scripts/compare-dist.cjs`, `scripts/parity-allowlist.json`, `scripts/lib/html-parity.cjs`, `scripts/lib/parity-harness.cjs`, `scripts/lib/parity-profile.cjs` |
+| Static files               | `public/` (two SVG logos); guard against a file at the path of a route in `scripts/check-build.cjs` |
+| CSS minification           | `scripts/lib/site-css.cjs`, `astro.config.mjs`; guards in `scripts/check-build.cjs` and `scripts/compare-dist.cjs` |
+| Layout and shared blocks   | `src/layouts/Base.astro`, `src/components/`                                                 |
+| Lead form UI/validation    | `src/pages/forma-dlya-zayavki/index.astro`, `src/scripts/lead-form.js`                      |
+| Lead API / Telegram        | `functions/lead-intake/src/handler.ts`, `src/telegram/`                                     |
+| Lead storage / retry state | `functions/lead-intake/src/ydb/`                                                            |
+| Schedule UI                | `src/pages/raspisanie/index.astro`, `src/scripts/schedule.js`                               |
+| Schedule API / Fitbase     | `functions/fitbase-schedule/src/handler.ts`, `src/adapters/fitbase/`                        |
+| Technical site traffic     | `src/scripts/traffic-beacon.js`, `src/components/TrafficBeacon.astro`, `functions/site-traffic/src/` |
+| UTM in leads               | `src/scripts/utm-attribution.js`, `docs/utm-attribution-marketing.md`                      |
+| App store badges/links     | `src/data/app-links.config.json`, `src/components/AppDownload*.astro`                       |
+| SEO / JSON-LD / Open Graph | `src/data/structured-data.config.json`, `src/lib/structured-data*.ts`, `src/components/OpenGraph.astro`, page props |
+| Maps                       | `src/data/maps.config.json`, `src/data/map-photos.json` (`npm run maps:snapshot`), `src/scripts/yandex-map.js`, `src/components/MapRegion.astro` |
+| Runtime API configs        | `src/pages/js/*-config.js.ts`, `src/lib/runtime-config.ts`                                  |
+| Prices and page ownership  | `knowledge-base/site-information-architecture.md`                                           |
+| Club card page             | `src/pages/klubnaya-karta/index.astro` (own menu and footer, see `manual.json`), `src/styles/klubnaya-karta.v1.css` |
+| Global styles              | `src/styles/zvenfit.webflow.css`                                                            |
+| Alerts / dashboard         | `scripts/monitoring.config.json`, `docs/monitoring.md`                                      |
+| Staging access             | `functions/staging-authorizer/`, `docs/staging-environment.md`                              |
+| Deploy                     | `.github/workflows/`, `scripts/deploy-*.sh`, `scripts/deploy.config.json`                  |
+| Rollback of a release      | `knowledge-base/staging-runbook.md` ("Frontend rollback"): a `git revert` pull request through the normal release |
+| Bucket snapshot            | `scripts/snapshot-bucket.sh`, `scripts/lib/bucket-snapshot.cjs`; read-only, run by the owner with their own credentials (`knowledge-base/staging-runbook.md`) |
 
 ## Local development
 
@@ -133,10 +235,20 @@ npm ci --prefix functions/lead-intake
 npm ci --prefix functions/fitbase-schedule
 npm ci --prefix functions/site-traffic
 npm ci --prefix functions/staging-authorizer
-npm run dev:watch                  # mock API + rebuild + serve :4173
+npm run dev                        # mock API :3000 + astro dev :4173
 ```
 
-- Lead form posts to `http://localhost:3000` in dev (via injected `LEAD_API_URL`)
+- Node ≥ 22.23.4 (`.nvmrc`): Astro 7.4 refuses older releases; CI uses
+  `setup-node` with `check-latest: true`.
+- `astro dev --mode development` reads `.env.development`; the lead form posts to
+  `http://localhost:3000` when `LEAD_API_URL` is empty.
+- `npm run dev:dist` builds in development mode and serves `dist/` on :4173
+  with the same mock API: the built output (hashed assets, the minified site
+  stylesheet, endpoints as files) instead of the dev server.
+- `npm run dev:watch` is `npm run dev` under its old name: the error hint of
+  the schedule page (`src/scripts/schedule.js`) names it, and the bytes of
+  that script are still compared with the legacy base. The hint and the alias
+  go in the follow-up to release A.
 - Schedule uses dynamic fixture by default (`SCHEDULE_PROVIDER=fixture`)
 - Live local data requires both `SCHEDULE_PROVIDER=fitbase` and `FITBASE_API_TOKEN`
 
@@ -145,20 +257,45 @@ npm run dev:watch                  # mock API + rebuild + serve :4173
 The Workspace check contract is `project-checks.json`. Run `python3 scripts/check.py --list` to review it; execute selected checks only with the returned `--execute-reviewed <review_digest>` and any required write/network flags. The runner does not provide OS sandboxing. Existing npm commands remain available below.
 
 ```bash
-npm run build                    # must produce dist/
-npm run lint                     # JS in public/ and all functions
+npm run check                    # astro check: types of components, props and endpoints
+npm run build                    # must produce dist/ (NODE_ENV selects production, staging, development)
+npm run lint                     # src/ (js, ts, astro), astro.config.mjs and all functions
 npm run test:lead-fn             # durable storage, Telegram failure paths, metrics export deadline (needs openssl)
 npm run test:schedule-fn         # schedule contract, Fitbase and synthetic adapters
 npm run test:site-traffic        # page-view validation/classification/logging contract
 npm run test:staging-authorizer  # staging Basic auth
-npm run test:scripts             # build, deploy, monitoring and import scripts
-npm run test:layout              # focused layout tests and page markup checks
-npm run test:build               # build + smoke check dist/
-npm run test:build:staging       # protected staging build
+npm run test:scripts             # build, deploy, monitoring, import, parity and converter scripts
+npm run test:build               # astro check + build + check-routes + check-build (full profile a)
+npm run test:build:staging       # protected staging build with the same guards
+npm run compare:dist -- --base-sha <legacy SHA> --candidate-sha HEAD --profile a --mode production --snapshot src/data/map-photos.json
+npm run compare:dist -- --base-sha <legacy SHA> --candidate-sha HEAD --profile a --mode staging --snapshot src/data/map-photos.json
+npm run maps:snapshot            # refresh src/data/map-photos.json from Yandex Maps (network)
 ```
 
+`compare:dist` builds both commits in disposable worktrees (`npm ci` inside) and
+needs the network once; `HEAD` is accepted only as the candidate and only
+locally — CI passes explicit SHAs. Every check runs the full profile `a` from
+`scripts/deploy.config.json`: 41 HTML routes and 40 sitemap URLs; the partial
+profile `a1` of stage A1 no longer exists. The legacy base SHA is
+`PARITY_BASE_SHA` in `.github/workflows/quality.yml`, and the base is built
+from that commit: the tree itself has no legacy build.
+`compare-dist` first holds the legacy inputs (`public/`, `scripts/snippets/`,
+`scripts/build-static.cjs` and the three configs the legacy build reads) to
+that base. The candidate tree no longer carries them, so that part of the
+report says `skipped`; what applies is the history: the base must be an
+ancestor of the candidate, and every commit merged since the base that still
+carries the legacy build must carry the inputs of the base. After release A
+the base is an ancestor of the release commit and no later commit carries the
+legacy build, so this part passes by itself; it guarded the migration branch
+while fixes of the live site were still merged into it from `main`. The
+comparison also accounts for every file of both builds, so a file that legacy
+shipped by copying `public/` must exist in the Astro build with the same
+bytes.
+The converter tests read the legacy pages from the pinned base. A shallow
+checkout does not have that commit and skips them with a reason; the
+`compare-dist` job has the whole history and runs them with
+`REQUIRE_LEGACY_BASE=1`, where a missing base is a failure.
 `test:monitoring` and `test:lead-import` run subsets of `test:scripts` when only that area changed.
-The tests and checks from `test:layout` are also covered by `test:scripts` and `test:build`.
 
 Manual smoke:
 
@@ -185,10 +322,14 @@ From `TODO.md` — keep current identity:
 ## Common mistakes
 
 1. Editing `dist/` directly — changes are lost on next build
-2. Copy-pasting footer/header across every page — use snippets/markers
-3. Forgetting `build-static` before deploy — app badges/OG/analytics missing
-4. Breaking marker comments — build skips injection silently
-5. Pushing to `main` — it starts a release (staging, E2E, then production); work on a branch and open a pull request
+2. Copy-pasting footer/header into pages — use `Footer.astro`, `Menu.astro` and the other components; a block that does not fit the component contract goes to `scripts/migrate/manual.json` with a reason
+3. Changing `src/pages/**`, `src/content/trainers/*.json`, the site stylesheet or a browser script while the parity tooling of release A is still switched on — the converter test and the `compare-dist` job fail, although the required `quality` check stays green; the follow-up to release A that removes the converter and re-pins or retires the comparison comes first or in the same pull request (see Stack)
+4. Reformatting `src/layouts`, `src/components` or `src/pages` — the whitespace is part of the parity contract and `compare-dist` fails
+5. Raw `U+00A0` or HTML comments inside component children in `.astro` templates — the compiler rewrites the first and drops the second; use `&nbsp;` and `set:html`
+6. Putting a file into `public/` at the path of a route (a page, a trainer page, `robots.txt`, `sitemap.xml`, `/js/*-config.js`) — Astro ships the file instead of the route and only warns; `check-build` fails
+7. Pushing to `main` — it starts a release (staging, E2E, then production); work on a branch and open a pull request
+8. Turning Vite's CSS minification back on, or setting `build.cssTarget` or a browser `build.target` — stylesheets get media range syntax and old Safari and Chrome lose the responsive layout; a config test, `check-build` and `compare-dist` fail
+9. Rolling a release back by hand (an upload to the bucket, `skip_staging`, a moved tag) — a rollback is a `git revert` pull request that goes through the normal release: staging, E2E, production (`knowledge-base/staging-runbook.md`, "Frontend rollback")
 
 ## Git branches
 
@@ -198,7 +339,19 @@ From `TODO.md` — keep current identity:
 
 ## Pages
 
-`public/**/index.html` plus `404.html`: home, service pages (`personalnye-trenirovki`, `gruppovye-trenirovki`, `parnye-trenirovki`, `pilates-na-reformere/*`, `trenazhernyj-zal/*`), `klubnaya-karta`, `raspisanie`, `forma-dlya-zayavki`, `trenery/*` (index + one page per trainer), `promos/*`, legal (`privacy`, `offer`, `payment-policy`), `contacts/platforms`. `public/sitemap.xml` lists every indexable page and is maintained by hand: update it when adding or removing a page.
+`src/pages/**/index.astro` plus `404.astro`, each page exporting
+`sitemap = { updated, changefreq, priority }`: home, service pages
+(`personalnye-trenirovki`, `gruppovye-trenirovki`, `parnye-trenirovki`,
+`pilates-na-reformere/*`, `trenazhernyj-zal/*`), `klubnaya-karta`,
+`raspisanie`, `forma-dlya-zayavki`, `trenery/` (index), `promos/*`, legal
+(`privacy`, `offer`, `payment-policy`), `contacts/platforms`. The 21 trainer
+pages come from `src/content/trainers/*.json` through
+`src/pages/trenery/[slug].astro`. `src/pages/sitemap.xml.ts` and
+`robots.txt.ts` generate the crawl files, so there is no hand-written sitemap.
+All of them were generated by
+`node scripts/migrate/html-to-astro.cjs --ref <legacy SHA> --all --force`; the
+legacy export they came from is no longer in the tree and is read from the
+pinned base in git history.
 
 ## Docs index
 
@@ -213,6 +366,7 @@ From `TODO.md` — keep current identity:
 | `docs/monitoring-operations.md`     | Log selectors, retention, incident runbook          |
 | `docs/site-traffic-analytics.md`    | Stateless page views and traffic classes            |
 | `docs/utm-attribution-marketing.md` | UTM for marketing team                              |
+| `docs/astro-migration.md`           | Astro migration: invariants, stages, parity contract |
 | `docs/future/`                      | Ideas and discovery plans not approved for work yet |
 | `knowledge-base/_index.md`          | Technical runbooks and page ownership               |
 | `TODO.md`                           | UI/UX + infra backlog with priorities               |

@@ -2,3 +2,7 @@
 /artifacts
 /node_modules
 .eslintrc.js
+# Parity-critical templates keep legacy whitespace; see docs/astro-migration.md section 4
+src/pages/**/*.astro
+src/layouts/**/*.astro
+src/components/**/*.astro

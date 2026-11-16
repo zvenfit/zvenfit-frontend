@@ -1,0 +1,7 @@
+---
+// Technical page-view beacon. The config endpoint must load before the beacon:
+// traffic-beacon.js reads window.ZVENFIT_TRAFFIC_API as soon as it runs.
+import trafficBeacon from '../scripts/traffic-beacon.js?url';
+---
+<script src="/js/traffic-config.js" defer is:inline></script>
+  <script src={trafficBeacon} defer is:inline></script>

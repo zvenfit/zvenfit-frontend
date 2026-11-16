@@ -1,8 +1,14 @@
 # ZvenFit Frontend
 
 Статический сайт ZvenFit, serverless-функции и надёжное хранение заявок в YDB Serverless.
-Разметка изначально пришла из Webflow-экспорта, но Webflow больше не используется: источник
-истины — `public/`, страницы правятся прямо в репозитории.
+Сайт собирается Astro в статический `dist/`: страницы в `src/pages`, общая разметка в
+`src/layouts` и `src/components`, данные в `src/content` и `src/data`. Разметка
+изначально пришла из Webflow-экспорта; релиз A перенёс её в Astro со строгим паритетом
+([план](docs/astro-migration.md)). Все 41 маршрут собираются
+из Astro: 20 страниц в `src/pages` и 21 страница тренера из коллекции `src/content/trainers`.
+Прежней сборки (`scripts/build-static.cjs`) и экспорта в `public/` в репозитории больше нет:
+они остались в истории git, в закреплённой базе сравнения. В `public/` лежит только статика,
+которую Astro копирует в `dist/` как есть.
 
 - Инструкции для контрибьюторов и AI-агентов: [`AGENTS.md`](AGENTS.md)
 - Связь с Personal AI Workspace и запуск проверок: [`docs/personal-ai-workspace.md`](docs/personal-ai-workspace.md)
@@ -27,10 +33,12 @@ npm ci --prefix functions/lead-intake
 npm ci --prefix functions/fitbase-schedule
 npm ci --prefix functions/site-traffic
 npm ci --prefix functions/staging-authorizer
-npm run dev:watch
+npm run dev
 ```
 
-Локально сайт открывается на `http://localhost:4173`, mock API — на `http://localhost:3000`.
+Нужен Node ≥ 22.23.4 (`.nvmrc`). Локально Astro dev открывается на `http://localhost:4173`,
+mock API — на `http://localhost:3000`. `npm run dev:dist` собирает сайт в режиме development
+и раздаёт готовый `dist/` на том же порту с тем же mock API.
 Локальный mock-server использует staging-артефакт с динамическими синтетическими данными. Для live Fitbase локально
 явно задай `SCHEDULE_PROVIDER=fitbase` и `FITBASE_API_TOKEN` в `.env.development`; этот переключатель существует
 только в локальном сервере и не попадает в cloud runtime.
@@ -54,7 +62,7 @@ Browser page-view beacon → stateless site-traffic function → Cloud Logging �
 
 Local development
   ├─ mock-server :3000
-  └─ static site :4173
+  └─ astro dev :4173
 ```
 
 Заявка считается принятой после сохранения в YDB. Telegram служит каналом уведомления: при временном сбое retry timer повторит доставку сохранённой заявки.
@@ -68,14 +76,19 @@ production и публикует тег версии. Подробности и 
 
 | Зона                      | Источник                                               |
 | ------------------------- | ------------------------------------------------------ |
-| Статические страницы      | `public/`                                              |
-| Lead form                 | `public/forma-dlya-zayavki/`, `public/js/lead-form.js` |
-| Расписание                | `public/raspisanie/`, `public/js/schedule.js`          |
+| Страницы                  | `src/pages/` (пока не удалён конвертер, обязаны совпадать с его выводом: см. ниже) |
+| Тренеры                   | `src/content/trainers/*.json`, шаблон `src/pages/trenery/[slug].astro` |
+| Общая разметка            | `src/layouts/Base.astro`, `src/components/`             |
+| Данные сайта              | `src/data/` (ссылки на приложения, карты, JSON-LD, снимок фото карт) |
+| Статика как есть          | `public/` (два SVG-логотипа); файл с путём маршрута класть нельзя |
+| Lead form                 | `src/pages/forma-dlya-zayavki/`, `src/scripts/lead-form.js` |
+| Расписание                | `src/pages/raspisanie/`, `src/scripts/schedule.js`      |
 | Lead API / YDB / Telegram | `functions/lead-intake/src/`                           |
 | Fitbase API               | `functions/fitbase-schedule/src/`                      |
 | Staging Basic authorizer  | `functions/staging-authorizer/src/`                    |
-| Техническая посещаемость  | `public/js/traffic-beacon.js`, `functions/site-traffic/` |
-| Build и HTML-инъекции     | `scripts/build-static.cjs`, `scripts/snippets/`        |
+| Техническая посещаемость  | `src/scripts/traffic-beacon.js`, `functions/site-traffic/` |
+| Сборка и эндпоинты конфигов | `astro.config.mjs`, `src/pages/js/*-config.js.ts`, `src/pages/sitemap.xml.ts`, `src/pages/robots.txt.ts` |
+| Конвертер и паритет       | `scripts/migrate/`, `scripts/compare-dist.cjs`, `scripts/parity-allowlist.json` |
 | Release: staging → E2E → production | `.github/workflows/main.yml`                 |
 | Ручной staging + E2E без релиза     | `.github/workflows/staging.yml`              |
 
@@ -84,11 +97,27 @@ Staging Playwright tests and their fail-closed config live in
 frontend deploy workflows call that repository's reusable workflow at the same
 immutable commit SHA after the staging deploy.
 
-`dist/` генерируется и не редактируется вручную. После изменений HTML, CSS, JS или build-конфигурации запускай `npm run build` либо используй `npm run dev:watch`.
+`dist/` генерируется и не редактируется вручную. После изменений в `src/` запускай `npm run build`
+(режим берётся из `NODE_ENV`: production, staging, development) либо используй `npm run dev`.
+Шаблоны в `src/layouts`, `src/components` и `src/pages` воспроизводят пробелы legacy-разметки
+байт в байт: их не форматируют, иначе падает `compare:dist`.
+
+Релиз A вышел со строгим паритетом, и его проверки ещё включены: тест сверяет страницы и записи
+тренеров с выводом конвертера, а job `compare-dist` сравнивает сборку с закреплённой legacy-базой.
+Правка разметки, текста, основной таблицы стилей или браузерного скрипта роняет обе проверки, хотя
+обязательная `quality` остаётся зелёной. Первая такая правка делается после PR, который удаляет
+конвертер с тестами и решает, с чем `compare-dist` сравнивает дальше, либо вместе с ним
+([план](docs/astro-migration.md), «Этап A3»). Срочное исправление сайта (форма заявки, цена,
+юридический текст) этого PR не ждёт: `compare-dist` не обязательная проверка, такое исправление
+сливается с красным job, и в его PR об этом сказано.
+
+Откат релиза: PR с `git revert` через обычный релиз, рецепт в
+[`knowledge-base/staging-runbook.md`](knowledge-base/staging-runbook.md#frontend-rollback).
 
 ## Проверки
 
 ```bash
+npm run check
 npm run lint
 npm run test:lead-fn
 npm run test:schedule-fn
@@ -100,7 +129,11 @@ npm run test:build:staging
 ```
 
 `test:scripts` покрывает все тесты `scripts/__tests__/`; `test:monitoring` и
-`test:lead-import` запускают их подмножества.
+`test:lead-import` запускают их подмножества. Паритет с закреплённой legacy-базой
+проверяет `npm run compare:dist -- --base-sha <SHA> --candidate-sha HEAD --profile a --mode production --snapshot src/data/map-photos.json`
+(и то же с `--mode staging`); в CI это job `compare-dist` с явными SHA. База собирается из своего
+коммита, поэтому нужна полная история репозитория. Тесты конвертера читают legacy-страницы из
+той же базы: в мелком клоне они пропускаются с причиной, job `compare-dist` запускает их обязательно.
 
 После production deploy выполни smoke-test. Он проверяет страницы,
 runtime-конфиги, CORS lead API, schedule API и пишет один page view класса
@@ -122,6 +155,7 @@ npm run smoke:production
 | [`docs/monitoring-operations.md`](docs/monitoring-operations.md)         | Договорённости, ссылки, готовые log-селекторы и incident runbook                     |
 | [`docs/site-traffic-analytics.md`](docs/site-traffic-analytics.md)       | Stateless page views, traffic classes и dashboard Monium                            |
 | [`docs/utm-attribution-marketing.md`](docs/utm-attribution-marketing.md) | UTM-разметка для маркетинга                                                         |
+| [`docs/astro-migration.md`](docs/astro-migration.md)                     | Миграция на Astro: инварианты, этапы, контракт паритета, откат                      |
 | [`docs/future/README.md`](docs/future/README.md)                         | Несогласованные будущие инициативы и discovery-планы                                |
 
 `knowledge-base/` хранится вместе с кодом и может публиковаться только в Git-репозиторий этого проекта. Её нельзя синхронизировать с Wiki, DataCatalog или другой внешней базой знаний. Перед коммитом в ней не должно быть секретов, персональных данных, реальных `.env*` или ключей сервисных аккаунтов.

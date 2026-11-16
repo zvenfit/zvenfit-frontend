@@ -1,0 +1,56 @@
+{
+  "wfPage": "6a60453d4efb11f2dfd4a7b2",
+  "name": "Наталья Илларионова",
+  "nameDative": "наталье",
+  "jobTitle": "Тренер групповых программ",
+  "location": "nahabinskoe-shosse",
+  "headingHtml": "Илларионова Наталья Николаевна",
+  "roleHtml": "Тренер групповых программ<br>",
+  "photoClass": "nataly",
+  "groups": [
+    {
+      "heading": "направления:",
+      "itemsHtml": [
+        "Функциональный тренинг с\u00a0использованием подвесного оборудования (гамак )",
+        "Развитие когнитивных навыков (память, внимание, скорость мышления и реакций, межполушарное взаимодействие, координация, баланс)"
+      ]
+    },
+    {
+      "heading": "образование:",
+      "itemsHtml": [
+        "Психолог, Нейропсихолог, МГППУ, 2016\u00a0г",
+        "Пилатес и\u00a0здоровые суставы в\u00a0гамаках, июнь\u00a02016",
+        "Antigravity\u00a01&amp;2, 2016",
+        "Antigravity Yoga, 2017",
+        "Unifly base, 2018",
+        "Unifly Flex, 2019",
+        "Unifly spa, 2020",
+        "AquaFlat Function training, 2021",
+        "Нейрофитнес 1&amp;2, 2023 (Wellnesstefani)"
+      ]
+    },
+    {
+      "heading": "достижения:",
+      "itemsHtml": [
+        "Финалист Конкурса &quot;Лучший психолог 2020 года&quot;, Москва",
+        "Финалист конкурса комплексных программ в\u00a0области психологии, образования и\u00a0молодежной политики Росконгресс и\u00a0АСИ",
+        "Финалист конкурса межрегиональных практик, 2025, Санкт-Петербург",
+        "Стаж работы с\u00a02017\u00a0г"
+      ]
+    }
+  ],
+  "nextSlug": "trener-anastasiya-dachevskaya",
+  "updated": "2026-08-01",
+  "sitemap": {
+    "changefreq": "monthly",
+    "priority": "0.6"
+  },
+  "meta": {
+    "title": "Тренер: Наталья Илларионова",
+    "description": "Тренер групповых программ ZvenFit Звенигород"
+  },
+  "legacy": {
+    "markup": "handwritten",
+    "webflowComments": "<!--  This site was created in Webflow. https://webflow.com  --><!--  Last Published: Sun Jul 26 2026 11:07:12 GMT+0000 (Coordinated Universal Time)  -->"
+  }
+}

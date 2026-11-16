@@ -1,0 +1,84 @@
+---
+import Analytics from '../../components/Analytics.astro';
+import Menu from '../../components/Menu.astro';
+import Base from '../../layouts/Base.astro';
+
+export const sitemap = { updated: '2026-07-06', changefreq: 'weekly', priority: '0.85' };
+---
+<Base title="Акции ZvenFit — скидки и спецпредложения в Звенигороде" description="Все акции фитнес-клуба ZvenFit: скидка 15% за приложение, пробная тренировка 1000₽, рассрочка 0%, скидка на две карты. Звенигород." gtm="bare">
+  <div class="grain-overlay"></div>
+  <Menu variant="plain" logoLabel="ZvenFit — на главную" secondary={{"label":"оставить заявку","href":"/forma-dlya-zayavki/","block":4}} />
+  <div data-hover="false" data-delay="0" class="dropdown2 w-dropdown">
+    <div class="dropdown-toggle w-dropdown-toggle">
+      <div class="icon-5 w-icon-dropdown-toggle"></div>
+      <div class="text-block-2">меню</div>
+    </div>
+    <nav class="dropdown-list w-dropdown-list">
+      <a href="/promos/apps/" class="dropdown-link w-dropdown-link">Скидка за приложение</a>
+      <a href="/forma-dlya-zayavki/" class="dropdown-link w-dropdown-link">Оставить заявку</a>
+      <a href="tel:+79253082323" class="dropdown-link w-dropdown-link">Позвонить нам</a>
+      <a href="/" class="dropdown-link w-dropdown-link">На главную</a>
+    </nav>
+  </div>
+  <section>
+    <div class="cover_text promos-hub__intro">
+      <h1 class="h1-page">Акции <span class="text-span-3">ZvenFit</span></h1>
+      <p class="p1 left">Скидки, пробные занятия и&nbsp;выгодные условия — собрали всё в&nbsp;одном месте. Выберите предложение и&nbsp;запишитесь в&nbsp;клуб.</p>
+      <a href="/forma-dlya-zayavki/" class="button page w-button">оставить заявку</a>
+    </div>
+  </section>
+  <div class="divider"></div>
+  <section class="promos-hub" aria-label="Список акций">
+    <div class="promos-hub__grid">
+      <a href="/promos/apps/" class="promos-card promos-card--featured">
+        <span class="promos-card__eyebrow slash-prefix">приложение</span>
+        <div class="promos-card__headline">
+          <span class="promos-card__value promos-card__value--accent" aria-hidden="true">15%</span>
+          <div class="promos-card__copy">
+            <h2 class="promos-card__title">Скидка на&nbsp;первый абонемент</h2>
+            <p class="promos-card__desc">Скачайте приложение ZvenFit — администратор применит скидку 15% при покупке абонемента на&nbsp;ресепшене. Один раз на&nbsp;первый абонемент.</p>
+          </div>
+        </div>
+        <span class="promos-card__link">Подробнее об&nbsp;акции</span>
+      </a>
+      <a href="/forma-dlya-zayavki/" class="promos-card">
+        <span class="promos-card__eyebrow slash-prefix">новым клиентам</span>
+        <span class="promos-card__value" aria-hidden="true">1000₽</span>
+        <h2 class="promos-card__title">Пробная тренировка</h2>
+        <p class="promos-card__desc">Первое занятие в&nbsp;зале, с&nbsp;тренером или в&nbsp;мини-группе — для тех, кто ещё не&nbsp;был в&nbsp;ZvenFit.</p>
+        <span class="promos-card__link">Записаться</span>
+      </a>
+      <a href="/pilates-na-reformere/" class="promos-card promos-card--purple">
+        <span class="promos-card__eyebrow slash-prefix">пилатес</span>
+        <span class="promos-card__value promos-card__value--purple" aria-hidden="true">1000₽</span>
+        <h2 class="promos-card__title">Пробное на&nbsp;реформере</h2>
+        <p class="promos-card__desc">Познакомьтесь с&nbsp;пилатесом на&nbsp;реформере — первое занятие по&nbsp;специальной цене.</p>
+        <span class="promos-card__link">О&nbsp;пилатесе</span>
+      </a>
+      <a href="/trenazhernyj-zal/" class="promos-card">
+        <span class="promos-card__eyebrow slash-prefix">фитнес-зал</span>
+        <span class="promos-card__value promos-card__value--accent" aria-hidden="true">−20%</span>
+        <h2 class="promos-card__title">Две карты — скидка</h2>
+        <p class="promos-card__desc">При покупке двух абонементов в&nbsp;тренажёрный зал — скидка 20%. Идеально для&nbsp;семьи или&nbsp;друзей.</p>
+        <span class="promos-card__link">Тренажёрный зал</span>
+      </a>
+      <a href="/trenazhernyj-zal/" class="promos-card">
+        <span class="promos-card__eyebrow slash-prefix">оплата</span>
+        <span class="promos-card__value promos-card__value--accent" aria-hidden="true">0%</span>
+        <h2 class="promos-card__title">Рассрочка от&nbsp;клуба</h2>
+        <p class="promos-card__desc">Беспроцентная рассрочка напрямую от&nbsp;ZvenFit — без банков и&nbsp;переплат. Условия на&nbsp;ресепшене.</p>
+        <span class="promos-card__link">Подробнее</span>
+      </a>
+      <a href="/personalnye-trenirovki/" class="promos-card">
+        <span class="promos-card__eyebrow slash-prefix">персональные</span>
+        <span class="promos-card__tag">бонус</span>
+        <h2 class="promos-card__title">План питания в&nbsp;подарок</h2>
+        <p class="promos-card__desc">При покупке пакета персональных тренировок тренер составит индивидуальный план питания.</p>
+        <span class="promos-card__link">Персональные тренировки</span>
+      </a>
+    </div>
+    <p class="promos-hub__footnote">* Условия акций могут меняться. Актуальность уточняйте у&nbsp;администратора на&nbsp;ресепшене или&nbsp;по&nbsp;телефону <a href="tel:+79253082323">+7 (925) 308-23-23</a>.</p>
+  </section>
+  <Fragment slot="scripts">
+  <Analytics placement="body" gtm="bare" />
+</Fragment></Base>

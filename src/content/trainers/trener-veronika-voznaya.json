@@ -1,0 +1,45 @@
+{
+  "wfPage": "6a603456908ff9b4a2c8310c",
+  "name": "Вероника Возная",
+  "nameDative": "веронике",
+  "jobTitle": "Тренер групповых программ",
+  "location": "nahabinskoe-shosse",
+  "headingHtml": "Возная Вероника Владимировна",
+  "roleHtml": "Тренер групповых программ<br>",
+  "photoClass": "veron",
+  "groups": [
+    {
+      "heading": "образование:",
+      "itemsHtml": [
+        "&quot;Персональный тренер по фитнесу&quot;, 2020<br>",
+        "&quot;Инструктор групповых программ&quot;, 2023<br>",
+        "&quot;Методики и техники лечебной физкультуры&quot;, 2024<br>",
+        "Стаж работы с\u00a02023\u00a0года<br>"
+      ]
+    },
+    {
+      "heading": "Сертификаты:",
+      "itemsHtml": [
+        "&quot;Active easy stretch&quot;, 2023<br>",
+        "&quot;Beast feat&quot;, 2023<br>",
+        "&quot;Hot Iron/Iron Cross&quot;, 2023<br>",
+        "&quot;Мануальное мышечное тестирование для\u00a0массажистов и\u00a0реабилитологов&quot;, 2024<br>",
+        "&quot;CardioStrike&quot;, 2025<br>"
+      ]
+    }
+  ],
+  "nextSlug": "trener-nadezhda-alekseeva",
+  "updated": "2026-08-01",
+  "sitemap": {
+    "changefreq": "monthly",
+    "priority": "0.6"
+  },
+  "meta": {
+    "title": "Тренер: Вероника Возная",
+    "description": "Тренер групповых программ ZvenFit Звенигород"
+  },
+  "legacy": {
+    "markup": "handwritten",
+    "webflowComments": "<!--  This site was created in Webflow. https://webflow.com  --><!--  Last Published: Sun Jul 26 2026 11:07:12 GMT+0000 (Coordinated Universal Time)  -->"
+  }
+}

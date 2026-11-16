@@ -1,0 +1,59 @@
+---
+import Analytics from '../components/Analytics.astro';
+import Footer from '../components/Footer.astro';
+import Menu from '../components/Menu.astro';
+import Base from '../layouts/Base.astro';
+---
+<Base title="Страница не найдена — ZvenFit Звенигород" description="Запрошенная страница не существует. Вернитесь на главную фитнес-клуба ZvenFit или оставьте заявку." robots="noindex, follow" gtm="bare" hasMaps trackViews={false}>
+  <div class="grain-overlay"></div>
+  <Menu variant="plain" secondary={{"label":"оставить заявку","href":"/forma-dlya-zayavki/","block":4}} />
+  <div data-hover="false" data-delay="0" class="dropdown2 w-dropdown">
+    <div class="dropdown-toggle w-dropdown-toggle">
+      <div class="icon-5 w-icon-dropdown-toggle"></div>
+      <div class="text-block-2">меню</div>
+    </div>
+    <nav class="dropdown-list w-dropdown-list">
+      <a href="/" class="dropdown-link w-dropdown-link">На главную</a>
+      <a href="/forma-dlya-zayavki/" class="dropdown-link w-dropdown-link">Оставить заявку</a>
+      <a href="/contacts/platforms/" class="dropdown-link w-dropdown-link">Где нас найти</a>
+      <a href="#contacts" class="dropdown-link w-dropdown-link">Контакты</a>
+    </nav>
+  </div>
+  <section>
+    <div class="cover_text">
+      <h1 class="h1-page"><span class="text-span-3">404</span> — страница не найдена</h1>
+      <p class="p1 left">Такой страницы нет или ссылка устарела. Перейдите на главную, оставьте заявку или загляните в контакты.</p>
+      <a href="/" class="button page w-button">на главную</a>
+      <a href="/forma-dlya-zayavki/" class="button page w-button">оставить заявку</a>
+    </div>
+  </section>
+  <div class="divider"></div>
+  <section class="card_grid">
+    <h2 class="heading-page"><span class="text-span">куда</span> дальше</h2>
+    <div class="cat_card areas_page">
+      <div class="text_categ">
+        <h3 class="text-block">Карты и мессенджеры</h3>
+        <p class="body_txt"><strong class="bold-text-2">Все ссылки на клуб в одном месте — Яндекс, 2ГИС, соцсети</strong></p>
+      </div>
+      <a href="/contacts/platforms/" class="button areas w-button">перейти</a>
+    </div>
+    <div class="cat_card areas_page">
+      <div class="text_categ">
+        <h3 class="text-block">Тренеры</h3>
+        <p class="body_txt"><strong class="bold-text-2">Команда ZvenFit — выберите тренера или инструктора</strong></p>
+      </div>
+      <a href="/trenery/" class="button areas w-button">перейти</a>
+    </div>
+    <div class="cat_card areas_page">
+      <div class="text_categ">
+        <h3 class="text-block">Фитнес-зал</h3>
+        <p class="body_txt"><strong class="bold-text-2">Тренажёрный зал, абонементы и форматы тренировок</strong></p>
+      </div>
+      <a href="/trenazhernyj-zal/" class="button areas w-button">перейти</a>
+    </div>
+  </section>
+  <div class="divider"></div>
+  <Footer withGrid anchorId="contacts" mobileAnchorId="contact" />
+  <Fragment slot="scripts">
+  <Analytics placement="body" gtm="bare" />
+</Fragment></Base>
