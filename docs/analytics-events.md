@@ -57,9 +57,9 @@
 ## Подключение и кэш
 
 Base.astro подключает один `defer is:inline`-скрипт из `src/scripts/analytics.js?url`
-в head. URL имеет хеш содержимого `/_astro/analytics.<hash>.js`. Legacy-копия
-`public/js/analytics.js` с `ASSET_VERSION` живёт только в `main` до релиза A:
-в ветке миграции её нет с этапа A2b, а сравнение идёт с закреплённой базой.
+в head. URL имеет хеш содержимого `/_astro/analytics.<hash>.js`. Legacy-копии
+`public/js/analytics.js` с `ASSET_VERSION` с релиза A в репозитории нет: она
+осталась в истории git, сравнение идёт с закреплённой базой.
 Существующий порядок выкладки ассетов и HTML сохраняется.
 Astro development/staging отключают production-теги. Legacy development сохраняет
 GTM и счётчики: для проверки legacy использовать staging или блокировать внешние теги.
