@@ -159,6 +159,9 @@ test('rejects a missing, duplicated or non-deferred analytics event loader', () 
     assert.deepEqual(problems({ ...SITE, 'offer/index.html': distPage().replace(script, replacement) }), ['offer/index.html must have 1 hashed analytics event loader(s)']);
   }
   assert.deepEqual(problems({ ...SITE, 'offer/index.html': distPage().replace(script, script.replace(' defer', '')) }), ['offer/index.html analytics event loader must be deferred in head']);
+  // A browser reads tag names in any case, so a second loader in capitals is a duplicate as well.
+  const capitals = script.replace('<script', '<SCRIPT').replace('</script>', '</SCRIPT>');
+  assert.deepEqual(problems({ ...SITE, 'offer/index.html': distPage().replace(script, script + capitals) }), ['offer/index.html must have 1 hashed analytics event loader(s)']);
 });
 
 test('the built site stylesheet must be the legacy minification and no stylesheet may use range media queries', () => {

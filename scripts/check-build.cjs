@@ -160,7 +160,7 @@ function checkPage(route, html, { mode, siteCss, errors }) {
   if (html.includes('/js/traffic-config.js?v=') || /\/js\/[a-z]+-config\.js\?v=/.test(html)) {
     errors.push(`${route} versions a runtime config with ?v=; configs are served with no-cache`);
   }
-  const eventScripts = [...html.matchAll(/<script\b[^>]*>/g)].filter(match => hashedAsset('analytics.js').test(match[0]));
+  const eventScripts = [...html.matchAll(/<script\b[^>]*>/gi)].filter(match => hashedAsset('analytics.js').test(match[0]));
   const expectedEvents = route === '404.html' ? 0 : 1;
   if (eventScripts.length !== expectedEvents) {
     errors.push(`${route} must have ${expectedEvents} hashed analytics event loader(s)`);
