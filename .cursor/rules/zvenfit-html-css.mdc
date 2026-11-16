@@ -21,11 +21,12 @@ alwaysApply: false
 ## Static files (`public/`)
 
 - Copied to `dist/` as they are; today these are two SVG logos in `public/images/`
-- No pages, styles or scripts here: the legacy export left the branch in stage A2b. A
-  file at the path of a route (a page, `robots.txt`, `sitemap.xml`, `/js/*-config.js`)
-  replaces that route in the build; `check-build` fails on it
-- Fixes of the live site (lead form breakage, prices, legal texts) go through `main`
-  until release A; new content waits for release A
+- No pages, styles or scripts here: release A removed the legacy export. A file at the
+  path of a route (a page, `robots.txt`, `sitemap.xml`, `/js/*-config.js`) replaces that
+  route in the build; `check-build` fails on it
+- New content and fixes are changes of `src/`; while the parity tooling of release A is
+  still switched on they fail the converter test and the `compare-dist` job (see
+  `AGENTS.md`, Stack)
 
 ## CSS
 
