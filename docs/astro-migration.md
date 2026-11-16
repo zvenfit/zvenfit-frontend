@@ -143,8 +143,23 @@ Legacy-база общего контракта после слияния
 `src/pages/offer/index.astro` и `src/pages/privacy/index.astro` изменилась
 только эта строка. Остальные 18 страниц и 21 запись тренеров на новой базе
 конвертер выдаёт без изменений; `lastmod` обеих страниц в исправлении не
-менялся. Текущая legacy-база:
+менялся. Legacy-база после #106:
 `b4c7de821bedd2741605f194eaf8ed4334877086`.
+
+Закрепление ревизии автотестов из
+[PR #110](https://github.com/zvenfit/zvenfit-frontend/pull/110) (релиз `v3.1.4`)
+меняет только SHA `zvenfit-autotests` в `main.yml` и `staging.yml`: с `b7430bb`
+на `775c88461fc3fa2ae7de6274d2b2d6ad3ff788f0`
+([zvenfit-autotests#8](https://github.com/zvenfit/zvenfit-autotests/pull/8)).
+Legacy-входы не затронуты, переносить в `src/` нечего; слияние прошло без
+конфликтов, оба workflow получили правку как есть. С этой ревизии сетевой
+фильтр автотестов пропускает шрифты из
+`https://cdn.jsdelivr.net/fontsource/fonts/`: туда таблица стилей Bunny Fonts,
+которую импортирует сайт, теперь отправляет за файлами Roboto и Roboto
+Condensed. `quality.yml` и `production-smoke.yml` автотестов берут последний
+патч Node 22 (`check-latest`): условие этапа A3 про автотесты выполнено.
+Текущая legacy-база:
+`d5aeb4a95be8759028064da03b0f40e89ca38db7`.
 
 ## 1. Решение и его границы
 
@@ -353,7 +368,9 @@ B workflow деплоя не меняют. Очистка устаревших `
   Astro почти не применим, выигрыш по весу даёт скрипт на sharp с
   переписыванием CSS.
 - Шрифты: Roadrage как `roadrage.ttf` из бакета через `@font-face`; Roboto и
-  Roboto Condensed через `@import` с `fonts.bunny.net`. Вендорные файлы из
+  Roboto Condensed через `@import` с `fonts.bunny.net` (с ноября 2026 эта
+  таблица стилей ссылается на файлы шрифтов на
+  `cdn.jsdelivr.net/fontsource/fonts/`). Вендорные файлы из
   бакета: `normalize.min.css`, `webflow.min.css`, `jquery-3.5.1.min.js`,
   `webflow.js?v=`; с `unpkg.com` — `imask`.
 - `robots.txt` запрещает `/js/` и `/css/`; уже после релиза A под `/js/`
@@ -380,9 +397,10 @@ B workflow деплоя не меняют. Очистка устаревших `
   настройками по умолчанию, 5 с `allowLayoutResources`, из них 4 ещё и с
   `allowRuntimeResources`. Хелпер режет `image` и `media` всегда, остальное
   не с origin сайта блокирует и по флагам пропускает CSS и шрифты с хоста
-  бакета и `fonts.bunny.net` и `js/` с хоста бакета. Same-origin запросы
-  других типов проходят всегда. Пока вендорные CSS/JS и шрифты остаются в
-  бакете (до релиза B), условия тестов не меняются.
+  бакета, с `fonts.bunny.net` и, с ревизии `775c884`, из
+  `cdn.jsdelivr.net/fontsource/fonts/`, а также `js/` с хоста бакета.
+  Same-origin запросы других типов проходят всегда. Пока вендорные CSS/JS и
+  шрифты остаются в бакете (до релиза B), условия тестов не меняются.
 - Стабы `tests/support/api-stubs.ts` перехватывают `**/js/lead-config.js*` и
   `**/js/schedule-config.js*`; `traffic-config.js` не стабится.
 - Webflow-классы в локаторах: `.w-dropdown-list`, `.w-dropdown-toggle`,
@@ -390,7 +408,8 @@ B workflow деплоя не меняют. Очистка устаревших `
   маршруты берутся из `dist/sitemap.xml` (`<loc>https://zvenfit.ru/…`).
 - CI автотестов (`quality.yml`, ежедневный `production-smoke.yml`) чекаутит
   `zvenfit-frontend@main`, `npm ci`, `NODE_ENV=development npm run build` на
-  `node-version: '22'`, затем раздаёт `dist/`. Локальный прогон:
+  `node-version: '22'` (с ревизии `775c884` с `check-latest: true`), затем
+  раздаёт `dist/`. Локальный прогон:
   `ZVENFIT_FRONTEND_PATH=<checkout> npm run check` в `zvenfit-autotests`
   (`tsc --noEmit` и все спеки кроме `staging/**`), статический сервер отдаёт
   `<checkout>/dist`, ничего не собирает.
