@@ -1,10 +1,5 @@
 'use strict';
 
-// Builds the protected staging variant the way the deploy does (the deploy
-// job passes NODE_ENV and the API addresses; this script supplies them itself
-// because the quality job runs it without an environment) and then runs the
-// same guards as the deploy: routes, build contract, staging contract.
-
 const { spawnSync } = require('node:child_process');
 const path = require('node:path');
 
@@ -18,15 +13,13 @@ const environment = {
   ASSET_VERSION: process.env.ASSET_VERSION || 'staging-test',
 };
 
-const steps = [
-  ['npm', ['run', 'build']],
-  [process.execPath, [path.join(root, 'scripts', 'check-routes.cjs'), '--source', 'astro']],
-  [process.execPath, [path.join(root, 'scripts', 'check-build.cjs')]],
-  [process.execPath, [path.join(root, 'scripts', 'check-staging-build.cjs')]],
-];
+for (const script of ['build-static.cjs', 'check-routes.cjs', 'check-build.cjs', 'check-staging-build.cjs']) {
+  const result = spawnSync(process.execPath, [path.join(root, 'scripts', script)], {
+    cwd: root,
+    env: environment,
+    stdio: 'inherit',
+  });
 
-for (const [command, args] of steps) {
-  const result = spawnSync(command, args, { cwd: root, env: environment, stdio: 'inherit' });
   if (result.status !== 0) {
     process.exit(result.status || 1);
   }

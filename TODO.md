@@ -26,7 +26,7 @@ Agent guide: [`AGENTS.md`](AGENTS.md)
 
 - [ ] **Footer duplication**  
   `section-4` (desktop) + `section-3` (mobile): duplicate map + contacts + 2× Yandex iframe.  
-  С релиза A (Astro) разметка пары задана один раз в `Footer.astro` (`FooterDesktop`, `FooterMobile`), но на странице по-прежнему два блока и две карты. Один футер — задача после миграции ([план](docs/astro-migration.md), «После миграции»).
+  Отложено до перехода на шаблонизатор; затем вынести в единый template partial.
 
 - [ ] **Homepage social proof**  
   Testimonials block on `/` (reviews exist on service pages only).
@@ -41,8 +41,7 @@ Agent guide: [`AGENTS.md`](AGENTS.md)
 
 ## Medium (polish / SEO)
 
-- [x] **Auto-generate sitemap**
-  С релиза A `sitemap.xml` собирает `src/pages/sitemap.xml.ts`: страницы объявляют `export const sitemap`, тренеры берутся из коллекции; `check-routes` сверяет набор URL с маршрутами.
+- [ ] **Auto-generate sitemap** from `public/**/*.html` (manual `sitemap.xml` drifts).
 
 - [x] **Structured data — Organization logo**
   Organization JSON-LD использует отдельный квадратный брендовый logo asset 512×512.
@@ -64,12 +63,11 @@ Agent guide: [`AGENTS.md`](AGENTS.md)
 - [ ] **Живые фото на картах (`ymaps.findOrganization`)**
   На production вызов в браузере падает со `scriptError`: запрос к
   `api-maps.yandex.ru/services/search/v2` не проходит (проверено 2026-09-27).
-  Поэтому карты показывают фото из снимка `src/data/map-photos.json`: с релиза A
-  сборка сеть не трогает, снимок обновляет `npm run maps:snapshot` (страница
-  организации в Яндекс.Картах через `curl`). До релиза A то же самое делал
-  `build-static.cjs` на каждом деплое. Починить, а не выпиливать: проверить,
-  есть ли у `Y_MAPS_API_KEY` доступ к поиску по организациям, и вернуть живую
-  загрузку.
+  Поэтому карты показывают фото, которые `build-static.cjs` на каждом деплое
+  парсит со страницы организации в Яндекс.Картах через `curl`. Починить, а не
+  выпиливать: проверить, есть ли у `Y_MAPS_API_KEY` доступ к поиску по
+  организациям, и вернуть живую загрузку. Либо доработать сборочный путь:
+  хранить снимок фото в конфиге вместо парсинга на каждом деплое.
 
 - [ ] **Purple accent contrast** — `#b949ff` on `#1a1a1a` for small text (WCAG AA).
 
@@ -79,7 +77,7 @@ Agent guide: [`AGENTS.md`](AGENTS.md)
 
 - [x] `AGENTS.md` + `.cursor/rules/` for agent context
 - [x] `.env.example` for local dev
-- [x] `npm run lint` — lint `src/` + `functions`
+- [x] `npm run lint` — lint `public/js` + `functions`
 - [x] `npm run test:build` — build smoke check
 - [x] Durable lead storage in YDB + Telegram retry timer
 - [x] Lead function unit tests in CI
@@ -116,7 +114,7 @@ Agent guide: [`AGENTS.md`](AGENTS.md)
 - [x] Focus visible on all interactives
 - [ ] Footer/muted text contrast AA
 - [x] Test `prefers-reduced-motion: reduce`
-- [x] App badges present after the build
+- [x] App badges present after build-static
 - [x] Form IDs and a11y validated
 - [x] Built maps expose an accessible region label
 

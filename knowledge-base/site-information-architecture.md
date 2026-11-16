@@ -1,15 +1,13 @@
 ---
 type: reference
 title: ZvenFit site information architecture and pricing ownership
-updated: 2026-11-16
+updated: 2026-08-28
 ---
 
 # Site information architecture and pricing ownership
 
 This note records the responsibility of the main service pages and the agreed
-rules for placing tariff content. Since release A the editable site source is
-`src/`: the pages in `src/pages`, the trainer pages in
-`src/content/trainers` with the template `src/pages/trenery/[slug].astro`;
+rules for placing tariff content. The editable site source remains `public/`;
 generated files in `dist/` are not a source of truth.
 
 ## Page responsibilities

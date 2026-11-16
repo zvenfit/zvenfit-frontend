@@ -4,21 +4,15 @@
 // It proves the artifact is complete before the first `aws s3 sync`:
 // the HTML route set equals the source route set, the indexable routes
 // equal sitemap.xml, every runtime config and crawl file exists, and every
-// local /js, /css and /_astro reference resolves inside dist/. An empty or
-// partial build must never reach the bucket.
-//
-// Sources: `--source astro` (src/pages plus the trainer collection) for the
-// deploy profiles `a` and `b`, `--source public` for `legacy`. The deploy
-// workflow passes neither: the deploy test asserts the guard runs with the
-// defaults from scripts/deploy.config.json. The route set is always the whole
-// site, 404.html included.
+// local /js and /css reference resolves inside dist/. An empty or partial
+// build must never reach the bucket.
 
 const fs = require('node:fs');
 const path = require('node:path');
 
 const ROOT_DIR = path.join(__dirname, '..');
 const DEPLOY_CONFIG_PATH = path.join(__dirname, 'deploy.config.json');
-const STRUCTURED_DATA_PATH = path.join(ROOT_DIR, 'src', 'data', 'structured-data.config.json');
+const STRUCTURED_DATA_PATH = path.join(__dirname, 'structured-data.config.json');
 
 const REQUIRED_FILES = [
   'robots.txt',
@@ -67,7 +61,7 @@ function readSitemapLocations(sitemapPath) {
 
 function readLocalReferences(html) {
   const references = new Set();
-  for (const match of html.matchAll(/\b(?:src|href)=["'](\/(?:js|css|_astro)\/[^"'?#]+)/g)) {
+  for (const match of html.matchAll(/\b(?:src|href)=["'](\/(?:js|css)\/[^"'?#]+)/g)) {
     references.add(match[1]);
   }
   return references;
@@ -98,53 +92,6 @@ function expectedRoutesFromPublic(publicDir) {
   return routes;
 }
 
-// src/pages/offer/index.astro -> offer/index.html, src/pages/404.astro -> 404.html,
-// src/pages/foo.astro -> foo/index.html (build.format "directory"). Files and
-// directories starting with "_" are private and dynamic routes ([slug].astro)
-// come from the trainer collection instead.
-function astroPageToRoute(relativePath) {
-  const stem = relativePath.replace(/\.astro$/, '');
-  if (stem === 'index') {
-    return 'index.html';
-  }
-  if (stem === '404') {
-    return '404.html';
-  }
-  return `${stem.replace(/\/index$/, '')}/index.html`;
-}
-
-function isStaticRouteFile(file) {
-  return !file.split('/').some(segment => segment.startsWith('_')) && !/\[[^\]]+\]/.test(file);
-}
-
-function expectedRoutesFromAstro(pagesDir, contentDir) {
-  const pages = walkFiles(pagesDir, name => name.endsWith('.astro')).filter(isStaticRouteFile);
-  const routes = pages.map(astroPageToRoute);
-  const trainersDir = path.join(contentDir, 'trainers');
-  if (fs.existsSync(trainersDir)) {
-    for (const entry of fs.readdirSync(trainersDir).filter(name => name.endsWith('.json')).sort()) {
-      routes.push(`trenery/${entry.replace(/\.json$/, '')}/index.html`);
-    }
-  }
-  if (routes.length === 0) {
-    throw new Error(`check-routes: no Astro pages found in ${pagesDir}`);
-  }
-  const duplicates = routes.filter((route, index) => routes.indexOf(route) !== index);
-  if (duplicates.length > 0) {
-    throw new Error(`check-routes: Astro sources produce the same route twice: ${duplicates.join(', ')}`);
-  }
-  return routes.sort();
-}
-
-// An endpoint is built at its own path without the script extension:
-// src/pages/robots.txt.ts -> robots.txt, src/pages/js/lead-config.js.ts -> js/lead-config.js.
-function endpointFilesFromAstro(pagesDir) {
-  return walkFiles(pagesDir, name => /\.[jt]s$/.test(name) && !name.endsWith('.d.ts'))
-    .filter(isStaticRouteFile)
-    .map(file => file.replace(/\.[jt]s$/, ''))
-    .sort();
-}
-
 function verifyDist({ distDir, expectedRoutes, siteUrl }) {
   const errors = [];
   const distRoutes = listHtml(distDir);
@@ -152,10 +99,6 @@ function verifyDist({ distDir, expectedRoutes, siteUrl }) {
   if (!fs.existsSync(distDir) || fs.readdirSync(distDir).length === 0) {
     errors.push('dist is empty');
     return { errors, stats: { routes: 0, indexable: 0, references: 0 } };
-  }
-
-  if (!expectedRoutes.includes('404.html')) {
-    errors.push('sources define no 404.html route');
   }
 
   const routeDiff = diffSets(expectedRoutes, distRoutes);
@@ -212,23 +155,19 @@ function parseArguments(argv) {
 
 function run(argv = process.argv.slice(2)) {
   const options = parseArguments(argv);
-  const profile = readProfile();
-  const source = options.source || SOURCES_BY_PROFILE[profile];
+  const source = options.source || SOURCES_BY_PROFILE[readProfile()];
   const distDir = path.resolve(ROOT_DIR, options.dist || 'dist');
   const siteUrl = options.site || JSON.parse(fs.readFileSync(STRUCTURED_DATA_PATH, 'utf8')).siteUrl;
 
-  let expectedRoutes;
   if (source === 'astro') {
-    expectedRoutes = expectedRoutesFromAstro(
-      path.resolve(ROOT_DIR, options.pages || 'src/pages'),
-      path.resolve(ROOT_DIR, options.content || 'src/content'),
-    );
-  } else if (source === 'public') {
-    expectedRoutes = expectedRoutesFromPublic(path.resolve(ROOT_DIR, options.public || 'public'));
-  } else {
+    throw new Error('check-routes: --source astro is implemented in release A (src/pages + trainer collection)');
+  }
+  if (source !== 'public') {
     throw new Error(`check-routes: unknown source "${source}"`);
   }
 
+  const publicDir = path.resolve(ROOT_DIR, options.public || 'public');
+  const expectedRoutes = expectedRoutesFromPublic(publicDir);
   const { errors, stats } = verifyDist({ distDir, expectedRoutes, siteUrl });
 
   if (errors.length > 0) {
@@ -239,16 +178,13 @@ function run(argv = process.argv.slice(2)) {
   }
 
   console.log(
-    `check-routes: ${stats.routes} HTML route(s), ${stats.indexable} in sitemap, ${stats.references} local reference(s) verified in ${path.relative(ROOT_DIR, distDir) || 'dist'} (source ${source}, profile ${profile})`,
+    `check-routes: ${stats.routes} HTML route(s), ${stats.indexable} in sitemap, ${stats.references} local reference(s) verified in ${path.relative(ROOT_DIR, distDir) || 'dist'}`,
   );
 }
 
 module.exports = {
   REQUIRED_FILES,
   SOURCES_BY_PROFILE,
-  astroPageToRoute,
-  endpointFilesFromAstro,
-  expectedRoutesFromAstro,
   expectedRoutesFromPublic,
   readProfile,
   routeToUrl,
