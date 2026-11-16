@@ -224,12 +224,15 @@ SNAPSHOT_TOOL=yc bash scripts/snapshot-bucket.sh ~/zvenfit-bucket-snapshots
 - `SNAPSHOT_TOOL=yc` uses the active profile of the Yandex Cloud CLI and needs
   no static key. The CLI marks its `storage s3` and `storage s3api` commands
   as preview. Run it from an interactive terminal: the owner's profile
-  authenticates through the browser. As of 2026-11-16 this path has run only
-  against stand-ins of the CLI in the script's test, so its first real run is
-  its validation: the dry run lists what the copy would download and does not
-  exercise the listing or the verification. If the listing comes in a shape
-  the script cannot read, the run fails instead of passing; nothing in the
-  bucket is affected.
+  authenticates through the browser, and after that sign-in the cached token
+  serves later runs. The path was first run against the production bucket on
+  2026-11-16 with CLI 1.30.0, for the snapshot before release A: 61 objects,
+  every one verified by size and MD5. The listing came as `contents` with
+  `key`, `size` (a string), `etag` and `last_modified`. The dry run lists what
+  the copy would download and does not exercise the listing or the
+  verification. Should a later CLI print the listing in a shape the script
+  cannot read, the run fails instead of passing; nothing in the bucket is
+  affected.
 - Without `SNAPSHOT_TOOL` the script uses the AWS CLI (`aws s3 sync`) and its
   credential chain: `AWS_PROFILE`, or `AWS_ACCESS_KEY_ID` with
   `AWS_SECRET_ACCESS_KEY` and, for a temporary key, `AWS_SESSION_TOKEN`. The
