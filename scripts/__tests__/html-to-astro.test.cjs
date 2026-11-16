@@ -53,6 +53,20 @@ test('entities decode, braces and Unicode spaces are escaped outside raw text', 
     converter.escapeBracesOutsideRawText(html),
     '<p title="&#123;x&#125;">a &#123;b&#125; c&nbsp;d&#x2009;e</p><script>if (a) { b(); } </script><style>a{b}</style>',
   );
+  // Raw text is found the way a browser finds it: tag names in any case, an end tag with a tail.
+  const shouting = '{a}<SCRIPT TYPE="text/javascript">if (a) { b(); }</SCRIPT >{c}<Style>a{b}</STYLE\n>{d}';
+  assert.equal(converter.escapeBracesOutsideRawText(shouting), '&#123;a&#125;<SCRIPT TYPE="text/javascript">if (a) { b(); }</SCRIPT >&#123;c&#125;<Style>a{b}</STYLE\n>&#123;d&#125;');
+});
+
+test('only a run of comments may stand between the doctype and the html element', () => {
+  for (const run of ['', '<!-- a -->', '<!--  This site was created in Webflow. https://webflow.com  --><!--  Last Published: now  -->', '<!---->', '<!-->-->']) {
+    assert.equal(converter.isCommentRun(run), true, run);
+  }
+  for (const other of ['x', '<!-- a -->x', 'x<!-- a -->', '<!-- a --> <!-- b -->', '<!-- a --> x -->', '<!-- a', '<!--->', '<p><!-- a --></p>']) {
+    assert.equal(converter.isCommentRun(other), false, other);
+  }
+  // The expression this replaced needed exponential time on such an input.
+  assert.equal(converter.isCommentRun(`${'<!---->'.repeat(20000)}x`), false);
 });
 
 test('every script becomes is:inline once and comments are emitted through set:html', () => {

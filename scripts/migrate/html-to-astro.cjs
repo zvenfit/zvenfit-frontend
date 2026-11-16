@@ -95,10 +95,12 @@ function escapeBraces(text) {
 }
 
 // Escapes braces and Unicode spaces everywhere except inside <script>/<style>
-// raw text, which the Astro compiler already treats literally.
+// raw text, which the Astro compiler already treats literally. The tags are
+// matched as a browser reads them: in any case, with anything after the name
+// of the end tag.
 function escapeBracesOutsideRawText(html) {
   return html
-    .split(/(<script\b[^>]*>[\s\S]*?<\/script>|<style\b[^>]*>[\s\S]*?<\/style>)/)
+    .split(/(<script\b[^>]*>[\s\S]*?<\/script\b[^>]*>|<style\b[^>]*>[\s\S]*?<\/style\b[^>]*>)/i)
     .map((segment, index) => (index % 2 === 1 ? segment : escapeBraces(segment)))
     .join('');
 }
@@ -266,6 +268,21 @@ function parseHead(headInner, pagePath) {
 
 // --- document frame -----------------------------------------------------------
 
+// True for a run of HTML comments with nothing between or around them, and for
+// an empty string. A loop instead of /^(?:<!--[\s\S]*?-->)+$/: that expression
+// backtracks exponentially on a long run of comments followed by other text.
+function isCommentRun(text) {
+  let rest = text;
+  while (rest.startsWith('<!--')) {
+    const end = rest.indexOf('-->', '<!--'.length);
+    if (end === -1) {
+      return false;
+    }
+    rest = rest.slice(end + '-->'.length);
+  }
+  return rest === '';
+}
+
 function readDocument(ref, relativePath) {
   const pagePath = pagePathFor(relativePath);
   const source = gitShow(ref, `public/${relativePath}`);
@@ -274,7 +291,7 @@ function readDocument(ref, relativePath) {
     throw new Error(`html-to-astro: ${pagePath} does not have the expected document frame`);
   }
   const [, webflowComments, htmlAttributes, headInner, bodyInner] = prologue;
-  if (!/^(?:<!--[\s\S]*?-->)+$/.test(webflowComments) && webflowComments !== '') {
+  if (!isCommentRun(webflowComments)) {
     throw new Error(`html-to-astro: ${pagePath} has unexpected content between the doctype and <html>`);
   }
   const htmlAttrs = {};
@@ -717,6 +734,7 @@ module.exports = {
   detectGtmStyle,
   escapeBracesOutsideRawText,
   identifierFor,
+  isCommentRun,
   logoMarkup,
   markScriptsInline,
   normalizeSvgAttributes,
