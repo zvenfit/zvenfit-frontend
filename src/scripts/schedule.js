@@ -1150,9 +1150,8 @@
     error.appendChild(createElement('p', 'schedule-state__title', 'Не удалось загрузить расписание'));
 
     const details = {
-      missing_api:
-        'Не настроен адрес API расписания. Пересоберите сайт с SCHEDULE_API_URL или запустите npm run dev:watch.',
-      network: 'Не удалось связаться с API. Локально нужны npm run dev:watch (mock-server на :3000).',
+      missing_api: 'Не настроен адрес API расписания. Пересоберите сайт с SCHEDULE_API_URL или запустите npm run dev.',
+      network: 'Не удалось связаться с API. Локально нужны npm run dev (mock-server на :3000).',
       http: 'API вернул ошибку. Проверьте FITBASE_API_TOKEN и логи fitbase-schedule.',
       invalid_response: 'API вернул некорректный ответ.',
     };
