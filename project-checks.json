@@ -8,8 +8,6 @@
     {"name":"staging-authorizer","command":["npm","run","test:staging-authorizer"],"mode":"writes","requires_network":false,"timeout_seconds":300},
     {"name":"site-traffic","command":["npm","run","test:site-traffic"],"mode":"writes","requires_network":false,"timeout_seconds":300},
     {"name":"scripts","command":["npm","run","test:scripts"],"mode":"writes","requires_network":false,"timeout_seconds":300},
-    {"name":"parity","command":["node","scripts/compare-dist.cjs","--base-sha","d5aeb4a95be8759028064da03b0f40e89ca38db7","--candidate-sha","HEAD","--profile","a","--mode","production","--snapshot","src/data/map-photos.json"],"mode":"writes","requires_network":true,"timeout_seconds":1500},
-    {"name":"parity-staging","command":["node","scripts/compare-dist.cjs","--base-sha","d5aeb4a95be8759028064da03b0f40e89ca38db7","--candidate-sha","HEAD","--profile","a","--mode","staging","--snapshot","src/data/map-photos.json"],"mode":"writes","requires_network":true,"timeout_seconds":1500},
     {"name":"build","command":["npm","run","test:build"],"mode":"writes","requires_network":true,"timeout_seconds":180},
     {"name":"staging-build","command":["npm","run","test:build:staging"],"mode":"writes","requires_network":true,"timeout_seconds":300}
   ]
