@@ -59,7 +59,7 @@
 Base.astro подключает один `defer is:inline`-скрипт из `src/scripts/analytics.js?url`
 в head. URL имеет хеш содержимого `/_astro/analytics.<hash>.js`. Legacy-копии
 `public/js/analytics.js` с `ASSET_VERSION` с релиза A в репозитории нет: она
-осталась в истории git, сравнение идёт с закреплённой базой.
+осталась в истории git.
 Существующий порядок выкладки ассетов и HTML сохраняется.
 Astro development/staging отключают production-теги. Legacy development сохраняет
 GTM и счётчики: для проверки legacy использовать staging или блокировать внешние теги.

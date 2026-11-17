@@ -2,8 +2,8 @@
 
 // The site stylesheet leaves the Astro build exactly as the legacy build made
 // it: clean-css level 2 over the source, as minifySiteCss of the retired
-// scripts/build-static.cjs did (compare-dist holds the built bytes against the
-// legacy base). Vite's own minifier is switched off in astro.config.mjs,
+// scripts/build-static.cjs did (check-build holds the built file to that
+// output of its source). Vite's own minifier is switched off in astro.config.mjs,
 // because Astro builds with the `esnext` target and lightningcss then rewrites
 // `(max-width: 767px)` into the range form `(width<=767px)`. Safari before 16.4
 // and Chrome before 104 drop such a query entirely, so every breakpoint of the

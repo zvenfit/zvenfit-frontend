@@ -41,7 +41,6 @@ const LEGACY_INPUTS = Object.freeze([
 ]);
 // Variables that must not leak from the developer shell into a build.
 const SCRUBBED_VARIABLES = ['LEAD_API_URL', 'SCHEDULE_API_URL', 'TRAFFIC_API_URL', 'ASSET_VERSION', 'Y_MAPS_API_KEY', 'NODE_ENV', 'MODE'];
-const QUALITY_WORKFLOW = path.join(ROOT, '.github', 'workflows', 'quality.yml');
 
 function git(args, options = {}) {
   return execFileSync('git', args, { cwd: ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], ...options }).trim();
@@ -49,16 +48,6 @@ function git(args, options = {}) {
 
 function sha256(content) {
   return crypto.createHash('sha256').update(content).digest('hex');
-}
-
-// The base of the comparison is pinned in one place, the quality workflow.
-// project-checks.json repeats it for local runs, and a test keeps the two equal.
-function pinnedBaseSha(workflowPath = QUALITY_WORKFLOW) {
-  const sha = fs.readFileSync(workflowPath, 'utf8').match(/^ {6}PARITY_BASE_SHA: ([0-9a-f]{40})$/m)?.[1];
-  if (!sha) {
-    throw new Error(`compare-dist: ${path.relative(ROOT, workflowPath)} pins no PARITY_BASE_SHA`);
-  }
-  return sha;
 }
 
 function resolveSha(value, label) {
@@ -294,7 +283,6 @@ module.exports = {
   install,
   legacyInputDrift,
   legacyInputDriftInHistory,
-  pinnedBaseSha,
   prepareWorktree,
   readSnapshot,
   removeWorktree,

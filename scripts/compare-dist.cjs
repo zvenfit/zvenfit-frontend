@@ -176,9 +176,9 @@ function listFiles(files) {
 // A legacy hotfix reaches the branch by merging main, and the base of the
 // comparison is pinned to that commit of main in the same step. If only one of
 // the two happens, the pages and the comparison still agree with each other
-// (the converter derives its contracts from the same tree), so nothing else
-// would notice a footer text or an analytics snippet that changed in legacy
-// and not in the Astro components.
+// (the converter of the migration, removed after release A, derived its
+// contracts from the same tree), so nothing else would notice a footer text or
+// an analytics snippet that changed in legacy and not in the Astro components.
 //
 // Two checks hold the two together. The first compares the legacy tree of the
 // candidate with the base and has nothing to compare once the legacy build has

@@ -1,6 +1,7 @@
 'use strict';
 
 const assert = require('node:assert/strict');
+const { spawnSync } = require('node:child_process');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
@@ -12,12 +13,12 @@ const {
   astroPageToRoute,
   endpointFilesFromAstro,
   expectedRoutesFromAstro,
-  expectedRoutesFromPublic,
   readProfile,
   routeToUrl,
   verifyDist,
 } = require('../check-routes.cjs');
 
+const CLI = path.join(__dirname, '..', 'check-routes.cjs');
 const SITE_URL = 'https://example.test';
 const PAGES = ['index.html', '404.html', 'privacy/index.html', 'trenery/trener-a/index.html'];
 
@@ -35,14 +36,28 @@ function sitemapFor(pages) {
   return `<?xml version="1.0" encoding="UTF-8"?><urlset>${urls}</urlset>`;
 }
 
+// The source of a route: an entry of the trainer collection for a trainer
+// page, a page file for any other.
+function writeSource(root, route) {
+  const trainer = route.match(/^trenery\/(trener-[^/]+)\/index\.html$/);
+  if (trainer) {
+    writeFile(path.join(root, 'src/content'), `trainers/${trainer[1]}.json`, '{}');
+  } else {
+    writeFile(path.join(root, 'src/pages'), route.replace(/\.html$/, '.astro'), '---\n---\n<html></html>');
+  }
+}
+
+function sourceRoutes(root) {
+  return expectedRoutesFromAstro(path.join(root, 'src/pages'), path.join(root, 'src/content'));
+}
+
 function fixture({ pages = PAGES, distPages = pages, sitemapPages = pages, requiredFiles = REQUIRED_FILES, html } = {}) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'check-routes-'));
-  const publicDir = path.join(root, 'public');
   const distDir = path.join(root, 'dist');
   fs.mkdirSync(distDir, { recursive: true });
 
   for (const page of pages) {
-    writeFile(publicDir, page, '<html></html>');
+    writeSource(root, page);
   }
   for (const page of distPages) {
     writeFile(distDir, page, html || '<html><script src="/js/schedule.js?v=1"></script><link href="/css/site.min.css?v=1"></html>');
@@ -53,12 +68,12 @@ function fixture({ pages = PAGES, distPages = pages, sitemapPages = pages, requi
     writeFile(distDir, file, file === 'sitemap.xml' ? sitemapFor(sitemapPages) : '');
   }
 
-  return { root, publicDir, distDir };
+  return { root, distDir };
 }
 
 function check(options) {
-  const { publicDir, distDir } = fixture(options);
-  return verifyDist({ distDir, expectedRoutes: expectedRoutesFromPublic(publicDir), siteUrl: SITE_URL });
+  const { root, distDir } = fixture(options);
+  return verifyDist({ distDir, expectedRoutes: sourceRoutes(root), siteUrl: SITE_URL });
 }
 
 test('a complete build passes with route, sitemap and reference counts', () => {
@@ -68,10 +83,10 @@ test('a complete build passes with route, sitemap and reference counts', () => {
 });
 
 test('an empty dist is refused', () => {
-  const { publicDir, distDir } = fixture();
+  const { root, distDir } = fixture();
   fs.rmSync(distDir, { recursive: true, force: true });
   fs.mkdirSync(distDir);
-  const result = verifyDist({ distDir, expectedRoutes: expectedRoutesFromPublic(publicDir), siteUrl: SITE_URL });
+  const result = verifyDist({ distDir, expectedRoutes: sourceRoutes(root), siteUrl: SITE_URL });
   assert.deepEqual(result.errors, ['dist is empty']);
 });
 
@@ -112,10 +127,35 @@ test('404 is a route but never an indexable URL', () => {
   assert.deepEqual(result.errors, []);
 });
 
-test('the deploy profile selects the route source and matches the repository tree', () => {
+test('the deploy profile is one of the Astro profiles: the legacy one is gone with its source', () => {
   const profile = readProfile();
-  assert.equal(SOURCES_BY_PROFILE[profile], fs.existsSync(path.join(__dirname, '..', '..', 'src', 'pages')) ? 'astro' : 'public');
   assert.equal(profile, 'a');
+  assert.deepEqual(SOURCES_BY_PROFILE, { a: 'astro', b: 'astro' });
+
+  const config = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'check-routes-profile-')), 'deploy.config.json');
+  fs.writeFileSync(config, '{"profile":"b"}');
+  assert.equal(readProfile(config), 'b');
+  for (const retired of ['legacy', 'a1']) {
+    fs.writeFileSync(config, JSON.stringify({ profile: retired }));
+    assert.throws(() => readProfile(config), new RegExp(`unknown deploy profile "${retired}"`));
+  }
+});
+
+test('the command line reads the routes from the Astro sources and refuses any other source', () => {
+  const { root, distDir } = fixture();
+  const run = (...args) =>
+    spawnSync(process.execPath, [CLI, '--dist', distDir, '--pages', path.join(root, 'src/pages'), '--content', path.join(root, 'src/content'), '--site', SITE_URL, ...args], {
+      encoding: 'utf8',
+    });
+
+  const byProfile = run();
+  assert.equal(byProfile.status, 0, byProfile.stderr);
+  assert.match(byProfile.stdout, /4 HTML route\(s\), 3 in sitemap, 8 local reference\(s\) verified .* \(source astro, profile a\)/);
+  assert.equal(run('--source', 'astro').status, 0);
+
+  const legacy = run('--source', 'public');
+  assert.equal(legacy.status, 1);
+  assert.match(legacy.stderr, /check-routes: unknown source "public"/);
 });
 
 test('Astro pages map to directory routes and private or dynamic files are skipped', () => {

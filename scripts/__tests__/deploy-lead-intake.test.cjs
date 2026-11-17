@@ -651,7 +651,7 @@ test('the deploy guard takes its profile from deploy.config.json and no argument
   assert.match(step, /node scripts\/check-build\.cjs\n/);
   assert.doesNotMatch(step, /--profile|--source/, 'the guard must derive its profile from scripts/deploy.config.json');
   const deployConfig = JSON.parse(fs.readFileSync(path.join(ROOT, 'scripts/deploy.config.json'), 'utf8'));
-  assert.ok(['legacy', 'a', 'b'].includes(deployConfig.profile), 'deploy.config.json names a deploy profile');
+  assert.ok(['a', 'b'].includes(deployConfig.profile), 'deploy.config.json names a deploy profile');
 });
 
 test('every Node.js setup resolves the latest release of the pinned major', () => {

@@ -14,8 +14,8 @@ alwaysApply: false
   `&#123;`/`&#125;`; non-breaking spaces are written as `&nbsp;`
 - Comments passed as component children are dropped by the compiler; emit raw markup
   with `set:html` (see `Analytics.astro`)
-- Whitespace between nodes in `src/layouts`, `src/components` and `src/pages` is part of
-  the parity contract: do not run Prettier on them
+- Whitespace between nodes in `src/layouts`, `src/components` and `src/pages` reproduces
+  the legacy pages and no check guards it: do not run Prettier on them
 - Pages export `sitemap = { updated, changefreq, priority }` for `sitemap.xml.ts`
 
 ## Static files (`public/`)
@@ -24,9 +24,9 @@ alwaysApply: false
 - No pages, styles or scripts here: release A removed the legacy export. A file at the
   path of a route (a page, `robots.txt`, `sitemap.xml`, `/js/*-config.js`) replaces that
   route in the build; `check-build` fails on it
-- New content and fixes are changes of `src/`; while the parity tooling of release A is
-  still switched on they fail the converter test and the `compare-dist` job (see
-  `AGENTS.md`, Stack)
+- New content and fixes are changes of `src/`: pages and trainer entries are edited by
+  hand, there is no generator and no job that compares the built site (see `AGENTS.md`,
+  Stack)
 
 ## CSS
 

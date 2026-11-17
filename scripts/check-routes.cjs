@@ -7,9 +7,11 @@
 // local /js, /css and /_astro reference resolves inside dist/. An empty or
 // partial build must never reach the bucket.
 //
-// Sources: `--source astro` (src/pages plus the trainer collection) for the
-// deploy profiles `a` and `b`, `--source public` for `legacy`. The deploy
-// workflow passes neither: the deploy test asserts the guard runs with the
+// The routes come from the Astro sources, src/pages plus the trainer
+// collection, for both deploy profiles `a` and `b`; `--source astro` says the
+// same explicitly. The `legacy` profile read the HTML files of public/ and was
+// removed after release A, together with that source. The deploy workflow
+// passes no `--source`: the deploy test asserts the guard runs with the
 // defaults from scripts/deploy.config.json. The route set is always the whole
 // site, 404.html included.
 
@@ -29,7 +31,7 @@ const REQUIRED_FILES = [
   'js/maps-config.js',
 ];
 const NOT_INDEXABLE = new Set(['404.html']);
-const SOURCES_BY_PROFILE = { legacy: 'public', a: 'astro', b: 'astro' };
+const SOURCES_BY_PROFILE = { a: 'astro', b: 'astro' };
 
 function walkFiles(dir, predicate, files = [], base = dir) {
   if (!fs.existsSync(dir)) {
@@ -88,14 +90,6 @@ function readProfile(configPath = DEPLOY_CONFIG_PATH) {
     throw new Error(`check-routes: unknown deploy profile "${config.profile}" in ${configPath}`);
   }
   return config.profile;
-}
-
-function expectedRoutesFromPublic(publicDir) {
-  const routes = listHtml(publicDir);
-  if (routes.length === 0) {
-    throw new Error(`check-routes: no HTML pages found in ${publicDir}`);
-  }
-  return routes;
 }
 
 // src/pages/offer/index.astro -> offer/index.html, src/pages/404.astro -> 404.html,
@@ -217,17 +211,13 @@ function run(argv = process.argv.slice(2)) {
   const distDir = path.resolve(ROOT_DIR, options.dist || 'dist');
   const siteUrl = options.site || JSON.parse(fs.readFileSync(STRUCTURED_DATA_PATH, 'utf8')).siteUrl;
 
-  let expectedRoutes;
-  if (source === 'astro') {
-    expectedRoutes = expectedRoutesFromAstro(
-      path.resolve(ROOT_DIR, options.pages || 'src/pages'),
-      path.resolve(ROOT_DIR, options.content || 'src/content'),
-    );
-  } else if (source === 'public') {
-    expectedRoutes = expectedRoutesFromPublic(path.resolve(ROOT_DIR, options.public || 'public'));
-  } else {
+  if (source !== 'astro') {
     throw new Error(`check-routes: unknown source "${source}"`);
   }
+  const expectedRoutes = expectedRoutesFromAstro(
+    path.resolve(ROOT_DIR, options.pages || 'src/pages'),
+    path.resolve(ROOT_DIR, options.content || 'src/content'),
+  );
 
   const { errors, stats } = verifyDist({ distDir, expectedRoutes, siteUrl });
 
@@ -249,7 +239,6 @@ module.exports = {
   astroPageToRoute,
   endpointFilesFromAstro,
   expectedRoutesFromAstro,
-  expectedRoutesFromPublic,
   readProfile,
   routeToUrl,
   verifyDist,

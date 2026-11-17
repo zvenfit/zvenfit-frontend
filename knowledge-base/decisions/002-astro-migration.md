@@ -5,11 +5,14 @@ Status: approved by the owner on 2026-10-19, 2026-10-21 and 2026-10-22; stage 0
 `feature/astro-release-a` opened on 2026-10-27 from `978b921`. Stages A1
 (tooling and checks), A2a (all pages and the trainer collection), A2b (the
 legacy build removed) and A3 (documentation, the release gate, the rollback
-recipe) were complete in that branch on 2026-11-16. Release A is that branch
-squashed into `main` as one `feat(frontend)` commit; release B (assets) has not
-started. The detailed plan with stages, parity rules, rollback and estimates
-lives in [`docs/astro-migration.md`](../../docs/astro-migration.md). This
-record is the canonical list of decisions and their consequences.
+recipe) were complete in that branch on 2026-11-16. Release A shipped on
+2026-11-16 as `v3.2.0`: that branch squashed into `main` as one
+`feat(frontend)` commit, `ba8dd91`. It was accepted on 2026-11-17; after the
+acceptance the converter of the migration was removed and the comparison of
+every pull request with the legacy build was switched off. Release B (assets)
+has not started. The detailed plan with stages, parity rules, rollback and
+estimates lives in [`docs/astro-migration.md`](../../docs/astro-migration.md).
+This record is the canonical list of decisions and their consequences.
 
 ## Decision
 

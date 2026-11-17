@@ -1,7 +1,7 @@
 ---
 type: runbook
 title: ZvenFit staging deployment, E2E and frontend rollback runbook
-updated: 2026-11-16
+updated: 2026-11-17
 ---
 
 # Staging deployment, E2E and frontend rollback runbook
@@ -11,27 +11,46 @@ The complete environment contract is tracked in
 the current operational state, the shortest safe deployment path, the rollback
 of a frontend release and the bucket snapshot taken before a risky one.
 
-## Verified state (as of 2026-09-28)
+## Verified state (as of 2026-11-17)
 
-- `https://staging.zvenfit.ru` uses Cloudflare DNS, an issued managed TLS
-  certificate, and a Yandex API Gateway custom domain.
+Every line names how it was checked. What needs the cloud console keeps the
+date of its last inspection, 2026-09-28.
+
+- `https://staging.zvenfit.ru` is a CNAME to a Yandex API Gateway custom
+  domain, in a zone served by Cloudflare DNS (DNS lookup, 2026-11-17). Its
+  managed TLS certificate and the HTTP Basic auth in front of every route
+  were exercised by the release run below: the staging smoke test and the E2E
+  suite went through that origin.
 - The bucket, YDB, Functions, runtime identities, and deploy identity are
   isolated in the staging folder. The browser reaches Functions only through
-  same-origin Gateway routes protected by HTTP Basic auth.
+  same-origin Gateway routes protected by HTTP Basic auth. The release run
+  below passed "Preflight private staging storage boundary" and "Verify
+  uploaded staging objects remain private"; the folder itself was last
+  inspected on 2026-09-28.
 - The attached Smart Web Security profile runs API smart protection and has an
-  Advanced Rate Limiter profile attached.
-- GitHub Environment `staging` accepts deployments only from `main`. It has no
-  reviewer approval since 2026-09-28: staging is the automatic first stage of
-  every release (owner decision of 2026-09-27).
-- The latest full deploy and cross-repository Playwright verification succeeded
-  in [GitHub Actions run 31977617090](https://github.com/zvenfit/zvenfit-frontend/actions/runs/31977617090).
-- The verified reusable suite is pinned to
-  [`zvenfit-autotests@52b6975`](https://github.com/zvenfit/zvenfit-autotests/commit/52b6975bc4e504111bda7dd543163930b1ba196c).
-- The autotests default branch is protected by review and the required
-  `quality` status check; the repository keeps an administrator bypass for the
-  current single-maintainer workflow.
-- The latest full read-only production suite succeeded in
-  [GitHub Actions run 31978139884](https://github.com/zvenfit/zvenfit-autotests/actions/runs/31978139884).
+  Advanced Rate Limiter profile attached (last inspected on 2026-09-28).
+- GitHub Environment `staging` accepts deployments only from `main` and has no
+  reviewer approval (GitHub API, 2026-11-17). It has had none since
+  2026-09-28: staging is the automatic first stage of every release (owner
+  decision of 2026-09-27).
+- Release A, `v3.2.0` (commit `ba8dd91`), the first release built by Astro,
+  went through the whole pipeline on 2026-11-16 in
+  [GitHub Actions run 43929544009](https://github.com/zvenfit/zvenfit-frontend/actions/runs/43929544009):
+  staging deploy and its smoke test, 8 of 8 E2E tests, production deploy and
+  its smoke test, the tag. It was accepted on 2026-11-17.
+- The reusable suite is pinned in `main.yml` and `staging.yml` to
+  [`zvenfit-autotests@775c884`](https://github.com/zvenfit/zvenfit-autotests/commit/775c88461fc3fa2ae7de6274d2b2d6ad3ff788f0).
+- The autotests default branch is protected by a ruleset: a pull request with
+  one approving review and the required `quality` status check. Organisation
+  and repository administrators can bypass it, which the current
+  single-maintainer workflow relies on (GitHub API, 2026-11-17).
+- The read-only production suite of that revision passed against the Astro
+  build on 2026-11-17 in
+  [GitHub Actions run 44067519281](https://github.com/zvenfit/zvenfit-autotests/actions/runs/44067519281):
+  105 tests, 104 passed at once and 1 on a retry. The full suite against a
+  build of `main` passed the same day in
+  [run 44069341889](https://github.com/zvenfit/zvenfit-autotests/actions/runs/44069341889):
+  201 passed, 57 skipped.
 
 ## Deployment
 
@@ -55,10 +74,11 @@ equals the source pages, the indexable routes equal `sitemap.xml`, every
 runtime config and crawl file exists and every local `/js`, `/css` and
 `/_astro` reference resolves; `check-build.cjs` (and `check-staging-build.cjs`
 on staging) run against the same tree. An empty or partial build never reaches
-the bucket. The route source follows `scripts/deploy.config.json`: with
-profile `a`, set by release A, the routes are the pages of `src/pages` and the
-entries of the trainer collection; with `legacy` they were the HTML files of
-`public/`.
+the bucket. The routes come from the sources: the pages of `src/pages` and
+the entries of the trainer collection. The profile in
+`scripts/deploy.config.json` is `a`, set by release A; `b` is reserved for
+release B. The `legacy` profile, whose routes were the HTML files of
+`public/`, is no longer accepted by the guard.
 
 Upload runs as four commands in a fixed order, identical in the workflow and
 in `npm run deploy:yc`: (1) assets with `immutable`, never with `--delete`,
@@ -101,8 +121,9 @@ A frontend release is rolled back by reverting its commit on `main` and letting
 the normal release run: staging deploy, E2E, production deploy, smoke test
 (decision R11 in [ADR 002](decisions/002-astro-migration.md)). Production is
 never rolled back directly: no `skip_staging`, no manual upload to the bucket,
-no moved tag. The release that brought the site to Astro (release A) is one
-squash commit on `main`, so its rollback is one revert.
+no moved tag. A release is one squash commit on `main`, so its rollback is one
+revert. The revert is clean while no later commit has changed the same files;
+see "Release A after its acceptance" below for the release that no longer is.
 
 When to roll back, by where the release failed:
 
@@ -163,9 +184,9 @@ What the revert does:
 - Deploy protection (the four upload passes, the pre-upload guard, the profile
   field of `scripts/deploy.config.json`, the contract test) has been in `main`
   since v3.0.12, before release A. The revert of release A cannot remove it: it
-  sets the profile back to `legacy`, so the guard reads the routes from
-  `public/` again, and brings back the legacy `check-build`. A pull request
-  that returned `--delete` to the assets pass would fail
+  sets the profile back to `legacy` and brings back the guard and the
+  `check-build` of that time, which read the routes from `public/`. A pull
+  request that returned `--delete` to the assets pass would fail
   `deploy-lead-intake.test.cjs` in `quality`.
 - Release A does not change `functions/`: its revert redeploys the same
   function code.
@@ -176,20 +197,50 @@ Conflicts of a revert made after later commits:
   the deletion and carry the fix over to `public/` by its diff.
 - Root `package.json` and `package-lock.json`: take the versions from before
   the release whole, then re-apply the updates that are still needed.
+- Checks and tests that a later commit changed (`scripts/check-routes.cjs`,
+  `project-checks.json`, the tests in `scripts/__tests__/`): take the versions
+  from before the release whole. A file the release added and a later commit
+  changed gives modify/delete: accept the deletion.
 - Functions and later fixes in `functions/` are kept.
 
-For release A the revert is prepared in advance. Before the merge a candidate
-is built locally: the squash of the migration branch on top of `main`, its
-revert, the tree of the revert equal to the tree of `main`, then the build,
-`npm run test:scripts` and `npm run test:build` on it. Right after the merge
-the revert of the actual release SHA is opened as a draft pull request and
-must pass `quality`; it stays open and unmerged until the owner accepts the
-release.
+For a release as large as release A the revert is prepared in advance. Before
+the merge a candidate is built locally: the squash of the branch on top of
+`main`, its revert, the tree of the revert equal to the tree of `main`, then
+the build, `npm run test:scripts` and `npm run test:build` on it. Right after
+the merge the revert of the actual release SHA is opened as a draft pull
+request and must pass `quality`; it stays open and unmerged until the release
+is accepted, and nothing else is merged into `main` meanwhile, so that the
+rollback stays a merge of that pull request.
+
+### Release A after its acceptance
+
+Release A was accepted on 2026-11-17 and its draft revert
+([pull request 116](https://github.com/zvenfit/zvenfit-frontend/pull/116))
+was closed unmerged. The commits that followed change files of the release:
+the converter and the comparison with the legacy build are removed, the guard
+no longer knows the `legacy` profile, and the documents describe the new
+state. `git revert ba8dd91` alone, on top of them, stops on conflicts: in
+18 files on 2026-11-17, among them `package.json`, the checks with their
+tests, and the documents.
+
+Revert in order instead, in one pull request: every commit made to `main`
+after the release, newest first, and then `ba8dd91`. In that order every
+revert applies cleanly: each one undoes the newest state, the tree after the
+last of them is the tree of the release, and the revert of the release then
+gives the tree of `d5aeb4a`, the commit before it. This was checked on
+2026-11-17 with the removal of the converter as the only later change. The
+price is that everything merged after the release goes with it. A later
+commit that has to survive the rollback, a fix in `functions/` for instance,
+is left out of that list, and what conflicts then is resolved by the rules of
+"Conflicts of a revert made after later commits". The result needs the whole
+gate again. For a defect found after the acceptance consider a fix forward
+first.
 
 The revert of release A also takes this section and
 `scripts/snapshot-bucket.sh` out of `main`: they arrived with the release
 commit. After such a rollback read them from that commit, for example
-`git show <release SHA>:knowledge-base/staging-runbook.md`.
+`git show ba8dd91:knowledge-base/staging-runbook.md` for the text as it was
+released.
 
 ## Bucket snapshot before a release
 

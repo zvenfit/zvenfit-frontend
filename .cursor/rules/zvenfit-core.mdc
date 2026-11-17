@@ -15,20 +15,19 @@ The site is built by Astro since release A (plan `docs/astro-migration.md`, ADR
 `knowledge-base/decisions/002-astro-migration.md`): every route comes from Astro sources
 (20 pages in `src/pages`, 21 trainer pages from `src/content/trainers/*.json`). The
 legacy build (`scripts/build-static.cjs`, `scripts/snippets/`, the pages, styles and
-scripts of `public/`) is no longer in the tree; it exists only in git history, at the
-pinned base of the parity check. The parity tooling of release A is still switched on: a
-converter test holds the pages and the trainer entries to converter output and the
-`compare-dist` job holds the built site to the legacy base, so a change of markup, text,
-the site stylesheet or a browser script fails both while the required `quality` check
-stays green. Such a change comes after, or together with, the follow-up that removes the
-converter and decides what `compare-dist` compares next; an urgent fix of the live site
-does not wait and is merged with that job red (see `AGENTS.md`, Stack).
+scripts of `public/`) is no longer in the tree; it exists only in git history, last in
+`d5aeb4a` (`v3.1.4`). Release A was accepted on 2026-11-17, and the converter of the
+migration and the `compare-dist` job are removed: pages, trainer entries, stylesheets and
+browser scripts are edited by hand like any other source, and no check compares the built
+site with an earlier one. A change that must not alter the site is proven by two builds
+with the same variables and `diff -r` of the two `dist/` (see `AGENTS.md`, Verification).
 Never put a file into `public/` at the path of a route: Astro ships it instead of the
 page or the endpoint.
 Source: `src/`, `public/`, `scripts/`, `functions/`. **Never edit `dist/` or `.astro/`.**
 
 After changes: `npm run build` or `npm run dev`; verify with `npm run check`,
-`npm run lint`, `npm run test:build`. Parity with the legacy base: `npm run compare:dist`.
+`npm run lint`, `npm run test:build`. `npm run compare:dist` is a manual tool kept for
+release B; no job runs it.
 
 ## APIs (endpoints built from env)
 
@@ -39,10 +38,11 @@ After changes: `npm run build` or `npm run dev`; verify with `npm run check`,
 ## Shared markup
 
 Menu, footer, analytics, Open Graph, JSON-LD and app badges are components in
-`src/components/` rendered by `src/layouts/Base.astro`. Their whitespace is part of
-the parity contract: Prettier is off for `src/layouts`, `src/components` and
-`src/pages`. Comments inside component children are dropped by the compiler (use
-`set:html`), raw non-breaking spaces become plain spaces (use `&nbsp;`).
+`src/components/` rendered by `src/layouts/Base.astro`. Their whitespace reproduces
+the legacy pages and no check guards it any more: Prettier is off for `src/layouts`,
+`src/components` and `src/pages`, do not reformat them. Comments inside component
+children are dropped by the compiler (use `set:html`), raw non-breaking spaces become
+plain spaces (use `&nbsp;`).
 
 ## Brand
 
