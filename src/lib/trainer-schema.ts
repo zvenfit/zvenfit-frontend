@@ -9,25 +9,36 @@ export const TRAINER_SLUG = /^trener-[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 const wNode = z.string().regex(/^w-node-[0-9a-f_-]+$/);
 
-// Differences between the legacy trainer pages that are not content. They keep
-// the output of release A identical to the legacy export and are listed with
-// their reasons in scripts/migrate/manual.json; new entries do not need them.
+// Differences between the legacy trainer pages that are markup, not content.
+// Release A kept every one of them so that its output was identical to the
+// legacy export, and the template src/pages/trenery/[slug].astro still reads
+// them. The converter that wrote the entries and listed the reasons is gone,
+// so each reason stands at its field. A new entry does not need the block.
 const legacy = z
   .object({
-    /** Family of the legacy markup: exported from Webflow, or written by hand later. */
+    /**
+     * Family of the legacy markup. `webflow`: a page exported from Webflow, the
+     * GTM noscript frame follows webflow.js at the end of the body.
+     * `handwritten`: a page written by hand after the export, a blank line
+     * precedes the menu and the GTM noscript frame stands in the body before
+     * jQuery, followed by a blank line.
+     */
     markup: z.enum(['webflow', 'handwritten']),
-    /** Raw Webflow export comments that follow the doctype: comments only, nothing between them. */
+    /**
+     * Raw Webflow export comments that follow the doctype: comments only, nothing
+     * between them. The publication date differs between the two families.
+     */
     webflowComments: z
       .string()
       .regex(/^(?:<!--(?:(?!-->)[\s\S])*-->)+$/)
       .optional(),
     /** GTM blocks without the surrounding comments, in the head and in the body. */
     gtm: z.literal('bare').optional(),
-    /** The sign-up button separates "к" and the name with a regular space. */
+    /** The sign-up button separates "к" and the name with a regular space, not a non-breaking one. */
     ctaRegularSpace: z.literal(true).optional(),
     /** Indentation of the certificate cards in spaces when it is not the usual six. */
     certificateIndent: z.number().int().positive().optional(),
-    /** Certificate links carry this `rel` instead of the usual aria-label. */
+    /** Certificate links carry this `rel` and no aria-label; the other pages carry the aria-label and no `rel`. */
     certificateLinkRel: z.string().optional(),
     /** Path the back button falls back to when there is no history; "/" otherwise. */
     backFallbackPath: z
