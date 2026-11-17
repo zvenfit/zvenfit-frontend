@@ -224,15 +224,17 @@ state. `git revert ba8dd91` alone, on top of them, stops on conflicts: in
 tests, and the documents.
 
 Revert in order instead, in one pull request: every commit made to `main`
-after the release, newest first, and then `ba8dd91`. As long as those commits
-change nothing but what the release brought, each revert applies cleanly and
-the tree ends up equal to the tree of `d5aeb4a`, the commit before the
-release; this was checked on 2026-11-17 for the first of them, the removal of
-the converter. A later commit that has to survive the rollback, a fix in
-`functions/` for instance, is left out of that list, and what conflicts then
-is resolved by the rules of "Conflicts of a revert made after later commits".
-The result needs the whole gate again. For a defect found after the
-acceptance consider a fix forward first.
+after the release, newest first, and then `ba8dd91`. In that order every
+revert applies cleanly: each one undoes the newest state, the tree after the
+last of them is the tree of the release, and the revert of the release then
+gives the tree of `d5aeb4a`, the commit before it. This was checked on
+2026-11-17 with the removal of the converter as the only later change. The
+price is that everything merged after the release goes with it. A later
+commit that has to survive the rollback, a fix in `functions/` for instance,
+is left out of that list, and what conflicts then is resolved by the rules of
+"Conflicts of a revert made after later commits". The result needs the whole
+gate again. For a defect found after the acceptance consider a fix forward
+first.
 
 The revert of release A also takes this section and
 `scripts/snapshot-bucket.sh` out of `main`: they arrived with the release
