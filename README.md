@@ -7,8 +7,8 @@
 ([план](docs/astro-migration.md)). Все 41 маршрут собираются
 из Astro: 20 страниц в `src/pages` и 21 страница тренера из коллекции `src/content/trainers`.
 Прежней сборки (`scripts/build-static.cjs`) и экспорта в `public/` в репозитории больше нет:
-они остались в истории git, в закреплённой базе сравнения. В `public/` лежит только статика,
-которую Astro копирует в `dist/` как есть.
+они остались в истории git, последний коммит с ними — `d5aeb4a` (`v3.1.4`). В `public/` лежит
+только статика, которую Astro копирует в `dist/` как есть.
 
 - Инструкции для контрибьюторов и AI-агентов: [`AGENTS.md`](AGENTS.md)
 - Связь с Personal AI Workspace и запуск проверок: [`docs/personal-ai-workspace.md`](docs/personal-ai-workspace.md)
@@ -76,7 +76,7 @@ production и публикует тег версии. Подробности и 
 
 | Зона                      | Источник                                               |
 | ------------------------- | ------------------------------------------------------ |
-| Страницы                  | `src/pages/` (пока не удалён конвертер, обязаны совпадать с его выводом: см. ниже) |
+| Страницы                  | `src/pages/` (правятся руками, генератора страниц нет)  |
 | Тренеры                   | `src/content/trainers/*.json`, шаблон `src/pages/trenery/[slug].astro` |
 | Общая разметка            | `src/layouts/Base.astro`, `src/components/`             |
 | Данные сайта              | `src/data/` (ссылки на приложения, карты, JSON-LD, снимок фото карт) |
@@ -88,7 +88,7 @@ production и публикует тег версии. Подробности и 
 | Staging Basic authorizer  | `functions/staging-authorizer/src/`                    |
 | Техническая посещаемость  | `src/scripts/traffic-beacon.js`, `functions/site-traffic/` |
 | Сборка и эндпоинты конфигов | `astro.config.mjs`, `src/pages/js/*-config.js.ts`, `src/pages/sitemap.xml.ts`, `src/pages/robots.txt.ts` |
-| Конвертер и паритет       | `scripts/migrate/`, `scripts/compare-dist.cjs`, `scripts/parity-allowlist.json` |
+| Сравнение двух сборок     | `scripts/compare-dist.cjs`, `scripts/lib/`, `scripts/parity-allowlist.json` (ручной инструмент, см. ниже) |
 | Release: staging → E2E → production | `.github/workflows/main.yml`                 |
 | Ручной staging + E2E без релиза     | `.github/workflows/staging.yml`              |
 
@@ -99,17 +99,16 @@ immutable commit SHA after the staging deploy.
 
 `dist/` генерируется и не редактируется вручную. После изменений в `src/` запускай `npm run build`
 (режим берётся из `NODE_ENV`: production, staging, development) либо используй `npm run dev`.
-Шаблоны в `src/layouts`, `src/components` и `src/pages` воспроизводят пробелы legacy-разметки
-байт в байт: их не форматируют, иначе падает `compare:dist`.
+Шаблоны в `src/layouts`, `src/components` и `src/pages` воспроизводят пробелы legacy-разметки:
+их не форматируют. Проверки, которая заметила бы такую правку, больше нет.
 
-Релиз A вышел со строгим паритетом, и его проверки ещё включены: тест сверяет страницы и записи
-тренеров с выводом конвертера, а job `compare-dist` сравнивает сборку с закреплённой legacy-базой.
-Правка разметки, текста, основной таблицы стилей или браузерного скрипта роняет обе проверки, хотя
-обязательная `quality` остаётся зелёной. Первая такая правка делается после PR, который удаляет
-конвертер с тестами и решает, с чем `compare-dist` сравнивает дальше, либо вместе с ним
-([план](docs/astro-migration.md), «Этап A3»). Срочное исправление сайта (форма заявки, цена,
-юридический текст) этого PR не ждёт: `compare-dist` не обязательная проверка, такое исправление
-сливается с красным job, и в его PR об этом сказано.
+Релиз A вышел 2026-11-16 (`v3.2.0`) со строгим паритетом к прежней сборке и принят 2026-11-17.
+После приёмки конвертер миграции (`scripts/migrate/`) и его тесты удалены, job `compare-dist` из
+`quality.yml` снят: страницы, записи тренеров, стили и скрипты правятся руками, как любой исходник.
+Обратная сторона: ни одна проверка не сравнивает собранный сайт с прежним. Правку, которая не
+должна менять сайт (рефакторинг компонента, обновление зависимости, инструменты), доказывают двумя
+сборками с одинаковыми переменными и `diff -r` двух `dist/`; команды — в
+[`AGENTS.md`](AGENTS.md#verification).
 
 Откат релиза: PR с `git revert` через обычный релиз, рецепт в
 [`knowledge-base/staging-runbook.md`](knowledge-base/staging-runbook.md#frontend-rollback).
@@ -129,11 +128,14 @@ npm run test:build:staging
 ```
 
 `test:scripts` покрывает все тесты `scripts/__tests__/`; `test:monitoring` и
-`test:lead-import` запускают их подмножества. Паритет с закреплённой legacy-базой
-проверяет `npm run compare:dist -- --base-sha <SHA> --candidate-sha HEAD --profile a --mode production --snapshot src/data/map-photos.json`
-(и то же с `--mode staging`); в CI это job `compare-dist` с явными SHA. База собирается из своего
-коммита, поэтому нужна полная история репозитория. Тесты конвертера читают legacy-страницы из
-той же базы: в мелком клоне они пропускаются с причиной, job `compare-dist` запускает их обязательно.
+`test:lead-import` запускают их подмножества.
+
+`npm run compare:dist` — поузловое сравнение двух сборок, оставшееся от миграции. Его не запускает
+ни один job: это ручной инструмент для релиза B. Профиль `a` сравнивает коммит с legacy-сборкой
+`d5aeb4a` и с первой правки страницы, стиля или скрипта падает по своему назначению; профиль `b`
+(Astro с Astro) в production-режиме пока не работает и приводится в рабочее состояние при открытии
+ветки B. Подробности — в [`AGENTS.md`](AGENTS.md#verification) и в
+[плане](docs/astro-migration.md), раздел 8.
 
 После production deploy выполни smoke-test. Он проверяет страницы,
 runtime-конфиги, CORS lead API, schedule API и пишет один page view класса

@@ -32,36 +32,35 @@
   `src/content` и `src/data`, статика как есть в `public/`. Клиентский
   фреймворк на страницах не используется; островок допустим для отдельного
   виджета с обоснованием в PR. Не предполагать React или Next.
-- **Astro since release A** (plan
+- **Astro since release A** (`v3.2.0`, 2026-11-16; plan
   [`docs/astro-migration.md`](docs/astro-migration.md), ADR
   `knowledge-base/decisions/002-astro-migration.md`). Every route is built
   from Astro sources: 20 pages in `src/pages` and 21 trainer pages rendered by
   `src/pages/trenery/[slug].astro` from the `trainers` collection
-  (`src/content/trainers/*.json`). The legacy build is no longer in the tree:
+  (`src/content/trainers/*.json`). The legacy build is not in the tree:
   `scripts/build-static.cjs`, `scripts/snippets/` and the pages, styles and
-  scripts of `public/` exist only in git history, at the pinned base of the
-  parity check, which builds that base from its own commit. `public/` holds
+  scripts of `public/` exist only in git history, last in
+  `d5aeb4a95be8759028064da03b0f40e89ca38db7` (`v3.1.4`). `public/` holds
   static files that Astro copies to `dist/` as they are (two SVG logos).
   Release B (assets) has not started.
-- **Parity tooling is still switched on.** Release A shipped with strict
-  parity to the pinned legacy base, and two leftovers of the migration keep
-  holding the site to it: a converter test compares the pages and the trainer
-  entries with the converter run against the base, and the `compare-dist` job
-  compares the built site with the base. A change of markup, of a text, of the
-  site stylesheet or of a browser script fails both. The `quality` job, the
-  status check a merge requires, shows neither: its checkout is shallow, so
-  the tests that read the base are skipped there, and the comparison is a job
-  of its own. The failure shows only in the `compare-dist` job and in a local
-  `npm run test:scripts` on a full clone. The first such change therefore
-  comes after, or together with, the follow-up to release A that removes the
-  converter with its tests and CI step and decides what `compare-dist`
-  compares next (plan, "Этап A3").
-  An urgent fix of the live site (the lead form, a price, a legal text) does
-  not wait for that follow-up: `compare-dist` is not a required check, so such
-  a fix is merged with that job red and its pull request says so.
+- **The pages are sources, and no check compares the built site.** Release A
+  shipped with strict parity to the legacy build and was accepted on
+  2026-11-17. The converter of the migration (`scripts/migrate/`) and the
+  tests that held `src/pages/**` and `src/content/trainers/*.json` to its
+  output are removed, and so is the `compare-dist` job that compared every
+  pull request with the legacy build: pages, trainer entries, stylesheets and
+  browser scripts are edited by hand like any other source. The other side of
+  it: nothing notices an unintended change of the markup. `check-routes`,
+  `check-build` and the E2E suite of `zvenfit-autotests` hold contracts and
+  behaviour, not every node. A change that must not alter the site (a
+  component refactoring, a dependency update, tooling) is therefore proven by
+  building the commit before and the commit after with the same variables and
+  comparing the two `dist/` with `diff -r` (see Verification). The comparison
+  tool of the migration stays in `scripts/` for release B and runs by hand
+  only.
 - **Build:** `npm run build` = `astro build --mode $NODE_ENV` (production,
-  staging or development) → `dist/`. Strict parity with the pinned legacy base
-  is proven by `scripts/compare-dist.cjs` (see Verification).
+  staging or development) → `dist/`. A build is reproducible: built twice
+  with the same variables, a commit gives the same bytes.
 - **Runtime JS:** classic vanilla scripts in `src/scripts/`, referenced through
   `?url` and served hashed from `/_astro/`; vendor files in `src/vendor/`;
   stylesheets in `src/styles/`. The runtime configs stay at `/js/*-config.js`
@@ -75,7 +74,7 @@
   and Chrome before 104 ignore. The clean-css version is pinned in that
   module: the built file name follows the source bytes, not the minifier.
 - **Backend:** 4 TypeScript Yandex Cloud Functions in `functions/` (compiled to CommonJS): `lead-intake`, `fitbase-schedule`, `site-traffic`, `staging-authorizer`
-- **CI:** `quality.yml` checks pull requests (lint, tests, `astro check`, production-like and staging builds, `compare-dist` against the pinned base; that job also runs the converter tests, which need the base commit in the checkout). `main.yml` (**Release**) runs on every push to `main`: staging deploy → E2E from `zvenfit-autotests` → production deploy (functions → build → S3 → smoke) → release tag; production is skipped unless E2E passes. An emergency dispatch with `skip_staging` and a `reason` deploys production without staging. `staging.yml` re-runs staging and E2E manually without a release. All deploys share `_deploy-environment.yml` and the `deploy` concurrency group.
+- **CI:** `quality.yml` checks pull requests in one job, `quality` (lint, tests, `astro check`, production-like and staging builds with `check-routes` and `check-build`). `main.yml` (**Release**) runs on every push to `main`: staging deploy → E2E from `zvenfit-autotests` → production deploy (functions → build → S3 → smoke) → release tag; production is skipped unless E2E passes. An emergency dispatch with `skip_staging` and a `reason` deploys production without staging. `staging.yml` re-runs staging and E2E manually without a release. All deploys share `_deploy-environment.yml` and the `deploy` concurrency group.
 
 TypeScript is used for Cloud Functions, Astro frontmatter, endpoints and the
 `src/lib` helpers; the browser scripts remain classic vanilla JS until the
@@ -87,16 +86,18 @@ post-migration revision.
 | ---------------------------------------------------------- | -------------------------------------------------------------- |
 | `src/` (pages, layouts, components, scripts, styles, data) | `dist/`, `.astro/`                                             |
 | `public/` (static files copied to `dist/` as they are)     | a file in `public/` at the path of a route: it replaces the page or the endpoint |
-| `scripts/` (checks, deploy, migration tooling)             | `src/pages/**` and `src/content/trainers/*.json` while the converter test still holds them to converter output (see Stack) |
+| `scripts/` (checks, deploy, the comparison tool)           | the whitespace of `src/layouts`, `src/components` and `src/pages` with a formatter (see Build pipeline markers) |
 | `functions/`                                               | committed secrets                                              |
 
 After any change in `src/`: run `npm run build` or use `npm run dev`. The
 legacy site (`public/**/*.html`, `scripts/snippets/**`,
-`scripts/build-static.cjs`) is not in the tree: release A replaced it, and the
-parity check reads it from the pinned base in git history. A fix of the live
-site is a pull request into `main` that changes `src/`; how fixes were carried
-over from the legacy build during the migration is recorded in the plan
-("Перенос исправлений из legacy").
+`scripts/build-static.cjs`) is not in the tree: release A replaced it, and it
+is read from git history when needed, for example
+`git show d5aeb4a:public/offer/index.html`. A fix of the live site, like any
+change of content, is a pull request into `main` that changes `src/`: the
+pages and the trainer entries are edited directly, there is no generator to
+run. How fixes were carried over from the legacy build during the migration
+is recorded in the plan ("Перенос исправлений из legacy").
 
 ## Module conventions
 
@@ -135,9 +136,12 @@ The build renders the API URLs into endpoints:
 normalize/webflow CSS, the site stylesheet, Webflow bootstrap, icons,
 analytics, UTM, Open Graph, JSON-LD) and the body tail (jQuery, bucket
 `webflow.js?v=ASSET_VERSION`, the page's own scripts in slot `scripts`, map
-scripts, traffic beacon). **Whitespace in these templates is part of the
-parity contract**: Prettier is disabled for `src/layouts`, `src/components`
-and `src/pages`, do not reformat them.
+scripts, traffic beacon). **Whitespace in these templates is deliberate**: it
+reproduces the legacy pages node for node, and between inline content a
+space is part of what the visitor reads. Prettier is disabled for
+`src/layouts`, `src/components` and `src/pages`: do not reformat them, and
+change whitespace only where that change is the point. No check compares the
+output any more, so a reformatting would go unnoticed.
 
 | Component                                       | Purpose                                                           | Data                                                             |
 | ----------------------------------------------- | ----------------------------------------------------------------- | ---------------------------------------------------------------- |
@@ -180,7 +184,8 @@ The `trainers` collection (`src/content.config.ts`, schema in
 slug and must be `trener-<name>.json`. `StructuredData.astro` (Person,
 breadcrumb) and the sitemap read it; the structured-data config has no
 `trainers` block any more. The optional `legacy` block of an entry holds
-markup differences between the legacy pages; a new trainer does not need it.
+markup differences between the legacy pages (the schema explains each field);
+a new trainer does not need it.
 
 A trainer page is styled by the site stylesheet alone, with no fallback by
 class. The grid is laid out by the `#w-node-…-<suffix>` rules of the entry's
@@ -191,9 +196,8 @@ rules without a modifier show Efim's photos. A new entry therefore needs the
 `src/styles/zvenfit.webflow.css`, and a `photoClass` that has both photo rules
 there. Such an entry still builds: `check-build` is what fails on a trainer
 page whose ids or photo class have no rules, and on a page without a photo
-class other than Efim's. New rules change the bytes of the site stylesheet,
-which `compare-dist` still compares with the legacy base (see Stack): add them
-once that comparison is retired or pinned to a new base.
+class other than Efim's. Adding the rules is an ordinary change of the site
+stylesheet: its built file gets a new content hash.
 
 ## Task → file map
 
@@ -201,10 +205,9 @@ once that comparison is retired or pinned to a new base.
 | -------------------------- | ----------------------------------------------------------------------------------------- |
 | Pages (Astro)              | `src/pages/**/index.astro`, `src/pages/404.astro`                                          |
 | Trainer pages              | `src/content/trainers/*.json`, `src/lib/trainer-schema.ts`, `src/pages/trenery/[slug].astro`; grid and photo rules in `src/styles/zvenfit.webflow.css`, guard in `scripts/check-build.cjs` |
-| Page conversion            | `scripts/migrate/html-to-astro.cjs`, `shared-blocks.cjs`, `trainer-page.cjs`, `manual.json`; reads the legacy pages from git (`--ref <pinned base>`); removed by the follow-up to release A |
-| Parity check               | `scripts/compare-dist.cjs`, `scripts/parity-allowlist.json`, `scripts/lib/html-parity.cjs`, `scripts/lib/parity-harness.cjs`, `scripts/lib/parity-profile.cjs` |
+| Comparison of two builds   | `scripts/compare-dist.cjs`, `scripts/parity-allowlist.json`, `scripts/lib/html-parity.cjs`, `scripts/lib/parity-harness.cjs`, `scripts/lib/parity-profile.cjs`; a manual tool kept for release B, no job runs it (see Verification) |
 | Static files               | `public/` (two SVG logos); guard against a file at the path of a route in `scripts/check-build.cjs` |
-| CSS minification           | `scripts/lib/site-css.cjs`, `astro.config.mjs`; guards in `scripts/check-build.cjs` and `scripts/compare-dist.cjs` |
+| CSS minification           | `scripts/lib/site-css.cjs`, `astro.config.mjs`; guard in `scripts/check-build.cjs` |
 | Layout and shared blocks   | `src/layouts/Base.astro`, `src/components/`                                                 |
 | Lead form UI/validation    | `src/pages/forma-dlya-zayavki/index.astro`, `src/scripts/lead-form.js`                      |
 | Lead API / Telegram        | `functions/lead-intake/src/handler.ts`, `src/telegram/`                                     |
@@ -218,7 +221,7 @@ once that comparison is retired or pinned to a new base.
 | Maps                       | `src/data/maps.config.json`, `src/data/map-photos.json` (`npm run maps:snapshot`), `src/scripts/yandex-map.js`, `src/components/MapRegion.astro` |
 | Runtime API configs        | `src/pages/js/*-config.js.ts`, `src/lib/runtime-config.ts`                                  |
 | Prices and page ownership  | `knowledge-base/site-information-architecture.md`                                           |
-| Club card page             | `src/pages/klubnaya-karta/index.astro` (own menu and footer, see `manual.json`), `src/styles/klubnaya-karta.v1.css` |
+| Club card page             | `src/pages/klubnaya-karta/index.astro`, `src/styles/klubnaya-karta.v1.css`. Its menu and footer are markup of the page, not `Menu.astro` and `Footer.astro`: the menu has an `<img>` logo, an `aria-label` and no Webflow node ids, the footer is wrapped in `div#contacts.club-card-contacts` and differs in `rel` and in the opening hours |
 | Global styles              | `src/styles/zvenfit.webflow.css`                                                            |
 | Alerts / dashboard         | `scripts/monitoring.config.json`, `docs/monitoring.md`                                      |
 | Staging access             | `functions/staging-authorizer/`, `docs/staging-environment.md`                              |
@@ -245,10 +248,6 @@ npm run dev                        # mock API :3000 + astro dev :4173
 - `npm run dev:dist` builds in development mode and serves `dist/` on :4173
   with the same mock API: the built output (hashed assets, the minified site
   stylesheet, endpoints as files) instead of the dev server.
-- `npm run dev:watch` is `npm run dev` under its old name: the error hint of
-  the schedule page (`src/scripts/schedule.js`) names it, and the bytes of
-  that script are still compared with the legacy base. The hint and the alias
-  go in the follow-up to release A.
 - Schedule uses dynamic fixture by default (`SCHEDULE_PROVIDER=fixture`)
 - Live local data requires both `SCHEDULE_PROVIDER=fitbase` and `FITBASE_API_TOKEN`
 
@@ -264,37 +263,57 @@ npm run test:lead-fn             # durable storage, Telegram failure paths, metr
 npm run test:schedule-fn         # schedule contract, Fitbase and synthetic adapters
 npm run test:site-traffic        # page-view validation/classification/logging contract
 npm run test:staging-authorizer  # staging Basic auth
-npm run test:scripts             # build, deploy, monitoring, import, parity and converter scripts
-npm run test:build               # astro check + build + check-routes + check-build (full profile a)
+npm run test:scripts             # build, deploy, monitoring, import and comparison scripts
+npm run test:build               # astro check + build + check-routes + check-build
 npm run test:build:staging       # protected staging build with the same guards
-npm run compare:dist -- --base-sha <legacy SHA> --candidate-sha HEAD --profile a --mode production --snapshot src/data/map-photos.json
-npm run compare:dist -- --base-sha <legacy SHA> --candidate-sha HEAD --profile a --mode staging --snapshot src/data/map-photos.json
 npm run maps:snapshot            # refresh src/data/map-photos.json from Yandex Maps (network)
 ```
 
-`compare:dist` builds both commits in disposable worktrees (`npm ci` inside) and
-needs the network once; `HEAD` is accepted only as the candidate and only
-locally — CI passes explicit SHAs. Every check runs the full profile `a` from
-`scripts/deploy.config.json`: 41 HTML routes and 40 sitemap URLs; the partial
-profile `a1` of stage A1 no longer exists. The legacy base SHA is
-`PARITY_BASE_SHA` in `.github/workflows/quality.yml`, and the base is built
-from that commit: the tree itself has no legacy build.
-`compare-dist` first holds the legacy inputs (`public/`, `scripts/snippets/`,
-`scripts/build-static.cjs` and the three configs the legacy build reads) to
-that base. The candidate tree no longer carries them, so that part of the
-report says `skipped`; what applies is the history: the base must be an
-ancestor of the candidate, and every commit merged since the base that still
-carries the legacy build must carry the inputs of the base. After release A
-the base is an ancestor of the release commit and no later commit carries the
-legacy build, so this part passes by itself; it guarded the migration branch
-while fixes of the live site were still merged into it from `main`. The
-comparison also accounts for every file of both builds, so a file that legacy
-shipped by copying `public/` must exist in the Astro build with the same
-bytes.
-The converter tests read the legacy pages from the pinned base. A shallow
-checkout does not have that commit and skips them with a reason; the
-`compare-dist` job has the whole history and runs them with
-`REQUIRE_LEGACY_BASE=1`, where a missing base is a failure.
+`check-routes` and `check-build` always see the whole site: 41 HTML routes and
+40 sitemap URLs today. The deploy profile in `scripts/deploy.config.json` is
+`a`; `b` is reserved for release B, and `legacy` is no longer accepted.
+
+No check compares the built site with an earlier one. A change that must not
+alter it (a component refactoring, a dependency update, tooling) is proven by
+two builds with the same variables, the commit before in a throwaway worktree:
+
+```bash
+export LEAD_API_URL=https://example.invalid/lead SCHEDULE_API_URL=https://example.invalid/schedule TRAFFIC_API_URL=https://example.invalid/traffic ASSET_VERSION=compare
+git worktree add --detach ../before origin/main
+(cd ../before && npm ci && npm run build)
+npm run build
+diff -r ../before/dist dist && echo "the built site did not change"
+git worktree remove --force ../before
+```
+
+An empty diff means the same site, byte for byte. A changed browser script or
+stylesheet shows as a renamed `_astro/<name>.<hash>` file plus the pages that
+reference it. This is the production build, the one with analytics; repeat it
+with `NODE_ENV=staging` and with `NODE_ENV=development` when the change
+touches what differs between the modes. A local `.env` or `.env.local` is
+read in every mode and exists in the working tree only: move it away first.
+
+`npm run compare:dist` is the node-by-node comparison of the migration
+(`scripts/compare-dist.cjs`; plan, section 8). No job and no entry of
+`project-checks.json` runs it. It builds two commits in disposable worktrees
+(`npm ci` inside), needs the network once and the whole history; both SHAs
+are explicit, and `HEAD` is accepted for a local run.
+
+- Profile `a` compares a commit with the legacy build of
+  `d5aeb4a95be8759028064da03b0f40e89ca38db7`. It passed for release A and, on
+  2026-11-17, for the tree right after the converter was removed. From the
+  first change of a page, a text, a stylesheet or a browser script it fails by
+  design: its report then lists what differs from the legacy site and is not
+  a gate.
+- Profile `b` compares two Astro commits and is what release B needs. In
+  production mode it does not work yet: it recognises the hashed
+  `/_astro/` addresses on the candidate side only and reports every reference
+  to an own asset. It is brought into working order when branch B opens,
+  together with its job in `quality.yml` (plan, section 8).
+- `--mode staging` builds one commit twice and allows only the documented
+  differences between its production and its staging build; with profile `b`
+  it works today.
+
 `test:monitoring` and `test:lead-import` run subsets of `test:scripts` when only that area changed.
 
 Manual smoke:
@@ -322,13 +341,13 @@ From `TODO.md` — keep current identity:
 ## Common mistakes
 
 1. Editing `dist/` directly — changes are lost on next build
-2. Copy-pasting footer/header into pages — use `Footer.astro`, `Menu.astro` and the other components; a block that does not fit the component contract goes to `scripts/migrate/manual.json` with a reason
-3. Changing `src/pages/**`, `src/content/trainers/*.json`, the site stylesheet or a browser script while the parity tooling of release A is still switched on — the converter test and the `compare-dist` job fail, although the required `quality` check stays green; the follow-up to release A that removes the converter and re-pins or retires the comparison comes first or in the same pull request (see Stack)
-4. Reformatting `src/layouts`, `src/components` or `src/pages` — the whitespace is part of the parity contract and `compare-dist` fails
+2. Copy-pasting footer/header into pages — use `Footer.astro`, `Menu.astro` and the other components; a block that does not fit the component contract gets a prop of the component, or stays markup of the page with the reason in the pull request (the club card page is the one such page, see Task → file map)
+3. Expecting a check to notice a changed page — since the converter and the `compare-dist` job were removed, no job compares the built site: read the diff of the built output for a change of content, and for a change that must not alter the site compare two builds with `diff -r` (see Verification)
+4. Reformatting `src/layouts`, `src/components` or `src/pages` — the whitespace reproduces the legacy pages, a space between inline content is visible to the visitor, and no check fails on it any more
 5. Raw `U+00A0` or HTML comments inside component children in `.astro` templates — the compiler rewrites the first and drops the second; use `&nbsp;` and `set:html`
 6. Putting a file into `public/` at the path of a route (a page, a trainer page, `robots.txt`, `sitemap.xml`, `/js/*-config.js`) — Astro ships the file instead of the route and only warns; `check-build` fails
 7. Pushing to `main` — it starts a release (staging, E2E, then production); work on a branch and open a pull request
-8. Turning Vite's CSS minification back on, or setting `build.cssTarget` or a browser `build.target` — stylesheets get media range syntax and old Safari and Chrome lose the responsive layout; a config test, `check-build` and `compare-dist` fail
+8. Turning Vite's CSS minification back on, or setting `build.cssTarget` or a browser `build.target` — stylesheets get media range syntax and old Safari and Chrome lose the responsive layout; a config test and `check-build` fail
 9. Rolling a release back by hand (an upload to the bucket, `skip_staging`, a moved tag) — a rollback is a `git revert` pull request that goes through the normal release: staging, E2E, production (`knowledge-base/staging-runbook.md`, "Frontend rollback")
 
 ## Git branches
@@ -348,10 +367,10 @@ From `TODO.md` — keep current identity:
 pages come from `src/content/trainers/*.json` through
 `src/pages/trenery/[slug].astro`. `src/pages/sitemap.xml.ts` and
 `robots.txt.ts` generate the crawl files, so there is no hand-written sitemap.
-All of them were generated by
-`node scripts/migrate/html-to-astro.cjs --ref <legacy SHA> --all --force`; the
-legacy export they came from is no longer in the tree and is read from the
-pinned base in git history.
+All of them were generated from the legacy export by the converter of the
+migration. The converter was removed once release A was accepted: the pages
+and the trainer entries are edited by hand, and the legacy export they came
+from is in git history (last in `d5aeb4a`).
 
 ## Docs index
 
