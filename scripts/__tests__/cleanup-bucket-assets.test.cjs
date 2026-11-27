@@ -299,6 +299,8 @@ test('cleanup is manual, uses the release lock and rebuilds the revision stamped
   assert.match(checklist, /очередь `deploy` с `queue: max`/);
   assert.match(checklist, /до 100 ожидающих/);
   assert.match(checklist, /отменяет вновь поступивший запуск/);
+  assert.match(checklist, /более поздний успешный релиз этот коммит/);
+  assert.match(checklist, /новый\s+ручной запуск \*\*Release\*\* для текущего `main` через staging и E2E/);
   const cleanupWorkflow = workflow('cleanup-assets');
   assert.deepEqual(
     [
