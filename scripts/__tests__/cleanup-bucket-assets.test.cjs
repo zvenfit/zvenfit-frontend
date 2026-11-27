@@ -179,6 +179,25 @@ test('javascript navigation URLs stop both plans even with HTML entities and mix
   assert.deepEqual(box.removed, []);
 });
 
+test('active document URL schemes stop planning while an inline image stays usable', t => {
+  const stale = object('_astro/used.png');
+  const box = fixture(t, [stale]);
+  const file = path.join(box.root, 'dist/index.html');
+  for (const [tag, error] of [
+    ['<a href="data:text/html,document">Open</a>', /data: URL/],
+    ['<a href="vbscript:example">Open</a>', /vbscript: URL/],
+    ['<base href="vbscript:example">', /document base/],
+    ['<base href="data:text/html,document">', /document base/],
+  ]) {
+    fs.writeFileSync(file, tag + html);
+    for (const execute of [false, true]) assert.throws(() => box.run(execute), error);
+  }
+  assert.deepEqual(box.reports, []);
+  fs.writeFileSync(file, html + '<img src="data:image/png;base64,iVBORw0KGgo=">');
+  assert.deepEqual(box.run(true), [stale]);
+  assert.deepEqual(box.removed, []);
+});
+
 test('staging verifies relative dependencies on the slashless and directory routes of each index', t => {
   const used = object('_astro/used.png');
   const stale = object('_astro/stale.png');

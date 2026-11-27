@@ -592,7 +592,7 @@ function addReferences(refs, document, pageUrl, site, deployedKeys, readCode, im
   const sameDocument = pageUrl instanceof ErrorPageUrl && pageUrl.referenceKind(href ?? '') === 'same-document';
   const finalBase = href && !sameDocument && URL.canParse(href, pageUrl) ? new URL(href, pageUrl) : pageUrl;
   const graph = codeGraph(refs, site, readCode, importedFiles, finalBase, deployedKeys, scriptFor);
-  if (['javascript:', 'data:'].includes(finalBase.protocol)) throw new Error('Cannot verify document base in ' + route);
+  if (!['https:', 'http:'].includes(finalBase.protocol)) throw new Error('Cannot verify document base in ' + route);
   const baseOffset = baseTag?.sourceCodeLocation?.startOffset ?? Infinity;
   // URL attributes can contain spaces, parentheses, commas and HTML entities.
   function scan(value, addUrl) {
@@ -649,8 +649,11 @@ function addReferences(refs, document, pageUrl, site, deployedKeys, readCode, im
         graph.entries.push({ source: value, base });
         if (base !== finalBase) graph.entries.push({ source: value, base: finalBase });
       } else if (['href', 'src', 'poster', 'data', 'action', 'formaction'].includes(name)) {
-        if (URL.canParse(value, base) && new URL(value, base).protocol === 'javascript:') {
-          throw new Error('Cannot verify javascript: URL in ' + route);
+        const scheme = URL.parse(value, base)?.protocol;
+        if (['data:', 'javascript:', 'vbscript:'].includes(scheme)) {
+          // An img decodes a data URL as an image, without creating a document or running a script.
+          const inlineImage = scheme === 'data:' && node.tagName === 'img' && name === 'src';
+          if (!inlineImage) throw new Error('Cannot verify ' + scheme + ' URL in ' + route);
         }
         addUrl(value);
         // A visitor can follow a link or submit a form after a later base takes effect.
