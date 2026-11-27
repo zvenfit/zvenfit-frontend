@@ -286,8 +286,9 @@ released.
    at the declaration and at each stylesheet or inline style that consumes the value
    through `var()`. It follows aliases and includes quoted URLs used by `image-set()`.
    The cascade can select different declarations, so any matching declaration can
-   protect an asset. The planner stops if it cannot parse an expression that could
-   supply a resource through a custom property. The legacy HTML `background` attribute on the body and table
+   protect an asset. If the CSS parser cannot interpret the value of an ordinary
+   or custom property, a URL, image function or `var()` in that value stops the plan.
+   This includes URL-bearing branches of CSS `if()`. The legacy HTML `background` attribute on the body and table
    elements also counts as an image reference.
    Literal JavaScript module imports resolve against the module
    URL. Linked and preloaded site scripts and stylesheets, including their local
@@ -319,7 +320,11 @@ released.
    including imports in linked stylesheets and modules.
    Production HTTP links to the site on its default port follow the CDN redirect to HTTPS.
    The planner also reads literal site asset URLs in inline and emitted
-   JavaScript, including URLs assembled from constant strings. Service worker
+   JavaScript. For concatenations and template literals it follows named string
+   constants in the same script, using their lexical scope. Static CSS values
+   written by `style.setProperty()`, inline style assignments and
+   `setAttribute("style", …)` are checked against document and stylesheet URLs,
+   including values that flow through a CSS custom property. Service worker
    registrations through a container alias use the same checks as direct
    registrations, including access through a constant property name. An unknown
    property of the service worker container stops the check. If code passes

@@ -182,9 +182,29 @@ function addAssetUrl(refs, value, base, site) {
   if (key) refs.add(key);
 }
 
+const cssImageFunctions = new Set(['url', 'image-set', '-webkit-image-set', 'image', 'src']);
+
+function hasCssResourceToken(text, includeStrings) {
+  let found = false;
+  css.tokenize(text, (type, start, end) => {
+    const fn = type === css.tokenTypes.Function && css.ident.decode(text.slice(start, end - 1)).toLowerCase();
+    if (
+      fn === 'var' ||
+      cssImageFunctions.has(fn) ||
+      type === css.tokenTypes.Url ||
+      type === css.tokenTypes.BadUrl ||
+      (includeStrings && type === css.tokenTypes.String)
+    )
+      found = true;
+  });
+  return found;
+}
+
 // Unregistered custom properties keep their tokens until substitution. Resolve possible URLs
 // at each var() use, after all stylesheets have been visited, including chains of aliases.
 function cssAssetReferences(refs, site, deployedKeys) {
+  const scriptDeclarations = new Set();
+  const styleBases = new Map();
   const literals = new Map();
   const aliases = new Map();
   const consumers = new Map();
@@ -205,8 +225,7 @@ function cssAssetReferences(refs, site, deployedKeys) {
     }
   }
 
-  function scan(value, context, base, visitCode, finalBase = base) {
-    const ast = css.parse(value, { context, parseCustomProperty: true });
+  function collect(ast, base, visitCode, finalBase = base, svgValue = false) {
     css.walk(ast, function (node) {
       let property = this.declaration && css.ident.decode(this.declaration.property);
       if (
@@ -219,15 +238,10 @@ function cssAssetReferences(refs, site, deployedKeys) {
       const custom = property?.startsWith('--');
       if (node.type === 'Raw') {
         // New CSS syntax may be retained as opaque text. Do not overlook a hidden URL or var().
-        css.tokenize(node.value, (type, start, end) => {
-          const fn =
-            type === css.tokenTypes.Function && css.ident.decode(node.value.slice(start, end - 1)).toLowerCase();
-          if (
-            fn === 'var' ||
-            (custom && (fn === 'url' || type === css.tokenTypes.Url || type === css.tokenTypes.String))
-          )
-            throw new Error('Cannot verify CSS custom property expression at ' + base.pathname);
-        });
+        if (hasCssResourceToken(node.value, custom))
+          throw new Error(
+            'Cannot verify CSS ' + (custom ? 'custom property' : 'resource') + ' expression at ' + base.pathname,
+          );
       } else if (node.type === 'Function' && css.ident.decode(node.name).toLowerCase() === 'var') {
         const name = node.children.first;
         if (name?.type !== 'Identifier') throw new Error('Cannot verify CSS var()');
@@ -253,24 +267,35 @@ function cssAssetReferences(refs, site, deployedKeys) {
         let target = node.prelude?.children?.first;
         if (target?.type === 'Function' && css.ident.decode(target.name).toLowerCase() === 'url')
           target = target.children.first;
-        if (!target || !['String', 'Url'].includes(target.type)) throw new Error('Cannot verify CSS @import');
+        if (!visitCode || !target || !['String', 'Url'].includes(target.type))
+          throw new Error('Cannot verify CSS @import');
         addAssetUrl(refs, target.value, base, site);
         visitCode(new URL(target.value, base), 'css');
       } else if (
         node.type === 'Url' ||
         (node.type === 'String' &&
           this.function &&
-          ['url', 'image-set', '-webkit-image-set', 'image', 'src'].includes(
-            css.ident.decode(this.function.name).toLowerCase(),
-          ))
+          cssImageFunctions.has(css.ident.decode(this.function.name).toLowerCase()))
       ) {
-        // A fragment-only paint server is part of the SVG document itself.
-        if (context !== 'value' || !node.value.startsWith('#')) addAssetUrl(refs, node.value, base, site);
+        // Script-written styles have several possible bases. Only an existing bucket key is at risk.
+        if (!visitCode) addPossibleUrl(node.value, base);
+        else if (!svgValue || !node.value.startsWith('#')) addAssetUrl(refs, node.value, base, site);
       }
     });
   }
 
-  function resolve() {
+  function scan(value, context, base, visitCode, finalBase = base) {
+    if (context === 'stylesheet') styleBases.set(base.href, base);
+    collect(css.parse(value, { context, parseCustomProperty: true }), base, visitCode, finalBase, context === 'value');
+  }
+
+  function resolve(documentBases) {
+    // A CSSOM write may target an element's inline style or a rule in a linked stylesheet.
+    for (const [href, base] of documentBases) styleBases.set(href, base);
+    for (const declaration of scriptDeclarations) {
+      const ast = css.parse(declaration, { context: 'declarationList', parseCustomProperty: true });
+      for (const base of styleBases.values()) collect(ast, base);
+    }
     for (const [base, names] of consumers) {
       // Set iteration includes newly added aliases and visits each name once even in a cycle.
       for (const name of names) {
@@ -279,7 +304,7 @@ function cssAssetReferences(refs, site, deployedKeys) {
       }
     }
   }
-  return { scan, resolve };
+  return { scan, resolve, scriptDeclarations };
 }
 
 function addModuleReferences(source, base, importMap, visitCode) {
@@ -294,7 +319,7 @@ function addModuleReferences(source, base, importMap, visitCode) {
 }
 
 // A classic script can load a site asset through Image, fetch, a worker, etc.
-function addScriptLiterals(refs, tree, bases, scriptUrl, site, deployedKeys, inspectNode) {
+function addScriptLiterals(refs, script, bases, scriptUrl, site, deployedKeys, inspectNode) {
   const errorBase = [...bases].find(base => base instanceof ErrorPageUrl);
   const assetBases = [...bases].filter(base => assetKey('.', base, site));
   const origin = new URL(site.siteUrl).origin;
@@ -303,7 +328,7 @@ function addScriptLiterals(refs, tree, bases, scriptUrl, site, deployedKeys, ins
     const dynamic = ts.isTemplateExpression(node);
     const addition = ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.PlusToken;
     if (dynamic || addition || ts.isStringLiteralLike(node)) {
-      const { text: value, fixed } = addressPrefix(node, origin);
+      const { text: value, fixed } = script.address(node, origin);
       const argument = enclosingArgument(node);
       const parent = argument.parent;
       // Module specifiers resolve against the module URL and are handled by addModuleReferences.
@@ -320,7 +345,7 @@ function addScriptLiterals(refs, tree, bases, scriptUrl, site, deployedKeys, ins
       let knownBase;
       const baseArg = urlArgs?.[1];
       if (baseArg && urlArgs[0] === argument) {
-        const base = addressPrefix(baseArg, origin);
+        const base = script.address(baseArg, origin);
         if (base.fixed && URL.canParse(base.text)) knownBase = base.text;
         if (
           ts.isPropertyAccessExpression(baseArg) &&
@@ -335,6 +360,12 @@ function addScriptLiterals(refs, tree, bases, scriptUrl, site, deployedKeys, ins
       // Workers resolve fetch()/importScripts() against their own URL. A shared script can
       // run in either context; retain any actual bucket key that its literal could address.
       const fixedPath = fixed || /[?#]/.test(value);
+      if (
+        !fixedPath &&
+        pathHint.endsWith('/_astro') &&
+        (knownBase ? [knownBase] : [...bases]).some(base => assetKey(value + '/', base, site))
+      )
+        throw new Error('Cannot verify a computed asset URL: ' + value);
       if (
         !fixedPath &&
         dynamic &&
@@ -366,6 +397,15 @@ function addScriptLiterals(refs, tree, bases, scriptUrl, site, deployedKeys, ins
         const key = assetKey(value, base, site);
         if (!key) continue;
         if (!fixedPath) throw new Error('Cannot verify a computed asset URL: ' + value);
+        // A named directory or path fragment may be combined at its use site.
+        if (
+          ts.isVariableDeclaration(parent) &&
+          parent.initializer === argument &&
+          parent.parent.flags & ts.NodeFlags.Const &&
+          !deployedKeys.has(key) &&
+          script.onlyUsedInComposition(parent)
+        )
+          continue;
         // Under an asset base ordinary strings can be event names or actual object keys.
         if (explicit || deployedKeys.has(key)) refs.add(key);
       }
@@ -374,36 +414,60 @@ function addScriptLiterals(refs, tree, bases, scriptUrl, site, deployedKeys, ins
     }
     ts.forEachChild(node, visit);
   }
-  visit(tree);
+  visit(script.tree);
 }
 
 // Return the fixed portion of a request before its first runtime substitution.
-function addressPrefix(node, origin) {
-  if (ts.isStringLiteralLike(node)) return { text: node.text, fixed: true };
-  if (
-    ts.isPropertyAccessExpression(node) &&
-    /^(?:(?:window|self|globalThis)\.)?location\.origin$/.test(node.getText())
-  ) {
-    return { text: origin, fixed: true };
-  }
-  if (ts.isTemplateExpression(node)) {
-    let text = node.head.text;
-    for (const span of node.templateSpans) {
-      const part = addressPrefix(span.expression, origin);
-      text += part.text;
-      if (!part.fixed) return { text, fixed: false };
-      text += span.literal.text;
+function scriptAddressResolver(getChecker) {
+  const constants = new Map();
+  const unknown = { text: '', fixed: false };
+  function address(node, origin) {
+    if (ts.isIdentifier(node)) {
+      const declaration = getChecker().getSymbolAtLocation(node)?.valueDeclaration;
+      if (
+        !declaration ||
+        !ts.isVariableDeclaration(declaration) ||
+        !ts.isIdentifier(declaration.name) ||
+        !(declaration.parent.flags & ts.NodeFlags.Const) ||
+        !declaration.initializer
+      )
+        return unknown;
+      if (!constants.has(origin)) constants.set(origin, new Map());
+      const values = constants.get(origin);
+      if (!values.has(declaration)) {
+        // Stop cycles, and share results for aliases referenced more than once.
+        values.set(declaration, unknown);
+        values.set(declaration, address(declaration.initializer, origin));
+      }
+      return values.get(declaration);
     }
-    return { text, fixed: true };
+    if (ts.isStringLiteralLike(node)) return { text: node.text, fixed: true };
+    if (
+      ts.isPropertyAccessExpression(node) &&
+      /^(?:(?:window|self|globalThis)\.)?location\.origin$/.test(node.getText())
+    ) {
+      return { text: origin, fixed: true };
+    }
+    if (ts.isTemplateExpression(node)) {
+      let text = node.head.text;
+      for (const span of node.templateSpans) {
+        const part = address(span.expression, origin);
+        text += part.text;
+        if (!part.fixed) return { text, fixed: false };
+        text += span.literal.text;
+      }
+      return { text, fixed: true };
+    }
+    if (ts.isParenthesizedExpression(node)) return address(node.expression, origin);
+    if (ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.PlusToken) {
+      const left = address(node.left, origin);
+      if (!left.fixed) return left;
+      const right = address(node.right, origin);
+      return { text: left.text + right.text, fixed: right.fixed };
+    }
+    return unknown;
   }
-  if (ts.isParenthesizedExpression(node)) return addressPrefix(node.expression, origin);
-  if (ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.PlusToken) {
-    const left = addressPrefix(node.left, origin);
-    if (!left.fixed) return left;
-    const right = addressPrefix(node.right, origin);
-    return { text: left.text + right.text, fixed: right.fixed };
-  }
-  return { text: '', fixed: false };
+  return address;
 }
 
 function externalOrigin(prefix, base, site) {
@@ -412,17 +476,17 @@ function externalOrigin(prefix, base, site) {
   return !storageHosts.has(url.host) && siteKey(url, base, site) === undefined;
 }
 
-function workerAddress(node, base, scriptUrl, site) {
+function workerAddress(node, base, scriptUrl, site, resolve) {
   if (ts.isNewExpression(node) && node.expression.text === 'Request' && node.arguments?.length) {
-    return workerAddress(node.arguments[0], base, scriptUrl, site);
+    return workerAddress(node.arguments[0], base, scriptUrl, site, resolve);
   }
   if (ts.isNewExpression(node) && node.expression.text === 'URL' && node.arguments?.length === 2) {
     const [address, relativeTo] = node.arguments;
-    if (relativeTo.getText() === 'import.meta.url') return workerAddress(address, scriptUrl, scriptUrl, site);
-    const prefix = addressPrefix(relativeTo, base.origin);
-    if (prefix.fixed) return workerAddress(address, new URL(prefix.text), scriptUrl, site);
+    if (relativeTo.getText() === 'import.meta.url') return workerAddress(address, scriptUrl, scriptUrl, site, resolve);
+    const prefix = resolve(relativeTo, base.origin);
+    if (prefix.fixed) return workerAddress(address, new URL(prefix.text), scriptUrl, site, resolve);
   }
-  const { text, fixed } = addressPrefix(node, base.origin);
+  const { text, fixed } = resolve(node, base.origin);
   if (fixed || /[?#]/.test(text)) {
     if (base instanceof ErrorPageUrl) base.requireFixedPath(text);
     return new URL(text, base);
@@ -434,8 +498,8 @@ function workerAddress(node, base, scriptUrl, site) {
 }
 
 // Let TypeScript resolve container aliases and destructuring against the DOM library.
-// This program is local to a script that uses registration; it never emits or follows imports.
-function registrationChecker(sourceFile) {
+// The same symbols identify lexical const bindings. The program never emits or follows imports.
+function scriptChecker(sourceFile) {
   const options = {
     allowJs: true,
     noResolve: true,
@@ -469,11 +533,11 @@ function isWorkerMethod(declaration) {
 
 // Inspect the registration method where it is obtained. After a callable escapes
 // into another script, inspecting the eventual call cannot establish its identity.
-function registrationTarget(node, getChecker) {
+function registrationTarget(node, getChecker, address) {
   const binding = ts.isBindingElement(node) && (node.propertyName ?? node.name).text === 'register';
   let name = memberName(node);
   if (!binding && ts.isElementAccessExpression(node) && name === undefined) {
-    const key = addressPrefix(node.argumentExpression, '');
+    const key = address(node.argumentExpression, '');
     if (key.fixed) name = key.text;
     else if (ts.isNumericLiteral(node.argumentExpression)) return;
     else {
@@ -536,21 +600,94 @@ function registrationTarget(node, getChecker) {
 
 // A shared script can run under many document bases. Parse and type-check its
 // registrations once; resolve the returned argument nodes in each loading context.
-function scriptCache() {
+function scriptCache(origin, scriptDeclarations) {
   const scripts = new Map();
   return source => {
     if (!scripts.has(source)) {
       const tree = ts.createSourceFile('asset.js', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
+      let checker;
+      const getChecker = () => (checker ??= scriptChecker(tree));
+      const address = scriptAddressResolver(getChecker);
+      function addStyleValue(property, valueNode) {
+        const value = address(valueNode, origin);
+        if (property && value.fixed)
+          scriptDeclarations.add(property === 'cssText' ? value.text : css.ident.encode(property) + ':' + value.text);
+        else {
+          // An unresolved conditional or interpolation can still contain a literal resource.
+          function check(text) {
+            if (hasCssResourceToken(text, true)) throw new Error('Cannot verify a computed CSSOM resource');
+          }
+          function inspect(part) {
+            if (ts.isStringLiteralLike(part) || ts.isTemplateLiteralToken(part)) check(part.text);
+            ts.forEachChild(part, inspect);
+          }
+          check(value.text);
+          inspect(valueNode);
+        }
+      }
+      function collectDeclarations(node) {
+        if (ts.isCallExpression(node) && memberName(node.expression) === 'setProperty' && node.arguments.length >= 2) {
+          const property = address(node.arguments[0], origin);
+          addStyleValue(property.fixed && property.text, node.arguments[1]);
+        } else if (
+          ts.isCallExpression(node) &&
+          memberName(node.expression) === 'setAttribute' &&
+          node.arguments.length >= 2 &&
+          address(node.arguments[0], origin).text.toLowerCase() === 'style'
+        ) {
+          addStyleValue('cssText', node.arguments[1]);
+        } else if (
+          ts.isBinaryExpression(node) &&
+          node.operatorToken.kind === ts.SyntaxKind.EqualsToken &&
+          (ts.isPropertyAccessExpression(node.left) || ts.isElementAccessExpression(node.left)) &&
+          memberName(node.left.expression) === 'style'
+        ) {
+          const property = memberName(node.left);
+          addStyleValue(
+            property === 'cssText' ? property : property?.replace(/[A-Z]/g, letter => '-' + letter.toLowerCase()),
+            node.right,
+          );
+        }
+        ts.forEachChild(node, collectDeclarations);
+      }
+      collectDeclarations(tree);
+      const fragments = new Map();
+      function onlyUsedInComposition(declaration) {
+        if (!fragments.has(declaration)) {
+          let used = false;
+          let standalone = false;
+          function inspect(node) {
+            if (
+              ts.isIdentifier(node) &&
+              node !== declaration.name &&
+              node.text === declaration.name.text &&
+              getChecker().getSymbolAtLocation(node)?.valueDeclaration === declaration
+            ) {
+              used = true;
+              const parent = enclosingArgument(node).parent;
+              if (
+                !(ts.isBinaryExpression(parent) && parent.operatorToken.kind === ts.SyntaxKind.PlusToken) &&
+                !ts.isTemplateSpan(parent)
+              )
+                standalone = true;
+            }
+            if (!standalone) ts.forEachChild(node, inspect);
+          }
+          inspect(tree);
+          fragments.set(declaration, used && !standalone);
+        }
+        return fragments.get(declaration);
+      }
       let targets;
       scripts.set(source, {
         tree,
+        address,
+        onlyUsedInComposition,
         registrations() {
           if (targets) return targets;
           targets = new Map();
-          let checker;
-          const getChecker = () => (checker ??= registrationChecker(tree));
           function visit(node) {
-            const target = registrationTarget(node, getChecker);
+            const target = registrationTarget(node, getChecker, address);
             if (target) targets.set(node, target);
             ts.forEachChild(node, visit);
           }
@@ -574,7 +711,7 @@ function codeGraph(refs, site, readVerifiedText, importedFiles, documentBase, de
     const bases = workerBase ? [workerBase] : [...new Set([parsingBase, documentBase])];
     const script = scriptFor(source);
     const registrations = script.registrations();
-    addScriptLiterals(refs, script.tree, bases, scriptUrl, site, deployedKeys, node => {
+    addScriptLiterals(refs, script, bases, scriptUrl, site, deployedKeys, node => {
       const registration = registrations.get(node);
       const call = ts.isCallExpression(node) || ts.isNewExpression(node);
       const api = call && (memberName(node.expression) ?? node.expression.text);
@@ -582,7 +719,7 @@ function codeGraph(refs, site, readVerifiedText, importedFiles, documentBase, de
         registration || (ts.isNewExpression(node) && ['Worker', 'SharedWorker'].includes(api) && node.arguments?.[0]);
       if (entryArgument) {
         for (const base of bases) {
-          const entry = workerAddress(entryArgument, base, scriptUrl, site);
+          const entry = workerAddress(entryArgument, base, scriptUrl, site, script.address);
           if (entry) visitCode(entry, 'js', entry);
         }
       } else if (workerBase && call && node.arguments?.length) {
@@ -597,7 +734,7 @@ function codeGraph(refs, site, readVerifiedText, importedFiles, documentBase, de
           requests = [second];
         } else return;
         for (const argument of requests) {
-          const address = workerAddress(argument, workerBase, scriptUrl, site);
+          const address = workerAddress(argument, workerBase, scriptUrl, site, script.address);
           if (!address) continue;
           if (api === 'importScripts') visitCode(address, 'js', workerBase);
           else addAssetUrl(refs, address, workerBase, site);
@@ -814,7 +951,7 @@ function addReferences(
   }
   visit(document);
   graph.runEntries();
-  return finalBase.href;
+  return finalBase;
 }
 
 function sameSet(expected, actual, label) {
@@ -868,11 +1005,12 @@ function planCleanup({ config, client, dist, sha, now = Date.now(), report }) {
   const htmlObjects = objects.filter(object => object.Key.endsWith('.html'));
   sameSet(pages, new Set(htmlObjects.map(object => object.Key)), 'pages');
   const builtRefs = new Set();
-  const documentBases = new Set();
+  const documentBases = new Map();
   const site = SITES.get(config.environment);
   const verifiedText = new Map();
   const importedFiles = new Set();
-  const scriptFor = scriptCache();
+  const styles = cssAssetReferences(builtRefs, site, deployedKeys);
+  const scriptFor = scriptCache(new URL(site.siteUrl).origin, styles.scriptDeclarations);
   const checkedNavigations = new Set();
   function checkNavigation(key) {
     if (!deployedKeys.has(key) || pages.has(key) || checkedNavigations.has(key)) return;
@@ -929,7 +1067,6 @@ function planCleanup({ config, client, dist, sha, now = Date.now(), report }) {
   } else if (config.execute) {
     throw new Error('Missing runtime config digest. Deploy the site with release metadata before executing cleanup.');
   }
-  const styles = cssAssetReferences(builtRefs, site, deployedKeys);
   const scanCss = styles.scan;
   const review = {
     site,
@@ -961,7 +1098,8 @@ function planCleanup({ config, client, dist, sha, now = Date.now(), report }) {
     for (const pathname of paths) {
       const pageUrl =
         object.Key === '404.html' ? new ErrorPageUrl(site, deployedKeys, files) : new URL(pathname, site.siteUrl);
-      documentBases.add(addReferences(builtRefs, document, pageUrl, review));
+      const base = addReferences(builtRefs, document, pageUrl, review);
+      documentBases.set(base.href, base);
     }
   }
   if (!builtRefs.size) throw new Error('No /_astro/ references in dist');
@@ -975,6 +1113,7 @@ function planCleanup({ config, client, dist, sha, now = Date.now(), report }) {
     scriptFor,
     scanCss,
   );
+  const pageUrls = [...documentBases.keys()];
   for (const key of files) {
     if (key.startsWith(config.prefix) && !deployedKeys.has(key))
       throw new Error(`Incomplete deployment: missing bucket object ${key}`);
@@ -982,12 +1121,12 @@ function planCleanup({ config, client, dist, sha, now = Date.now(), report }) {
     if (/\.m?js$/i.test(key)) {
       const source = fs.readFileSync(path.join(dist, key), 'utf8');
       if (!importedFiles.has(key)) addModuleReferences(source, fileUrl, {}, fallback.visitCode);
-      addScriptLiterals(builtRefs, scriptFor(source).tree, documentBases, fileUrl, site, deployedKeys);
+      addScriptLiterals(builtRefs, scriptFor(source), pageUrls, fileUrl, site, deployedKeys);
     } else if (/\.css$/i.test(key)) {
       scanCss(fs.readFileSync(path.join(dist, key), 'utf8'), 'stylesheet', fileUrl, fallback.visitCode);
     }
   }
-  styles.resolve();
+  styles.resolve(documentBases);
   for (const key of builtRefs) {
     if (!files.has(key)) throw new Error(`Incomplete dist: missing referenced asset ${key}`);
   }

@@ -395,6 +395,59 @@ test('quoted CSS imports and image-set URLs must exist in the rebuilt site', t =
   assert.deepEqual(box.reports, []);
 });
 
+test('opaque CSS conditionals with resource tokens stop both plans for ordinary properties', t => {
+  const stale = object('_astro/old.png');
+  const box = fixture(t, [stale]);
+  const css = path.join(box.root, 'dist/_astro/live.css');
+  for (const image of ['url(old.png)', 'url("old.png")', 'image-set("old.png" 1x)']) {
+    fs.writeFileSync(css, 'body{background:if(supports(display:grid):' + image + '; else:none)}');
+    for (const execute of [false, true]) assert.throws(() => box.run(execute), /Cannot verify CSS/);
+  }
+  assert.deepEqual(box.reports, []);
+  fs.writeFileSync(css, 'body{color:if(supports(display:grid):red;else:blue)}');
+  assert.deepEqual(box.run(true), [stale]);
+});
+
+test('CSSOM setProperty values protect URLs in inline and linked scripts', t => {
+  const used = object('_astro/old.png');
+  const stale = object('_astro/unused.png');
+  const box = fixture(t, [used, stale]);
+  const dist = path.join(box.root, 'dist');
+  const css = path.join(dist, '_astro/live.css');
+  const script = path.join(dist, '_astro/app.js');
+  const page = path.join(dist, 'index.html');
+  for (const [source, style] of [
+    ['document.body.style.setProperty("background-image", "url(/_astro/old.png)")', ''],
+    [`document.body.style.setProperty("background-image", 'url("/_astro/old.png")')`, ''],
+    ['document.body.style.backgroundImage = "url(/_astro/old.png)"', ''],
+    ['document.body.style.cssText = "color:red;background:url(/_astro/old.png)"', ''],
+    ['document.body.setAttribute("style", "background:url(/_astro/old.png)")', ''],
+    ['document.body.style.setProperty("--hero", "url(old.png)")', 'body{background:var(--hero)}'],
+    [
+      `const value='"old.png"'; document.body.style.setProperty("--hero",value)`,
+      'body{background:image-set(var(--hero) 1x)}',
+    ],
+  ]) {
+    fs.writeFileSync(css, style);
+    for (const inline of [true, false]) {
+      fs.writeFileSync(script, inline ? '' : source);
+      fs.writeFileSync(page, html + (inline ? '<script>' + source + '</script>' : ''));
+      for (const execute of [false, true])
+        assert.throws(() => box.run(execute), { message: 'Incomplete dist: missing referenced asset ' + used.Key });
+    }
+  }
+  assert.deepEqual(box.reports, []);
+  fs.writeFileSync(path.join(dist, used.Key), '');
+  for (const execute of [false, true]) assert.deepEqual(box.run(execute), [stale]);
+  fs.writeFileSync(
+    script,
+    'document.body.style.setProperty("background","url(https://external.invalid/_astro/unused.png)")',
+  );
+  assert.deepEqual(box.run(true), [stale]);
+  fs.writeFileSync(script, 'document.body.style.setProperty("background", dark ? "url(/_astro/unused.png)" : "none")');
+  for (const execute of [false, true]) assert.throws(() => box.run(execute), /Cannot verify a computed CSSOM resource/);
+});
+
 test('CSS custom property URLs follow the stylesheet consuming var(), including strings and aliases', t => {
   const used = object('_astro/old.png');
   const stale = object('_astro/unused.png');
@@ -617,6 +670,46 @@ test('constant concatenations protect the complete key without treating pieces a
   }
   fs.writeFileSync(inline, html + '<script>fetch("https://outside.invalid" + "/_astro/old.png")</script>');
   assert.deepEqual(box.run(true), [stale, used]);
+});
+
+test('named string constants use lexical scope to resolve complete asset URLs', t => {
+  const used = object('_astro/old.png');
+  const stale = object('_astro/unused.png');
+  const box = fixture(t, [used, stale]);
+  const dist = path.join(box.root, 'dist');
+  const index = path.join(dist, 'index.html');
+  const js = path.join(dist, '_astro/app.js');
+  // The resource loads on the home page; a 404 has a separate unknown-path guard.
+  fs.writeFileSync(path.join(dist, '404.html'), '<link href="/_astro/live.css">');
+  for (const source of [
+    'const dir="/_astro"; const file="/old.png"; new Image().src=dir+file',
+    'const dir="/_astro/"; const file="old.png"; const path=dir+file; fetch(path)',
+    'const dir="/external"; { const dir="/_astro"; const file="/old.png"; fetch(`${dir}${file}`) }',
+  ]) {
+    for (const inline of [true, false]) {
+      fs.writeFileSync(index, html + (inline ? '<script>' + source + '</script>' : ''));
+      fs.writeFileSync(js, inline ? '' : source);
+      for (const execute of [false, true])
+        assert.throws(() => box.run(execute), { message: 'Incomplete dist: missing referenced asset ' + used.Key });
+      fs.writeFileSync(path.join(dist, used.Key), '');
+      assert.deepEqual(box.run(true), [stale]);
+      fs.unlinkSync(path.join(dist, used.Key));
+    }
+  }
+  fs.writeFileSync(
+    js,
+    'const dir="/_astro"; { const dir="https://external.invalid/_astro"; const file="/old.png"; fetch(dir+file) }',
+  );
+  assert.deepEqual(box.run(true), [used, stale]);
+  fs.writeFileSync(js, 'const file="/_astro/missing.png"; fetch(file); fetch(file+"?v=1")');
+  assert.throws(() => box.run(), /missing referenced asset _astro\/missing\.png/);
+  for (const source of [
+    'const dir="/_astro"; fetch(dir+window.file)',
+    'const path=`/_astro/${name}.png`; fetch(path)',
+  ]) {
+    fs.writeFileSync(js, source);
+    for (const execute of [false, true]) assert.throws(() => box.run(execute), /Cannot verify a computed asset URL/);
+  }
 });
 
 test('service worker container aliases verify the entry and stop unresolved local requests', t => {
