@@ -349,8 +349,12 @@ function addReferences(refs, html, route, site, deployedKeys, readCode, imported
     const attrs = Object.fromEntries((node.attrs ?? []).map(({ name, value }) => [name, value]));
     const rel = (attrs.rel || '').toLowerCase().split(/\s+/);
     if (node.tagName === 'script' && attrs.src) graph.entries.push({ url: new URL(attrs.src, base), kind: 'js' });
-    if (node.tagName === 'link' && attrs.href && (rel.includes('stylesheet') || rel.includes('modulepreload'))) {
-      graph.entries.push({ url: new URL(attrs.href, base), kind: rel.includes('stylesheet') ? 'css' : 'js' });
+    if (node.tagName === 'link' && attrs.href) {
+      const preload = rel.includes('preload') && attrs.as?.toLowerCase();
+      const style = rel.includes('stylesheet') || preload === 'style';
+      if (style || rel.includes('modulepreload') || preload === 'script') {
+        graph.entries.push({ url: new URL(attrs.href, base), kind: style ? 'css' : 'js' });
+      }
     }
     for (const { name, value } of node.attrs ?? []) {
       if (node.tagName === 'base' && name === 'href') continue;

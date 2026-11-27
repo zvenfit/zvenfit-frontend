@@ -276,8 +276,8 @@ released.
    indirect dependencies such as fonts, must exist in the bucket. Asset URLs
    in inline and built stylesheets are resolved against their document or
    stylesheet URL. Literal JavaScript module imports resolve against the module
-   URL. Linked site scripts and stylesheets, including their local module and CSS
-   imports, must exist in the build and match their bytes in storage, even when
+   URL. Linked and preloaded site scripts and stylesheets, including their local
+   module and CSS imports, must exist in the build and match their bytes in storage, even when
    their names are outside `_astro/`. Each page’s import maps resolve exact,
    scoped and package-prefix imports against that document’s base URL.
    The planner also reads literal site asset URLs in inline and emitted
@@ -375,9 +375,14 @@ Use the selected SHA in the applicable recovery path below.
   ```
 
   A later change in the same stylesheet can give a clean revert a different
-  filename. If the check fails, keep cleanup paused and restore the verified
-  historical asset at its original path in the recovery PR. Rebuild and repeat
-  the check after any change to the candidate or its base. Use the regular
+  filename. If the check fails, keep cleanup paused. Restore the inputs from
+  the verified release in the recovery PR. For the global stylesheet, restore
+  `src/styles/zvenfit.webflow.css` and, if it changed, the build configuration
+  and pinned toolchain that produced it. The build generates one hashed global
+  stylesheet from that source and checks its minified bytes. If reproducing
+  the key requires reverting other changes, agree that rollback with the owner.
+  Run the build guards and repeat the byte comparison after any change to the
+  candidate or its base. Use the regular
   release through staging and E2E after the check passes.
 
 Both workflows upload the assets before switching HTML. Verify the affected

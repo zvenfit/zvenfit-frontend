@@ -328,6 +328,30 @@ test('linked same-bucket scripts and styles must match dist before planning', t 
   assert.deepEqual(box.removed, []);
 });
 
+test('preloaded styles and scripts must match their live bytes before cleanup', t => {
+  const image = object('_astro/preload.png');
+  const box = fixture(t, [image, object('theme.css'), object('extra.js')]);
+  const dist = path.join(box.root, 'dist');
+  const read = box.client.readAsset;
+  for (const [destination, key, source] of [
+    ['style', 'theme.css', 'body { background: url(/_astro/preload.png) }'],
+    ['script', 'extra.js', 'fetch("/_astro/preload.png")'],
+  ]) {
+    const onload = destination === 'style' ? ` onload="this.rel='stylesheet'"` : '';
+    const preload = `<link rel="preload" as="${destination}" href="/${key}"${onload}>`;
+    fs.writeFileSync(path.join(dist, 'index.html'), html + preload);
+    fs.writeFileSync(path.join(dist, key), '');
+    box.client.readAsset = name => (name === key ? Buffer.from(source) : read(name));
+    for (const execute of [false, true])
+      assert.throws(() => box.run(execute), { message: 'Live code differs from dist: ' + key });
+    fs.writeFileSync(path.join(dist, key), source);
+    assert.throws(() => box.run(), { message: 'Incomplete dist: missing referenced asset ' + image.Key });
+    fs.writeFileSync(path.join(dist, key), '');
+    box.client.readAsset = read;
+    assert.deepEqual(box.run(), [image]);
+  }
+});
+
 test('import map exact, scoped and package URLs resolve per page through external modules', t => {
   const used = object('_astro/lib/widget.js');
   const stale = object('_astro/lib/retired.js');
@@ -741,15 +765,30 @@ test('production recovery checks the actual candidate against the historical key
     .trim();
   const build = fixture(t).root;
   const candidate = fixture(t).root;
-  const key = '_astro/site.previous.css';
-  const candidateKey = path.join(candidate, 'dist', key);
-  fs.writeFileSync(path.join(build, 'dist', key), 'previous bytes');
-  fs.writeFileSync(path.join(candidate, 'dist/_astro/site.new-hash.css'), 'intervening change');
+  const { builtSiteStylesheets, minifyBuiltSiteCss } = require('../lib/site-css.cjs');
+  const key = '_astro/zvenfit.webflow.previous.css';
+  const other = '_astro/zvenfit.webflow.later.css';
+  const original = '.hero { color: green }';
+  function emit(checkout, filename, css) {
+    const sourcePath = path.join(checkout, 'zvenfit.webflow.css');
+    const assetsDir = path.join(checkout, 'dist/_astro');
+    fs.writeFileSync(sourcePath, css);
+    for (const previous of builtSiteStylesheets(assetsDir)) fs.unlinkSync(path.join(assetsDir, previous));
+    fs.writeFileSync(path.join(checkout, 'dist', filename), css);
+    minifyBuiltSiteCss({ assetsDir, sourcePath });
+  }
+  emit(build, key, original);
+  emit(candidate, other, '.hero { color: blue }');
   const compare = () => spawnSync('bash', ['-eu', '-c', check], { env: { build, candidate, key } }).status;
   assert.notEqual(compare(), 0);
-  fs.writeFileSync(candidateKey, 'changed bytes');
-  assert.notEqual(compare(), 0);
-  fs.writeFileSync(candidateKey, 'previous bytes');
+  fs.copyFileSync(path.join(build, 'dist', key), path.join(candidate, 'dist', key));
+  minifyBuiltSiteCss({
+    assetsDir: path.join(candidate, 'dist/_astro'),
+    sourcePath: path.join(candidate, 'zvenfit.webflow.css'),
+  });
+  assert.notEqual(compare(), 0); // the build hook rewrites an extra copy using current source bytes
+  emit(candidate, key, original);
+  assert.equal(builtSiteStylesheets(path.join(candidate, 'dist/_astro')).length, 1);
   assert.equal(compare(), 0);
 });
 
