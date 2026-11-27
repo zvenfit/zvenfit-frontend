@@ -13,6 +13,8 @@ const { parse: parseImports } = require('es-module-lexer');
 const { PRODUCTION, STAGING } = require('./validate-deployment-config.cjs');
 
 const DAY = 86_400_000;
+// Leave space within GitHub's 1 MiB step limit for the execute progress line.
+const PLAN_SUMMARY_BYTES = 1024 * 1024 - 1024;
 const MIN_AGE_DAYS = 2; // Derivation in knowledge-base/cdn-runbook.md.
 const SITES = new Map([
   ['staging', STAGING],
@@ -277,7 +279,7 @@ function planCleanup({ config, client, dist, sha, now = Date.now(), report }) {
   const candidates = selectCandidates(objects, files, config.prefix, cutoff);
   const bytes = candidates.reduce((sum, object) => sum + object.Size, 0);
   const windowEnds = lastHtml + MIN_AGE_DAYS * DAY;
-  const summary = [
+  const overview = [
     '### Bucket asset cleanup',
     '',
     `Mode: **${config.execute ? 'execute' : 'dry-run'}** · ${config.environment} · \`${config.bucket}\``,
@@ -286,12 +288,15 @@ function planCleanup({ config, client, dist, sha, now = Date.now(), report }) {
     `Candidates: **${candidates.length}** · Total bytes: **${bytes}**. Under \`${config.prefix}\`, absent from dist, LastModified strictly before ${new Date(cutoff).toISOString()} (${config.days} days).`,
     `Rollback window from latest HTML upload ends at ${new Date(windowEnds).toISOString()}.`,
     '',
+  ].join('\n');
+  const summary = [
+    overview,
     '| Key | LastModified (UTC) | Bytes |',
     '| --- | --- | ---: |',
     ...candidates.map(o => `| ${displayKey(o.Key)} | ${new Date(modified(o)).toISOString()} | ${o.Size} |`),
     '',
   ].join('\n');
-  report(summary);
+  report(summary, overview);
   if (config.execute && now < windowEnds) throw new Error('Rollback window is still open');
   return candidates;
 }
@@ -331,9 +336,15 @@ function run(argv, env, workflowEntry = false) {
       client,
       dist: path.join(root, 'dist'),
       sha,
-      report: message => {
-        console.log(message);
-        if (env.GITHUB_STEP_SUMMARY) fs.appendFileSync(env.GITHUB_STEP_SUMMARY, message + '\n');
+      report: (fullReport, overview) => {
+        console.log(fullReport);
+        if (!env.GITHUB_STEP_SUMMARY) return;
+        let summary = fullReport;
+        if (Buffer.byteLength(fullReport) > PLAN_SUMMARY_BYTES) {
+          const log = env.CLEANUP_JOB_URL ? `[job log](${env.CLEANUP_JOB_URL})` : 'step log';
+          summary = `${overview}\nThe complete candidate table is in the ${log}, under **Verify live HTML and process candidates**.\n`;
+        }
+        fs.appendFileSync(env.GITHUB_STEP_SUMMARY, summary + '\n');
       },
     });
     return { bucket: config.bucket, execute: config.execute, keys: candidates.map(item => item.Key) };

@@ -265,6 +265,9 @@ released.
 3. Each row is an object under `_astro/` that is absent from the entire built
    tree and was last written **strictly before** the UTC cutoff. The timestamp
    and byte size let the owner check why it qualifies and reconcile the total.
+   If the table exceeds the step summary budget, the summary keeps the counts,
+   byte totals, cutoff and a link to the job log for that attempt. Open **Verify live HTML
+   and process candidates** there for the complete table in the log.
    Old files still in the build, including indirectly referenced assets, stay
    protected. Legacy `js/`, `css/` and `images/` await a separate scope
    change after B. Trainer photos and documents and the `zvenfit/v2` asset
@@ -277,8 +280,10 @@ released.
    a later completion, a failed release or an ongoing recovery. Resolve those
    first. Dispatch with the same inputs and `execute` checked. The workflow
    rereads the bucket and recomputes the plan under the lock. Check the final
-   confirmed deletion count. After a failure partway through, review a new
-   dry-run of what remains. [Retention calculation](cdn-runbook.md#minimum-age-for-asset-cleanup)
+   confirmed deletion count. The step updates that count and logs the key after
+   each successful storage response. After a cancellation or timeout, use the
+   last confirmed entry in the log and run a fresh dry-run to determine what
+   remains. A request in flight when the runner stopped has an unknown outcome. [Retention calculation](cdn-runbook.md#minimum-age-for-asset-cleanup)
 
 Example dry-run summary (fixture data)
 
@@ -306,14 +311,22 @@ lockfile and build with the same variables and guards as the workflow’s
 The local command rejects execute mode. Only the manual workflow processes
 deletions, using the checkout it rebuilt and verified under the release lock.
 
-**Recovery.** If a current asset is missing, stop cleanup and repeat the full
-release of the current deployed revision through staging, E2E, production and
-smoke. When that SHA is still the head of `main`, use **Release** on `main`
-with `skip_staging` unchecked. If the required revision differs from current
-`main`, restore the required sources through the [frontend rollback
-procedure](#frontend-rollback) and release that reviewed tree. The first
-upload restores its assets before HTML switches. Verify the affected URLs,
-watch the 404 metric and restart the rollback window.
+**Recovery.** Stop cleanup in the affected environment. Check the deployed
+SHA in the affected bucket and compare it with the head of `main`.
+
+- **Staging only.** When the required SHA is the head of `main`, dispatch
+  **Deploy to Staging** on `main` and wait for staging E2E. For an older SHA,
+  use **Re-run all jobs** on an eligible **Deploy to Staging** run for that
+  exact SHA. If there is no such run, agree with the owner whether to advance
+  staging to current `main` or arrange a staging-only recovery of that revision.
+- **Production.** When the required SHA is the head of `main`, dispatch
+  **Release** on `main` with `skip_staging` unchecked. Follow staging, E2E,
+  production and smoke. For an older revision, restore the sources through
+  the [frontend rollback procedure](#frontend-rollback) and release the reviewed tree.
+
+Both workflows upload the assets before switching HTML. Verify the affected
+URLs, watch the 404 metric and restart the rollback window for each environment
+that was deployed.
 
 ## Bucket snapshot before a release
 

@@ -49,6 +49,8 @@ jobs:
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
+          # Pin control code to the dispatch. The full fetch keeps origin/main at its current tip on re-run.
+          ref: ${{ github.sha }}
           fetch-depth: 0
           persist-credentials: false
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
@@ -118,24 +120,33 @@ jobs:
 
       - name: Verify live HTML and process candidates
         env:
+          CLEANUP_JOB_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/job/${{ job.check_run_id }}
           CLEANUP_EXECUTE: ${{ inputs.execute }}
         run: |
-          node <<'NODE'
-          const { execFileSync } = require('node:child_process');
-          const { appendFileSync } = require('node:fs');
-          const { planForWorkflow } = require('./scripts/cleanup-bucket-assets.cjs');
-          const plan = planForWorkflow();
+          node --input-type=module <<'NODE'
+          import { execFileSync } from 'node:child_process';
+          import { closeSync, fstatSync, openSync, writeSync } from 'node:fs';
+          import { promisify } from 'node:util';
+          import planner from './scripts/cleanup-bucket-assets.cjs';
+
+          const plan = planner.planForWorkflow();
           if (plan.execute) {
-            let deleted = 0;
+            const log = promisify(process.stdout.write.bind(process.stdout));
+            const summary = openSync(process.env.GITHUB_STEP_SUMMARY, 'r+');
             try {
+              // Update a single footer after each acknowledgement, including on partial runs.
+              const footer = fstatSync(summary).size;
+              const checkpoint = count => writeSync(summary, `Confirmed deletions: ${count} of ${plan.keys.length}.\n`, footer);
+              let deleted = 0;
+              checkpoint(deleted);
+              await log('Starting verified deletions.\n');
               for (const key of plan.keys) {
                 execFileSync('aws', ['s3api', 'delete-object', '--bucket', plan.bucket, '--key', key, '--no-cli-pager']);
-                deleted++;
+                checkpoint(++deleted);
+                await log(`Confirmed deletion ${deleted}/${plan.keys.length}: ${JSON.stringify(key)}\n`);
               }
             } finally {
-              const result = `Confirmed deletions: ${deleted} of ${plan.keys.length}.\n`;
-              console.log(result);
-              appendFileSync(process.env.GITHUB_STEP_SUMMARY, result);
+              closeSync(summary);
             }
           }
           NODE

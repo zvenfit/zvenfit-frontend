@@ -311,6 +311,11 @@ test('cleanup is manual, uses the release lock and rebuilds the revision stamped
     /\n    environment:\n      name: \$\{\{ inputs.environment \}\}\n      deployment: false\n/,
   );
   assert.match(cleanupWorkflow, /CLEANUP_EXECUTE: \$\{\{ inputs.execute \}\}\n        run: \|/);
+  assert.ok(
+    cleanupWorkflow.includes(
+      'CLEANUP_JOB_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/job/${{ job.check_run_id }}',
+    ),
+  );
   assert.match(cleanupWorkflow, /id-token: write/);
   assert.match(cleanupWorkflow, /steps.live.outputs.sha/);
   assert.match(cleanupWorkflow, /git worktree add --detach "\$RUNNER_TEMP\/deployed" "\$DEPLOYED_SHA"/);
@@ -320,8 +325,78 @@ test('cleanup is manual, uses the release lock and rebuilds the revision stamped
   );
 });
 
-test('the CLI only reads and the dispatch step deletes exactly the verified candidates on execute', t => {
-  const { root, objects } = fixture(t, [object('_astro/stale.js', '2000-01-01T00:00:00Z')]);
+function cleanupStep(name) {
+  const workflow = fs.readFileSync(path.join(__dirname, '../../.github/workflows/cleanup-assets.yml'), 'utf8');
+  return workflow
+    .split(`      - name: ${name}\n`)[1]
+    .split('\n      - ')[0]
+    .split('        run: |\n')[1]
+    .replace(/^          /gm, '');
+}
+
+test('re-running an older dispatch can rebuild a newer deployed SHA on main', t => {
+  const workflow = fs.readFileSync(path.join(__dirname, '../../.github/workflows/cleanup-assets.yml'), 'utf8');
+  const checkout = workflow.split('      - uses: actions/checkout@')[1].split('      - uses:')[0];
+  assert.match(checkout, /^          ref: \$\{\{ github\.sha \}\}$/m);
+  assert.match(checkout, /^          fetch-depth: 0$/m);
+
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cleanup-rerun-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const git = (...args) => execFileSync('git', args, { cwd: dir, encoding: 'utf8' }).trim();
+  git('init', '--quiet', '-b', 'main');
+  const commit = title => {
+    git(
+      '-c',
+      'user.name=Fixture',
+      '-c',
+      'user.email=fixture@example.invalid',
+      '-c',
+      'core.hooksPath=/dev/null',
+      'commit',
+      '--quiet',
+      '--allow-empty',
+      '--no-gpg-sign',
+      '-m',
+      title,
+    );
+    return git('rev-parse', 'HEAD');
+  };
+  const dispatchSha = commit('dispatch');
+  const liveSha = commit('deployed later');
+  git('update-ref', 'refs/remotes/origin/main', liveSha);
+  git('checkout', '--quiet', '--detach', dispatchSha);
+  const unrelated = commit('outside main');
+  git('checkout', '--quiet', '--detach', dispatchSha);
+  fs.writeFileSync(path.join(dir, 'npm'), '#!/bin/sh\nexit 0\n', { mode: 0o755 });
+  const prepare = sha =>
+    spawnSync('bash', ['-e', '-o', 'pipefail', '-c', cleanupStep('Prepare the deployed checkout')], {
+      cwd: dir,
+      env: { PATH: dir + path.delimiter + process.env.PATH, RUNNER_TEMP: dir, DEPLOYED_SHA: sha },
+      encoding: 'utf8',
+    });
+  assert.equal(prepare(unrelated).status, 1);
+  const result = prepare(liveSha);
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(git('rev-parse', 'HEAD'), dispatchSha);
+  assert.equal(git('-C', path.join(dir, 'deployed'), 'rev-parse', 'HEAD'), liveSha);
+});
+
+test('recovery routes staging incidents to the staging-only workflow and production through E2E', () => {
+  const root = path.join(__dirname, '../..');
+  const runbook = fs.readFileSync(path.join(root, 'knowledge-base/staging-runbook.md'), 'utf8');
+  const recovery = runbook.split('**Recovery.**')[1].split('\n## ')[0];
+  const [staging, production] = recovery.split('- **Staging only.**')[1].split('- **Production.**');
+  const workflowName = file =>
+    fs.readFileSync(path.join(root, '.github/workflows', file), 'utf8').match(/^name: (.+)$/m)[1];
+  assert.ok(staging.includes(`**${workflowName('staging.yml')}**`));
+  assert.doesNotMatch(staging, /\*\*Release\*\*/);
+  assert.match(staging, /older SHA[\s\S]*exact SHA/);
+  assert.ok(production.includes(`**${workflowName('main.yml')}**`));
+  assert.match(production, /skip_staging` unchecked/);
+});
+
+function dispatchFixture(t, extra = [object('_astro/stale.js')]) {
+  const { root, objects } = fixture(t, extra);
   const git = (...args) => execFileSync('git', ['-C', root, ...args], { encoding: 'utf8' }).trim();
   git('init', '--quiet');
   git(
@@ -355,13 +430,17 @@ echo "$2" >> calls
 [[ "$1" == s3api && "$3" == --bucket && "$4" == zvenfit-frontend-staging ]]
 case "$2" in
   head-object) cat metadata ;;
-  list-objects-v2) cat listing ;;
+  list-objects-v2)
+    node -e 'const fs = require("node:fs"); const data = JSON.parse(fs.readFileSync("listing"));
+      const removed = fs.existsSync("removed") ? fs.readFileSync("removed", "utf8").split("\\n") : [];
+      console.log(JSON.stringify({Contents: data.Contents.filter(o => !removed.includes(o.Key))}));' ;;
   get-object)
     while [[ "$1" != --key ]]; do shift; done
     cp "dist/$2" "$3"
     cat metadata ;;
   delete-object)
     while [[ "$1" != --key ]]; do shift; done
+    if [[ "$2" == "\${STUB_CANCEL_ON:-}" ]]; then kill -TERM "$PPID"; exit 1; fi
     echo "$2" >> removed ;;
   *) exit 64 ;;
 esac
@@ -373,6 +452,7 @@ esac
   const local = {
     PATH: root + path.delimiter + process.env.PATH,
     CLEANUP_ENVIRONMENT: 'staging',
+    CLEANUP_JOB_URL: 'https://github.com/zvenfit/zvenfit-frontend/actions/runs/123/job/789',
     GITHUB_STEP_SUMMARY: summary,
   };
   const dispatch = {
@@ -384,6 +464,13 @@ esac
     GITHUB_JOB: 'cleanup',
     RUNNER_TEMP: path.dirname(root),
   };
+  fs.symlinkSync(path.resolve(__dirname, '..'), path.join(root, 'scripts'), 'dir');
+  const shell = ['-e', '-o', 'pipefail', '-c', cleanupStep('Verify live HTML and process candidates')];
+  return { root, sha, summary, script, local, dispatch, shell };
+}
+
+test('the CLI only reads and the dispatch step deletes exactly the verified candidates on execute', t => {
+  const { root, sha, summary, script, local, dispatch, shell } = dispatchFixture(t);
   function refused(target, env, error) {
     const result = spawnSync(process.execPath, [script, target], { cwd: root, env, encoding: 'utf8' });
     assert.equal(result.status, 1);
@@ -422,14 +509,6 @@ esac
   });
   assert.equal(fs.existsSync(path.join(root, 'removed')), false);
 
-  // Exercise the actual workflow step with the same AWS stub as the local CLI.
-  fs.symlinkSync(path.resolve(__dirname, '..'), path.join(root, 'scripts'), 'dir');
-  const workflow = fs.readFileSync(path.join(__dirname, '../../.github/workflows/cleanup-assets.yml'), 'utf8');
-  const step = workflow
-    .split('      - name: Verify live HTML and process candidates\n')[1]
-    .split('        run: |\n')[1]
-    .replace(/^          /gm, '');
-  const shell = ['-e', '-o', 'pipefail', '-c', step];
   for (const change of [
     { GITHUB_EVENT_NAME: 'push' },
     { GITHUB_JOB: 'quality' },
@@ -445,6 +524,59 @@ esac
   execFileSync('bash', shell, { cwd: root, env: dispatch });
   assert.deepEqual(fs.readFileSync(path.join(root, 'removed'), 'utf8').trim().split('\n'), ['_astro/stale.js']);
   assert.match(fs.readFileSync(summary, 'utf8'), /Confirmed deletions: 1 of 1/);
+});
+
+test('an interrupted execute preserves the last confirmed count and key before starting the next delete', t => {
+  const keys = ['_astro/first.js', '_astro/second.js', '_astro/third.js'];
+  const { root, dispatch, shell, summary } = dispatchFixture(
+    t,
+    keys.map(key => object(key)),
+  );
+  const interrupted = spawnSync('bash', shell, {
+    cwd: root,
+    env: { ...dispatch, STUB_CANCEL_ON: keys[1] },
+    encoding: 'utf8',
+  });
+  assert.ok(interrupted.signal === 'SIGTERM' || interrupted.status === 143, interrupted.stderr);
+  assert.equal(fs.readFileSync(path.join(root, 'removed'), 'utf8'), keys[0] + '\n');
+  assert.match(interrupted.stdout, /Confirmed deletion 1\/3: "_astro\/first.js"/);
+  assert.doesNotMatch(interrupted.stdout, /Confirmed deletion 2\/3/);
+  assert.deepEqual(fs.readFileSync(summary, 'utf8').match(/Confirmed deletions: .*/g), [
+    'Confirmed deletions: 1 of 3.',
+  ]);
+  const remaining = execFileSync('bash', shell, {
+    cwd: root,
+    env: { ...dispatch, CLEANUP_EXECUTE: 'false' },
+    encoding: 'utf8',
+  });
+  assert.match(remaining, /Candidates: \*\*2\*\*/);
+  assert.ok(!remaining.includes(keys[0]));
+  assert.ok(remaining.includes(keys[1]) && remaining.includes(keys[2]));
+});
+
+test('a candidate table over the UTF-8 summary limit remains complete in the linked attempt log', t => {
+  const objects = Array.from({ length: 9000 }, (_, i) =>
+    object('_astro/' + 'я'.repeat(30) + String(i).padStart(5, '0') + '.css', old, 2),
+  );
+  const { root, dispatch, shell, summary } = dispatchFixture(t, objects);
+  const output = execFileSync('bash', shell, {
+    cwd: root,
+    env: { ...dispatch, CLEANUP_EXECUTE: 'false' },
+    encoding: 'utf8',
+    maxBuffer: 4 * 1024 * 1024,
+  });
+  assert.ok(output.length < 1024 * 1024 && Buffer.byteLength(output) > 1024 * 1024);
+  const listed = [...output.matchAll(/<code>([^<]+)<\/code>/g)].map(m => m[1]);
+  assert.deepEqual(
+    listed,
+    objects.map(o => o.Key),
+  );
+  const compact = fs.readFileSync(summary, 'utf8');
+  assert.ok(Buffer.byteLength(compact) < 1024 * 1024 - 128);
+  assert.match(compact, /Candidates: \*\*9000\*\* · Total bytes: \*\*18000\*\*/);
+  assert.match(compact, /LastModified strictly before/);
+  assert.ok(compact.includes('[job log](' + dispatch.CLEANUP_JOB_URL + ')'));
+  assert.equal(fs.existsSync(path.join(root, 'removed')), false);
 });
 
 test('concurrent ephemeral sessions use a bucket prefix for reads and grant delete only for execute', async t => {
