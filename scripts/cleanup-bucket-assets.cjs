@@ -153,10 +153,9 @@ function addModuleReferences(source, base, importMap, visitCode) {
 }
 
 // A classic script can load a site asset through Image, fetch, a worker, etc.
-function addScriptLiterals(refs, source, bases, scriptUrl, site, deployedKeys, inspectNode) {
+function addScriptLiterals(refs, tree, bases, scriptUrl, site, deployedKeys, inspectNode) {
   const assetBases = [...bases].filter(base => assetKey('.', base, site));
   const origin = new URL(site.siteUrl).origin;
-  const tree = ts.createSourceFile('asset.js', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
   function visit(node) {
     if (inspectNode) inspectNode(node);
     const dynamic = ts.isTemplateExpression(node);
@@ -306,22 +305,42 @@ function enclosingArgument(node) {
   return node;
 }
 
+function isWorkerMethod(declaration) {
+  return declaration?.name?.text === 'register' && declaration.parent.name?.text === 'ServiceWorkerContainer';
+}
+
 // Inspect the registration method where it is obtained. After a callable escapes
 // into another script, inspecting the eventual call cannot establish its identity.
 function registrationTarget(node, getChecker) {
   const binding = ts.isBindingElement(node) && (node.propertyName ?? node.name).text === 'register';
-  if (!binding && memberName(node) !== 'register') return;
-  const type = getChecker(node).getTypeAtLocation(binding ? node.name : node);
+  let name = memberName(node);
+  if (!binding && ts.isElementAccessExpression(node) && name === undefined) {
+    const key = addressPrefix(node.argumentExpression, '');
+    if (key.fixed) name = key.text;
+    else if (ts.isNumericLiteral(node.argumentExpression)) return;
+    else {
+      const checker = getChecker();
+      const keyType = checker.getTypeAtLocation(node.argumentExpression);
+      const possibilities = keyType.isUnion() ? keyType.types : [keyType];
+      if (possibilities.every(part => part.isLiteral())) {
+        if (!possibilities.some(part => part.value === 'register')) return;
+        name = 'register';
+      } else {
+        const receiver = checker.getTypeAtLocation(node.expression);
+        const receivers = receiver.isUnion() ? receiver.types : [receiver];
+        if (receivers.some(part => part.getProperty('register')?.declarations?.some(isWorkerMethod))) {
+          throw new Error('Cannot verify a computed service worker property');
+        }
+        return;
+      }
+    }
+  }
+  if (!binding && name !== 'register') return;
+  const type = getChecker().getTypeAtLocation(binding ? node.name : node);
   const possibleWorker = (type.isUnion() ? type.types : [type]).some(
     part =>
       part.flags & (ts.TypeFlags.Any | ts.TypeFlags.Unknown) ||
-      part
-        .getCallSignatures()
-        .some(
-          sig =>
-            sig.declaration?.name?.text === 'register' &&
-            sig.declaration.parent.name?.text === 'ServiceWorkerContainer',
-        ),
+      part.getCallSignatures().some(sig => isWorkerMethod(sig.declaration)),
   );
   if (!possibleWorker) return;
   const ref = enclosingArgument(node);
@@ -357,19 +376,48 @@ function registrationTarget(node, getChecker) {
   throw new Error('Cannot verify an indirect service worker registration without a script URL');
 }
 
+// A shared script can run under many document bases. Parse and type-check its
+// registrations once; resolve the returned argument nodes in each loading context.
+function scriptCache() {
+  const scripts = new Map();
+  return source => {
+    if (!scripts.has(source)) {
+      const tree = ts.createSourceFile('asset.js', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
+      let targets;
+      scripts.set(source, {
+        tree,
+        registrations() {
+          if (targets) return targets;
+          targets = new Map();
+          let checker;
+          const getChecker = () => (checker ??= registrationChecker(tree));
+          function visit(node) {
+            const target = registrationTarget(node, getChecker);
+            if (target) targets.set(node, target);
+            ts.forEachChild(node, visit);
+          }
+          visit(tree);
+          return targets;
+        },
+      });
+    }
+    return scripts.get(source);
+  };
+}
+
 // Each document has its own import map. Follow its modules and CSS imports with
 // their actual URLs, including when the same script runs under different maps.
-function codeGraph(refs, site, readCode, importedFiles, documentBase, deployedKeys) {
+function codeGraph(refs, site, readCode, importedFiles, documentBase, deployedKeys, scriptFor) {
   const seen = new Set();
   let importMap = {};
   const entries = [];
   let parsingBase = documentBase;
   function inspectWorkerCalls(source, scriptUrl, workerBase) {
     const bases = workerBase ? [workerBase] : [...new Set([parsingBase, documentBase])];
-    let checker;
-    const getChecker = node => (checker ??= registrationChecker(node.getSourceFile()));
-    addScriptLiterals(refs, source, bases, scriptUrl, site, deployedKeys, node => {
-      const registration = registrationTarget(node, getChecker);
+    const script = scriptFor(source);
+    const registrations = script.registrations();
+    addScriptLiterals(refs, script.tree, bases, scriptUrl, site, deployedKeys, node => {
+      const registration = registrations.get(node);
       const call = ts.isCallExpression(node) || ts.isNewExpression(node);
       const api = call && (memberName(node.expression) ?? node.expression.text);
       const entryArgument =
@@ -445,7 +493,7 @@ function codeGraph(refs, site, readCode, importedFiles, documentBase, deployedKe
   };
 }
 
-function addReferences(refs, html, route, site, deployedKeys, readCode, importedFiles) {
+function addReferences(refs, html, route, site, deployedKeys, readCode, importedFiles, scriptFor) {
   const document = parse(html, { scriptingEnabled: false, sourceCodeLocationInfo: true });
   const pageUrl = new URL(route, site.siteUrl);
   function firstBase(node) {
@@ -464,7 +512,7 @@ function addReferences(refs, html, route, site, deployedKeys, readCode, imported
   const baseTag = firstBase(document);
   const href = baseTag?.attrs.find(attr => attr.name === 'href')?.value;
   const finalBase = href && URL.canParse(href, pageUrl) ? new URL(href, pageUrl) : pageUrl;
-  const graph = codeGraph(refs, site, readCode, importedFiles, finalBase, deployedKeys);
+  const graph = codeGraph(refs, site, readCode, importedFiles, finalBase, deployedKeys, scriptFor);
   const baseOffset = baseTag?.sourceCodeLocation?.startOffset ?? Infinity;
   // URL attributes can contain spaces, parentheses, commas and HTML entities.
   function scan(value, addUrl) {
@@ -501,10 +549,16 @@ function addReferences(refs, html, route, site, deployedKeys, readCode, imported
       if (node.tagName === 'base' && name === 'href') continue;
       if (name === 'style') {
         addCssReferences(refs, value, 'declarationList', base, site, graph.visitCode);
-      } else if (['href', 'src', 'poster', 'data', 'action'].includes(name)) {
+      } else if (name.startsWith('on') && value.trim()) {
+        graph.entries.push({ source: value, base });
+        if (base !== finalBase) graph.entries.push({ source: value, base: finalBase });
+      } else if (['href', 'src', 'poster', 'data', 'action', 'formaction'].includes(name)) {
         addUrl(value);
         // A visitor can follow a link or submit a form after a later base takes effect.
-        if (base !== finalBase && (name === 'action' || (name === 'href' && ['a', 'area'].includes(node.tagName)))) {
+        if (
+          base !== finalBase &&
+          (['action', 'formaction'].includes(name) || (name === 'href' && ['a', 'area'].includes(node.tagName)))
+        ) {
           addAssetUrl(refs, value, finalBase, site);
         }
       } else if (name === 'srcset' || name === 'imagesrcset') {
@@ -594,6 +648,7 @@ function planCleanup({ config, client, dist, sha, now = Date.now(), report }) {
   const site = SITES.get(config.environment);
   const verifiedCode = new Map();
   const importedFiles = new Set();
+  const scriptFor = scriptCache();
   function readCode(key) {
     if (!files.has(key)) throw new Error(`Incomplete dist: missing referenced asset ${key}`);
     if (!deployedKeys.has(key)) throw new Error(`Incomplete deployment: missing bucket object ${key}`);
@@ -615,11 +670,20 @@ function planCleanup({ config, client, dist, sha, now = Date.now(), report }) {
     const builtHtml = fs.readFileSync(path.join(dist, object.Key));
     if (!builtHtml.equals(page.html)) throw new Error(`Live HTML differs from dist: ${object.Key}`);
     documentBases.add(
-      addReferences(builtRefs, builtHtml.toString('utf8'), object.Key, site, deployedKeys, readCode, importedFiles),
+      addReferences(
+        builtRefs,
+        builtHtml.toString('utf8'),
+        object.Key,
+        site,
+        deployedKeys,
+        readCode,
+        importedFiles,
+        scriptFor,
+      ),
     );
   }
   if (!builtRefs.size) throw new Error('No /_astro/ references in dist');
-  const fallback = codeGraph(builtRefs, site, readCode, importedFiles, new URL(site.siteUrl), deployedKeys);
+  const fallback = codeGraph(builtRefs, site, readCode, importedFiles, new URL(site.siteUrl), deployedKeys, scriptFor);
   for (const key of files) {
     if (key.startsWith(config.prefix) && !deployedKeys.has(key))
       throw new Error(`Incomplete deployment: missing bucket object ${key}`);
@@ -627,7 +691,7 @@ function planCleanup({ config, client, dist, sha, now = Date.now(), report }) {
     if (/\.m?js$/i.test(key)) {
       const source = fs.readFileSync(path.join(dist, key), 'utf8');
       if (!importedFiles.has(key)) addModuleReferences(source, fileUrl, {}, fallback.visitCode);
-      addScriptLiterals(builtRefs, source, documentBases, fileUrl, site, deployedKeys);
+      addScriptLiterals(builtRefs, scriptFor(source).tree, documentBases, fileUrl, site, deployedKeys);
     } else if (/\.css$/i.test(key)) {
       addCssReferences(
         builtRefs,

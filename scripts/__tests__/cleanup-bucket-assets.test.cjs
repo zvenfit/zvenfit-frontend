@@ -286,6 +286,8 @@ test('service worker container aliases verify the entry and stop unresolved loca
   const worker = path.join(dist, 'worker.js');
   for (const source of [
     'const sw = navigator.serviceWorker; sw.register("/worker.js")',
+    'const sw = navigator.serviceWorker; const method = "register"; sw[method]("/worker.js")',
+    'const sw = navigator.serviceWorker; sw["reg" + "ister"].call(sw,"/worker.js")',
     'const {serviceWorker: sw} = navigator; const alias = sw; alias.register("/worker.js")',
     'function start(container) { container.register("/worker.js") } start(navigator.serviceWorker)',
     'const sw = navigator.serviceWorker; const start = sw.register.bind(sw, "/worker.js"); start()',
@@ -301,6 +303,8 @@ test('service worker container aliases verify the entry and stop unresolved loca
     fs.writeFileSync(worker, '');
     assert.deepEqual(box.run(true), [image]);
   }
+  fs.writeFileSync(code, html + '<script>const sw = navigator.serviceWorker; sw[window.method]("/worker.js")</script>');
+  assert.throws(() => box.run(), /Cannot verify a computed service worker property/);
   fs.writeFileSync(code, html + '<script>const sw = navigator.serviceWorker; sw.register(window.workerPath)</script>');
   assert.throws(() => box.run(), /Cannot verify a computed asset URL/);
   fs.writeFileSync(
@@ -373,6 +377,26 @@ test('navigation before a late base also protects the destination after parsing'
   assert.throws(() => box.run(), { message: 'Incomplete dist: missing referenced asset ' + used.Key });
   fs.writeFileSync(path.join(box.root, 'dist', used.Key), '');
   assert.deepEqual(box.run(true), []);
+});
+
+test('submit overrides and inline event handlers use the effective document base', t => {
+  const used = object('_astro/old.png');
+  const box = fixture(t, [used]);
+  const dist = path.join(box.root, 'dist');
+  for (const tag of [
+    '<form><button formaction="old.png">Open</button></form>',
+    '<form><input type="submit" formaction="old.png"></form>',
+    '<button onclick="location.href=&#39;old.png&#39;">Open</button>',
+  ]) {
+    for (const tags of [tag + '<base href="/_astro/">', '<base href="/_astro/">' + tag]) {
+      fs.writeFileSync(path.join(dist, 'index.html'), html + tags);
+      for (const execute of [false, true])
+        assert.throws(() => box.run(execute), { message: 'Incomplete dist: missing referenced asset ' + used.Key });
+      fs.writeFileSync(path.join(dist, used.Key), '');
+      assert.deepEqual(box.run(true), []);
+      fs.unlinkSync(path.join(dist, used.Key));
+    }
+  }
 });
 
 test('a relative script URL under an asset base and a stylesheet outside _astro protect live images', t => {

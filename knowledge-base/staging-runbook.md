@@ -281,11 +281,14 @@ released.
    their names are outside `_astro/`. Each page’s import maps resolve exact,
    scoped and package-prefix imports against the base URL in effect when the map
    is parsed. A relative script or stylesheet placed before a later `<base>`
-   loads relative to the page URL.
+   loads relative to the page URL. The check also covers the later base for
+   navigation from form submit buttons and inline event handlers.
    The planner also reads literal site asset URLs in inline and emitted
    JavaScript, including URLs assembled from constant strings. Service worker
    registrations through a container alias use the same checks as direct
-   registrations. If code passes the registration method to another script
+   registrations, including access through a constant property name. An unknown
+   property of the service worker container stops the check. If code passes
+   the registration method to another script
    before fixing the worker URL, the planner stops. Relative literals are checked against
    document bases and the script’s own URL for worker requests. A computed import or an explicit
    asset path in a template with an unknown filename stops the check. This also
