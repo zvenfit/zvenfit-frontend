@@ -249,10 +249,15 @@ released.
    when the queue is full. The cleanup job uses the selected Environment with
    deployment tracking disabled. Its temporary storage key can list and read
    objects in the selected site bucket. Execute adds deletion under `_astro/`.
+   You can re-run an older dry-run. It uses that dispatch’s rules and reads the
+   SHA deployed now, so its candidate list can differ from the first attempt.
 2. Read the summary. Verify the environment, bucket and full SHA against the
    last site deployment. The workflow reads the SHA and asset version from
    the selected bucket’s `index.html` object metadata, then builds and checks
-   that exact checkout using the selected environment. It reads every HTML
+   that exact checkout using the selected environment. Dependency installation,
+   build scripts and checks run in a container with the tracked sources, Node
+   toolchain and public site settings. Only its `dist/` output is mounted writable.
+   The host keeps the Environment’s OIDC and storage credentials. It reads every HTML
    object directly from storage, including 404. All pages must carry that
    release metadata and match the rebuilt HTML byte for byte, including
    inline CSS and scripts. Every `_astro/` file in the build, including
@@ -278,8 +283,12 @@ released.
    whose last HTML reference was removed yesterday. The summary shows the
    earliest time allowed by the last HTML write. Check the deploy history for
    a later completion, a failed release or an ongoing recovery. Resolve those
-   first. Dispatch with the same inputs and `execute` checked. The workflow
-   rereads the bucket and recomputes the plan under the lock. Check the final
+   first. Start a new dispatch on current `main` with the same inputs and
+   `execute` checked. The workflow checks the dispatch SHA against `main`
+   before authentication, then reads the bucket and recomputes the plan under
+   the lock. Immediately before deleting it checks the current `main` ref on
+   GitHub again. If the ref has moved or cannot be read, start a fresh run
+   after checking the new policy. Check the final
    confirmed deletion count. The step updates that count and logs the key after
    each successful storage response. After a cancellation or timeout, use the
    last confirmed entry in the log and run a fresh dry-run to determine what

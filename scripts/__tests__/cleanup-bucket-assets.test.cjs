@@ -292,6 +292,13 @@ test('cleanup is manual, uses the release lock and rebuilds the revision stamped
   const workflow = name => fs.readFileSync(path.join(__dirname, '../../.github/workflows', name + '.yml'), 'utf8');
   const lock = /\nconcurrency:\n  group: deploy\n  cancel-in-progress: false\n  queue: max\n/;
   for (const name of ['main', 'staging', 'cleanup-assets']) assert.match(workflow(name), lock);
+  const checklist = fs.readFileSync(path.join(__dirname, '../../docs/launch-checklist.md'), 'utf8');
+  for (const name of ['main', 'staging', 'cleanup-assets']) {
+    assert.ok(checklist.includes('**' + workflow(name).match(/^name: (.+)$/m)[1] + '**'));
+  }
+  assert.match(checklist, /очередь `deploy` с `queue: max`/);
+  assert.match(checklist, /до 100 ожидающих/);
+  assert.match(checklist, /отменяет вновь поступивший запуск/);
   const cleanupWorkflow = workflow('cleanup-assets');
   assert.deepEqual(
     [
@@ -367,7 +374,16 @@ test('re-running an older dispatch can rebuild a newer deployed SHA on main', t 
   git('checkout', '--quiet', '--detach', dispatchSha);
   const unrelated = commit('outside main');
   git('checkout', '--quiet', '--detach', dispatchSha);
-  fs.writeFileSync(path.join(dir, 'npm'), '#!/bin/sh\nexit 0\n', { mode: 0o755 });
+  assert.match(workflow, /- name: Require current main for execution\n        if: inputs.execute\n/);
+  assert.ok(workflow.indexOf('Require current main') < workflow.indexOf('Authenticate with the selected'));
+  const preflight = sha =>
+    spawnSync('bash', ['-ec', cleanupStep('Require current main for execution')], {
+      cwd: dir,
+      env: { PATH: process.env.PATH, GITHUB_SHA: sha },
+      encoding: 'utf8',
+    });
+  assert.equal(preflight(dispatchSha).status, 1);
+  assert.equal(preflight(liveSha).status, 0);
   const prepare = sha =>
     spawnSync('bash', ['-e', '-o', 'pipefail', '-c', cleanupStep('Prepare the deployed checkout')], {
       cwd: dir,
@@ -379,6 +395,98 @@ test('re-running an older dispatch can rebuild a newer deployed SHA on main', t 
   assert.equal(result.status, 0, result.stderr);
   assert.equal(git('rev-parse', 'HEAD'), dispatchSha);
   assert.equal(git('-C', path.join(dir, 'deployed'), 'rev-parse', 'HEAD'), liveSha);
+});
+
+test('historical npm and build guards receive only archived source, public settings and a dist mount', t => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cleanup-build-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const git = (...args) => execFileSync('git', ['-C', dir, ...args]);
+  git('init', '--quiet');
+  fs.writeFileSync(path.join(dir, 'tracked'), 'committed');
+  git('add', 'tracked');
+  git(
+    '-c',
+    'user.name=Fixture',
+    '-c',
+    'user.email=fixture@example.invalid',
+    '-c',
+    'core.hooksPath=/dev/null',
+    'commit',
+    '--quiet',
+    '--no-gpg-sign',
+    '-m',
+    'fixture',
+  );
+  fs.writeFileSync(path.join(dir, 'runner-only'), 'private fixture');
+  // Capture exactly what crosses the Docker boundary, including the archive on stdin.
+  fs.writeFileSync(
+    path.join(dir, 'docker'),
+    [
+      '#!/usr/bin/env node',
+      "const fs = require('node:fs');",
+      "fs.writeFileSync('argv', JSON.stringify(process.argv.slice(2)));",
+      "fs.writeFileSync('source.tar', fs.readFileSync(0));",
+    ].join('\n'),
+    { mode: 0o755 },
+  );
+  const workflow = fs.readFileSync(path.join(__dirname, '../../.github/workflows/cleanup-assets.yml'), 'utf8');
+  const rebuild = cleanupStep('Rebuild and check the deployed site');
+  assert.match(rebuild, /bash scripts\/rebuild-cleanup-site\.sh "\$RUNNER_TEMP\/deployed"/);
+  assert.doesNotMatch(workflow, /working-directory:.*deployed|cd "\$RUNNER_TEMP\/deployed"/);
+  assert.deepEqual(
+    workflow.match(/^\s*(?:run: )?npm .+$/gm).map(line => line.trim()),
+    ['run: npm ci --ignore-scripts'],
+  );
+  execFileSync('bash', [path.join(__dirname, '../rebuild-cleanup-site.sh'), dir], {
+    cwd: dir,
+    env: {
+      PATH: dir + path.delimiter + process.env.PATH,
+      NODE_ENV: 'staging',
+      YC_IAM_TOKEN: 'fixture',
+      AWS_SESSION_TOKEN: 'fixture',
+      ACTIONS_ID_TOKEN_REQUEST_TOKEN: 'fixture',
+    },
+  });
+  assert.equal(execFileSync('tar', ['-tf', 'source.tar'], { cwd: dir, encoding: 'utf8' }).trim(), 'tracked');
+  const argv = JSON.parse(fs.readFileSync(path.join(dir, 'argv')));
+  const image = argv.findIndex(arg => /^ubuntu:24\.04@sha256:[0-9a-f]{64}$/.test(arg));
+  assert.ok(image > 0);
+  const options = argv.slice(0, image);
+  assert.deepEqual(options, [
+    'run',
+    '--rm',
+    '-i',
+    '--user',
+    process.getuid() + ':' + process.getgid(),
+    '--cap-drop',
+    'ALL',
+    '--security-opt',
+    'no-new-privileges',
+    '--mount',
+    'type=bind,source=' + path.resolve(process.execPath, '../..') + ',target=/opt/node,readonly',
+    '--mount',
+    'type=bind,source=' + dir + '/dist,target=/output',
+    '--env',
+    'HOME=/tmp',
+    '--env',
+    'PATH=/opt/node/bin:/usr/local/bin:/usr/bin:/bin',
+    '--env',
+    'BUILD_MODE=staging',
+    '--env',
+    'ASSET_VERSION',
+    '--env',
+    'Y_MAPS_API_KEY',
+    '--env',
+    'LEAD_API_URL',
+    '--env',
+    'SCHEDULE_API_URL',
+    '--env',
+    'TRAFFIC_API_URL',
+  ]);
+  assert.deepEqual(argv.slice(image + 1, -1), ['bash', '-euo', 'pipefail', '-c']);
+  assert.match(argv.at(-1), /npm ci [^\n]+\n\s+export NODE_ENV="\$BUILD_MODE"\n\s+npm run build/);
+  for (const check of ['routes', 'build', 'staging-build'])
+    assert.ok(argv.at(-1).includes('node scripts/check-' + check + '.cjs'));
 });
 
 test('recovery routes staging incidents to the staging-only workflow and production through E2E', () => {
@@ -447,6 +555,17 @@ esac
 `,
     { mode: 0o755 },
   );
+  fs.writeFileSync(
+    path.join(root, 'gh'),
+    `#!/usr/bin/env bash
+set -eu
+echo main >> gh-calls
+[[ "$*" == 'api repos/zvenfit/zvenfit-frontend/git/ref/heads/main --jq .object.sha' ]]
+[[ "$STUB_MAIN_SHA" != unavailable ]]
+echo "$STUB_MAIN_SHA"
+`,
+    { mode: 0o755 },
+  );
   const summary = path.join(root, 'summary');
   const script = path.join(__dirname, '../cleanup-bucket-assets.cjs');
   const local = {
@@ -459,6 +578,9 @@ esac
     ...local,
     CLEANUP_EXECUTE: 'true',
     GITHUB_ACTIONS: 'true',
+    GITHUB_REPOSITORY: 'zvenfit/zvenfit-frontend',
+    GITHUB_SHA: sha,
+    STUB_MAIN_SHA: sha,
     GITHUB_EVENT_NAME: 'workflow_dispatch',
     GITHUB_WORKFLOW_REF: 'zvenfit/zvenfit-frontend/.github/workflows/cleanup-assets.yml@refs/heads/main',
     GITHUB_JOB: 'cleanup',
@@ -524,6 +646,27 @@ test('the CLI only reads and the dispatch step deletes exactly the verified cand
   execFileSync('bash', shell, { cwd: root, env: dispatch });
   assert.deepEqual(fs.readFileSync(path.join(root, 'removed'), 'utf8').trim().split('\n'), ['_astro/stale.js']);
   assert.match(fs.readFileSync(summary, 'utf8'), /Confirmed deletions: 1 of 1/);
+});
+
+test('a stale dispatch can repeat a dry-run but only the current main policy can delete', t => {
+  const { root, dispatch, shell, summary } = dispatchFixture(t);
+  const futureMain = 'b'.repeat(40);
+  const run = overrides =>
+    spawnSync('bash', shell, { cwd: root, env: { ...dispatch, ...overrides }, encoding: 'utf8' });
+  const dry = run({ STUB_MAIN_SHA: 'unavailable', CLEANUP_EXECUTE: 'false' });
+  assert.equal(dry.status, 0, dry.stderr);
+  assert.match(fs.readFileSync(summary, 'utf8'), /_astro\/stale\.js/);
+  assert.ok(!fs.existsSync(path.join(root, 'gh-calls')));
+  for (const head of [futureMain, 'unavailable', 'invalid']) {
+    const result = run({ STUB_MAIN_SHA: head });
+    assert.notEqual(result.status, 0);
+    assert.ok(!fs.existsSync(path.join(root, 'removed')));
+  }
+  assert.equal(fs.readFileSync(path.join(root, 'gh-calls'), 'utf8'), 'main\nmain\nmain\n');
+  // The current policy may clean a site which is still serving the previous release.
+  const current = run({ GITHUB_SHA: futureMain, STUB_MAIN_SHA: futureMain });
+  assert.equal(current.status, 0, current.stderr);
+  assert.equal(fs.readFileSync(path.join(root, 'removed'), 'utf8'), '_astro/stale.js\n');
 });
 
 test('an interrupted execute preserves the last confirmed count and key before starting the next delete', t => {

@@ -53,6 +53,13 @@ jobs:
           ref: ${{ github.sha }}
           fetch-depth: 0
           persist-credentials: false
+      - name: Require current main for execution
+        if: inputs.execute
+        run: |
+          if [[ "$GITHUB_SHA" != "$(git rev-parse refs/remotes/origin/main)" ]]; then
+            echo "::error::Execution requires the current main revision. Start a new dispatch on main."
+            exit 1
+          fi
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: '22'
@@ -60,7 +67,7 @@ jobs:
           cache: npm
 
       - name: Install cleanup dependencies
-        run: npm ci
+        run: npm ci --ignore-scripts
 
       - name: Restore the Yandex Cloud CLI
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
@@ -90,11 +97,8 @@ jobs:
         run: |
           git merge-base --is-ancestor "$DEPLOYED_SHA" origin/main
           git worktree add --detach "$RUNNER_TEMP/deployed" "$DEPLOYED_SHA"
-          cd "$RUNNER_TEMP/deployed"
-          npm ci
 
       - name: Rebuild and check the deployed site
-        working-directory: ${{ runner.temp }}/deployed
         env:
           NODE_ENV: ${{ inputs.environment }}
           ASSET_VERSION: ${{ steps.live.outputs.version }}
@@ -113,14 +117,17 @@ jobs:
             TRAFFIC_API_URL=$(function_url zvenfit-site-traffic)
           fi
           export LEAD_API_URL SCHEDULE_API_URL TRAFFIC_API_URL
-          npm run build
-          node scripts/check-routes.cjs
-          node scripts/check-build.cjs
-          if [[ "$NODE_ENV" == staging ]]; then node scripts/check-staging-build.cjs; fi
+          echo 'YC_IAM_TOKEN=' >> "$GITHUB_ENV"
+          # Historical build output is ordinary text, including any workflow-command-looking lines.
+          marker=$(cat /proc/sys/kernel/random/uuid)
+          echo "::stop-commands::$marker"
+          trap 'echo "::$marker::"' EXIT
+          bash scripts/rebuild-cleanup-site.sh "$RUNNER_TEMP/deployed"
 
       - name: Verify live HTML and process candidates
         env:
           CLEANUP_JOB_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/job/${{ job.check_run_id }}
+          GH_TOKEN: ${{ github.token }}
           CLEANUP_EXECUTE: ${{ inputs.execute }}
         run: |
           node --input-type=module <<'NODE'
@@ -131,6 +138,10 @@ jobs:
 
           const plan = planner.planForWorkflow();
           if (plan.execute) {
+            const main = execFileSync('gh', ['api', `repos/${process.env.GITHUB_REPOSITORY}/git/ref/heads/main`, '--jq', '.object.sha'], { encoding: 'utf8' }).trim();
+            if (!/^[0-9a-f]{40}$/.test(main) || main !== process.env.GITHUB_SHA) {
+              throw new Error('Execution requires the current main revision. Start a new dispatch on main.');
+            }
             const log = promisify(process.stdout.write.bind(process.stdout));
             const summary = openSync(process.env.GITHUB_STEP_SUMMARY, 'r+');
             try {
