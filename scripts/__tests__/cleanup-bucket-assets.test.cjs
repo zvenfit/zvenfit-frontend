@@ -37,6 +37,7 @@ function fixture(t, extra = []) {
     deployment: () => release,
     list: () => objects,
     readHtml: key => ({ release, html: fs.readFileSync(path.join(dist, key)) }),
+    readAsset: key => fs.readFileSync(path.join(dist, key)),
     remove: key => removed.push(key),
   };
   const config = options({ CLEANUP_ENVIRONMENT: 'staging' });
@@ -291,6 +292,127 @@ test('literal resources used relative to a worker URL remain protected', t => {
     fs.writeFileSync(path.join(dist, asset.Key), '');
   }
   assert.deepEqual(box.run(true), []);
+});
+
+test('linked same-bucket scripts and styles must match dist before planning', t => {
+  const stale = object('_astro/retained.png');
+  const box = fixture(t, [stale, object('css/live.css'), object('js/module')]);
+  const dist = path.join(box.root, 'dist');
+  const read = box.client.readAsset;
+  for (const [key, tag, live] of [
+    [
+      'css/live.css',
+      '<link rel="alternate stylesheet" href="/css/live.css">',
+      'a { background: url(/_astro/retained.png) }',
+    ],
+    [
+      'js/module',
+      '<script src="https://storage.yandexcloud.net/zvenfit-frontend-staging/js/module"></script>',
+      'fetch("/_astro/retained.png")',
+    ],
+  ]) {
+    fs.writeFileSync(path.join(dist, 'index.html'), html + tag);
+    fs.mkdirSync(path.dirname(path.join(dist, key)), { recursive: true });
+    box.client.readAsset = name => (name === key ? Buffer.from(live) : read(name));
+    for (const execute of [false, true])
+      assert.throws(() => box.run(execute), { message: 'Incomplete dist: missing referenced asset ' + key });
+    fs.writeFileSync(path.join(dist, key), '');
+    for (const execute of [false, true])
+      assert.throws(() => box.run(execute), { message: 'Live code differs from dist: ' + key });
+    fs.writeFileSync(path.join(dist, key), live);
+    assert.throws(() => box.run(), /missing referenced asset _astro\/retained.png/);
+    fs.writeFileSync(path.join(dist, key), '');
+    box.client.readAsset = read;
+    assert.deepEqual(box.run(), [stale]);
+  }
+  assert.deepEqual(box.removed, []);
+});
+
+test('import map exact, scoped and package URLs resolve per page through external modules', t => {
+  const used = object('_astro/lib/widget.js');
+  const stale = object('_astro/lib/retired.js');
+  const box = fixture(t, [used, stale, object('js/entry.mjs')]);
+  const dist = path.join(box.root, 'dist');
+  fs.mkdirSync(path.join(dist, 'js'));
+  fs.mkdirSync(path.join(dist, '_astro/lib'));
+  const entry = path.join(dist, 'js/entry.mjs');
+  const map = imports => '<script type="importmap">' + JSON.stringify(imports) + '</script>';
+  for (const [mapping, code] of [
+    [{ imports: { widget: './lib/widget.js' } }, 'import "widget"'],
+    [{ imports: { 'widgets/': './lib/' } }, 'import "widgets/widget.js"'],
+    [
+      { imports: { widget: 'https://external.invalid/widget.js' }, scopes: { '/js/': { widget: './lib/widget.js' } } },
+      'import("widget")',
+    ],
+  ]) {
+    fs.writeFileSync(entry, code);
+    fs.writeFileSync(
+      path.join(dist, 'index.html'),
+      '<base href="/_astro/">' + map(mapping) + html + '<script type="module" src="/js/entry.mjs"></script>',
+    );
+    for (const execute of [false, true])
+      assert.throws(() => box.run(execute), { message: 'Incomplete dist: missing referenced asset ' + used.Key });
+    fs.writeFileSync(path.join(dist, used.Key), '');
+    assert.deepEqual(box.run(true), [stale]);
+    fs.unlinkSync(path.join(dist, used.Key));
+  }
+  fs.writeFileSync(
+    path.join(dist, 'index.html'),
+    '<base href="/_astro/">' +
+      map({ imports: { widget: './lib/widget.js' } }) +
+      html +
+      '<script type="module">import "widget"</script>',
+  );
+  assert.throws(() => box.run(), /missing referenced asset _astro\/lib\/widget.js/);
+  assert.deepEqual(box.removed, []);
+});
+
+test('a shared module uses each importing page’s own maps and the first definition of each name', t => {
+  const other = object('_astro/other.js');
+  const box = fixture(t, [other]);
+  const dist = path.join(box.root, 'dist');
+  const tag = (alias, file) =>
+    '<script type="importmap">' + JSON.stringify({ imports: { [alias]: file } }) + '</script>';
+  const entry = '<script type="module" src="/_astro/app.js"></script>';
+  fs.writeFileSync(path.join(dist, '_astro/app.js'), 'import "widget/extra.js"');
+  fs.writeFileSync(path.join(dist, 'index.html'), tag('widget/', 'https://outside.invalid/') + entry);
+  fs.writeFileSync(
+    path.join(dist, '404.html'),
+    tag('widget/extra.js', '/_astro/other.js') + tag('widget/extra.js', 'https://outside.invalid/other.js') + entry,
+  );
+  assert.throws(() => box.run(), { message: 'Incomplete dist: missing referenced asset ' + other.Key });
+  fs.writeFileSync(path.join(dist, other.Key), '');
+  assert.deepEqual(box.run(true), []);
+});
+
+test('an unknown worker-relative request filename stops both plans', t => {
+  const image = object('_astro/worker/old.png');
+  const box = fixture(t, [image, object('_astro/worker/app.js')]);
+  const dist = path.join(box.root, 'dist');
+  fs.mkdirSync(path.join(dist, '_astro/worker'));
+  fs.writeFileSync(
+    path.join(dist, 'index.html'),
+    html + '<script>new Worker("/_astro/worker/app.js").postMessage("old")</script>',
+  );
+  const worker = path.join(dist, '_astro/worker/app.js');
+  for (const request of [
+    'fetch(`./${e.data}.png`)',
+    'self.importScripts(`${e.data}.js`)',
+    'fetch("./" + e.data + ".png")',
+    'fetch(e.data)',
+  ]) {
+    fs.writeFileSync(worker, 'self.onmessage = e => ' + request);
+    for (const execute of [false, true]) assert.throws(() => box.run(execute), /Cannot verify a computed asset URL/);
+  }
+  const shared = 'js/shared.js';
+  fs.mkdirSync(path.join(dist, 'js'));
+  fs.writeFileSync(path.join(dist, shared), 'self.onmessage = e => fetch("./old.png")');
+  box.objects.push(object(shared));
+  fs.writeFileSync(worker, 'importScripts("/js/shared.js")');
+  assert.throws(() => box.run(true), { message: 'Incomplete dist: missing referenced asset ' + image.Key });
+  fs.writeFileSync(worker, 'self.onmessage = e => fetch(`https://static.example/img/${e.data}.png`)');
+  assert.deepEqual(box.run(true), [image]);
+  assert.deepEqual(box.removed, []);
 });
 
 test('module imports in emitted JS and inline modules protect old chunks', t => {
@@ -610,6 +732,27 @@ test('recovery selects a build containing the exact deleted key before choosing 
   assert.match(production, /skip_staging` unchecked/);
 });
 
+test('production recovery checks the actual candidate against the historical key and bytes', t => {
+  const runbook = fs.readFileSync(path.join(__dirname, '../../knowledge-base/staging-runbook.md'), 'utf8');
+  const procedure = runbook.split('**Recovery.**')[1].split('- **Production.**')[1].split('Both workflows')[0];
+  const check = procedure
+    .split('```bash\n')[1]
+    .split(/\n\s*```/)[0]
+    .trim();
+  const build = fixture(t).root;
+  const candidate = fixture(t).root;
+  const key = '_astro/site.previous.css';
+  const candidateKey = path.join(candidate, 'dist', key);
+  fs.writeFileSync(path.join(build, 'dist', key), 'previous bytes');
+  fs.writeFileSync(path.join(candidate, 'dist/_astro/site.new-hash.css'), 'intervening change');
+  const compare = () => spawnSync('bash', ['-eu', '-c', check], { env: { build, candidate, key } }).status;
+  assert.notEqual(compare(), 0);
+  fs.writeFileSync(candidateKey, 'changed bytes');
+  assert.notEqual(compare(), 0);
+  fs.writeFileSync(candidateKey, 'previous bytes');
+  assert.equal(compare(), 0);
+});
+
 function dispatchFixture(t, extra = [object('_astro/stale.js')]) {
   const { root, objects } = fixture(t, extra);
   const git = (...args) => execFileSync('git', ['-C', root, ...args], { encoding: 'utf8' }).trim();
@@ -720,6 +863,7 @@ test('the CLI only reads and the dispatch step deletes exactly the verified cand
     'head-object',
     'head-object',
     'list-objects-v2',
+    'get-object',
     'get-object',
     'get-object',
   ]);

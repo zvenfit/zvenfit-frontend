@@ -276,10 +276,15 @@ released.
    indirect dependencies such as fonts, must exist in the bucket. Asset URLs
    in inline and built stylesheets are resolved against their document or
    stylesheet URL. Literal JavaScript module imports resolve against the module
-   URL. The planner also reads literal site asset URLs in inline and emitted
+   URL. Linked site scripts and stylesheets, including their local module and CSS
+   imports, must exist in the build and match their bytes in storage, even when
+   their names are outside `_astro/`. Each page’s import maps resolve exact,
+   scoped and package-prefix imports against that document’s base URL.
+   The planner also reads literal site asset URLs in inline and emitted
    JavaScript, including classic scripts. Relative literals are checked against
    document bases and the script’s own URL for worker requests. A computed import or an explicit
-   asset path in a template with an unknown filename stops the check.
+   asset path in a template with an unknown filename stops the check. This also
+   applies when a worker constructs a relative request with an unknown filename.
    Missing release metadata, an incomplete upload or a mismatch
    calls for checking and repairing the last site deploy before retrying.
 3. Each row is an object under `_astro/` that is absent from the entire built
@@ -325,8 +330,8 @@ _astro/old.js   2026-11-20T10:00:00.000Z    2048
 ```
 
 For a local read-only check, set `CLEANUP_ENVIRONMENT` to `staging` or
-`production`, use AWS CLI v2 credentials with bucket listing and HTML read
-access and install the control checkout’s dependencies with `npm ci`.
+`production`, use AWS CLI v2 credentials that can list the bucket and read HTML,
+scripts and stylesheets. Install the control checkout’s dependencies with `npm ci`.
 `node scripts/cleanup-bucket-assets.cjs --deployment` prints the deployed
 SHA and asset version. In a separate checkout of that SHA, install from the
 lockfile and build with the same variables and guards as the workflow’s
@@ -359,8 +364,21 @@ Use the selected SHA in the applicable recovery path below.
   If there is no such run, arrange a staging-only recovery of that verified revision with the owner.
 - **Production.** When the required SHA is the head of `main`, dispatch
   **Release** on `main` with `skip_staging` unchecked. Follow staging, E2E,
-  production and smoke. For an older revision, restore the sources through
-  the [frontend rollback procedure](#frontend-rollback) and release the reviewed tree.
+  production and smoke. For an older revision, prepare the revert on current
+  `main` using the [frontend rollback procedure](#frontend-rollback). Before
+  merging, build the actual recovery candidate with production settings. Set
+  `candidate` to that checkout and `build` to the verified historical build.
+  Check that the candidate will upload the exact key with its original bytes:
+
+  ```bash
+  cmp -- "$build/dist/$key" "$candidate/dist/$key"
+  ```
+
+  A later change in the same stylesheet can give a clean revert a different
+  filename. If the check fails, keep cleanup paused and restore the verified
+  historical asset at its original path in the recovery PR. Rebuild and repeat
+  the check after any change to the candidate or its base. Use the regular
+  release through staging and E2E after the check passes.
 
 Both workflows upload the assets before switching HTML. Verify the affected
 URLs, watch the 404 metric and restart the rollback window for each environment

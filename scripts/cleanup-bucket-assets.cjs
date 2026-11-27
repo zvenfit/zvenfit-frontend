@@ -8,6 +8,7 @@ const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 
 const { parse } = require('parse5');
+const importMaps = require('@import-maps/resolve');
 const css = require('css-tree');
 const ts = require('typescript');
 const { parse: parseImports } = require('es-module-lexer');
@@ -68,6 +69,12 @@ function bucketClient(bucket, tempDir) {
       { encoding: 'utf8', maxBuffer: 32 * 1024 * 1024 },
     );
   }
+  function readObject(key) {
+    // The temporary file name never comes from an object key.
+    const file = path.join(tempDir, 'object');
+    const result = JSON.parse(aws('get-object', '--key', key, file));
+    return { metadata: result.Metadata, body: fs.readFileSync(file) };
+  }
   return {
     deployment() {
       return deployment(JSON.parse(aws('head-object', '--key', 'index.html')).Metadata);
@@ -81,17 +88,19 @@ function bucketClient(bucket, tempDir) {
       return result.Contents ?? [];
     },
     readHtml(key) {
-      // The file name never comes from an object key.
-      const file = path.join(tempDir, 'page');
-      const result = JSON.parse(aws('get-object', '--key', key, file));
-      return { release: deployment(result.Metadata), html: fs.readFileSync(file) };
+      const { metadata, body } = readObject(key);
+      return { release: deployment(metadata), html: body };
+    },
+    readAsset(key) {
+      return readObject(key).body;
     },
   };
 }
 
-function assetKey(value, base, site) {
+function siteKey(value, base, site) {
   if (!URL.canParse(value, base)) return;
   const url = new URL(value, base);
+  if (!['https:', 'http:'].includes(url.protocol)) return;
   let key;
   if (
     site.allowedOrigins.includes(url.origin) ||
@@ -103,9 +112,13 @@ function assetKey(value, base, site) {
     key = url.pathname.slice(site.s3Bucket.length + 2);
   }
   if (key !== undefined) {
-    const decoded = decodeURIComponent(key.replace(/%(?![0-9a-f]{2})/gi, '%25'));
-    if (decoded.startsWith('_astro/')) return decoded;
+    return decodeURIComponent(key.replace(/%(?![0-9a-f]{2})/gi, '%25'));
   }
+}
+
+function assetKey(value, base, site) {
+  const key = siteKey(value, base, site);
+  if (key?.startsWith('_astro/')) return key;
 }
 
 function addAssetUrl(refs, value, base, site) {
@@ -113,36 +126,38 @@ function addAssetUrl(refs, value, base, site) {
   if (key) refs.add(key);
 }
 
-function addCssReferences(refs, value, context, base, site) {
+function addCssReferences(refs, value, context, base, site, visitCode) {
   const ast = css.parse(value, { context, parseCustomProperty: true });
   css.walk(ast, function (node) {
+    const isImport = this.atrule?.name.toLowerCase() === 'import' && this.atrulePrelude?.children.first === node;
     // CSS also accepts quoted URL strings directly in @import and image-set().
     if (
       node.type === 'Url' ||
       (node.type === 'String' &&
-        ((this.atrule?.name.toLowerCase() === 'import' && this.atrulePrelude?.children.first === node) ||
-          ['image-set', '-webkit-image-set', 'image', 'src'].includes(this.function?.name.toLowerCase())))
+        (isImport || ['image-set', '-webkit-image-set', 'image', 'src'].includes(this.function?.name.toLowerCase())))
     ) {
       addAssetUrl(refs, node.value, base, site);
+      if (isImport) visitCode(new URL(node.value, base), 'css');
     }
   });
 }
 
-function addModuleReferences(refs, source, base, site) {
+function addModuleReferences(source, base, importMap, visitCode) {
   const [imports] = parseImports(source);
   for (const { type, specifier, glob } of imports) {
     if (type === 'import-meta') continue;
     if (!specifier || glob) throw new Error(`Cannot verify a computed module import in ${base.pathname}`);
-    // Bare names resolve through import maps. Only URL specifiers resolve against the module URL.
-    if (/^(?:\.{1,2}\/|\/|[a-z][a-z\d+.-]*:)/i.test(specifier)) addAssetUrl(refs, specifier, base, site);
+    const { resolvedImport } = importMaps.resolve(specifier, importMap, base);
+    if (resolvedImport) visitCode(resolvedImport, 'js');
   }
 }
 
 // A classic script can load a site asset through Image, fetch, a worker, etc.
-function addScriptLiterals(refs, source, bases, scriptUrl, site, deployedKeys) {
+function addScriptLiterals(refs, source, bases, scriptUrl, site, deployedKeys, inspectCall) {
   const assetBases = [...bases].filter(base => assetKey('.', base, site));
   const tree = ts.createSourceFile('asset.js', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
   function visit(node) {
+    if (inspectCall && (ts.isCallExpression(node) || ts.isNewExpression(node))) inspectCall(node);
     const dynamic = ts.isTemplateExpression(node);
     if (dynamic || ts.isStringLiteralLike(node)) {
       const value = dynamic ? node.head.text : node.text;
@@ -193,7 +208,112 @@ function addScriptLiterals(refs, source, bases, scriptUrl, site, deployedKeys) {
   visit(tree);
 }
 
-function addReferences(refs, html, route, site, deployedKeys) {
+// Return the fixed portion of a request before its first runtime substitution.
+function addressPrefix(node) {
+  if (ts.isStringLiteralLike(node)) return { text: node.text, fixed: true };
+  if (ts.isTemplateExpression(node)) return { text: node.head.text, fixed: false };
+  if (ts.isParenthesizedExpression(node)) return addressPrefix(node.expression);
+  if (ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.PlusToken) {
+    const left = addressPrefix(node.left);
+    if (!left.fixed) return left;
+    const right = addressPrefix(node.right);
+    return { text: left.text + right.text, fixed: right.fixed };
+  }
+  return { text: '', fixed: false };
+}
+
+function workerAddress(node, base, scriptUrl, site) {
+  if (ts.isNewExpression(node) && node.expression.text === 'URL' && node.arguments?.length === 2) {
+    const [address, relativeTo] = node.arguments;
+    if (relativeTo.getText() === 'import.meta.url') return workerAddress(address, scriptUrl, scriptUrl, site);
+    if (ts.isStringLiteralLike(relativeTo)) return workerAddress(address, new URL(relativeTo.text), scriptUrl, site);
+  }
+  const { text, fixed } = addressPrefix(node);
+  if (fixed || /[?#]/.test(text)) return new URL(text, base);
+  // Only a complete external origin is independent of the runtime filename.
+  // Locally imported worker code can use an asset regardless of its own directory.
+  if (/^(?:https?:)?\/\/[^/]+\//i.test(text) && siteKey(text, base, site) === undefined) {
+    const url = new URL(text, base);
+    // A path-style storage host can also address the selected bucket.
+    if (url.origin !== 'https://storage.yandexcloud.net') return;
+  }
+  throw new Error('Cannot verify a computed asset URL in ' + scriptUrl.href);
+}
+
+// Each document has its own import map. Follow its modules and CSS imports with
+// their actual URLs, including when the same script runs under different maps.
+function codeGraph(refs, site, readCode, importedFiles, documentBase, deployedKeys) {
+  const seen = new Set();
+  let importMap = {};
+  const entries = [];
+  function inspectWorkerCalls(source, scriptUrl, workerBase) {
+    const base = workerBase || documentBase;
+    addScriptLiterals(refs, source, [base], scriptUrl, site, deployedKeys, node => {
+      const api = node.expression.name?.text ?? node.expression.text;
+      const startsWorker =
+        (ts.isNewExpression(node) && ['Worker', 'SharedWorker'].includes(api)) ||
+        (api === 'register' && node.expression.expression?.name?.text === 'serviceWorker');
+      if (!node.arguments?.length) return;
+      if (startsWorker) {
+        const entry = workerAddress(node.arguments[0], base, scriptUrl, site);
+        if (entry) visitCode(entry, 'js', entry);
+      } else if (workerBase && ['fetch', 'Request', 'importScripts'].includes(api)) {
+        const args = api === 'importScripts' ? node.arguments : [node.arguments[0]];
+        for (const argument of args) {
+          const address = workerAddress(argument, workerBase, scriptUrl, site);
+          if (!address) continue;
+          if (api === 'importScripts') visitCode(address, 'js', workerBase);
+          else addAssetUrl(refs, address, workerBase, site);
+        }
+      }
+    });
+  }
+  function visitCode(url, kind, workerBase) {
+    const key = siteKey(url, url, site);
+    if (key === undefined) return;
+    if (key.startsWith('_astro/')) refs.add(key);
+    const identity = JSON.stringify([kind, url.href, workerBase?.href]);
+    if (seen.has(identity)) return;
+    seen.add(identity);
+    const source = readCode(key);
+    if (kind === 'css' || /\.css$/i.test(key)) {
+      addCssReferences(refs, source, 'stylesheet', url, site, visitCode);
+    } else {
+      importedFiles.add(key);
+      addModuleReferences(source, url, workerBase ? {} : importMap, (target, type) =>
+        visitCode(target, type, workerBase),
+      );
+      inspectWorkerCalls(source, url, workerBase);
+    }
+  }
+  function runEntries() {
+    for (const entry of entries) {
+      if (entry.url) visitCode(entry.url, entry.kind);
+      else {
+        addModuleReferences(entry.source, documentBase, importMap, visitCode);
+        inspectWorkerCalls(entry.source, documentBase);
+      }
+    }
+  }
+  return {
+    visitCode,
+    entries,
+    runEntries,
+    addMap(source) {
+      // Earlier code may run before registration, or import later after it.
+      runEntries();
+      seen.clear();
+      const next = importMaps.parseFromString(source, documentBase);
+      const merge = (earlier, later) =>
+        Object.fromEntries(Object.entries({ ...later, ...earlier }).sort(([a], [b]) => (a < b ? 1 : -1)));
+      const scopes = merge(importMap.scopes, next.scopes);
+      for (const key of Object.keys(scopes)) scopes[key] = merge(importMap.scopes?.[key], next.scopes?.[key]);
+      importMap = { imports: merge(importMap.imports, next.imports), scopes };
+    },
+  };
+}
+
+function addReferences(refs, html, route, site, deployedKeys, readCode, importedFiles) {
   const document = parse(html, { scriptingEnabled: false });
   const pageUrl = new URL(route, site.siteUrl);
   const head = document.childNodes
@@ -204,6 +324,7 @@ function addReferences(refs, html, route, site, deployedKeys) {
   );
   const href = baseTag?.attrs.find(attr => attr.name === 'href')?.value;
   const base = href && URL.canParse(href, pageUrl) ? new URL(href, pageUrl) : pageUrl;
+  const graph = codeGraph(refs, site, readCode, importedFiles, base, deployedKeys);
   // URL attributes can contain spaces, parentheses, commas and HTML entities.
   function addUrl(value) {
     addAssetUrl(refs, value, base, site);
@@ -225,10 +346,16 @@ function addReferences(refs, html, route, site, deployedKeys) {
     }
   }
   function visit(node) {
+    const attrs = Object.fromEntries((node.attrs ?? []).map(({ name, value }) => [name, value]));
+    const rel = (attrs.rel || '').toLowerCase().split(/\s+/);
+    if (node.tagName === 'script' && attrs.src) graph.entries.push({ url: new URL(attrs.src, base), kind: 'js' });
+    if (node.tagName === 'link' && attrs.href && (rel.includes('stylesheet') || rel.includes('modulepreload'))) {
+      graph.entries.push({ url: new URL(attrs.href, base), kind: rel.includes('stylesheet') ? 'css' : 'js' });
+    }
     for (const { name, value } of node.attrs ?? []) {
       if (node.tagName === 'base' && name === 'href') continue;
       if (name === 'style') {
-        addCssReferences(refs, value, 'declarationList', base, site);
+        addCssReferences(refs, value, 'declarationList', base, site, graph.visitCode);
       } else if (['href', 'src', 'poster', 'data', 'action'].includes(name)) {
         addUrl(value);
       } else if (name === 'srcset' || name === 'imagesrcset') {
@@ -240,7 +367,8 @@ function addReferences(refs, html, route, site, deployedKeys) {
       }
     }
     if (node.nodeName === '#text') {
-      if (node.parentNode?.tagName === 'style') addCssReferences(refs, node.value, 'stylesheet', base, site);
+      if (node.parentNode?.tagName === 'style')
+        addCssReferences(refs, node.value, 'stylesheet', base, site, graph.visitCode);
       else if (node.parentNode?.tagName === 'script') {
         const type =
           node.parentNode.attrs
@@ -249,15 +377,16 @@ function addReferences(refs, html, route, site, deployedKeys) {
             .toLowerCase() || '';
         if (!type || type === 'module' || /(?:java|ecma)script/.test(type)) {
           // Dynamic import() is also valid in classic scripts.
-          addModuleReferences(refs, node.value, base, site);
-          addScriptLiterals(refs, node.value, [base], base, site, deployedKeys);
-        } else scan(node.value);
+          graph.entries.push({ source: node.value });
+        } else if (type === 'importmap') graph.addMap(node.value);
+        else scan(node.value);
       } else scan(node.value);
     }
     for (const child of node.childNodes ?? []) visit(child);
     if (node.content) visit(node.content);
   }
   visit(document);
+  graph.runEntries();
   return base.href;
 }
 
@@ -314,6 +443,18 @@ function planCleanup({ config, client, dist, sha, now = Date.now(), report }) {
   const builtRefs = new Set();
   const documentBases = new Set();
   const site = SITES.get(config.environment);
+  const verifiedCode = new Map();
+  const importedFiles = new Set();
+  function readCode(key) {
+    if (!files.has(key)) throw new Error(`Incomplete dist: missing referenced asset ${key}`);
+    if (!deployedKeys.has(key)) throw new Error(`Incomplete deployment: missing bucket object ${key}`);
+    if (!verifiedCode.has(key)) {
+      const built = fs.readFileSync(path.join(dist, key));
+      if (!built.equals(client.readAsset(key))) throw new Error(`Live code differs from dist: ${key}`);
+      verifiedCode.set(key, built.toString('utf8'));
+    }
+    return verifiedCode.get(key);
+  }
   let lastHtml = 0;
   for (const object of htmlObjects) {
     const page = client.readHtml(object.Key);
@@ -324,19 +465,29 @@ function planCleanup({ config, client, dist, sha, now = Date.now(), report }) {
     // Byte equality proves even references embedded in inline code match the build.
     const builtHtml = fs.readFileSync(path.join(dist, object.Key));
     if (!builtHtml.equals(page.html)) throw new Error(`Live HTML differs from dist: ${object.Key}`);
-    documentBases.add(addReferences(builtRefs, builtHtml.toString('utf8'), object.Key, site, deployedKeys));
+    documentBases.add(
+      addReferences(builtRefs, builtHtml.toString('utf8'), object.Key, site, deployedKeys, readCode, importedFiles),
+    );
   }
   if (!builtRefs.size) throw new Error('No /_astro/ references in dist');
+  const fallback = codeGraph(builtRefs, site, readCode, importedFiles, new URL(site.siteUrl), deployedKeys);
   for (const key of files) {
     if (key.startsWith(config.prefix) && !deployedKeys.has(key))
       throw new Error(`Incomplete deployment: missing bucket object ${key}`);
     const fileUrl = new URL(key, site.siteUrl);
     if (/\.m?js$/i.test(key)) {
       const source = fs.readFileSync(path.join(dist, key), 'utf8');
-      addModuleReferences(builtRefs, source, fileUrl, site);
+      if (!importedFiles.has(key)) addModuleReferences(source, fileUrl, {}, fallback.visitCode);
       addScriptLiterals(builtRefs, source, documentBases, fileUrl, site, deployedKeys);
     } else if (/\.css$/i.test(key)) {
-      addCssReferences(builtRefs, fs.readFileSync(path.join(dist, key), 'utf8'), 'stylesheet', fileUrl, site);
+      addCssReferences(
+        builtRefs,
+        fs.readFileSync(path.join(dist, key), 'utf8'),
+        'stylesheet',
+        fileUrl,
+        site,
+        fallback.visitCode,
+      );
     }
   }
   for (const key of builtRefs) {
