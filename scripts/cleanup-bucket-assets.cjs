@@ -155,16 +155,20 @@ function addModuleReferences(source, base, importMap, visitCode) {
 // A classic script can load a site asset through Image, fetch, a worker, etc.
 function addScriptLiterals(refs, source, bases, scriptUrl, site, deployedKeys, inspectCall) {
   const assetBases = [...bases].filter(base => assetKey('.', base, site));
+  const origin = new URL(site.siteUrl).origin;
   const tree = ts.createSourceFile('asset.js', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
   function visit(node) {
     if (inspectCall && (ts.isCallExpression(node) || ts.isNewExpression(node))) inspectCall(node);
     const dynamic = ts.isTemplateExpression(node);
-    if (dynamic || ts.isStringLiteralLike(node)) {
-      const { text: value, fixed } = addressPrefix(node, new URL(site.siteUrl).origin);
-      const parent = node.parent;
+    const addition = ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.PlusToken;
+    if (dynamic || addition || ts.isStringLiteralLike(node)) {
+      const { text: value, fixed } = addressPrefix(node, origin);
+      let argument = node;
+      while (ts.isParenthesizedExpression(argument.parent)) argument = argument.parent;
+      const parent = argument.parent;
       // Module specifiers resolve against the module URL and are handled by addModuleReferences.
       if (
-        parent.moduleSpecifier === node ||
+        parent.moduleSpecifier === argument ||
         (ts.isCallExpression(parent) && parent.expression.kind === ts.SyntaxKind.ImportKeyword)
       )
         return;
@@ -172,11 +176,12 @@ function addScriptLiterals(refs, source, bases, scriptUrl, site, deployedKeys, i
         ts.isNewExpression(parent) && ts.isIdentifier(parent.expression) && parent.expression.text === 'URL'
           ? parent.arguments
           : undefined;
-      if (urlArgs?.[1] === node) return; // A base URL need not itself identify a file.
+      if (urlArgs?.[1] === argument) return; // A base URL need not itself identify a file.
       let knownBase;
       const baseArg = urlArgs?.[1];
-      if (baseArg && urlArgs[0] === node) {
-        if (ts.isStringLiteralLike(baseArg) && URL.canParse(baseArg.text)) knownBase = baseArg.text;
+      if (baseArg && urlArgs[0] === argument) {
+        const base = addressPrefix(baseArg, origin);
+        if (base.fixed && URL.canParse(base.text)) knownBase = base.text;
         if (
           ts.isPropertyAccessExpression(baseArg) &&
           baseArg.name.text === 'url' &&
@@ -202,7 +207,8 @@ function addScriptLiterals(refs, source, bases, scriptUrl, site, deployedKeys, i
         const workerKey = assetKey(value, scriptUrl, site);
         if (deployedKeys.has(workerKey)) refs.add(workerKey);
       }
-      const targets = knownBase ? [knownBase] : explicit ? bases : assetBases;
+      // Numeric arithmetic and other unknown additions need their operands inspected.
+      const targets = knownBase ? [knownBase] : explicit ? bases : addition && !fixed ? [] : assetBases;
       for (const base of targets) {
         const key = assetKey(value, base, site);
         if (!key) continue;
@@ -210,6 +216,8 @@ function addScriptLiterals(refs, source, bases, scriptUrl, site, deployedKeys, i
         // Under an asset base ordinary strings can be event names or actual object keys.
         if (explicit || deployedKeys.has(key)) refs.add(key);
       }
+      // Constant operands form one URL; a substring can name a different, stale object.
+      if (addition && fixed) return;
     }
     ts.forEachChild(node, visit);
   }
@@ -258,7 +266,8 @@ function workerAddress(node, base, scriptUrl, site) {
   if (ts.isNewExpression(node) && node.expression.text === 'URL' && node.arguments?.length === 2) {
     const [address, relativeTo] = node.arguments;
     if (relativeTo.getText() === 'import.meta.url') return workerAddress(address, scriptUrl, scriptUrl, site);
-    if (ts.isStringLiteralLike(relativeTo)) return workerAddress(address, new URL(relativeTo.text), scriptUrl, site);
+    const prefix = addressPrefix(relativeTo, base.origin);
+    if (prefix.fixed) return workerAddress(address, new URL(prefix.text), scriptUrl, site);
   }
   const { text, fixed } = addressPrefix(node, base.origin);
   if (fixed || /[?#]/.test(text)) return new URL(text, base);
@@ -268,23 +277,53 @@ function workerAddress(node, base, scriptUrl, site) {
   throw new Error('Cannot verify a computed asset URL in ' + scriptUrl.href);
 }
 
+// Let TypeScript resolve container aliases and destructuring against the DOM library.
+// This program is local to a script that uses registration; it never emits or follows imports.
+function registrationChecker(sourceFile) {
+  const options = {
+    allowJs: true,
+    noResolve: true,
+    strictBindCallApply: true,
+    strictNullChecks: true,
+    noEmit: true,
+    types: [],
+    lib: ['lib.es2022.d.ts', 'lib.dom.d.ts'],
+    target: ts.ScriptTarget.ES2022,
+  };
+  const host = ts.createCompilerHost(options);
+  const getSourceFile = host.getSourceFile.bind(host);
+  host.getSourceFile = (name, ...args) => (name === sourceFile.fileName ? sourceFile : getSourceFile(name, ...args));
+  return ts.createProgram([sourceFile.fileName], options, host).getTypeChecker();
+}
+
 // Each document has its own import map. Follow its modules and CSS imports with
 // their actual URLs, including when the same script runs under different maps.
 function codeGraph(refs, site, readCode, importedFiles, documentBase, deployedKeys) {
   const seen = new Set();
   let importMap = {};
   const entries = [];
+  let parsingBase = documentBase;
   function inspectWorkerCalls(source, scriptUrl, workerBase) {
-    const base = workerBase || documentBase;
-    addScriptLiterals(refs, source, [base], scriptUrl, site, deployedKeys, node => {
+    const bases = workerBase ? [workerBase] : [...new Set([parsingBase, documentBase])];
+    const mayAliasRegistration = source.includes('serviceWorker');
+    let checker;
+    addScriptLiterals(refs, source, bases, scriptUrl, site, deployedKeys, node => {
       const api = node.expression.name?.text ?? node.expression.argumentExpression?.text ?? node.expression.text;
-      const startsWorker =
-        (ts.isNewExpression(node) && ['Worker', 'SharedWorker'].includes(api)) ||
-        (api === 'register' && node.expression.expression?.name?.text === 'serviceWorker');
       if (!node.arguments?.length) return;
+      let startsWorker = ts.isNewExpression(node) && ['Worker', 'SharedWorker'].includes(api);
+      if (ts.isCallExpression(node) && (api === 'register' || mayAliasRegistration)) {
+        checker ??= registrationChecker(node.getSourceFile());
+        const declaration = checker.getResolvedSignature(node)?.declaration;
+        // An untyped receiver can come from another script. Verify a possible registration.
+        startsWorker = declaration
+          ? declaration.name?.text === 'register' && declaration.parent.name?.text === 'ServiceWorkerContainer'
+          : api === 'register';
+      }
       if (startsWorker) {
-        const entry = workerAddress(node.arguments[0], base, scriptUrl, site);
-        if (entry) visitCode(entry, 'js', entry);
+        for (const base of bases) {
+          const entry = workerAddress(node.arguments[0], base, scriptUrl, site);
+          if (entry) visitCode(entry, 'js', entry);
+        }
       } else if (workerBase) {
         const [first, second] = node.arguments;
         let requests;
@@ -309,7 +348,7 @@ function codeGraph(refs, site, readCode, importedFiles, documentBase, deployedKe
     const key = siteKey(url, url, site);
     if (key === undefined) return;
     if (key.startsWith('_astro/')) refs.add(key);
-    const identity = JSON.stringify([kind, url.href, workerBase?.href]);
+    const identity = JSON.stringify([kind, url.href, parsingBase.href, workerBase?.href]);
     if (seen.has(identity)) return;
     seen.add(identity);
     const source = readCode(key);
@@ -325,10 +364,11 @@ function codeGraph(refs, site, readCode, importedFiles, documentBase, deployedKe
   }
   function runEntries() {
     for (const entry of entries) {
+      parsingBase = entry.base;
       if (entry.url) visitCode(entry.url, entry.kind);
       else {
-        addModuleReferences(entry.source, documentBase, importMap, visitCode);
-        inspectWorkerCalls(entry.source, documentBase);
+        addModuleReferences(entry.source, parsingBase, importMap, visitCode);
+        inspectWorkerCalls(entry.source, parsingBase);
       }
     }
   }
@@ -336,11 +376,11 @@ function codeGraph(refs, site, readCode, importedFiles, documentBase, deployedKe
     visitCode,
     entries,
     runEntries,
-    addMap(source) {
+    addMap(source, base) {
       // Earlier code may run before registration, or import later after it.
       runEntries();
       seen.clear();
-      const next = importMaps.parseFromString(source, documentBase);
+      const next = importMaps.parseFromString(source, base);
       const merge = (earlier, later) =>
         Object.fromEntries(Object.entries({ ...later, ...earlier }).sort(([a], [b]) => (a < b ? 1 : -1)));
       const scopes = merge(importMap.scopes, next.scopes);
@@ -351,22 +391,28 @@ function codeGraph(refs, site, readCode, importedFiles, documentBase, deployedKe
 }
 
 function addReferences(refs, html, route, site, deployedKeys, readCode, importedFiles) {
-  const document = parse(html, { scriptingEnabled: false });
+  const document = parse(html, { scriptingEnabled: false, sourceCodeLocationInfo: true });
   const pageUrl = new URL(route, site.siteUrl);
-  const head = document.childNodes
-    .find(node => node.tagName === 'html')
-    ?.childNodes.find(node => node.tagName === 'head');
-  const baseTag = head?.childNodes.find(
-    node => node.tagName === 'base' && node.attrs.some(attr => attr.name === 'href'),
-  );
-  const href = baseTag?.attrs.find(attr => attr.name === 'href')?.value;
-  const base = href && URL.canParse(href, pageUrl) ? new URL(href, pageUrl) : pageUrl;
-  const graph = codeGraph(refs, site, readCode, importedFiles, base, deployedKeys);
-  // URL attributes can contain spaces, parentheses, commas and HTML entities.
-  function addUrl(value) {
-    addAssetUrl(refs, value, base, site);
+  function firstBase(node) {
+    if (
+      node.tagName === 'base' &&
+      node.namespaceURI === 'http://www.w3.org/1999/xhtml' &&
+      node.attrs.some(attr => attr.name === 'href')
+    )
+      return node;
+    if (node.tagName === 'noscript') return;
+    for (const child of node.childNodes ?? []) {
+      const found = firstBase(child);
+      if (found) return found;
+    }
   }
-  function scan(value) {
+  const baseTag = firstBase(document);
+  const href = baseTag?.attrs.find(attr => attr.name === 'href')?.value;
+  const finalBase = href && URL.canParse(href, pageUrl) ? new URL(href, pageUrl) : pageUrl;
+  const graph = codeGraph(refs, site, readCode, importedFiles, finalBase, deployedKeys);
+  const baseOffset = baseTag?.sourceCodeLocation?.startOffset ?? Infinity;
+  // URL attributes can contain spaces, parentheses, commas and HTML entities.
+  function scan(value, addUrl) {
     for (const match of value.matchAll(/\/_astro\//g)) {
       // Preserve an absolute origin or a path prefix in metadata, JSON and inline code.
       const prefix = value.slice(0, match.index).match(/[^\s"'`<>()=]*$/)[0];
@@ -383,14 +429,17 @@ function addReferences(refs, html, route, site, deployedKeys, readCode, imported
     }
   }
   function visit(node) {
+    // Parser-triggered loads use the base available at their position in the input.
+    const base = node.sourceCodeLocation?.startOffset >= baseOffset ? finalBase : pageUrl;
+    const addUrl = value => addAssetUrl(refs, value, base, site);
     const attrs = Object.fromEntries((node.attrs ?? []).map(({ name, value }) => [name, value]));
     const rel = (attrs.rel || '').toLowerCase().split(/\s+/);
-    if (node.tagName === 'script' && attrs.src) graph.entries.push({ url: new URL(attrs.src, base), kind: 'js' });
+    if (node.tagName === 'script' && attrs.src) graph.entries.push({ url: new URL(attrs.src, base), kind: 'js', base });
     if (node.tagName === 'link' && attrs.href) {
       const preload = rel.includes('preload') && attrs.as?.toLowerCase();
       const style = rel.includes('stylesheet') || preload === 'style';
       if (style || rel.includes('modulepreload') || preload === 'script') {
-        graph.entries.push({ url: new URL(attrs.href, base), kind: style ? 'css' : 'js' });
+        graph.entries.push({ url: new URL(attrs.href, base), kind: style ? 'css' : 'js', base });
       }
     }
     for (const { name, value } of node.attrs ?? []) {
@@ -399,12 +448,16 @@ function addReferences(refs, html, route, site, deployedKeys, readCode, imported
         addCssReferences(refs, value, 'declarationList', base, site, graph.visitCode);
       } else if (['href', 'src', 'poster', 'data', 'action'].includes(name)) {
         addUrl(value);
+        // A visitor can follow a link or submit a form after a later base takes effect.
+        if (base !== finalBase && (name === 'action' || (name === 'href' && ['a', 'area'].includes(node.tagName)))) {
+          addAssetUrl(refs, value, finalBase, site);
+        }
       } else if (name === 'srcset' || name === 'imagesrcset') {
         // A candidate starts at the beginning or after a separator. Commas
         // inside its URL are legal; trailing commas delimit descriptorless URLs.
         for (const match of value.matchAll(/(?:^|(?<=,))\s*([^,\s]\S*)/g)) addUrl(match[1].replace(/,+$/, ''));
       } else {
-        scan(value);
+        scan(value, addUrl);
       }
     }
     if (node.nodeName === '#text') {
@@ -418,17 +471,17 @@ function addReferences(refs, html, route, site, deployedKeys, readCode, imported
             .toLowerCase() || '';
         if (!type || type === 'module' || /(?:java|ecma)script/.test(type)) {
           // Dynamic import() is also valid in classic scripts.
-          graph.entries.push({ source: node.value });
-        } else if (type === 'importmap') graph.addMap(node.value);
-        else scan(node.value);
-      } else scan(node.value);
+          graph.entries.push({ source: node.value, base });
+        } else if (type === 'importmap') graph.addMap(node.value, base);
+        else scan(node.value, addUrl);
+      } else scan(node.value, addUrl);
     }
     for (const child of node.childNodes ?? []) visit(child);
     if (node.content) visit(node.content);
   }
   visit(document);
   graph.runEntries();
-  return base.href;
+  return finalBase.href;
 }
 
 function sameSet(expected, actual, label) {

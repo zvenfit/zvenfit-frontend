@@ -256,6 +256,94 @@ test('inline and emitted templates resolve location.origin before checking the a
   assert.deepEqual(box.run(), [used]);
 });
 
+test('constant concatenations protect the complete key without treating pieces as object names', t => {
+  const used = object('_astro/old.png');
+  const stale = object('_astro/old');
+  const box = fixture(t, [used, stale]);
+  const dist = path.join(box.root, 'dist');
+  const inline = path.join(dist, 'index.html');
+  const emitted = path.join(dist, '_astro/app.js');
+  for (const source of ['fetch("/" + "_astro" + "/old.png")', 'fetch(("/_astro/old" + (".p" + "ng")))']) {
+    for (const inHtml of [false, true]) {
+      fs.writeFileSync(inline, html + (inHtml ? '<script>' + source + '</script>' : ''));
+      fs.writeFileSync(emitted, inHtml ? '' : source);
+      for (const execute of [false, true])
+        assert.throws(() => box.run(execute), { message: 'Incomplete dist: missing referenced asset ' + used.Key });
+      fs.writeFileSync(path.join(dist, used.Key), '');
+      assert.deepEqual(box.run(), [stale]);
+      fs.unlinkSync(path.join(dist, used.Key));
+    }
+  }
+  fs.writeFileSync(inline, html + '<script>fetch("https://outside.invalid" + "/_astro/old.png")</script>');
+  assert.deepEqual(box.run(true), [stale, used]);
+});
+
+test('service worker container aliases verify the entry and stop unresolved local requests', t => {
+  const image = object('_astro/sw-image.png');
+  const box = fixture(t, [image, object('worker.js')]);
+  const dist = path.join(box.root, 'dist');
+  const code = path.join(dist, 'index.html');
+  const worker = path.join(dist, 'worker.js');
+  for (const source of [
+    'const sw = navigator.serviceWorker; sw.register("/worker.js")',
+    'const {serviceWorker: sw} = navigator; const alias = sw; alias.register("/worker.js")',
+    'function start(container) { container.register("/worker.js") } start(navigator.serviceWorker)',
+    'const sw = navigator.serviceWorker; const start = sw.register.bind(sw); start("/worker.js")',
+  ]) {
+    fs.writeFileSync(code, html + '<script>' + source + '</script>');
+    fs.writeFileSync(worker, 'self.onmessage = e => fetch("/" + e.data)');
+    for (const execute of [false, true]) assert.throws(() => box.run(execute), /Cannot verify a computed asset URL/);
+    fs.writeFileSync(worker, 'fetch("/_astro/sw-image.png")');
+    assert.throws(() => box.run(), { message: 'Incomplete dist: missing referenced asset ' + image.Key });
+    fs.writeFileSync(worker, '');
+    assert.deepEqual(box.run(true), [image]);
+  }
+  fs.writeFileSync(code, html + '<script>const sw = navigator.serviceWorker; sw.register(window.workerPath)</script>');
+  assert.throws(() => box.run(), /Cannot verify a computed asset URL/);
+  fs.writeFileSync(
+    code,
+    html + '<script>const registry = {register(label) {}}; registry.register("local label")</script>',
+  );
+  assert.deepEqual(box.run(), [image]);
+});
+
+test('parser-loaded code uses the base in force at each tag', t => {
+  const old = object('_astro/old.png');
+  const box = fixture(t, [old, ...['early.js', 'later/early.js', 'later/after.css'].map(k => object(k))]);
+  const dist = path.join(box.root, 'dist');
+  fs.mkdirSync(path.join(dist, 'later'));
+  for (const k of ['early.js', 'later/early.js', 'later/after.css']) fs.writeFileSync(path.join(dist, k), '');
+  fs.writeFileSync(
+    path.join(dist, 'index.html'),
+    '<head><script src="early.js"></script><base href="/later/"><link rel="stylesheet" href="after.css"></head>' + html,
+  );
+  const read = box.client.readAsset;
+  const seen = new Set();
+  box.client.readAsset = key => {
+    seen.add(key);
+    return key === 'early.js' ? Buffer.from('fetch("/_astro/old.png")') : read(key);
+  };
+  for (const execute of [false, true])
+    assert.throws(() => box.run(execute), { message: 'Live code differs from dist: early.js' });
+  fs.writeFileSync(path.join(dist, 'early.js'), 'fetch("/_astro/old.png")');
+  assert.throws(() => box.run(), { message: 'Incomplete dist: missing referenced asset ' + old.Key });
+  fs.writeFileSync(path.join(dist, old.Key), '');
+  assert.deepEqual(box.run(true), []);
+  assert.ok(seen.has('early.js') && seen.has('later/after.css'));
+  assert.equal(seen.has('later/early.js'), false);
+});
+test('navigation before a late base also protects the destination after parsing', t => {
+  const used = object('_astro/document.pdf');
+  const box = fixture(t, [used]);
+  fs.writeFileSync(
+    path.join(box.root, 'dist/index.html'),
+    html + '<a href="document.pdf">Open</a><base href="/_astro/">',
+  );
+  assert.throws(() => box.run(), { message: 'Incomplete dist: missing referenced asset ' + used.Key });
+  fs.writeFileSync(path.join(box.root, 'dist', used.Key), '');
+  assert.deepEqual(box.run(true), []);
+});
+
 test('a relative script URL under an asset base and a stylesheet outside _astro protect live images', t => {
   const image = object('_astro/old.png');
   const box = fixture(t, [image]);

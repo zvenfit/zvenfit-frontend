@@ -279,9 +279,13 @@ released.
    URL. Linked and preloaded site scripts and stylesheets, including their local
    module and CSS imports, must exist in the build and match their bytes in storage, even when
    their names are outside `_astro/`. Each page’s import maps resolve exact,
-   scoped and package-prefix imports against that document’s base URL.
+   scoped and package-prefix imports against the base URL in effect when the map
+   is parsed. A relative script or stylesheet placed before a later `<base>`
+   loads relative to the page URL.
    The planner also reads literal site asset URLs in inline and emitted
-   JavaScript, including classic scripts. Relative literals are checked against
+   JavaScript, including URLs assembled from constant strings. Service worker
+   registrations through a container alias use the same checks as direct
+   registrations. Relative literals are checked against
    document bases and the script’s own URL for worker requests. A computed import or an explicit
    asset path in a template with an unknown filename stops the check. This also
    applies to worker requests through `fetch`, `Request`, `XMLHttpRequest.open`,
