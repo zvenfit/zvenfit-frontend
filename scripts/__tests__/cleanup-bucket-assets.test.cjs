@@ -321,6 +321,27 @@ test('absolute storage URLs protect only the selected site bucket', t => {
   assert.deepEqual(box.run(true), [candidate]);
 });
 
+test('both website endpoints protect production assets over HTTP and HTTPS', t => {
+  const used = object('_astro/used.png');
+  const box = fixture(t, [used]);
+  const file = path.join(box.root, 'dist/index.html');
+  for (const protocol of ['http:', 'https:']) {
+    for (const hostAndPath of [
+      'zvenfit-frontend.website.yandexcloud.net/',
+      'website.yandexcloud.net/zvenfit-frontend/',
+    ]) {
+      fs.writeFileSync(file, html + `<a href="${protocol}//${hostAndPath}${used.Key}">Image</a>`);
+      for (const execute of [false, true]) {
+        assert.throws(() => box.run(execute, 'production'), /missing referenced asset _astro\/used.png/);
+      }
+    }
+  }
+  assert.deepEqual(box.reports, []);
+  fs.writeFileSync(file, html + '<a href="https://website.yandexcloud.net/another-bucket/_astro/used.png">Image</a>');
+  assert.deepEqual(box.run(true, 'production'), [used]);
+  assert.deepEqual(box.removed, []);
+});
+
 test('emitted CSS resolves relative dependencies against the stylesheet directory', t => {
   const image = object('_astro/nested/old.png');
   const css = object('_astro/nested/nested.css');

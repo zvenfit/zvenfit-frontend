@@ -138,6 +138,8 @@ class ErrorPageUrl extends URL {
   }
 }
 
+const storageHosts = new Set(['storage.yandexcloud.net', 'website.yandexcloud.net']);
+
 function siteKey(value, base, site) {
   if (!URL.canParse(value, base)) return;
   const url = new URL(value, base);
@@ -154,11 +156,11 @@ function siteKey(value, base, site) {
   let key;
   if (
     site.allowedOrigins.includes(url.origin) ||
-    url.origin === `https://${site.s3Bucket}.storage.yandexcloud.net` ||
-    url.origin === `https://${site.s3Bucket}.website.yandexcloud.net`
+    url.host === `${site.s3Bucket}.storage.yandexcloud.net` ||
+    url.host === `${site.s3Bucket}.website.yandexcloud.net`
   ) {
     key = url.pathname.slice(1);
-  } else if (url.origin === 'https://storage.yandexcloud.net' && url.pathname.startsWith(`/${site.s3Bucket}/`)) {
+  } else if (storageHosts.has(url.host) && url.pathname.startsWith(`/${site.s3Bucket}/`)) {
     key = url.pathname.slice(site.s3Bucket.length + 2);
   }
   if (key !== undefined) {
@@ -320,7 +322,7 @@ function addressPrefix(node, origin) {
 function externalOrigin(prefix, base, site) {
   if (!/^(?:https?:)?\/\/[^/]+\//i.test(prefix)) return false;
   const url = new URL(prefix, base);
-  return url.origin !== 'https://storage.yandexcloud.net' && siteKey(url, base, site) === undefined;
+  return !storageHosts.has(url.host) && siteKey(url, base, site) === undefined;
 }
 
 function workerAddress(node, base, scriptUrl, site) {
