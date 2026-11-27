@@ -160,7 +160,7 @@ function addScriptLiterals(refs, source, bases, scriptUrl, site, deployedKeys, i
     if (inspectCall && (ts.isCallExpression(node) || ts.isNewExpression(node))) inspectCall(node);
     const dynamic = ts.isTemplateExpression(node);
     if (dynamic || ts.isStringLiteralLike(node)) {
-      const value = dynamic ? node.head.text : node.text;
+      const { text: value, fixed } = addressPrefix(node, new URL(site.siteUrl).origin);
       const parent = node.parent;
       // Module specifiers resolve against the module URL and are handled by addModuleReferences.
       if (
@@ -189,7 +189,15 @@ function addScriptLiterals(refs, source, bases, scriptUrl, site, deployedKeys, i
       const explicit = knownBase || pathHint.includes('_astro/');
       // Workers resolve fetch()/importScripts() against their own URL. A shared script can
       // run in either context; retain any actual bucket key that its literal could address.
-      const fixedPath = !dynamic || /[?#]/.test(value);
+      const fixedPath = fixed || /[?#]/.test(value);
+      if (
+        !fixedPath &&
+        dynamic &&
+        node.templateSpans.some(span => /(?:_|%5f)astro(?:\/|%2f)/i.test(span.literal.text))
+      ) {
+        if (!externalOrigin(value, scriptUrl, site))
+          throw new Error('Cannot verify a computed asset URL in ' + scriptUrl.href);
+      }
       if (fixedPath && !knownBase) {
         const workerKey = assetKey(value, scriptUrl, site);
         if (deployedKeys.has(workerKey)) refs.add(workerKey);
@@ -209,34 +217,54 @@ function addScriptLiterals(refs, source, bases, scriptUrl, site, deployedKeys, i
 }
 
 // Return the fixed portion of a request before its first runtime substitution.
-function addressPrefix(node) {
+function addressPrefix(node, origin) {
   if (ts.isStringLiteralLike(node)) return { text: node.text, fixed: true };
-  if (ts.isTemplateExpression(node)) return { text: node.head.text, fixed: false };
-  if (ts.isParenthesizedExpression(node)) return addressPrefix(node.expression);
+  if (
+    ts.isPropertyAccessExpression(node) &&
+    /^(?:(?:window|self|globalThis)\.)?location\.origin$/.test(node.getText())
+  ) {
+    return { text: origin, fixed: true };
+  }
+  if (ts.isTemplateExpression(node)) {
+    let text = node.head.text;
+    for (const span of node.templateSpans) {
+      const part = addressPrefix(span.expression, origin);
+      text += part.text;
+      if (!part.fixed) return { text, fixed: false };
+      text += span.literal.text;
+    }
+    return { text, fixed: true };
+  }
+  if (ts.isParenthesizedExpression(node)) return addressPrefix(node.expression, origin);
   if (ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.PlusToken) {
-    const left = addressPrefix(node.left);
+    const left = addressPrefix(node.left, origin);
     if (!left.fixed) return left;
-    const right = addressPrefix(node.right);
+    const right = addressPrefix(node.right, origin);
     return { text: left.text + right.text, fixed: right.fixed };
   }
   return { text: '', fixed: false };
 }
 
+function externalOrigin(prefix, base, site) {
+  if (!/^(?:https?:)?\/\/[^/]+\//i.test(prefix)) return false;
+  const url = new URL(prefix, base);
+  return url.origin !== 'https://storage.yandexcloud.net' && siteKey(url, base, site) === undefined;
+}
+
 function workerAddress(node, base, scriptUrl, site) {
+  if (ts.isNewExpression(node) && node.expression.text === 'Request' && node.arguments?.length) {
+    return workerAddress(node.arguments[0], base, scriptUrl, site);
+  }
   if (ts.isNewExpression(node) && node.expression.text === 'URL' && node.arguments?.length === 2) {
     const [address, relativeTo] = node.arguments;
     if (relativeTo.getText() === 'import.meta.url') return workerAddress(address, scriptUrl, scriptUrl, site);
     if (ts.isStringLiteralLike(relativeTo)) return workerAddress(address, new URL(relativeTo.text), scriptUrl, site);
   }
-  const { text, fixed } = addressPrefix(node);
+  const { text, fixed } = addressPrefix(node, base.origin);
   if (fixed || /[?#]/.test(text)) return new URL(text, base);
   // Only a complete external origin is independent of the runtime filename.
   // Locally imported worker code can use an asset regardless of its own directory.
-  if (/^(?:https?:)?\/\/[^/]+\//i.test(text) && siteKey(text, base, site) === undefined) {
-    const url = new URL(text, base);
-    // A path-style storage host can also address the selected bucket.
-    if (url.origin !== 'https://storage.yandexcloud.net') return;
-  }
+  if (externalOrigin(text, base, site)) return;
   throw new Error('Cannot verify a computed asset URL in ' + scriptUrl.href);
 }
 
@@ -249,7 +277,7 @@ function codeGraph(refs, site, readCode, importedFiles, documentBase, deployedKe
   function inspectWorkerCalls(source, scriptUrl, workerBase) {
     const base = workerBase || documentBase;
     addScriptLiterals(refs, source, [base], scriptUrl, site, deployedKeys, node => {
-      const api = node.expression.name?.text ?? node.expression.text;
+      const api = node.expression.name?.text ?? node.expression.argumentExpression?.text ?? node.expression.text;
       const startsWorker =
         (ts.isNewExpression(node) && ['Worker', 'SharedWorker'].includes(api)) ||
         (api === 'register' && node.expression.expression?.name?.text === 'serviceWorker');
@@ -257,9 +285,18 @@ function codeGraph(refs, site, readCode, importedFiles, documentBase, deployedKe
       if (startsWorker) {
         const entry = workerAddress(node.arguments[0], base, scriptUrl, site);
         if (entry) visitCode(entry, 'js', entry);
-      } else if (workerBase && ['fetch', 'Request', 'importScripts'].includes(api)) {
-        const args = api === 'importScripts' ? node.arguments : [node.arguments[0]];
-        for (const argument of args) {
+      } else if (workerBase) {
+        const [first, second] = node.arguments;
+        let requests;
+        if (api === 'importScripts') requests = node.arguments;
+        else if (['fetch', 'Request', 'EventSource'].includes(api)) requests = [first];
+        else if (api === 'open' && second) {
+          // XHR.open takes the method first. IndexedDB.open takes a database name and version.
+          const receiver = node.expression.expression;
+          if (receiver?.getText().split('.').at(-1) === 'indexedDB') return;
+          requests = [second];
+        } else return;
+        for (const argument of requests) {
           const address = workerAddress(argument, workerBase, scriptUrl, site);
           if (!address) continue;
           if (api === 'importScripts') visitCode(address, 'js', workerBase);

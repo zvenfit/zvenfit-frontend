@@ -284,7 +284,8 @@ released.
    JavaScript, including classic scripts. Relative literals are checked against
    document bases and the script’s own URL for worker requests. A computed import or an explicit
    asset path in a template with an unknown filename stops the check. This also
-   applies when a worker constructs a relative request with an unknown filename.
+   applies to worker requests through `fetch`, `Request`, `XMLHttpRequest.open`,
+   `EventSource` and `importScripts` when the filename cannot be resolved.
    Missing release metadata, an incomplete upload or a mismatch
    calls for checking and repairing the last site deploy before retrying.
 3. Each row is an object under `_astro/` that is absent from the entire built

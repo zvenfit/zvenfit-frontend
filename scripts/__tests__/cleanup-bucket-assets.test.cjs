@@ -230,6 +230,32 @@ test('classic JavaScript asset URLs must exist in the build before cleanup can p
   assert.throws(() => box.run(true), /Cannot verify a computed asset URL/);
 });
 
+test('inline and emitted templates resolve location.origin before checking the asset path', t => {
+  const used = object('_astro/old.png');
+  const box = fixture(t, [used]);
+  const dist = path.join(box.root, 'dist');
+  const script = path.join(dist, '_astro/app.js');
+  const index = path.join(dist, 'index.html');
+  for (const js of [
+    'fetch(`${location.origin}/_astro/old.png`)',
+    'fetch(`${window.location.origin}/_astro/old.png?v=${v}`)',
+  ]) {
+    for (const inline of [false, true]) {
+      fs.writeFileSync(index, html + (inline ? '<script>' + js + '</script>' : ''));
+      fs.writeFileSync(script, inline ? '' : js);
+      for (const execute of [false, true])
+        assert.throws(() => box.run(execute), { message: 'Incomplete dist: missing referenced asset ' + used.Key });
+    }
+  }
+  fs.writeFileSync(path.join(dist, used.Key), '');
+  assert.deepEqual(box.run(true), []);
+  fs.writeFileSync(index, html + '<script>fetch(`${originFromConfig}/_astro/old.png`)</script>');
+  assert.throws(() => box.run(), /Cannot verify a computed asset URL/);
+  fs.unlinkSync(path.join(dist, used.Key));
+  fs.writeFileSync(index, html + '<script>fetch(`https://another.invalid/${version}/_astro/old.png`)</script>');
+  assert.deepEqual(box.run(), [used]);
+});
+
 test('a relative script URL under an asset base and a stylesheet outside _astro protect live images', t => {
   const image = object('_astro/old.png');
   const box = fixture(t, [image]);
@@ -424,10 +450,15 @@ test('an unknown worker-relative request filename stops both plans', t => {
     'self.importScripts(`${e.data}.js`)',
     'fetch("./" + e.data + ".png")',
     'fetch(e.data)',
+    'new XMLHttpRequest().open("GET", e.data)',
   ]) {
     fs.writeFileSync(worker, 'self.onmessage = e => ' + request);
     for (const execute of [false, true]) assert.throws(() => box.run(execute), /Cannot verify a computed asset URL/);
   }
+  fs.writeFileSync(worker, 'const xhr = new XMLHttpRequest(); xhr.open("GET","./old.png"); xhr.send()');
+  assert.throws(() => box.run(), { message: 'Incomplete dist: missing referenced asset ' + image.Key });
+  fs.writeFileSync(worker, 'self.indexedDB.open("cache", 2); fetch(new Request("https://another.invalid/a"))');
+  assert.deepEqual(box.run(), [image]);
   const shared = 'js/shared.js';
   fs.mkdirSync(path.join(dist, 'js'));
   fs.writeFileSync(path.join(dist, shared), 'self.onmessage = e => fetch("./old.png")');
