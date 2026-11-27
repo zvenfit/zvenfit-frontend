@@ -285,7 +285,12 @@ released.
    stylesheet URL. Literal JavaScript module imports resolve against the module
    URL. Linked and preloaded site scripts and stylesheets, including their local
    module and CSS imports, must exist in the build and match their bytes in storage, even when
-   their names are outside `_astro/`. Each page’s import maps resolve exact,
+   their names are outside `_astro/`. An external script in inline SVG receives the same
+   check. Its `href` takes precedence over the legacy `xlink:href`.
+   For `<link rel="manifest">`, the planner compares the deployed web manifest with the build
+   and resolves image sources, including shortcut icons, relative to the manifest URL.
+   An external or unreadable manifest stops the plan before any candidates are reported.
+   Each page’s import maps resolve exact,
    scoped and package-prefix imports against the base URL in effect when the map
    is parsed. A relative script or stylesheet placed before a later `<base>`
    loads relative to the page URL. The check also covers the later base for

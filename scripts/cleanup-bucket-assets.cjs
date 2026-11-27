@@ -213,7 +213,7 @@ function addModuleReferences(source, base, importMap, visitCode) {
     if (!specifier || glob) throw new Error(`Cannot verify a computed module import in ${base.pathname}`);
     if (base instanceof ErrorPageUrl && /^(?:\.\.?[/\\]|https:)/i.test(specifier)) base.requireFixedPath(specifier);
     const { resolvedImport } = importMaps.resolve(specifier, importMap, base);
-    if (resolvedImport) visitCode(resolvedImport, 'js');
+    if (resolvedImport) visitCode(resolvedImport, 'module');
   }
 }
 
@@ -489,7 +489,7 @@ function scriptCache() {
 
 // Each document has its own import map. Follow its modules and CSS imports with
 // their actual URLs, including when the same script runs under different maps.
-function codeGraph(refs, site, readCode, importedFiles, documentBase, deployedKeys, scriptFor) {
+function codeGraph(refs, site, readVerifiedText, importedFiles, documentBase, deployedKeys, scriptFor) {
   const seen = new Set();
   let importMap = {};
   const entries = [];
@@ -539,8 +539,8 @@ function codeGraph(refs, site, readCode, importedFiles, documentBase, deployedKe
     const identity = JSON.stringify([kind, url.href, parsingBase.href, workerBase?.href]);
     if (seen.has(identity)) return;
     seen.add(identity);
-    const source = readCode(key);
-    if (kind === 'css' || /\.css$/i.test(key)) {
+    const source = readVerifiedText(key);
+    if (kind === 'css' || (kind === 'module' && /\.css$/i.test(key))) {
       addCssReferences(refs, source, 'stylesheet', url, site, visitCode);
     } else {
       importedFiles.add(key);
@@ -591,7 +591,7 @@ function addReferences(
   refs,
   document,
   pageUrl,
-  { site, deployedKeys, readCode, importedFiles, scriptFor, checkNavigation },
+  { site, deployedKeys, readVerifiedText, importedFiles, scriptFor, checkNavigation, checkManifest },
 ) {
   const route = pageUrl.pathname.slice(1) || '/';
   function firstBase(node) {
@@ -612,7 +612,7 @@ function addReferences(
   if (pageUrl instanceof ErrorPageUrl && href) pageUrl.requireFixedPath(href);
   const sameDocument = pageUrl instanceof ErrorPageUrl && pageUrl.referenceKind(href ?? '') === 'same-document';
   const finalBase = href && !sameDocument && URL.canParse(href, pageUrl) ? new URL(href, pageUrl) : pageUrl;
-  const graph = codeGraph(refs, site, readCode, importedFiles, finalBase, deployedKeys, scriptFor);
+  const graph = codeGraph(refs, site, readVerifiedText, importedFiles, finalBase, deployedKeys, scriptFor);
   if (!['https:', 'http:'].includes(finalBase.protocol)) throw new Error('Cannot verify document base in ' + route);
   const baseOffset = baseTag?.sourceCodeLocation?.startOffset ?? Infinity;
   // URL attributes can contain spaces, parentheses, commas and HTML entities.
@@ -636,7 +636,10 @@ function addReferences(
     // Parser-triggered loads use the base available at their position in the input.
     const base = node.sourceCodeLocation?.startOffset >= baseOffset ? finalBase : pageUrl;
     const addUrl = value => addAssetUrl(refs, value, base, site);
-    const attrs = Object.fromEntries((node.attrs ?? []).map(({ name, value }) => [name, value]));
+    const attributes = node.attrs ?? [];
+    const attrs = Object.fromEntries(
+      attributes.map(({ prefix, name, value }) => [prefix ? prefix + ':' + name : name, value]),
+    );
     // srcdoc creates another document with its own base and script context.
     if (node.tagName === 'iframe' && Object.hasOwn(attrs, 'srcdoc') && attrs.srcdoc.trim()) {
       throw new Error('Cannot verify iframe[srcdoc] in ' + route);
@@ -655,15 +658,24 @@ function addReferences(
     }
     const svg = node.namespaceURI === 'http://www.w3.org/2000/svg';
     const rel = (attrs.rel || '').toLowerCase().split(/\s+/);
-    if (node.tagName === 'script' && attrs.src) graph.entries.push({ url: new URL(attrs.src, base), kind: 'js', base });
+    if (node.tagName === 'script') {
+      const source = svg ? (attrs.href ?? attrs['xlink:href']) : attrs.src;
+      if (source) graph.entries.push({ url: new URL(source, base), kind: 'js', base });
+    }
     if (node.tagName === 'link' && attrs.href) {
+      if (rel.includes('manifest')) {
+        checkManifest(attrs.href, base);
+        if (base !== finalBase) checkManifest(attrs.href, finalBase);
+      }
       const preload = rel.includes('preload') && attrs.as?.toLowerCase();
       const style = rel.includes('stylesheet') || preload === 'style';
       if (style || rel.includes('modulepreload') || preload === 'script') {
         graph.entries.push({ url: new URL(attrs.href, base), kind: style ? 'css' : 'js', base });
       }
     }
-    for (const { name, value } of node.attrs ?? []) {
+    for (const { name, value, prefix } of attributes) {
+      // SVG 2 gives the unqualified href precedence, independent of attribute order.
+      if (svg && prefix === 'xlink' && name === 'href' && attrs.href !== undefined) continue;
       if (node.tagName === 'base' && name === 'href') continue;
       if (name === 'style') {
         addCssReferences(refs, value, 'declarationList', base, site, graph.visitCode);
@@ -774,7 +786,7 @@ function planCleanup({ config, client, dist, sha, now = Date.now(), report }) {
   const builtRefs = new Set();
   const documentBases = new Set();
   const site = SITES.get(config.environment);
-  const verifiedCode = new Map();
+  const verifiedText = new Map();
   const importedFiles = new Set();
   const scriptFor = scriptCache();
   const checkedNavigations = new Set();
@@ -788,23 +800,52 @@ function planCleanup({ config, client, dist, sha, now = Date.now(), report }) {
     }
     checkedNavigations.add(key);
   }
-  function readCode(key) {
+  function readVerifiedText(key, kind = 'code') {
     if (!files.has(key)) throw new Error(`Incomplete dist: missing referenced asset ${key}`);
     if (!deployedKeys.has(key)) throw new Error(`Incomplete deployment: missing bucket object ${key}`);
-    if (!verifiedCode.has(key)) {
+    if (!verifiedText.has(key)) {
       const built = fs.readFileSync(path.join(dist, key));
-      if (!built.equals(client.readAsset(key))) throw new Error(`Live code differs from dist: ${key}`);
-      verifiedCode.set(key, built.toString('utf8'));
+      if (!built.equals(client.readAsset(key))) throw new Error(`Live ${kind} differs from dist: ${key}`);
+      verifiedText.set(key, built.toString('utf8'));
     }
-    return verifiedCode.get(key);
+    return verifiedText.get(key);
+  }
+  const checkedManifests = new Set();
+  function checkManifest(href, base) {
+    if (base instanceof ErrorPageUrl) base.requireFixedPath(href);
+    const url = new URL(href, base);
+    if (checkedManifests.has(url.href)) return;
+    const key = siteKey(url, url, site);
+    if (key === undefined) throw new Error('Cannot verify external web manifest on ' + base.pathname);
+    const source = readVerifiedText(key, 'manifest');
+    let manifest;
+    try {
+      manifest = JSON.parse(source.replace(/^\uFEFF/, ''));
+    } catch {
+      throw new Error('Invalid web manifest: ' + key);
+    }
+    if (!manifest || typeof manifest !== 'object' || Array.isArray(manifest))
+      throw new Error('Invalid web manifest: ' + key);
+    function visit(object) {
+      for (const [member, value] of Object.entries(object)) {
+        if (value && typeof value === 'object') visit(value);
+        else if (typeof value === 'string' && ['src', 'url', 'start_url', 'action'].includes(member)) {
+          // Image resources can also occur in shortcuts, screenshots and localized lists.
+          addAssetUrl(builtRefs, value, url, site);
+          if (member !== 'src') checkNavigation(siteKey(value, url, site));
+        }
+      }
+    }
+    visit(manifest);
+    checkedManifests.add(url.href);
   }
   if (release.digest !== undefined) {
-    if (configDigest(readCode) !== release.digest)
+    if (configDigest(readVerifiedText) !== release.digest)
       throw new Error('Public runtime configs differ from the release metadata');
   } else if (config.execute) {
     throw new Error('Missing runtime config digest. Deploy the site with release metadata before executing cleanup.');
   }
-  const review = { site, deployedKeys, readCode, importedFiles, scriptFor, checkNavigation };
+  const review = { site, deployedKeys, readVerifiedText, importedFiles, scriptFor, checkNavigation, checkManifest };
   let lastHtml = 0;
   for (const object of htmlObjects) {
     const page = client.readHtml(object.Key);
@@ -829,7 +870,15 @@ function planCleanup({ config, client, dist, sha, now = Date.now(), report }) {
     }
   }
   if (!builtRefs.size) throw new Error('No /_astro/ references in dist');
-  const fallback = codeGraph(builtRefs, site, readCode, importedFiles, new URL(site.siteUrl), deployedKeys, scriptFor);
+  const fallback = codeGraph(
+    builtRefs,
+    site,
+    readVerifiedText,
+    importedFiles,
+    new URL(site.siteUrl),
+    deployedKeys,
+    scriptFor,
+  );
   for (const key of files) {
     if (key.startsWith(config.prefix) && !deployedKeys.has(key))
       throw new Error(`Incomplete deployment: missing bucket object ${key}`);

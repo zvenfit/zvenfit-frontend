@@ -763,6 +763,110 @@ test('linked same-bucket scripts and styles must match dist before planning', t 
   assert.deepEqual(box.removed, []);
 });
 
+test('SVG script href and xlink:href verify the live script and its dependencies before reporting candidates', t => {
+  const used = object('_astro/used.png');
+  const stale = object('_astro/stale.png');
+  const key = 'js/paint';
+  const box = fixture(t, [used, stale, object(key)]);
+  const dist = path.join(box.root, 'dist');
+  const script = path.join(dist, key);
+  const source = 'fetch("/_astro/used.png")';
+  const read = box.client.readAsset;
+  box.client.readAsset = name => (name === key ? Buffer.from(source) : read(name));
+  for (const attribute of ['href', 'xlink:href']) {
+    fs.writeFileSync(
+      path.join(dist, 'index.html'),
+      html + `<svg><script ${attribute}="https://staging.zvenfit.ru/js/paint"></script></svg>`,
+    );
+    for (const execute of [false, true]) {
+      assert.throws(() => box.run(execute), { message: 'Incomplete dist: missing referenced asset ' + key });
+      fs.writeFileSync(script, '');
+      assert.throws(() => box.run(execute), { message: 'Live code differs from dist: ' + key });
+      fs.writeFileSync(script, source);
+      assert.throws(() => box.run(execute), { message: 'Incomplete dist: missing referenced asset ' + used.Key });
+      fs.unlinkSync(script);
+    }
+  }
+  assert.deepEqual(box.reports, []);
+  fs.writeFileSync(script, source);
+  fs.writeFileSync(path.join(dist, used.Key), '');
+  for (const attrs of [
+    'href="paint" xlink:href="/_astro/shadowed.js"',
+    'xlink:href="/_astro/shadowed.js" href="paint"',
+  ]) {
+    fs.writeFileSync(
+      path.join(dist, 'index.html'),
+      '<base href="/js/">' + html + '<svg><script ' + attrs + '></script></svg>',
+    );
+    assert.deepEqual(box.run(), [stale]);
+  }
+  assert.deepEqual(box.removed, []);
+});
+
+test('web manifests must match storage, and their image URLs resolve relative to the manifest', t => {
+  const icon = object('_astro/install.png');
+  const stale = object('_astro/stale.png');
+  const key = 'pwa/site.webmanifest';
+  const box = fixture(t, [icon, stale, object(key)]);
+  const dist = path.join(box.root, 'dist');
+  const manifest = path.join(dist, key);
+  const index = path.join(dist, 'index.html');
+  const read = box.client.readAsset;
+  const image = { src: '../_astro/install.png?v=4#light', sizes: '192x192', type: 'image/png' };
+  fs.mkdirSync(path.dirname(manifest));
+  fs.writeFileSync(index, html + '<base href="/pwa/"><link rel="ALTERNATE Manifest" href="site.webmanifest">');
+  for (const execute of [false, true]) {
+    assert.throws(() => box.run(execute), { message: 'Incomplete dist: missing referenced asset ' + key });
+    fs.writeFileSync(manifest, '{}');
+    box.client.readAsset = name => (name === key ? Buffer.from(JSON.stringify({ icons: [image] })) : read(name));
+    assert.throws(() => box.run(execute), /Live manifest differs from dist: pwa\/site.webmanifest/);
+    box.client.readAsset = read;
+    for (const settings of [
+      { icons: [image] },
+      { shortcuts: [{ name: 'Visit', url: '/', icons: [image] }] },
+      { screenshots: [image] },
+    ]) {
+      fs.writeFileSync(manifest, '\uFEFF' + JSON.stringify(settings));
+      assert.throws(() => box.run(execute), { message: 'Incomplete dist: missing referenced asset ' + icon.Key });
+    }
+    fs.unlinkSync(manifest);
+  }
+  fs.writeFileSync(manifest, '{}');
+  const list = box.client.list;
+  box.client.list = () => list().filter(item => item.Key !== key);
+  assert.throws(() => box.run(true), { message: 'Incomplete deployment: missing bucket object ' + key });
+  box.client.list = list;
+  assert.deepEqual(box.reports, []);
+  fs.writeFileSync(
+    manifest,
+    JSON.stringify({ icons: [image, { src: 'https://external.invalid/_astro/external.png' }] }),
+  );
+  fs.writeFileSync(path.join(dist, icon.Key), '');
+  assert.deepEqual(box.run(), [stale]);
+  assert.deepEqual(box.removed, []);
+});
+
+test('unreadable web manifests stop planning, including a link resolved under a later base', t => {
+  const used = object('_astro/old.png');
+  const first = 'site.webmanifest';
+  const later = 'release/site.webmanifest';
+  const box = fixture(t, [used, object(first), object(later)]);
+  const dist = path.join(box.root, 'dist');
+  const index = path.join(dist, 'index.html');
+  fs.writeFileSync(path.join(dist, first), '{}');
+  fs.mkdirSync(path.join(dist, 'release'));
+  fs.writeFileSync(index, html + '<link rel="manifest" href="site.webmanifest"><base href="/release/">');
+  for (const value of ['{', 'null', '[]']) {
+    fs.writeFileSync(path.join(dist, later), value);
+    for (const execute of [false, true])
+      assert.throws(() => box.run(execute), /Invalid web manifest: release\/site.webmanifest/);
+  }
+  fs.writeFileSync(index, html + '<link rel="manifest" href="https://remote.invalid/site.webmanifest">');
+  for (const execute of [false, true]) assert.throws(() => box.run(execute), /Cannot verify external web manifest/);
+  assert.deepEqual(box.reports, []);
+  assert.deepEqual(box.removed, []);
+});
+
 test('preloaded styles and scripts must match their live bytes before cleanup', t => {
   const image = object('_astro/preload.png');
   const box = fixture(t, [image, object('theme.css'), object('extra.js')]);
