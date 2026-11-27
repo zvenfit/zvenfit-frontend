@@ -2,7 +2,8 @@
 
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const { execFileSync, spawnSync } = require('node:child_process');
+const { promisify } = require('node:util');
+const { execFile, execFileSync, spawnSync } = require('node:child_process');
 const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
@@ -446,10 +447,9 @@ esac
   assert.match(fs.readFileSync(summary, 'utf8'), /Confirmed deletions: 1 of 1/);
 });
 
-test('ephemeral sessions use a bucket prefix for reads and grant delete only for execute', t => {
+test('concurrent ephemeral sessions use a bucket prefix for reads and grant delete only for execute', async t => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cleanup-session-'));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
-  const capture = path.join(dir, 'policy.json');
   fs.writeFileSync(
     path.join(dir, 'curl'),
     `#!/usr/bin/env node
@@ -461,27 +461,32 @@ fs.writeFileSync(argument('--output'), JSON.stringify({accessKeyId:'fixture',sec
 process.stdout.write('200');`,
     { mode: 0o755 },
   );
-  for (const [mode, bucket] of [
+  const sessions = [
     ['cleanup-plan', 'zvenfit-frontend'],
     ['cleanup-execute', 'zvenfit-frontend-staging'],
-  ]) {
-    execFileSync('bash', [path.join(__dirname, '../issue-ephemeral-storage-key.sh')], {
-      cwd: dir,
-      env: {
-        PATH: dir + path.delimiter + process.env.PATH,
-        YC_IAM_TOKEN: 'fixture',
-        YC_DEPLOY_SERVICE_ACCOUNT_ID: 'fixture',
-        STORAGE_SESSION_MODE: mode,
-        OBJECT_STORAGE_BUCKET: bucket,
-        GITHUB_ENV: path.join(dir, 'env'),
-        POLICY_CAPTURE: capture,
-      },
-    });
-    const { Statement } = JSON.parse(fs.readFileSync(capture, 'utf8'));
-    const arn = 'arn:aws:s3:::' + bucket;
-    const grant = (action, resource) => ({ Effect: 'Allow', Principal: '*', Action: [action], Resource: [resource] });
-    const expected = [grant('s3:ListBucket', arn), grant('s3:GetObject', arn + '/*')];
-    if (mode === 'cleanup-execute') expected.push(grant('s3:DeleteObject', arn + '/_astro/*'));
-    assert.deepEqual(Statement, expected);
-  }
+  ];
+  await Promise.all(
+    sessions.map(async ([mode, bucket]) => {
+      const capture = path.join(dir, mode + '.json');
+      await promisify(execFile)('bash', [path.join(__dirname, '../issue-ephemeral-storage-key.sh')], {
+        cwd: dir,
+        env: {
+          PATH: dir + path.delimiter + process.env.PATH,
+          YC_IAM_TOKEN: 'fixture',
+          YC_DEPLOY_SERVICE_ACCOUNT_ID: 'fixture',
+          STORAGE_SESSION_MODE: mode,
+          OBJECT_STORAGE_BUCKET: bucket,
+          TMPDIR: dir,
+          GITHUB_ENV: path.join(dir, mode + '.env'),
+          POLICY_CAPTURE: capture,
+        },
+      });
+      const { Statement } = JSON.parse(fs.readFileSync(capture, 'utf8'));
+      const arn = 'arn:aws:s3:::' + bucket;
+      const grant = (action, resource) => ({ Effect: 'Allow', Principal: '*', Action: [action], Resource: [resource] });
+      const expected = [grant('s3:ListBucket', arn), grant('s3:GetObject', arn + '/*')];
+      if (mode === 'cleanup-execute') expected.push(grant('s3:DeleteObject', arn + '/_astro/*'));
+      assert.deepEqual(Statement, expected);
+    }),
+  );
 });

@@ -13,10 +13,10 @@ if [[ ! "${OBJECT_STORAGE_BUCKET}" =~ ^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$ ]]; the
   exit 1
 fi
 
-SESSION_POLICY="$(mktemp /tmp/zvenfit-storage-session-policy.XXXXXX.json)"
-REQUEST_BODY="$(mktemp /tmp/zvenfit-ephemeral-key-request.XXXXXX.json)"
-RESPONSE_BODY="$(mktemp /tmp/zvenfit-ephemeral-key-response.XXXXXX.json)"
-AUTH_HEADER="$(mktemp /tmp/zvenfit-ephemeral-key-auth.XXXXXX.txt)"
+SESSION_POLICY="$(mktemp "${TMPDIR:-/tmp}/zvenfit-storage-session-policy.XXXXXX")"
+REQUEST_BODY="$(mktemp "${TMPDIR:-/tmp}/zvenfit-ephemeral-key-request.XXXXXX")"
+RESPONSE_BODY="$(mktemp "${TMPDIR:-/tmp}/zvenfit-ephemeral-key-response.XXXXXX")"
+AUTH_HEADER="$(mktemp "${TMPDIR:-/tmp}/zvenfit-ephemeral-key-auth.XXXXXX")"
 trap 'rm -f -- "${SESSION_POLICY}" "${REQUEST_BODY}" "${RESPONSE_BODY}" "${AUTH_HEADER}"' EXIT
 SESSION_NAME="gha-${GITHUB_RUN_ID:-local}-${GITHUB_RUN_ATTEMPT:-1}"
 node -e '
