@@ -260,10 +260,32 @@ test('checks literals in scripts outside _astro and resolves import.meta.url aga
   box.objects.push(object('js/runtime.js'));
   fs.writeFileSync(config, 'window.picture="/%5Fastro/old.png";');
   assert.throws(() => box.run(true), /missing referenced asset _astro\/old\.png/);
+  fs.writeFileSync(config, 'fetch(new URL("old.png", "https://staging.zvenfit.ru/_astro/"));');
+  assert.throws(() => box.run(true), { message: 'Incomplete dist: missing referenced asset ' + used.Key });
+  fs.writeFileSync(config, 'fetch(new URL("/_astro/old.png", "https://other.invalid/"));');
+  assert.deepEqual(box.run(true), [used]);
   fs.writeFileSync(config, '');
   fs.writeFileSync(path.join(dist, '_astro/app.js'), 'const picture = new URL("./old.png", import.meta.url);');
   assert.throws(() => box.run(true), /missing referenced asset _astro\/old\.png/);
   fs.writeFileSync(path.join(dist, used.Key), '');
+  assert.deepEqual(box.run(true), []);
+});
+
+test('literal resources used relative to a worker URL remain protected', t => {
+  const image = object('_astro/worker/old.png');
+  const library = object('_astro/worker/old.js');
+  const box = fixture(t, [image, library, object('_astro/worker/live.js')]);
+  const dist = path.join(box.root, 'dist');
+  fs.mkdirSync(path.join(dist, '_astro/worker'));
+  fs.writeFileSync(path.join(dist, 'index.html'), html + '<script>new Worker("/_astro/worker/live.js")</script>');
+  const worker = path.join(dist, '_astro/worker/live.js');
+  fs.writeFileSync(worker, 'fetch("./old.png"); importScripts("./old.js");');
+  for (const asset of [image, library]) {
+    for (const execute of [false, true]) {
+      assert.throws(() => box.run(execute), { message: 'Incomplete dist: missing referenced asset ' + asset.Key });
+    }
+    fs.writeFileSync(path.join(dist, asset.Key), '');
+  }
   assert.deepEqual(box.run(true), []);
 });
 

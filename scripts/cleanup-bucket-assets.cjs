@@ -153,18 +153,32 @@ function addScriptLiterals(refs, source, bases, scriptUrl, site, deployedKeys) {
         (ts.isCallExpression(parent) && parent.expression.kind === ts.SyntaxKind.ImportKeyword)
       )
         return;
-      const baseArg = ts.isNewExpression(parent) && parent.arguments?.[0] === node ? parent.arguments[1] : undefined;
-      const relativeToScript =
-        baseArg &&
-        ts.isIdentifier(parent.expression) &&
-        parent.expression.text === 'URL' &&
-        ts.isPropertyAccessExpression(baseArg) &&
-        baseArg.name.text === 'url' &&
-        ts.isMetaProperty(baseArg.expression);
+      const urlArgs =
+        ts.isNewExpression(parent) && ts.isIdentifier(parent.expression) && parent.expression.text === 'URL'
+          ? parent.arguments
+          : undefined;
+      if (urlArgs?.[1] === node) return; // A base URL need not itself identify a file.
+      let knownBase;
+      const baseArg = urlArgs?.[1];
+      if (baseArg && urlArgs[0] === node) {
+        if (ts.isStringLiteralLike(baseArg) && URL.canParse(baseArg.text)) knownBase = baseArg.text;
+        if (
+          ts.isPropertyAccessExpression(baseArg) &&
+          baseArg.name.text === 'url' &&
+          ts.isMetaProperty(baseArg.expression)
+        )
+          knownBase = scriptUrl;
+      }
       const pathHint = value.replace(/%([0-9a-f]{2})/gi, (_, hex) => String.fromCharCode(parseInt(hex, 16)));
       // Ordinary relative URLs use the document base. Check all possible pages of a shared script.
-      const explicit = relativeToScript || pathHint.includes('_astro/');
-      const targets = relativeToScript ? [scriptUrl] : explicit ? bases : assetBases;
+      const explicit = knownBase || pathHint.includes('_astro/');
+      // Workers resolve fetch()/importScripts() against their own URL. A shared script can
+      // run in either context; retain any actual bucket key that its literal could address.
+      if (!dynamic && !knownBase) {
+        const workerKey = assetKey(value, scriptUrl, site);
+        if (deployedKeys.has(workerKey)) refs.add(workerKey);
+      }
+      const targets = knownBase ? [knownBase] : explicit ? bases : assetBases;
       for (const base of targets) {
         const key = assetKey(value, base, site);
         if (!key) continue;

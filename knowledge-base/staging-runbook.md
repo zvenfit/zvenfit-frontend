@@ -277,7 +277,8 @@ released.
    in inline and built stylesheets are resolved against their document or
    stylesheet URL. Literal JavaScript module imports resolve against the module
    URL. The planner also reads literal site asset URLs in inline and emitted
-   JavaScript, including classic scripts. A computed import or an explicit
+   JavaScript, including classic scripts. Relative literals are checked against
+   document bases and the script’s own URL for worker requests. A computed import or an explicit
    asset path in a template with an unknown filename stops the check.
    Missing release metadata, an incomplete upload or a mismatch
    calls for checking and repairing the last site deploy before retrying.
