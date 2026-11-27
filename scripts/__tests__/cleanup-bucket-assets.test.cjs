@@ -229,6 +229,27 @@ test('classic JavaScript asset URLs must exist in the build before cleanup can p
   assert.throws(() => box.run(true), /Cannot verify a computed asset URL/);
 });
 
+test('a relative script URL under an asset base and a stylesheet outside _astro protect live images', t => {
+  const image = object('_astro/old.png');
+  const box = fixture(t, [image]);
+  const dist = path.join(box.root, 'dist');
+  fs.writeFileSync(path.join(dist, 'index.html'), '<head><base href="/_astro/"></head>' + html);
+  const app = path.join(dist, '_astro/app.js');
+  fs.writeFileSync(app, 'addEventListener("click", () => fetch("old.png"));');
+  for (const execute of [false, true])
+    assert.throws(() => box.run(execute), /missing referenced asset _astro\/old\.png/);
+  fs.writeFileSync(app, 'addEventListener("click", () => {});');
+  assert.deepEqual(box.run(true), [image]);
+  fs.writeFileSync(path.join(dist, 'index.html'), html + '<link href="/css/live.css" rel="stylesheet">');
+  fs.mkdirSync(path.join(dist, 'css'));
+  fs.writeFileSync(path.join(dist, 'css/live.css'), 'body { background-image: url(../_astro/old.png); }');
+  box.objects.push(object('css/live.css'));
+  for (const execute of [false, true])
+    assert.throws(() => box.run(execute), /missing referenced asset _astro\/old\.png/);
+  fs.writeFileSync(path.join(dist, image.Key), '');
+  assert.deepEqual(box.run(true), []);
+});
+
 test('checks literals in scripts outside _astro and resolves import.meta.url against the module', t => {
   const used = object('_astro/old.png');
   const box = fixture(t, [used]);
@@ -266,6 +287,9 @@ test('module imports in emitted JS and inline modules protect old chunks', t => 
   fs.writeFileSync(app, '');
   fs.writeFileSync(path.join(dist, 'index.html'), html + '<script type="module">import "./_astro/old.js";</script>');
   assert.throws(() => box.run(true), { message: 'Incomplete dist: missing referenced asset ' + chunk.Key });
+  fs.writeFileSync(path.join(dist, 'index.html'), html + '<script>import("/_astro/old.js")</script>');
+  for (const execute of [false, true])
+    assert.throws(() => box.run(execute), { message: 'Incomplete dist: missing referenced asset ' + chunk.Key });
   fs.writeFileSync(path.join(dist, chunk.Key), '');
   assert.deepEqual(box.run(true), [stale]);
 });

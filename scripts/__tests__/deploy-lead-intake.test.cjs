@@ -763,4 +763,33 @@ test('local deploy:yc uploads the verified build with the same HTML metadata and
   }
   assert.ok(calls[3].includes('--recursive'));
   assert.ok(calls[4].includes('--size-only'));
+
+  // Exercise the actual CI HTML pass against the same inert storage command.
+  fs.writeFileSync(log, '');
+  const ciHtml = reusableWorkflow
+    .split('      - name: Upload HTML (no-cache)\n')[1]
+    .split('\n      - name:')[0]
+    .split('        run: |\n')[1]
+    .replaceAll('${{ inputs.s3_bucket }}', 'zvenfit-frontend-staging');
+  execFileSync('bash', ['-ec', ciHtml], {
+    cwd: dir,
+    env: { PATH: dir + path.delimiter + process.env.PATH, STORAGE_LOG: log, GITHUB_SHA: sha, GITHUB_RUN_NUMBER: '123' },
+  });
+  const stamped = fs
+    .readFileSync(log, 'utf8')
+    .trim()
+    .split('\n')
+    .map(line => JSON.parse(line));
+  assert.deepEqual(
+    stamped.map(args => args[1]),
+    ['cp', 'sync'],
+  );
+  for (const [i, args] of stamped.entries()) {
+    assert.equal(args[args.indexOf('--metadata') + 1], 'deployed-sha=' + sha + ',asset-version=123');
+    for (const flag of ['--include', '--exclude', '--cache-control']) {
+      assert.equal(args[args.indexOf(flag) + 1], calls[i + 3][calls[i + 3].indexOf(flag) + 1]);
+    }
+  }
+  assert.ok(stamped[0].includes('--recursive'));
+  assert.ok(stamped[1].includes('--delete') && stamped[1].includes('--size-only'));
 });

@@ -89,7 +89,7 @@ function bucketClient(bucket, tempDir) {
   };
 }
 
-function addAssetUrl(refs, value, base, site) {
+function assetKey(value, base, site) {
   if (!URL.canParse(value, base)) return;
   const url = new URL(value, base);
   let key;
@@ -103,12 +103,14 @@ function addAssetUrl(refs, value, base, site) {
     key = url.pathname.slice(site.s3Bucket.length + 2);
   }
   if (key !== undefined) {
-    const decoded = decodeURIComponent(key);
-    if (decoded.startsWith('_astro/')) {
-      refs.add(decoded);
-      return decoded;
-    }
+    const decoded = decodeURIComponent(key.replace(/%(?![0-9a-f]{2})/gi, '%25'));
+    if (decoded.startsWith('_astro/')) return decoded;
   }
+}
+
+function addAssetUrl(refs, value, base, site) {
+  const key = assetKey(value, base, site);
+  if (key) refs.add(key);
 }
 
 function addCssReferences(refs, value, context, base, site) {
@@ -137,7 +139,8 @@ function addModuleReferences(refs, source, base, site) {
 }
 
 // A classic script can load a site asset through Image, fetch, a worker, etc.
-function addScriptLiterals(refs, source, bases, scriptUrl, site) {
+function addScriptLiterals(refs, source, bases, scriptUrl, site, deployedKeys) {
+  const assetBases = [...bases].filter(base => assetKey('.', base, site));
   const tree = ts.createSourceFile('asset.js', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
   function visit(node) {
     const dynamic = ts.isTemplateExpression(node);
@@ -160,11 +163,14 @@ function addScriptLiterals(refs, source, bases, scriptUrl, site) {
         ts.isMetaProperty(baseArg.expression);
       const pathHint = value.replace(/%([0-9a-f]{2})/gi, (_, hex) => String.fromCharCode(parseInt(hex, 16)));
       // Ordinary relative URLs use the document base. Check all possible pages of a shared script.
-      if (relativeToScript || pathHint.includes('_astro/')) {
-        for (const base of relativeToScript ? [scriptUrl] : bases) {
-          const key = addAssetUrl(refs, value, base, site);
-          if (key && dynamic && !/[?#]/.test(value)) throw new Error('Cannot verify a computed asset URL: ' + value);
-        }
+      const explicit = relativeToScript || pathHint.includes('_astro/');
+      const targets = relativeToScript ? [scriptUrl] : explicit ? bases : assetBases;
+      for (const base of targets) {
+        const key = assetKey(value, base, site);
+        if (!key) continue;
+        if (dynamic && !/[?#]/.test(value)) throw new Error('Cannot verify a computed asset URL: ' + value);
+        // Under an asset base ordinary strings can be event names or actual object keys.
+        if (explicit || deployedKeys.has(key)) refs.add(key);
       }
     }
     ts.forEachChild(node, visit);
@@ -172,7 +178,7 @@ function addScriptLiterals(refs, source, bases, scriptUrl, site) {
   visit(tree);
 }
 
-function addReferences(refs, html, route, site) {
+function addReferences(refs, html, route, site, deployedKeys) {
   const document = parse(html, { scriptingEnabled: false });
   const pageUrl = new URL(route, site.siteUrl);
   const head = document.childNodes
@@ -227,8 +233,9 @@ function addReferences(refs, html, route, site) {
             ?.value.trim()
             .toLowerCase() || '';
         if (!type || type === 'module' || /(?:java|ecma)script/.test(type)) {
-          if (type === 'module') addModuleReferences(refs, node.value, base, site);
-          addScriptLiterals(refs, node.value, [base], base, site);
+          // Dynamic import() is also valid in classic scripts.
+          addModuleReferences(refs, node.value, base, site);
+          addScriptLiterals(refs, node.value, [base], base, site, deployedKeys);
         } else scan(node.value);
       } else scan(node.value);
     }
@@ -286,6 +293,7 @@ function planCleanup({ config, client, dist, sha, now = Date.now(), report }) {
   if (!pages.has('index.html')) throw new Error('Incomplete dist: missing index.html');
 
   const objects = client.list();
+  const deployedKeys = new Set(objects.map(object => object.Key));
   const htmlObjects = objects.filter(object => object.Key.endsWith('.html'));
   sameSet(pages, new Set(htmlObjects.map(object => object.Key)), 'pages');
   const builtRefs = new Set();
@@ -301,22 +309,19 @@ function planCleanup({ config, client, dist, sha, now = Date.now(), report }) {
     // Byte equality proves even references embedded in inline code match the build.
     const builtHtml = fs.readFileSync(path.join(dist, object.Key));
     if (!builtHtml.equals(page.html)) throw new Error(`Live HTML differs from dist: ${object.Key}`);
-    documentBases.add(addReferences(builtRefs, builtHtml.toString('utf8'), object.Key, site));
+    documentBases.add(addReferences(builtRefs, builtHtml.toString('utf8'), object.Key, site, deployedKeys));
   }
   if (!builtRefs.size) throw new Error('No /_astro/ references in dist');
-  const deployedKeys = new Set(objects.map(object => object.Key));
   for (const key of files) {
+    if (key.startsWith(config.prefix) && !deployedKeys.has(key))
+      throw new Error(`Incomplete deployment: missing bucket object ${key}`);
+    const fileUrl = new URL(key, site.siteUrl);
     if (/\.m?js$/i.test(key)) {
       const source = fs.readFileSync(path.join(dist, key), 'utf8');
-      const scriptUrl = new URL(key, site.siteUrl);
-      addModuleReferences(builtRefs, source, scriptUrl, site);
-      addScriptLiterals(builtRefs, source, documentBases, scriptUrl, site);
-    }
-    if (!key.startsWith(config.prefix)) continue;
-    if (!deployedKeys.has(key)) throw new Error(`Incomplete deployment: missing bucket object ${key}`);
-    const base = new URL(key, site.siteUrl);
-    if (key.endsWith('.css')) {
-      addCssReferences(builtRefs, fs.readFileSync(path.join(dist, key), 'utf8'), 'stylesheet', base, site);
+      addModuleReferences(builtRefs, source, fileUrl, site);
+      addScriptLiterals(builtRefs, source, documentBases, fileUrl, site, deployedKeys);
+    } else if (/\.css$/i.test(key)) {
+      addCssReferences(builtRefs, fs.readFileSync(path.join(dist, key), 'utf8'), 'stylesheet', fileUrl, site);
     }
   }
   for (const key of builtRefs) {

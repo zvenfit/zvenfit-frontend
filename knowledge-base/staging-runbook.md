@@ -98,7 +98,8 @@ or Vite’s mode-specific env files. Installation uses the lockfile. A failed
 guard or byte difference stops the command before its first storage request.
 It uploads the verified copy, stamps every HTML object with `deployed-sha` and
 `asset-version`, then removes obsolete HTML. This also refreshes metadata when
-an existing object has the same size and timestamp. Coordinate a local upload
+an existing object has the same size and timestamp. Release uses the same
+unconditional HTML upload followed by size-only reconciliation. Coordinate a local upload
 with the owner outside any active or queued release or cleanup.
 
 ## E2E safety invariants
@@ -352,7 +353,9 @@ Use the selected SHA in the applicable recovery path below.
 - **Staging only.** When the required SHA is the head of `main`, dispatch
   **Deploy to Staging** on `main` and wait for staging E2E. For an older SHA,
   use **Re-run all jobs** on an eligible **Deploy to Staging** run for that
-  exact SHA. If there is no such run, arrange a staging-only recovery of that verified revision with the owner.
+  exact SHA. If it predates HTML metadata stamping, the restored site will serve
+  the assets but cleanup must remain paused until a metadata-aware release.
+  If there is no such run, arrange a staging-only recovery of that verified revision with the owner.
 - **Production.** When the required SHA is the head of `main`, dispatch
   **Release** on `main` with `skip_staging` unchecked. Follow staging, E2E,
   production and smoke. For an older revision, restore the sources through
