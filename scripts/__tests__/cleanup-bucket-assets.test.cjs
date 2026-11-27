@@ -279,10 +279,14 @@ test('literal resources used relative to a worker URL remain protected', t => {
   fs.mkdirSync(path.join(dist, '_astro/worker'));
   fs.writeFileSync(path.join(dist, 'index.html'), html + '<script>new Worker("/_astro/worker/live.js")</script>');
   const worker = path.join(dist, '_astro/worker/live.js');
-  fs.writeFileSync(worker, 'fetch("./old.png"); importScripts("./old.js");');
-  for (const asset of [image, library]) {
-    for (const execute of [false, true]) {
-      assert.throws(() => box.run(execute), { message: 'Incomplete dist: missing referenced asset ' + asset.Key });
+  for (const [asset, sources] of [
+    [image, ['fetch("./old.png");', 'fetch(`./old.png?v=${Date.now()}`);']],
+    [library, ['importScripts("./old.js");', 'importScripts(`./old.js#${version}`);']],
+  ]) {
+    for (const source of sources) {
+      fs.writeFileSync(worker, source);
+      for (const execute of [false, true])
+        assert.throws(() => box.run(execute), { message: 'Incomplete dist: missing referenced asset ' + asset.Key });
     }
     fs.writeFileSync(path.join(dist, asset.Key), '');
   }

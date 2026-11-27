@@ -174,7 +174,8 @@ function addScriptLiterals(refs, source, bases, scriptUrl, site, deployedKeys) {
       const explicit = knownBase || pathHint.includes('_astro/');
       // Workers resolve fetch()/importScripts() against their own URL. A shared script can
       // run in either context; retain any actual bucket key that its literal could address.
-      if (!dynamic && !knownBase) {
+      const fixedPath = !dynamic || /[?#]/.test(value);
+      if (fixedPath && !knownBase) {
         const workerKey = assetKey(value, scriptUrl, site);
         if (deployedKeys.has(workerKey)) refs.add(workerKey);
       }
@@ -182,7 +183,7 @@ function addScriptLiterals(refs, source, bases, scriptUrl, site, deployedKeys) {
       for (const base of targets) {
         const key = assetKey(value, base, site);
         if (!key) continue;
-        if (dynamic && !/[?#]/.test(value)) throw new Error('Cannot verify a computed asset URL: ' + value);
+        if (!fixedPath) throw new Error('Cannot verify a computed asset URL: ' + value);
         // Under an asset base ordinary strings can be event names or actual object keys.
         if (explicit || deployedKeys.has(key)) refs.add(key);
       }
