@@ -39,6 +39,7 @@
     "clean-css": "^5.3.3",
     "concurrently": "^9.2.1",
     "css-tree": "3.2.1",
+    "es-module-lexer": "3.0.4",
     "eslint": "^8.57.1",
     "eslint-config-prettier": "^9.1.0",
     "eslint-import-resolver-typescript": "^3.10.1",

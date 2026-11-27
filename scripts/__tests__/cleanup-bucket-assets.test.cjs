@@ -181,6 +181,48 @@ test('emitted CSS resolves relative dependencies against the stylesheet director
   assert.deepEqual(box.run(true), [stale]);
 });
 
+test('metadata and inline JSON preserve the origin and bucket of an asset URL', t => {
+  const candidate = object('_astro/share.png');
+  const box = fixture(t, [candidate]);
+  const file = path.join(box.root, 'dist/index.html');
+  const documents = url => [
+    `<meta property="og:image" content="${url}">`,
+    `<script type="application/ld+json">{"image":"${url}"}</script>`,
+  ];
+  for (const markup of documents('https://storage.yandexcloud.net/zvenfit/v2/_astro/share.png')) {
+    fs.writeFileSync(file, html + markup);
+    assert.deepEqual(box.run(true), [candidate]);
+  }
+  for (const markup of documents('https://storage.yandexcloud.net/zvenfit-frontend-staging/_astro/share.png')) {
+    fs.writeFileSync(file, html + markup);
+    assert.throws(() => box.run(true), { message: 'Incomplete dist: missing referenced asset ' + candidate.Key });
+  }
+});
+
+test('module imports in emitted JS and inline modules protect old chunks', t => {
+  const chunk = object('_astro/old.js');
+  const stale = object('_astro/stale.js');
+  const box = fixture(t, [chunk, stale]);
+  const dist = path.join(box.root, 'dist');
+  const app = path.join(dist, '_astro/app.js');
+  fs.writeFileSync(
+    path.join(dist, 'index.html'),
+    '<link href="/_astro/live.css"><script type="module" src="/_astro/app.js"></script>',
+  );
+  for (const source of ['import "./old.js";', 'export * from "./old.js";', 'import("./old.js")']) {
+    fs.writeFileSync(app, source);
+    for (const execute of [false, true])
+      assert.throws(() => box.run(execute), { message: 'Incomplete dist: missing referenced asset ' + chunk.Key });
+  }
+  fs.writeFileSync(app, 'import("./" + location.hash.slice(1))');
+  assert.throws(() => box.run(true), /Cannot verify a computed module import/);
+  fs.writeFileSync(app, '');
+  fs.writeFileSync(path.join(dist, 'index.html'), html + '<script type="module">import "./_astro/old.js";</script>');
+  assert.throws(() => box.run(true), { message: 'Incomplete dist: missing referenced asset ' + chunk.Key });
+  fs.writeFileSync(path.join(dist, chunk.Key), '');
+  assert.deepEqual(box.run(true), [stale]);
+});
+
 test('a missing live reference also stops execute', t => {
   const box = fixture(t, [object('_astro/old.js')]);
   box.client.readHtml = () => ({ release, html: Buffer.from('<link href="/_astro/live.css">') });

@@ -258,7 +258,9 @@ released.
    inline CSS and scripts. Every `_astro/` file in the build, including
    indirect dependencies such as fonts, must exist in the bucket. Asset URLs
    in inline and built stylesheets are resolved against their document or
-   stylesheet URL. Missing release metadata, an incomplete upload or a mismatch
+   stylesheet URL. Literal JavaScript module imports resolve against the module
+   URL. A computed import whose target cannot be verified stops the check.
+   Missing release metadata, an incomplete upload or a mismatch
    calls for checking and repairing the last site deploy before retrying.
 3. Each row is an object under `_astro/` that is absent from the entire built
    tree and was last written **strictly before** the UTC cutoff. The timestamp

@@ -9,6 +9,7 @@ const { execFileSync } = require('node:child_process');
 
 const { parse } = require('parse5');
 const css = require('css-tree');
+const { parse: parseImports } = require('es-module-lexer');
 const { PRODUCTION, STAGING } = require('./validate-deployment-config.cjs');
 
 const DAY = 86_400_000;
@@ -119,6 +120,16 @@ function addCssReferences(refs, value, context, base, site) {
   });
 }
 
+function addModuleReferences(refs, source, base, site) {
+  const [imports] = parseImports(source);
+  for (const { type, specifier, glob } of imports) {
+    if (type === 'import-meta') continue;
+    if (!specifier || glob) throw new Error(`Cannot verify a computed module import in ${base.pathname}`);
+    // Bare names resolve through import maps. Only URL specifiers resolve against the module URL.
+    if (/^(?:\.{1,2}\/|\/|[a-z][a-z\d+.-]*:)/i.test(specifier)) addAssetUrl(refs, specifier, base, site);
+  }
+}
+
 function addReferences(refs, html, route, site) {
   const document = parse(html, { scriptingEnabled: false });
   const pageUrl = new URL(route, site.siteUrl);
@@ -136,8 +147,11 @@ function addReferences(refs, html, route, site) {
   }
   function scan(value) {
     for (const match of value.matchAll(/\/_astro\//g)) {
-      const tail = value.slice(match.index);
-      const quote = value[match.index - 1];
+      // Preserve an absolute origin or a path prefix in metadata, JSON and inline code.
+      const prefix = value.slice(0, match.index).match(/[^\s"'`<>()=]*$/)[0];
+      const start = match.index - prefix.length;
+      const tail = value.slice(start);
+      const quote = value[start - 1];
       if (['"', "'", '`'].includes(quote)) {
         addUrl(tail.split(quote, 1)[0]);
       } else if (/url\(\s*$/i.test(value.slice(0, match.index))) {
@@ -164,7 +178,15 @@ function addReferences(refs, html, route, site) {
     }
     if (node.nodeName === '#text') {
       if (node.parentNode?.tagName === 'style') addCssReferences(refs, node.value, 'stylesheet', base, site);
-      else scan(node.value);
+      else {
+        if (
+          node.parentNode?.tagName === 'script' &&
+          node.parentNode.attrs.some(attr => attr.name === 'type' && attr.value.toLowerCase() === 'module')
+        ) {
+          addModuleReferences(refs, node.value, base, site);
+        }
+        scan(node.value);
+      }
     }
     for (const child of node.childNodes ?? []) visit(child);
     if (node.content) visit(node.content);
@@ -240,9 +262,11 @@ function planCleanup({ config, client, dist, sha, now = Date.now(), report }) {
   for (const key of files) {
     if (!key.startsWith(config.prefix)) continue;
     if (!deployedKeys.has(key)) throw new Error(`Incomplete deployment: missing bucket object ${key}`);
+    const base = new URL(key, site.siteUrl);
     if (key.endsWith('.css')) {
-      const stylesheet = fs.readFileSync(path.join(dist, key), 'utf8');
-      addCssReferences(builtRefs, stylesheet, 'stylesheet', new URL(key, site.siteUrl), site);
+      addCssReferences(builtRefs, fs.readFileSync(path.join(dist, key), 'utf8'), 'stylesheet', base, site);
+    } else if (/\.m?js$/i.test(key)) {
+      addModuleReferences(builtRefs, fs.readFileSync(path.join(dist, key), 'utf8'), base, site);
     }
   }
   for (const key of builtRefs) {
