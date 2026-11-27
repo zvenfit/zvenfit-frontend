@@ -94,6 +94,9 @@ function bucketClient(bucket, tempDir) {
       }
       return result.Contents ?? [];
     },
+    contentType(key) {
+      return JSON.parse(aws('head-object', '--key', key)).ContentType;
+    },
     readHtml(key) {
       const { metadata, body } = readObject(key);
       return { release: deployment(metadata), html: body };
@@ -182,15 +185,23 @@ function addAssetUrl(refs, value, base, site) {
 function addCssReferences(refs, value, context, base, site, visitCode) {
   const ast = css.parse(value, { context, parseCustomProperty: true });
   css.walk(ast, function (node) {
-    const isImport = this.atrule?.name.toLowerCase() === 'import' && this.atrulePrelude?.children.first === node;
-    // CSS also accepts quoted URL strings directly in @import and image-set().
-    if (
+    if (node.type === 'Atrule' && css.ident.decode(node.name).toLowerCase() === 'import') {
+      let target = node.prelude?.children?.first;
+      if (target?.type === 'Function' && css.ident.decode(target.name).toLowerCase() === 'url')
+        target = target.children.first;
+      if (!target || !['String', 'Url'].includes(target.type)) throw new Error('Cannot verify CSS @import');
+      addAssetUrl(refs, target.value, base, site);
+      visitCode(new URL(target.value, base), 'css');
+    } else if (
       node.type === 'Url' ||
       (node.type === 'String' &&
-        (isImport || ['image-set', '-webkit-image-set', 'image', 'src'].includes(this.function?.name.toLowerCase())))
+        this.function &&
+        ['url', 'image-set', '-webkit-image-set', 'image', 'src'].includes(
+          css.ident.decode(this.function.name).toLowerCase(),
+        ))
     ) {
-      addAssetUrl(refs, node.value, base, site);
-      if (isImport) visitCode(new URL(node.value, base), 'css');
+      // A fragment-only paint server is part of the SVG document itself.
+      if (context !== 'value' || !node.value.startsWith('#')) addAssetUrl(refs, node.value, base, site);
     }
   });
 }
@@ -519,6 +530,9 @@ function codeGraph(refs, site, readCode, importedFiles, documentBase, deployedKe
     });
   }
   function visitCode(url, kind, workerBase) {
+    if (!['http:', 'https:'].includes(url.protocol)) {
+      throw new Error('Cannot verify ' + url.protocol + ' ' + kind + ' dependency');
+    }
     const key = siteKey(url, url, site);
     if (key === undefined) return;
     if (key.startsWith('_astro/')) refs.add(key);
@@ -573,7 +587,12 @@ function codeGraph(refs, site, readCode, importedFiles, documentBase, deployedKe
   };
 }
 
-function addReferences(refs, document, pageUrl, site, deployedKeys, readCode, importedFiles, scriptFor) {
+function addReferences(
+  refs,
+  document,
+  pageUrl,
+  { site, deployedKeys, readCode, importedFiles, scriptFor, checkNavigation },
+) {
   const route = pageUrl.pathname.slice(1) || '/';
   function firstBase(node) {
     if (
@@ -634,6 +653,7 @@ function addReferences(refs, document, pageUrl, site, deployedKeys, readCode, im
     if (node.tagName === 'meta' && attrs['http-equiv']?.trim().toLowerCase() === 'refresh' && attrs.content?.trim()) {
       throw new Error('Cannot verify meta refresh in ' + route);
     }
+    const svg = node.namespaceURI === 'http://www.w3.org/2000/svg';
     const rel = (attrs.rel || '').toLowerCase().split(/\s+/);
     if (node.tagName === 'script' && attrs.src) graph.entries.push({ url: new URL(attrs.src, base), kind: 'js', base });
     if (node.tagName === 'link' && attrs.href) {
@@ -658,13 +678,17 @@ function addReferences(refs, document, pageUrl, site, deployedKeys, readCode, im
           if (!inlineImage) throw new Error('Cannot verify ' + scheme + ' URL in ' + route);
         }
         addUrl(value);
-        // A visitor can follow a link or submit a form after a later base takes effect.
-        if (
-          base !== finalBase &&
-          (['action', 'formaction'].includes(name) || (name === 'href' && ['a', 'area'].includes(node.tagName)))
-        ) {
-          addAssetUrl(refs, value, finalBase, site);
+        // A visitor can navigate after a later base takes effect.
+        if (['action', 'formaction'].includes(name) || (name === 'href' && ['a', 'area'].includes(node.tagName))) {
+          checkNavigation(siteKey(value, base, site));
+          if (base !== finalBase) {
+            addAssetUrl(refs, value, finalBase, site);
+            checkNavigation(siteKey(value, finalBase, site));
+          }
         }
+      } else if (svg && /[(\\]/.test(value) && (name === 'color-profile' || css.lexer.getProperty(name))) {
+        addCssReferences(refs, value, 'value', base, site, graph.visitCode);
+        if (base !== finalBase) addCssReferences(refs, value, 'value', finalBase, site, graph.visitCode);
       } else if (name === 'srcset' || name === 'imagesrcset') {
         // A candidate starts at the beginning or after a separator. Commas
         // inside its URL are legal; trailing commas delimit descriptorless URLs.
@@ -753,6 +777,17 @@ function planCleanup({ config, client, dist, sha, now = Date.now(), report }) {
   const verifiedCode = new Map();
   const importedFiles = new Set();
   const scriptFor = scriptCache();
+  const checkedNavigations = new Set();
+  function checkNavigation(key) {
+    if (!deployedKeys.has(key) || pages.has(key) || checkedNavigations.has(key)) return;
+    // SVG opened by a link is a document. Extensionless objects can have the same media type.
+    if (/\.svgz?$/i.test(key)) throw new Error('Cannot verify navigable SVG document: ' + key);
+    const type = client.contentType(key)?.split(';', 1)[0].trim().toLowerCase();
+    if (!type || type === 'text/html' || type.endsWith('/xml') || type.endsWith('+xml')) {
+      throw new Error('Cannot verify navigable document: ' + key);
+    }
+    checkedNavigations.add(key);
+  }
   function readCode(key) {
     if (!files.has(key)) throw new Error(`Incomplete dist: missing referenced asset ${key}`);
     if (!deployedKeys.has(key)) throw new Error(`Incomplete deployment: missing bucket object ${key}`);
@@ -769,6 +804,7 @@ function planCleanup({ config, client, dist, sha, now = Date.now(), report }) {
   } else if (config.execute) {
     throw new Error('Missing runtime config digest. Deploy the site with release metadata before executing cleanup.');
   }
+  const review = { site, deployedKeys, readCode, importedFiles, scriptFor, checkNavigation };
   let lastHtml = 0;
   for (const object of htmlObjects) {
     const page = client.readHtml(object.Key);
@@ -789,9 +825,7 @@ function planCleanup({ config, client, dist, sha, now = Date.now(), report }) {
     for (const pathname of paths) {
       const pageUrl =
         object.Key === '404.html' ? new ErrorPageUrl(site, deployedKeys, files) : new URL(pathname, site.siteUrl);
-      documentBases.add(
-        addReferences(builtRefs, document, pageUrl, site, deployedKeys, readCode, importedFiles, scriptFor),
-      );
+      documentBases.add(addReferences(builtRefs, document, pageUrl, review));
     }
   }
   if (!builtRefs.size) throw new Error('No /_astro/ references in dist');

@@ -298,6 +298,13 @@ released.
    A nonempty `iframe[srcdoc]`, a same-site embedded document (including SVG in
    `<object>`), a navigation URL using `javascript:`, `data:` or `vbscript:`, or a
    `meta refresh` directive with content stops planning and reports the page.
+   A link or form that opens a local SVG also stops the plan. The planner checks the
+   media type of other linked bucket objects, including extensionless documents.
+   Passive SVG images in `<img>` remain supported. In inline SVG, CSS presentation
+   attributes such as `fill`, `stroke` and `filter` resolve resource URLs against
+   the document base. A fragment such as `url(#brand)` refers to the document itself.
+   CSS and JavaScript imports that load executable content via `data:` stop the plan,
+   including imports in linked stylesheets and modules.
    Production HTTP links to the site on its default port follow the CDN redirect to HTTPS.
    The planner also reads literal site asset URLs in inline and emitted
    JavaScript, including URLs assembled from constant strings. Service worker
@@ -384,9 +391,16 @@ Use the selected SHA in the applicable recovery path below.
 
 - **Staging only.** When the required SHA is the head of `main`, dispatch
   **Deploy to Staging** on `main` and wait for staging E2E. For an older SHA,
-  use **Re-run all jobs** on an eligible **Deploy to Staging** run for that
-  exact SHA. If it predates HTML metadata stamping, the restored site will serve
-  the assets but cleanup must remain paused until a metadata-aware release.
+  check the workflow definition from that SHA. A run from before `queue: max`
+  uses the default `single` policy and can displace a waiting release. For a rerun
+  with this policy, coordinate an idle window with the owner. Verify in Actions that the
+  shared `deploy` group has no active or queued Release, Deploy to Staging or
+  Clean up stale site assets runs, and keep that window clear through recovery.
+  Use **Re-run all jobs** on an eligible **Deploy to Staging** run for that
+  exact SHA. After a legacy rerun, check whether any Release was cancelled and follow
+  the [release queue procedure](../docs/launch-checklist.md) for the intended SHA.
+  If the restored revision predates HTML metadata stamping, it will serve the assets
+  but cleanup must remain paused until a metadata-aware release.
   If there is no such run, arrange a staging-only recovery of that verified revision with the owner.
 - **Production.** When the required SHA is the head of `main`, dispatch
   **Release** on `main` with `skip_staging` unchecked. Follow staging, E2E,

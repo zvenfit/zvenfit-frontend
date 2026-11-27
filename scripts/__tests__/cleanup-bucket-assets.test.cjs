@@ -48,6 +48,7 @@ function fixture(t, extra = []) {
     deployment: () => release,
     list: () => objects,
     readHtml: key => ({ release, html: fs.readFileSync(path.join(dist, key)) }),
+    contentType: () => 'application/octet-stream',
     readAsset: key => fs.readFileSync(path.join(dist, key)),
     remove: key => removed.push(key),
   };
@@ -163,6 +164,96 @@ test('local embedded documents stop planning before an SVG dependency can become
   assert.deepEqual(box.removed, []);
   fs.writeFileSync(path.join(dist, 'index.html'), html + '<iframe src="https://other.invalid/form"></iframe>');
   assert.deepEqual(box.run(), [old]);
+});
+
+test('navigating to a same-site SVG stops before its dependent image can become a candidate', t => {
+  const used = object('_astro/poster.png');
+  const box = fixture(t, [used, object('images/poster.svg'), object('poster')]);
+  const dist = path.join(box.root, 'dist');
+  fs.mkdirSync(path.join(dist, 'images'));
+  const poster = '<svg xmlns="http://www.w3.org/2000/svg"><image href="/_astro/poster.png"/></svg>';
+  fs.writeFileSync(path.join(dist, 'images/poster.svg'), poster);
+  fs.writeFileSync(path.join(dist, 'poster'), poster);
+  const requested = [];
+  box.client.contentType = key => {
+    requested.push(key);
+    return 'image/svg+xml; charset=UTF-8';
+  };
+  const index = path.join(dist, 'index.html');
+  for (const tag of [
+    '<a href="/images/poster.svg?download=1#photo">View</a>',
+    '<area href="images/poster%2Esvg">',
+    '<svg><a xlink:href="https://website.yandexcloud.net/zvenfit-frontend-staging/images/poster.svg">View</a></svg>',
+    '<a href="poster.svg">View</a><base href="/images/">',
+    '<form action="/poster"></form>',
+  ]) {
+    fs.writeFileSync(index, html + tag);
+    for (const execute of [false, true]) assert.throws(() => box.run(execute), /Cannot verify .*document/);
+  }
+  assert.ok(requested.includes('poster'));
+  assert.deepEqual(box.reports, []);
+  assert.deepEqual(box.removed, []);
+  fs.writeFileSync(index, html + '<img src="/images/poster.svg"><a href="https://outside.invalid/poster.svg">View</a>');
+  assert.deepEqual(box.run(true), [used]);
+});
+
+test('SVG presentation attributes resolve paint, filter and marker URLs against the document base', t => {
+  const paint = object('_astro/used.svg');
+  const stale = object('_astro/unused.svg');
+  const box = fixture(t, [paint, stale]);
+  const dist = path.join(box.root, 'dist');
+  const index = path.join(dist, 'index.html');
+  for (const [base, attrs] of [
+    ['', 'fill="url(_astro/used.svg#brand)"'],
+    ['<base href="/_astro/">', 'stroke="URL(&quot;used.svg#ink&quot;) red"'],
+    ['', 'filter="var(--effect, url(_astro/used.svg#blur))"'],
+    ['', 'marker-end="url(_astro/used.svg#end)"'],
+    ['', String.raw`fill="u\72l('_astro/used.svg#brand')"`],
+  ]) {
+    fs.writeFileSync(index, base + html + '<svg><path ' + attrs + '></path></svg>');
+    for (const execute of [false, true])
+      assert.throws(() => box.run(execute), /missing referenced asset _astro\/used.svg/);
+  }
+  assert.deepEqual(box.reports, []);
+  fs.writeFileSync(path.join(dist, paint.Key), '');
+  assert.deepEqual(box.run(true), [stale]);
+  fs.unlinkSync(path.join(dist, paint.Key));
+  fs.writeFileSync(
+    index,
+    '<base href="/_astro/">' +
+      html +
+      '<svg><path fill="url(#local)" stroke="url(https://outside.invalid/used.svg#color)"/></svg>',
+  );
+  assert.deepEqual(box.run(true), [stale, paint]);
+  assert.deepEqual(box.removed, []);
+});
+
+test('active data imports in CSS and JavaScript stop both plans, including transitive imports', t => {
+  const used = object('_astro/poster.png');
+  const box = fixture(t, [used, object('js/entry.js'), object('css/theme.css')]);
+  const dist = path.join(box.root, 'dist');
+  fs.mkdirSync(path.join(dist, 'css'));
+  const css =
+    'data:text/css;base64,' +
+    Buffer.from('g{background:url(https://staging.zvenfit.ru/_astro/poster.png)}').toString('base64');
+  const js = 'data:text/javascript,' + encodeURIComponent('fetch("https://staging.zvenfit.ru/_astro/poster.png")');
+  for (const [tag, stylesheet = '', module = ''] of [
+    [`<style>@import url("${css}");</style>`],
+    [`<script type="module">import "${js}"</script>`],
+    ['<link rel="stylesheet" href="/css/theme.css">', `@import "${css}";`],
+    ['<script type="module" src="/js/entry.js"></script>', '', `import("${js}");`],
+  ]) {
+    fs.writeFileSync(path.join(dist, 'css/theme.css'), stylesheet);
+    fs.writeFileSync(path.join(dist, 'js/entry.js'), module);
+    fs.writeFileSync(path.join(dist, 'index.html'), html + tag);
+    for (const execute of [false, true]) assert.throws(() => box.run(execute), /Cannot verify data: .*dependency/);
+  }
+  assert.deepEqual(box.reports, []);
+  assert.deepEqual(box.removed, []);
+  fs.writeFileSync(path.join(dist, 'js/entry.js'), '');
+  fs.writeFileSync(path.join(dist, 'css/theme.css'), 'g {background:url(data:image/png;base64,iVBORw0KGgo=)}');
+  fs.writeFileSync(path.join(dist, 'index.html'), html + '<link rel="stylesheet" href="/css/theme.css">');
+  assert.deepEqual(box.run(true), [used]);
 });
 
 test('javascript navigation URLs stop both plans even with HTML entities and mixed case', t => {
@@ -1103,6 +1194,19 @@ test('recovery selects a build containing the exact deleted key before choosing 
   assert.match(staging, /older SHA[\s\S]*exact SHA/);
   assert.ok(production.includes(`**${workflowName('main.yml')}**`));
   assert.match(production, /skip_staging` unchecked/);
+});
+
+test('historical staging recovery coordinates an idle deploy group before rerunning and checks release status afterwards', () => {
+  const runbook = fs.readFileSync(path.join(__dirname, '../../knowledge-base/staging-runbook.md'), 'utf8');
+  const staging = runbook.split('**Recovery.**')[1].split('- **Staging only.**')[1].split('- **Production.**')[0];
+  const [before, after] = staging.split('**Re-run all jobs**');
+  assert.match(before, /queue: max/);
+  assert.match(before, /single/);
+  assert.match(before, /owner/);
+  assert.match(before, /no active or (?:queued|pending)/);
+  for (const workflow of ['Release', 'Deploy to Staging', 'Clean up stale site assets'])
+    assert.ok(before.includes(workflow));
+  assert.match(after, /check .*Release.*cancel/i);
 });
 
 test('production recovery checks the actual candidate against the historical key and bytes', t => {
