@@ -200,6 +200,52 @@ test('metadata and inline JSON preserve the origin and bucket of an asset URL', 
   }
 });
 
+test('classic JavaScript asset URLs must exist in the build before cleanup can proceed', t => {
+  const used = object('_astro/archived-picture.png');
+  const stale = object('_astro/unused.png');
+  const box = fixture(t, [used, stale]);
+  const dist = path.join(box.root, 'dist');
+  const source = path.join(dist, '_astro/app.js');
+  const src = 'new Image().src = "/_astro/archived-picture.png";';
+  for (const js of [
+    src,
+    'fetch(`/_astro/archived-picture.png?v=2`)',
+    String.raw`fetch("\x2f_astro/archived-picture.png")`,
+  ]) {
+    fs.writeFileSync(source, js);
+    for (const execute of [false, true])
+      assert.throws(() => box.run(execute), { message: 'Incomplete dist: missing referenced asset ' + used.Key });
+  }
+  fs.writeFileSync(
+    source,
+    '/* "/_astro/archived-picture.png" */ fetch("https://another.invalid/_astro/archived-picture.png")',
+  );
+  assert.deepEqual(box.run(true), [used, stale]);
+  fs.writeFileSync(path.join(dist, 'index.html'), html + '<script>' + src + '</script>');
+  assert.throws(() => box.run(true), /Incomplete dist: missing referenced asset/);
+  fs.writeFileSync(path.join(dist, used.Key), '');
+  assert.deepEqual(box.run(true), [stale]);
+  fs.writeFileSync(source, 'fetch(`/_astro/${name}.png`)');
+  assert.throws(() => box.run(true), /Cannot verify a computed asset URL/);
+});
+
+test('checks literals in scripts outside _astro and resolves import.meta.url against the module', t => {
+  const used = object('_astro/old.png');
+  const box = fixture(t, [used]);
+  const dist = path.join(box.root, 'dist');
+  fs.mkdirSync(path.join(dist, 'js'));
+  const config = path.join(dist, 'js/runtime.js');
+  fs.writeFileSync(path.join(dist, 'index.html'), html + '<script src="/js/runtime.js"></script>');
+  box.objects.push(object('js/runtime.js'));
+  fs.writeFileSync(config, 'window.picture="/%5Fastro/old.png";');
+  assert.throws(() => box.run(true), /missing referenced asset _astro\/old\.png/);
+  fs.writeFileSync(config, '');
+  fs.writeFileSync(path.join(dist, '_astro/app.js'), 'const picture = new URL("./old.png", import.meta.url);');
+  assert.throws(() => box.run(true), /missing referenced asset _astro\/old\.png/);
+  fs.writeFileSync(path.join(dist, used.Key), '');
+  assert.deepEqual(box.run(true), []);
+});
+
 test('module imports in emitted JS and inline modules protect old chunks', t => {
   const chunk = object('_astro/old.js');
   const stale = object('_astro/stale.js');
@@ -491,10 +537,19 @@ test('historical npm and build guards receive only archived source, public setti
     assert.ok(argv.at(-1).includes('node scripts/check-' + check + '.cjs'));
 });
 
-test('recovery routes staging incidents to the staging-only workflow and production through E2E', () => {
+test('recovery selects a build containing the exact deleted key before choosing the environment workflow', t => {
   const root = path.join(__dirname, '../..');
   const runbook = fs.readFileSync(path.join(root, 'knowledge-base/staging-runbook.md'), 'utf8');
   const recovery = runbook.split('**Recovery.**')[1].split('\n## ')[0];
+  const current = fixture(t);
+  const previous = fixture(t);
+  const key = '_astro/older file.png';
+  fs.writeFileSync(path.join(previous.root, 'dist', key), '');
+  const check = recovery.split('```bash\n')[1].split('\n```')[0];
+  const containsKey = build => spawnSync('bash', ['-eu', '-c', check], { env: { build, key } }).status;
+  assert.equal(containsKey(current.root), 1);
+  assert.equal(containsKey(previous.root), 0);
+  assert.match(recovery, /exact object\s+key from the confirmed deletion log/);
   const [staging, production] = recovery.split('- **Staging only.**')[1].split('- **Production.**');
   const workflowName = file =>
     fs.readFileSync(path.join(root, '.github/workflows', file), 'utf8').match(/^name: (.+)$/m)[1];

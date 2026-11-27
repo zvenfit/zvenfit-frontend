@@ -80,8 +80,7 @@ the entries of the trainer collection. The profile in
 release B. The `legacy` profile, whose routes were the HTML files of
 `public/`, is no longer accepted by the guard.
 
-Upload runs as four commands in a fixed order, identical in the workflow and
-in `npm run deploy:yc`: (1) assets with `immutable`, never with `--delete`,
+The workflow and `npm run deploy:yc` publish in the same order: (1) assets with `immutable`, never with `--delete`,
 excluding HTML, crawl files and `js/*-config.js`; (2) `robots.txt` and
 `sitemap.xml` with no-cache; (3) `js/*-config.js` with no-cache, so a config
 is refreshed before the HTML that references it; (4) HTML with no-cache.
@@ -89,6 +88,18 @@ is refreshed before the HTML that references it; (4) HTML with no-cache.
 page disappears with the release while assets referenced by previously
 served HTML are never deleted by a release or a rollback. Stale assets are
 reviewed in the [manual cleanup procedure](#manual-asset-cleanup).
+
+For a local publication, build the intended production or staging `dist/` first.
+`npm run deploy:yc` reads the asset version from its HTML and rebuilds a clean
+archive of `HEAD` (or `LOCAL_DEPLOY_REVISION`) with the selected environment’s
+public build variables. For either managed site bucket, refresh `origin/main`
+with `git fetch origin main` and choose a revision in its history. Supply the same API URLs and maps key via the environment
+or Vite’s mode-specific env files. Installation uses the lockfile. A failed
+guard or byte difference stops the command before its first storage request.
+It uploads the verified copy, stamps every HTML object with `deployed-sha` and
+`asset-version`, then removes obsolete HTML. This also refreshes metadata when
+an existing object has the same size and timestamp. Coordinate a local upload
+with the owner outside any active or queued release or cleanup.
 
 ## E2E safety invariants
 
@@ -264,7 +275,9 @@ released.
    indirect dependencies such as fonts, must exist in the bucket. Asset URLs
    in inline and built stylesheets are resolved against their document or
    stylesheet URL. Literal JavaScript module imports resolve against the module
-   URL. A computed import whose target cannot be verified stops the check.
+   URL. The planner also reads literal site asset URLs in inline and emitted
+   JavaScript, including classic scripts. A computed import or an explicit
+   asset path in a template with an unknown filename stops the check.
    Missing release metadata, an incomplete upload or a mismatch
    calls for checking and repairing the last site deploy before retrying.
 3. Each row is an object under `_astro/` that is absent from the entire built
@@ -320,14 +333,26 @@ lockfile and build with the same variables and guards as the workflow’s
 The local command rejects execute mode. Only the manual workflow processes
 deletions, using the checkout it rebuilt and verified under the release lock.
 
-**Recovery.** Stop cleanup in the affected environment. Check the deployed
-SHA in the affected bucket and compare it with the head of `main`.
+**Recovery.** Stop cleanup in the affected environment. Copy the exact object
+key from the confirmed deletion log and match it to the failing URL. Record
+the currently deployed SHA. Starting with the last release that served that
+URL, rebuild candidate releases with their original SHA, asset version and
+environment. For each build, set `build` to its checkout and `key` to the
+exact object key from the log. Verify it is present:
+
+```bash
+test -f "$build/dist/$key"
+```
+
+Select a SHA whose build contains that key. The current release can restore
+it only if it passes this check. If no verified build contains it, keep cleanup
+paused and investigate the release history with the owner before redeploying.
+Use the selected SHA in the applicable recovery path below.
 
 - **Staging only.** When the required SHA is the head of `main`, dispatch
   **Deploy to Staging** on `main` and wait for staging E2E. For an older SHA,
   use **Re-run all jobs** on an eligible **Deploy to Staging** run for that
-  exact SHA. If there is no such run, agree with the owner whether to advance
-  staging to current `main` or arrange a staging-only recovery of that revision.
+  exact SHA. If there is no such run, arrange a staging-only recovery of that verified revision with the owner.
 - **Production.** When the required SHA is the head of `main`, dispatch
   **Release** on `main` with `skip_staging` unchecked. Follow staging, E2E,
   production and smoke. For an older revision, restore the sources through

@@ -9,6 +9,7 @@ const { execFileSync } = require('node:child_process');
 
 const { parse } = require('parse5');
 const css = require('css-tree');
+const ts = require('typescript');
 const { parse: parseImports } = require('es-module-lexer');
 const { PRODUCTION, STAGING } = require('./validate-deployment-config.cjs');
 
@@ -40,7 +41,7 @@ function options(env) {
 function deployment(metadata) {
   const sha = metadata?.['deployed-sha'];
   const version = metadata?.['asset-version'];
-  if (!/^[0-9a-f]{40}$/.test(sha ?? '') || !/^[1-9]\d*$/.test(version ?? '')) {
+  if (!/^[0-9a-f]{40}$/.test(sha ?? '') || !/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(version ?? '')) {
     throw new Error('Missing or invalid release metadata on live HTML. Check the last site deployment.');
   }
   return { sha, version };
@@ -103,7 +104,10 @@ function addAssetUrl(refs, value, base, site) {
   }
   if (key !== undefined) {
     const decoded = decodeURIComponent(key);
-    if (decoded.startsWith('_astro/')) refs.add(decoded);
+    if (decoded.startsWith('_astro/')) {
+      refs.add(decoded);
+      return decoded;
+    }
   }
 }
 
@@ -130,6 +134,42 @@ function addModuleReferences(refs, source, base, site) {
     // Bare names resolve through import maps. Only URL specifiers resolve against the module URL.
     if (/^(?:\.{1,2}\/|\/|[a-z][a-z\d+.-]*:)/i.test(specifier)) addAssetUrl(refs, specifier, base, site);
   }
+}
+
+// A classic script can load a site asset through Image, fetch, a worker, etc.
+function addScriptLiterals(refs, source, bases, scriptUrl, site) {
+  const tree = ts.createSourceFile('asset.js', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
+  function visit(node) {
+    const dynamic = ts.isTemplateExpression(node);
+    if (dynamic || ts.isStringLiteralLike(node)) {
+      const value = dynamic ? node.head.text : node.text;
+      const parent = node.parent;
+      // Module specifiers resolve against the module URL and are handled by addModuleReferences.
+      if (
+        parent.moduleSpecifier === node ||
+        (ts.isCallExpression(parent) && parent.expression.kind === ts.SyntaxKind.ImportKeyword)
+      )
+        return;
+      const baseArg = ts.isNewExpression(parent) && parent.arguments?.[0] === node ? parent.arguments[1] : undefined;
+      const relativeToScript =
+        baseArg &&
+        ts.isIdentifier(parent.expression) &&
+        parent.expression.text === 'URL' &&
+        ts.isPropertyAccessExpression(baseArg) &&
+        baseArg.name.text === 'url' &&
+        ts.isMetaProperty(baseArg.expression);
+      const pathHint = value.replace(/%([0-9a-f]{2})/gi, (_, hex) => String.fromCharCode(parseInt(hex, 16)));
+      // Ordinary relative URLs use the document base. Check all possible pages of a shared script.
+      if (relativeToScript || pathHint.includes('_astro/')) {
+        for (const base of relativeToScript ? [scriptUrl] : bases) {
+          const key = addAssetUrl(refs, value, base, site);
+          if (key && dynamic && !/[?#]/.test(value)) throw new Error('Cannot verify a computed asset URL: ' + value);
+        }
+      }
+    }
+    ts.forEachChild(node, visit);
+  }
+  visit(tree);
 }
 
 function addReferences(refs, html, route, site) {
@@ -180,20 +220,23 @@ function addReferences(refs, html, route, site) {
     }
     if (node.nodeName === '#text') {
       if (node.parentNode?.tagName === 'style') addCssReferences(refs, node.value, 'stylesheet', base, site);
-      else {
-        if (
-          node.parentNode?.tagName === 'script' &&
-          node.parentNode.attrs.some(attr => attr.name === 'type' && attr.value.toLowerCase() === 'module')
-        ) {
-          addModuleReferences(refs, node.value, base, site);
-        }
-        scan(node.value);
-      }
+      else if (node.parentNode?.tagName === 'script') {
+        const type =
+          node.parentNode.attrs
+            .find(attr => attr.name === 'type')
+            ?.value.trim()
+            .toLowerCase() || '';
+        if (!type || type === 'module' || /(?:java|ecma)script/.test(type)) {
+          if (type === 'module') addModuleReferences(refs, node.value, base, site);
+          addScriptLiterals(refs, node.value, [base], base, site);
+        } else scan(node.value);
+      } else scan(node.value);
     }
     for (const child of node.childNodes ?? []) visit(child);
     if (node.content) visit(node.content);
   }
   visit(document);
+  return base.href;
 }
 
 function sameSet(expected, actual, label) {
@@ -246,6 +289,7 @@ function planCleanup({ config, client, dist, sha, now = Date.now(), report }) {
   const htmlObjects = objects.filter(object => object.Key.endsWith('.html'));
   sameSet(pages, new Set(htmlObjects.map(object => object.Key)), 'pages');
   const builtRefs = new Set();
+  const documentBases = new Set();
   const site = SITES.get(config.environment);
   let lastHtml = 0;
   for (const object of htmlObjects) {
@@ -257,18 +301,22 @@ function planCleanup({ config, client, dist, sha, now = Date.now(), report }) {
     // Byte equality proves even references embedded in inline code match the build.
     const builtHtml = fs.readFileSync(path.join(dist, object.Key));
     if (!builtHtml.equals(page.html)) throw new Error(`Live HTML differs from dist: ${object.Key}`);
-    addReferences(builtRefs, builtHtml.toString('utf8'), object.Key, site);
+    documentBases.add(addReferences(builtRefs, builtHtml.toString('utf8'), object.Key, site));
   }
   if (!builtRefs.size) throw new Error('No /_astro/ references in dist');
   const deployedKeys = new Set(objects.map(object => object.Key));
   for (const key of files) {
+    if (/\.m?js$/i.test(key)) {
+      const source = fs.readFileSync(path.join(dist, key), 'utf8');
+      const scriptUrl = new URL(key, site.siteUrl);
+      addModuleReferences(builtRefs, source, scriptUrl, site);
+      addScriptLiterals(builtRefs, source, documentBases, scriptUrl, site);
+    }
     if (!key.startsWith(config.prefix)) continue;
     if (!deployedKeys.has(key)) throw new Error(`Incomplete deployment: missing bucket object ${key}`);
     const base = new URL(key, site.siteUrl);
     if (key.endsWith('.css')) {
       addCssReferences(builtRefs, fs.readFileSync(path.join(dist, key), 'utf8'), 'stylesheet', base, site);
-    } else if (/\.m?js$/i.test(key)) {
-      addModuleReferences(builtRefs, fs.readFileSync(path.join(dist, key), 'utf8'), base, site);
     }
   }
   for (const key of builtRefs) {
