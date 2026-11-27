@@ -244,15 +244,18 @@ released.
 1. After this change has shipped, open **Actions → Clean up stale site assets →
    Run workflow** on `main`. Run **staging** and **production** separately,
    both with `execute` unchecked, `min_age_days=2` and `prefixes=_astro/`.
-   Choose a time when the release queue is clear. Cleanup shares the `deploy`
-   lock and GitHub can replace an earlier pending run in that group.
+   Release, manual staging and cleanup share the `deploy` lock and queue.
+   Each waits its turn. Up to 100 runs can wait; GitHub rejects a new arrival
+   when the queue is full. The cleanup job uses the selected Environment with
+   deployment tracking disabled, so deployment history records site rollouts.
 2. Read the summary. Verify the environment, bucket and full SHA against the
    last site deployment. The workflow reads the SHA and asset version from
    the selected bucket’s `index.html` object metadata, then builds and checks
    that exact checkout using the selected environment. It reads every HTML
    object directly from storage, including 404. All pages must carry that
-   release metadata, the HTML paths must match, and the sets of `/_astro/`
-   references must agree. Missing metadata (including a deployment made before
+   release metadata and match the rebuilt HTML byte for byte, including
+   inline CSS and scripts. Every `_astro/` file in the build, including
+   indirect dependencies such as fonts, must exist in the bucket. Missing metadata (including a deployment made before
    this procedure), a partial upload or a mismatch calls for checking the last
    deploy and completing or repairing it before retrying.
 3. Each row is an object under `_astro/` that is absent from the entire built
@@ -296,7 +299,8 @@ SHA and asset version. In a separate checkout of that SHA, install from the
 lockfile and build with the same variables and guards as the workflow’s
 **Rebuild and check the deployed site** step. From the control checkout run
 `node scripts/cleanup-bucket-assets.cjs <built-checkout>` to print the summary.
-Use the workflow for execution so releases and cleanup share the lock.
+The local command rejects execute mode. Only the manual workflow processes
+deletions, using the checkout it rebuilt and verified under the release lock.
 
 **Recovery.** If a current asset is missing, stop cleanup and repeat the full
 release of the current deployed revision through staging, E2E, production and

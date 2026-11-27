@@ -28,6 +28,7 @@ on:
 concurrency:
   group: deploy
   cancel-in-progress: false
+  queue: max
 
 permissions:
   contents: read
@@ -38,10 +39,11 @@ jobs:
     if: github.repository == 'zvenfit/zvenfit-frontend' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    environment: ${{ inputs.environment }}
+    environment:
+      name: ${{ inputs.environment }}
+      deployment: false
     env:
       CLEANUP_ENVIRONMENT: ${{ inputs.environment }}
-      CLEANUP_EXECUTE: ${{ inputs.execute }}
       CLEANUP_MIN_AGE_DAYS: ${{ inputs.min_age_days }}
       CLEANUP_PREFIXES: ${{ inputs.prefixes }}
     steps:
@@ -115,4 +117,13 @@ jobs:
           if [[ "$NODE_ENV" == staging ]]; then node scripts/check-staging-build.cjs; fi
 
       - name: Verify live HTML and process candidates
-        run: node scripts/cleanup-bucket-assets.cjs "$RUNNER_TEMP/deployed"
+        env:
+          CLEANUP_EXECUTE: ${{ inputs.execute }}
+        run: |
+          node <<'NODE'
+          const { execFileSync } = require('node:child_process');
+          const { runWorkflow } = require('./scripts/cleanup-bucket-assets.cjs');
+          runWorkflow((bucket, key) => {
+            execFileSync('aws', ['s3api', 'delete-object', '--bucket', bucket, '--key', key, '--no-cli-pager']);
+          });
+          NODE

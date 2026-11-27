@@ -2,7 +2,7 @@
 
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const { execFileSync } = require('node:child_process');
+const { execFileSync, spawnSync } = require('node:child_process');
 const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
@@ -16,8 +16,10 @@ const html = '<link href="/_astro/live.css?x=1"><script src="/_astro/app.js"></s
 const object = (Key, LastModified = old, Size = 128) => ({ Key, LastModified, Size });
 
 function fixture(t, extra = []) {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'cleanup-fixture-'));
-  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const runnerTemp = fs.mkdtempSync(path.join(os.tmpdir(), 'cleanup-fixture-'));
+  t.after(() => fs.rmSync(runnerTemp, { recursive: true, force: true }));
+  const root = path.join(runnerTemp, 'deployed');
+  fs.mkdirSync(root);
   const dist = path.join(root, 'dist');
   fs.mkdirSync(dist);
   fs.mkdirSync(path.join(dist, '_astro'));
@@ -33,7 +35,7 @@ function fixture(t, extra = []) {
   const client = {
     deployment: () => release,
     list: () => objects,
-    readHtml: key => ({ release, html: fs.readFileSync(path.join(dist, key), 'utf8') }),
+    readHtml: key => ({ release, html: fs.readFileSync(path.join(dist, key)) }),
     remove: key => removed.push(key),
   };
   const config = options({ CLEANUP_ENVIRONMENT: 'staging' });
@@ -102,28 +104,55 @@ test('a live-only reference on another HTML page stops execute before any delete
   const box = fixture(t, [object('_astro/old.js')]);
   box.client.readHtml = key => ({
     release,
-    html: key === '404.html' ? '<img srcset="/_astro/app.js, &#47;_astro/old.js">' : html,
+    html: Buffer.from(key === '404.html' ? '<img srcset="/_astro/app.js, &#47;_astro/old.js">' : html),
   });
-  assert.throws(() => box.run(true), /Live HTML differs.*old\.js/);
+  assert.throws(() => box.run(true), /Live HTML differs from dist: 404\.html/);
   assert.deepEqual(box.removed, []);
 });
 
-test('a URL attribute compares the entire object key, including punctuation', t => {
-  const box = fixture(t, [object('_astro/(old),file.js')]);
-  for (const reference of [
-    '<script src="/_astro/(old),file.js"></script>',
-    '<style>body { background: url("/_astro/(old),file.js") }</style>',
+test('live-only relative CSS on the home page stops planning and deletion', t => {
+  const box = fixture(t, [object('_astro/hero-old.png')]);
+  const read = box.client.readHtml;
+  box.client.readHtml = key =>
+    key === 'index.html'
+      ? { release, html: Buffer.from(html + '<style>.hero{background:url(_astro/hero-old.png)}</style>') }
+      : read(key);
+  for (const execute of [false, true])
+    assert.throws(() => box.run(execute), /Live HTML differs from dist: index\.html/);
+  assert.deepEqual(box.reports, []);
+  assert.deepEqual(box.removed, []);
+});
+
+test('identical pages resolve inline CSS against the document base and protect the whole key', t => {
+  const box = fixture(t, [object('_astro/(old),file.png')]);
+  const file = path.join(box.root, 'dist/index.html');
+  for (const use of [
+    '<style>.hero{background:url("(old),file.png")}</style>',
+    `<div style='background:url("(old),file.png")'></div>`,
+    '<script src="(old),file.png"></script>',
   ]) {
-    box.client.readHtml = () => ({ release, html: html + reference });
-    assert.throws(() => box.run(true), /Live HTML differs.*old.*file\.js/);
+    fs.writeFileSync(file, '<head><base href="/_astro/"></head>' + html + use);
+    assert.throws(() => box.run(true), /Incomplete dist: missing referenced asset _astro\/\(old\),file\.png/);
   }
   assert.deepEqual(box.removed, []);
 });
 
 test('a missing live reference also stops execute', t => {
   const box = fixture(t, [object('_astro/old.js')]);
-  box.client.readHtml = () => ({ release, html: '<link href="/_astro/live.css">' });
-  assert.throws(() => box.run(true), /Live HTML differs.*app\.js/);
+  box.client.readHtml = () => ({ release, html: Buffer.from('<link href="/_astro/live.css">') });
+  assert.throws(() => box.run(true), /Live HTML differs from dist: index\.html/);
+  assert.deepEqual(box.removed, []);
+});
+
+test('a missing direct or indirect deployed asset blocks dry-run and execute', t => {
+  const box = fixture(t, [object('_astro/stale.js')]);
+  for (const key of ['_astro/app.js', '_astro/font.woff2']) {
+    box.client.list = () => box.objects.filter(object => object.Key !== key);
+    for (const execute of [false, true]) {
+      assert.throws(() => box.run(execute), { message: `Incomplete deployment: missing bucket object ${key}` });
+    }
+  }
+  assert.deepEqual(box.reports, []);
   assert.deepEqual(box.removed, []);
 });
 
@@ -174,7 +203,7 @@ test('the CLI accepts only the site buckets, current prefix, boolean mode and ju
 
 test('cleanup is manual, uses the release lock and rebuilds the revision stamped on deployed HTML', () => {
   const workflow = name => fs.readFileSync(path.join(__dirname, '../../.github/workflows', name + '.yml'), 'utf8');
-  const lock = /\nconcurrency:\n  group: deploy\n  cancel-in-progress: false\n/;
+  const lock = /\nconcurrency:\n  group: deploy\n  cancel-in-progress: false\n  queue: max\n/;
   for (const name of ['main', 'staging', 'cleanup-assets']) assert.match(workflow(name), lock);
   const cleanupWorkflow = workflow('cleanup-assets');
   assert.deepEqual(
@@ -190,7 +219,11 @@ test('cleanup is manual, uses the release lock and rebuilds the revision stamped
   assert.match(cleanupWorkflow, /prefixes:\n(?: {8}.*\n)*? {8}default: '_astro\/'/);
   assert.match(cleanupWorkflow, /min_age_days:\n(?: {8}.*\n)*? {8}default: 2\n/);
   assert.match(cleanupWorkflow, /timeout-minutes: (?:[1-9]|1\d|20)\n/);
-  assert.match(cleanupWorkflow, /environment: \$\{\{ inputs.environment \}\}/);
+  assert.match(
+    cleanupWorkflow,
+    /\n    environment:\n      name: \$\{\{ inputs.environment \}\}\n      deployment: false\n/,
+  );
+  assert.match(cleanupWorkflow, /CLEANUP_EXECUTE: \$\{\{ inputs.execute \}\}\n        run: \|/);
   assert.match(cleanupWorkflow, /id-token: write/);
   assert.match(cleanupWorkflow, /steps.live.outputs.sha/);
   assert.match(cleanupWorkflow, /git worktree add --detach "\$RUNNER_TEMP\/deployed" "\$DEPLOYED_SHA"/);
@@ -200,7 +233,7 @@ test('cleanup is manual, uses the release lock and rebuilds the revision stamped
   );
 });
 
-test('the default CLI path calls only AWS read operations and writes the plan to the job summary', t => {
+test('the CLI only reads and the dispatch step deletes exactly the verified candidates on execute', t => {
   const { root, objects } = fixture(t, [object('_astro/stale.js', '2000-01-01T00:00:00Z')]);
   const git = (...args) => execFileSync('git', ['-C', root, ...args], { encoding: 'utf8' }).trim();
   git('init', '--quiet');
@@ -219,7 +252,10 @@ test('the default CLI path calls only AWS read operations and writes the plan to
     'fixture',
   );
   const sha = git('rev-parse', 'HEAD');
-  fs.writeFileSync(path.join(root, 'listing'), JSON.stringify({ Contents: objects }));
+  fs.writeFileSync(
+    path.join(root, 'listing'),
+    JSON.stringify({ Contents: objects.map(o => ({ ...o, LastModified: '2000-01-01T00:00:00Z' })) }),
+  );
   fs.writeFileSync(
     path.join(root, 'metadata'),
     JSON.stringify({ Metadata: { 'deployed-sha': sha, 'asset-version': '175' } }),
@@ -237,22 +273,44 @@ case "$2" in
     while [[ "$1" != --key ]]; do shift; done
     cp "dist/$2" "$3"
     cat metadata ;;
+  delete-object)
+    while [[ "$1" != --key ]]; do shift; done
+    echo "$2" >> removed ;;
   *) exit 64 ;;
 esac
 `,
     { mode: 0o755 },
   );
   const summary = path.join(root, 'summary');
+  const script = path.join(__dirname, '../cleanup-bucket-assets.cjs');
+  const local = {
+    PATH: root + path.delimiter + process.env.PATH,
+    CLEANUP_ENVIRONMENT: 'staging',
+    GITHUB_STEP_SUMMARY: summary,
+  };
+  const dispatch = {
+    ...local,
+    CLEANUP_EXECUTE: 'true',
+    GITHUB_ACTIONS: 'true',
+    GITHUB_EVENT_NAME: 'workflow_dispatch',
+    GITHUB_WORKFLOW_REF: 'zvenfit/zvenfit-frontend/.github/workflows/cleanup-assets.yml@refs/heads/main',
+    GITHUB_JOB: 'cleanup',
+    RUNNER_TEMP: path.dirname(root),
+  };
+  function refused(target, env, error) {
+    const result = spawnSync(process.execPath, [script, target], { cwd: root, env, encoding: 'utf8' });
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, error);
+  }
+  // Even a shell with a copy of the job environment cannot pass a local dist for execute.
+  refused(root, { ...local, CLEANUP_EXECUTE: 'true' }, /Local cleanup is dry-run only/);
+  refused(root, dispatch, /Local cleanup is dry-run only/);
+  refused('--workflow', { ...local, CLEANUP_EXECUTE: 'true' }, /requires the manual cleanup job/);
+  refused('--workflow', dispatch, /requires the manual cleanup job/);
+  assert.equal(fs.existsSync(path.join(root, 'calls')), false);
+
   const cli = (...args) =>
-    execFileSync(process.execPath, [path.join(__dirname, '../cleanup-bucket-assets.cjs'), ...args], {
-      cwd: root,
-      env: {
-        PATH: root + path.delimiter + process.env.PATH,
-        CLEANUP_ENVIRONMENT: 'staging',
-        GITHUB_STEP_SUMMARY: summary,
-      },
-      encoding: 'utf8',
-    });
+    execFileSync(process.execPath, [script, ...args], { cwd: root, env: local, encoding: 'utf8' });
   assert.equal(cli('--deployment'), `sha=${sha}\nversion=175\n`);
   cli(root);
   assert.deepEqual(fs.readFileSync(path.join(root, 'calls'), 'utf8').trim().split('\n'), [
@@ -263,4 +321,27 @@ esac
     'get-object',
   ]);
   assert.match(fs.readFileSync(summary, 'utf8'), /<code>_astro\/stale\.js<\/code>/);
+
+  // Exercise the actual workflow step with the same AWS stub as the local CLI.
+  fs.symlinkSync(path.resolve(__dirname, '..'), path.join(root, 'scripts'), 'dir');
+  const workflow = fs.readFileSync(path.join(__dirname, '../../.github/workflows/cleanup-assets.yml'), 'utf8');
+  const step = workflow
+    .split('      - name: Verify live HTML and process candidates\n')[1]
+    .split('        run: |\n')[1]
+    .replace(/^          /gm, '');
+  const shell = ['-e', '-o', 'pipefail', '-c', step];
+  for (const change of [
+    { GITHUB_EVENT_NAME: 'push' },
+    { GITHUB_JOB: 'quality' },
+    { GITHUB_WORKFLOW_REF: dispatch.GITHUB_WORKFLOW_REF.replace('main', 'other') },
+    { RUNNER_TEMP: '' },
+  ]) {
+    const rejected = spawnSync('bash', shell, { cwd: root, env: { ...dispatch, ...change }, encoding: 'utf8' });
+    assert.equal(rejected.status, 1);
+    assert.match(rejected.stderr, /requires the manual cleanup job/);
+  }
+  execFileSync('bash', shell, { cwd: root, env: { ...dispatch, CLEANUP_EXECUTE: 'false' } });
+  assert.equal(fs.existsSync(path.join(root, 'removed')), false);
+  execFileSync('bash', shell, { cwd: root, env: dispatch });
+  assert.deepEqual(fs.readFileSync(path.join(root, 'removed'), 'utf8').trim().split('\n'), ['_astro/stale.js']);
 });
