@@ -90,7 +90,7 @@ jobs:
 
       - name: Read deployed revision from the bucket
         id: live
-        run: node scripts/cleanup-bucket-assets.cjs --build-inputs >> "$GITHUB_OUTPUT"
+        run: node scripts/cleanup-bucket-assets.cjs --deployment >> "$GITHUB_OUTPUT"
       - name: Prepare the deployed checkout
         env:
           DEPLOYED_SHA: ${{ steps.live.outputs.sha }}
@@ -99,20 +99,13 @@ jobs:
           git worktree add --detach "$RUNNER_TEMP/deployed" "$DEPLOYED_SHA"
 
       - name: Rebuild and check the deployed site
-        env:
-          NODE_ENV: ${{ inputs.environment }}
-          ASSET_VERSION: ${{ steps.live.outputs.version }}
-          LEAD_API_URL: ${{ fromJSON(steps.live.outputs.inputs).LEAD_API_URL }}
-          SCHEDULE_API_URL: ${{ fromJSON(steps.live.outputs.inputs).SCHEDULE_API_URL }}
-          TRAFFIC_API_URL: ${{ fromJSON(steps.live.outputs.inputs).TRAFFIC_API_URL }}
-          Y_MAPS_API_KEY: ${{ fromJSON(steps.live.outputs.inputs).Y_MAPS_API_KEY }}
         run: |
           echo 'YC_IAM_TOKEN=' >> "$GITHUB_ENV"
           # Historical build output is ordinary text, including any workflow-command-looking lines.
           marker=$(cat /proc/sys/kernel/random/uuid)
           echo "::stop-commands::$marker"
           trap 'echo "::$marker::"' EXIT
-          bash scripts/rebuild-cleanup-site.sh "$RUNNER_TEMP/deployed"
+          node scripts/cleanup-bucket-assets.cjs --rebuild "$RUNNER_TEMP/deployed"
 
       - name: Verify live HTML and process candidates
         env:

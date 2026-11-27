@@ -51,11 +51,10 @@ function fixture(t, extra = []) {
     readAsset: key => fs.readFileSync(path.join(dist, key)),
     remove: key => removed.push(key),
   };
-  const config = options({ CLEANUP_ENVIRONMENT: 'staging' });
-  const run = (execute = false) =>
+  const run = (execute = false, environment = 'staging') =>
     planCleanup({
       client,
-      config: { ...config, execute },
+      config: { ...options({ CLEANUP_ENVIRONMENT: environment }), execute },
       sha: release.sha,
       dist,
       now,
@@ -124,6 +123,36 @@ test('embedded iframe documents stop planning even for a relative asset without 
   assert.deepEqual(box.removed, []);
   fs.writeFileSync(file, html + '<iframe srcdoc=""></iframe>');
   assert.deepEqual(box.run(), [stale]);
+});
+
+test('embedded data documents and meta refresh stop before reporting any candidate', t => {
+  const box = fixture(t, [object('_astro/old.png')]);
+  const file = path.join(box.root, 'dist/index.html');
+  const url = 'data:text/html,' + encodeURIComponent('<img src="https://zvenfit.ru/_astro/old.png">');
+  for (const [tag, error] of [
+    ['<iframe src="' + url + '"></iframe>', /embedded data URL/],
+    ['<object data="' + url + '"></object>', /embedded data URL/],
+    ['<embed src="' + url + '">', /embedded data URL/],
+    ['<meta http-equiv="Refresh" content="0; url=_astro/old.png">', /meta refresh/],
+  ]) {
+    fs.writeFileSync(file, html + tag);
+    for (const execute of [false, true]) assert.throws(() => box.run(execute), error);
+  }
+  assert.deepEqual(box.reports, []);
+  assert.deepEqual(box.removed, []);
+});
+
+test('production HTTP links use the CDN redirect for the same host and default port', t => {
+  const stale = object('_astro/old.pdf');
+  const box = fixture(t, [stale]);
+  const file = path.join(box.root, 'dist/index.html');
+  fs.writeFileSync(file, html + '<a href="http://zvenfit.ru:80/_astro/old.pdf">Schedule</a>');
+  for (const execute of [false, true]) {
+    assert.throws(() => box.run(execute, 'production'), /missing referenced asset _astro\/old.pdf/);
+  }
+  assert.deepEqual(box.run(false, 'staging'), [stale]);
+  fs.writeFileSync(file, html + '<a href="http://zvenfit.ru:8000/_astro/old.pdf">Other origin</a>');
+  assert.deepEqual(box.run(false, 'production'), [stale]);
 });
 
 test('a live-only reference on another HTML page stops execute before any delete', t => {
@@ -873,7 +902,7 @@ test('historical npm and build guards receive only archived source, public setti
   );
   const workflow = fs.readFileSync(path.join(__dirname, '../../.github/workflows/cleanup-assets.yml'), 'utf8');
   const rebuild = cleanupStep('Rebuild and check the deployed site');
-  assert.match(rebuild, /bash scripts\/rebuild-cleanup-site\.sh "\$RUNNER_TEMP\/deployed"/);
+  assert.match(rebuild, /node scripts\/cleanup-bucket-assets\.cjs --rebuild "\$RUNNER_TEMP\/deployed"/);
   assert.doesNotMatch(workflow, /working-directory:.*deployed|cd "\$RUNNER_TEMP\/deployed"/);
   assert.deepEqual(
     workflow.match(/^\s*(?:run: )?npm .+$/gm).map(line => line.trim()),
@@ -1079,26 +1108,40 @@ echo "$STUB_MAIN_SHA"
 }
 
 test('the rebuild reads the deployed values of all four inputs after rotation', t => {
-  const { root, sha, script, local } = dispatchFixture(t);
+  const { root, script, local } = dispatchFixture(t);
   const metadata = path.join(root, 'metadata');
-  const readInputs = () =>
-    execFileSync(process.execPath, [script, '--build-inputs'], {
-      cwd: root,
-      env: { ...local, Y_MAPS_API_KEY: 'new-value', LEAD_API_URL: 'https://current.invalid' },
-      encoding: 'utf8',
-      stdio: 'pipe',
-    });
+  const checkout = path.join(path.dirname(root), 'source');
+  execFileSync('git', ['clone', '--quiet', root, checkout]);
   const expected = {
     LEAD_API_URL: 'https://deployed.invalid/lead',
     SCHEDULE_API_URL: 'https://deployed.invalid/schedule',
     TRAFFIC_API_URL: 'https://deployed.invalid/traffic',
     Y_MAPS_API_KEY: 'deployed-key',
   };
-  assert.equal(readInputs(), `inputs=${JSON.stringify(expected)}\nsha=${sha}\nversion=175\n`);
+  const observed = path.join(root, 'fixture-inputs.json');
+  fs.writeFileSync(
+    path.join(root, 'docker'),
+    [
+      '#!/usr/bin/env node',
+      'const fs = require("node:fs"); fs.readFileSync(0);',
+      'const names = ' + JSON.stringify(Object.keys(expected)) + ';',
+      'fs.writeFileSync(process.env.FIXTURE_INPUTS, JSON.stringify(Object.fromEntries(names.map(k => [k,process.env[k]]))));',
+    ].join('\n'),
+    { mode: 0o755 },
+  );
+  const rebuild = () => {
+    const output = execFileSync(process.execPath, [script, '--rebuild', checkout], {
+      cwd: root,
+      env: { ...local, FIXTURE_INPUTS: observed, Y_MAPS_API_KEY: 'new-value', LEAD_API_URL: 'https://current.invalid' },
+      encoding: 'utf8',
+      stdio: 'pipe',
+    });
+    assert.equal(output, '');
+    fs.rmdirSync(path.join(checkout, 'dist')); // the inert Docker command leaves an empty mount point
+    return JSON.parse(fs.readFileSync(observed));
+  };
+  assert.deepEqual(rebuild(), expected);
   const workflow = fs.readFileSync(path.join(__dirname, '../../.github/workflows/cleanup-assets.yml'), 'utf8');
-  assert.match(workflow, /--build-inputs >> "\$GITHUB_OUTPUT"/);
-  for (const name of Object.keys(expected))
-    assert.ok(workflow.includes(name + ': ${{ fromJSON(steps.live.outputs.inputs).' + name + ' }}'));
   assert.doesNotMatch(
     workflow,
     /vars\.Y_MAPS_API_KEY|yc serverless function get|https:\/\/staging\.zvenfit\.ru\/api\//,
@@ -1106,17 +1149,14 @@ test('the rebuild reads the deployed values of all four inputs after rotation', 
 
   const map = path.join(root, 'dist/js/maps-config.js');
   fs.writeFileSync(map, 'window.ZVENFIT_MAPS = {"apiKey":""};\n');
-  assert.throws(readInputs, /configs differ from the release metadata/);
+  assert.throws(rebuild, /configs differ from the release metadata/);
   // Old SHA/version-only stamps can still reconstruct a dry-run, including an empty maps key.
   const stamp = JSON.parse(fs.readFileSync(metadata));
   delete stamp.Metadata['runtime-config-sha256'];
   fs.writeFileSync(metadata, JSON.stringify(stamp));
-  assert.equal(
-    readInputs(),
-    `inputs=${JSON.stringify({ ...expected, Y_MAPS_API_KEY: '' })}\nsha=${sha}\nversion=175\n`,
-  );
+  assert.deepEqual(rebuild(), { ...expected, Y_MAPS_API_KEY: '' });
   fs.writeFileSync(path.join(root, 'dist/js/traffic-config.js'), 'window.ZVENFIT_TRAFFIC_API = getUrl();\n');
-  assert.throws(readInputs, /Invalid public runtime config: js\/traffic-config.js/);
+  assert.throws(rebuild, /Invalid public runtime config: js\/traffic-config.js/);
   assert.ok(!fs.existsSync(path.join(root, 'removed')));
 });
 

@@ -290,8 +290,9 @@ released.
    is parsed. A relative script or stylesheet placed before a later `<base>`
    loads relative to the page URL. The check also covers the later base for
    navigation from form submit buttons and inline event handlers.
-   A nonempty `iframe[srcdoc]` stops planning. Supporting embedded documents requires
-   checking their references in the context of their own document and effective base URL.
+   A nonempty `iframe[srcdoc]`, an embedded document with a `data:` URL, or a
+   `meta refresh` directive with content stops planning and reports the page.
+   Production HTTP links to the site on its default port follow the CDN redirect to HTTPS.
    The planner also reads literal site asset URLs in inline and emitted
    JavaScript, including URLs assembled from constant strings. Service worker
    registrations through a container alias use the same checks as direct
@@ -351,11 +352,10 @@ For a local read-only check, set `CLEANUP_ENVIRONMENT` to `staging` or
 `production`, use AWS CLI v2 credentials that can list the bucket and read HTML,
 scripts and stylesheets. Install the control checkout’s dependencies with `npm ci`.
 `node scripts/cleanup-bucket-assets.cjs --deployment` prints the deployed
-SHA and asset version. Use `--build-inputs` to read the four deployed public
-settings as JSON from the `inputs=` line. In a separate checkout of the reported
-SHA, install from the lockfile, supply those settings, the reported `ASSET_VERSION`
-and the selected `NODE_ENV`, and run the same guards as the workflow’s
-**Rebuild and check the deployed site** step. From the control checkout run
+SHA and asset version. Prepare a fresh checkout of that SHA. On Linux with Docker,
+run `node scripts/cleanup-bucket-assets.cjs --rebuild <fresh-checkout>` from the
+control checkout to reproduce the workflow’s build and guards. It reads the deployed
+settings into the build process environment. From the control checkout run
 `node scripts/cleanup-bucket-assets.cjs <built-checkout>` to print the summary.
 The local command rejects execute mode. Only the manual workflow processes
 deletions, using the checkout it rebuilt and verified under the release lock.

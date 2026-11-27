@@ -105,6 +105,15 @@ function siteKey(value, base, site) {
   if (!URL.canParse(value, base)) return;
   const url = new URL(value, base);
   if (!['https:', 'http:'].includes(url.protocol)) return;
+  // The production CDN redirects requests on the default HTTP port to HTTPS.
+  if (
+    site === PRODUCTION &&
+    url.protocol === 'http:' &&
+    !url.port &&
+    site.allowedOrigins.includes('https://' + url.host)
+  ) {
+    url.protocol = 'https:';
+  }
   let key;
   if (
     site.allowedOrigins.includes(url.origin) ||
@@ -544,6 +553,14 @@ function addReferences(refs, html, route, site, deployedKeys, readCode, imported
     if (node.tagName === 'iframe' && Object.hasOwn(attrs, 'srcdoc') && attrs.srcdoc.trim()) {
       throw new Error('Cannot verify iframe[srcdoc] in ' + route);
     }
+    const embedded =
+      node.tagName === 'object' ? attrs.data : ['iframe', 'embed', 'frame'].includes(node.tagName) && attrs.src;
+    if (embedded && URL.canParse(embedded, base) && new URL(embedded, base).protocol === 'data:') {
+      throw new Error('Cannot verify embedded data URL in ' + route);
+    }
+    if (node.tagName === 'meta' && attrs['http-equiv']?.trim().toLowerCase() === 'refresh' && attrs.content?.trim()) {
+      throw new Error('Cannot verify meta refresh in ' + route);
+    }
     const rel = (attrs.rel || '').toLowerCase().split(/\s+/);
     if (node.tagName === 'script' && attrs.src) graph.entries.push({ url: new URL(attrs.src, base), kind: 'js', base });
     if (node.tagName === 'link' && attrs.href) {
@@ -753,9 +770,10 @@ function planCleanup({ config, client, dist, sha, now = Date.now(), report }) {
 
 function run(argv, env, workflowEntry = false) {
   const config = options(env);
-  if (argv.length !== 1)
-    throw new Error('Usage: cleanup-bucket-assets.cjs --deployment | --build-inputs | <freshly built checkout>');
   const target = argv[0];
+  if (argv.length !== (target === '--rebuild' ? 2 : 1)) {
+    throw new Error('Usage: cleanup-bucket-assets.cjs --deployment | --rebuild <fresh checkout> | <built checkout>');
+  }
   const workflow = target === '--workflow';
   if (workflow) {
     if (
@@ -775,13 +793,22 @@ function run(argv, env, workflowEntry = false) {
   const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'asset-cleanup-'));
   try {
     const client = bucketClient(config.bucket, temp);
-    if (target === '--deployment' || target === '--build-inputs') {
-      const { sha, version, digest } = client.deployment();
-      if (target === '--build-inputs') {
-        const inputs = deployedInputs(client.readAsset, digest);
-        console.log('inputs=' + JSON.stringify(inputs));
-      }
+    if (target === '--deployment') {
+      const { sha, version } = client.deployment();
       console.log(`sha=${sha}\nversion=${version}`);
+      return;
+    }
+    if (target === '--rebuild') {
+      const root = path.resolve(argv[1]);
+      const { sha, version, digest } = client.deployment();
+      if (execFileSync('git', ['-C', root, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim() !== sha) {
+        throw new Error('The checkout SHA differs from the deployed SHA');
+      }
+      const inputs = deployedInputs(client.readAsset, digest);
+      execFileSync('bash', [path.join(__dirname, 'rebuild-cleanup-site.sh'), root], {
+        env: { ...env, ...inputs, ASSET_VERSION: version, NODE_ENV: config.environment },
+        stdio: 'inherit',
+      });
       return;
     }
     const root = workflow ? path.join(env.RUNNER_TEMP, 'deployed') : path.resolve(target);
