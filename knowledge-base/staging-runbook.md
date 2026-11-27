@@ -285,7 +285,8 @@ released.
    The planner also reads literal site asset URLs in inline and emitted
    JavaScript, including URLs assembled from constant strings. Service worker
    registrations through a container alias use the same checks as direct
-   registrations. Relative literals are checked against
+   registrations. If code passes the registration method to another script
+   before fixing the worker URL, the planner stops. Relative literals are checked against
    document bases and the script’s own URL for worker requests. A computed import or an explicit
    asset path in a template with an unknown filename stops the check. This also
    applies to worker requests through `fetch`, `Request`, `XMLHttpRequest.open`,

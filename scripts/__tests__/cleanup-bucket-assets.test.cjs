@@ -288,7 +288,10 @@ test('service worker container aliases verify the entry and stop unresolved loca
     'const sw = navigator.serviceWorker; sw.register("/worker.js")',
     'const {serviceWorker: sw} = navigator; const alias = sw; alias.register("/worker.js")',
     'function start(container) { container.register("/worker.js") } start(navigator.serviceWorker)',
-    'const sw = navigator.serviceWorker; const start = sw.register.bind(sw); start("/worker.js")',
+    'const sw = navigator.serviceWorker; const start = sw.register.bind(sw, "/worker.js"); start()',
+    'const sw = navigator.serviceWorker; if (typeof sw.register === "function") sw.register.call(sw, "/worker.js")',
+    'const sw = navigator.serviceWorker; sw.register.apply(sw, ["/worker.js"])',
+    'const sw = navigator.serviceWorker; sw.register.bind(sw)("/worker.js")',
   ]) {
     fs.writeFileSync(code, html + '<script>' + source + '</script>');
     fs.writeFileSync(worker, 'self.onmessage = e => fetch("/" + e.data)');
@@ -305,6 +308,34 @@ test('service worker container aliases verify the entry and stop unresolved loca
     html + '<script>const registry = {register(label) {}}; registry.register("local label")</script>',
   );
   assert.deepEqual(box.run(), [image]);
+});
+
+test('registration methods that escape without a known URL stop both plans across script tags', t => {
+  const used = object('_astro/sw-image.png');
+  const box = fixture(t, [used, object('worker.js')]);
+  const dist = path.join(box.root, 'dist');
+  const worker = 'self.onmessage = e => fetch("/" + e.data)';
+  fs.writeFileSync(path.join(dist, 'worker.js'), worker);
+  for (const capture of [
+    'window.start = navigator.serviceWorker.register.bind(navigator.serviceWorker)',
+    'const start = navigator.serviceWorker.register.bind(navigator.serviceWorker)',
+    'const {register:start} = navigator.serviceWorker',
+  ]) {
+    fs.writeFileSync(
+      path.join(dist, 'index.html'),
+      html + '<script>' + capture + '</script><script>start("/worker.js")</script>',
+    );
+    for (const execute of [false, true])
+      assert.throws(() => box.run(execute), /Cannot verify an indirect service worker registration/);
+  }
+  fs.writeFileSync(
+    path.join(dist, 'index.html'),
+    html +
+      '<script>const sw = navigator.serviceWorker; window.start = sw.register.bind(sw, "/worker.js")</script><script>window.start()</script>',
+  );
+  assert.throws(() => box.run(), /Cannot verify a computed asset URL/);
+  fs.writeFileSync(path.join(dist, 'worker.js'), '');
+  assert.deepEqual(box.run(true), [used]);
 });
 
 test('parser-loaded code uses the base in force at each tag', t => {

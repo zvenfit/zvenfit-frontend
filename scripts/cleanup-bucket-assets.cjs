@@ -153,18 +153,17 @@ function addModuleReferences(source, base, importMap, visitCode) {
 }
 
 // A classic script can load a site asset through Image, fetch, a worker, etc.
-function addScriptLiterals(refs, source, bases, scriptUrl, site, deployedKeys, inspectCall) {
+function addScriptLiterals(refs, source, bases, scriptUrl, site, deployedKeys, inspectNode) {
   const assetBases = [...bases].filter(base => assetKey('.', base, site));
   const origin = new URL(site.siteUrl).origin;
   const tree = ts.createSourceFile('asset.js', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
   function visit(node) {
-    if (inspectCall && (ts.isCallExpression(node) || ts.isNewExpression(node))) inspectCall(node);
+    if (inspectNode) inspectNode(node);
     const dynamic = ts.isTemplateExpression(node);
     const addition = ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.PlusToken;
     if (dynamic || addition || ts.isStringLiteralLike(node)) {
       const { text: value, fixed } = addressPrefix(node, origin);
-      let argument = node;
-      while (ts.isParenthesizedExpression(argument.parent)) argument = argument.parent;
+      const argument = enclosingArgument(node);
       const parent = argument.parent;
       // Module specifiers resolve against the module URL and are handled by addModuleReferences.
       if (
@@ -296,6 +295,68 @@ function registrationChecker(sourceFile) {
   return ts.createProgram([sourceFile.fileName], options, host).getTypeChecker();
 }
 
+function memberName(node) {
+  if (ts.isPropertyAccessExpression(node)) return node.name.text;
+  if (ts.isElementAccessExpression(node) && ts.isStringLiteralLike(node.argumentExpression))
+    return node.argumentExpression.text;
+}
+
+function enclosingArgument(node) {
+  while (ts.isParenthesizedExpression(node.parent)) node = node.parent;
+  return node;
+}
+
+// Inspect the registration method where it is obtained. After a callable escapes
+// into another script, inspecting the eventual call cannot establish its identity.
+function registrationTarget(node, getChecker) {
+  const binding = ts.isBindingElement(node) && (node.propertyName ?? node.name).text === 'register';
+  if (!binding && memberName(node) !== 'register') return;
+  const type = getChecker(node).getTypeAtLocation(binding ? node.name : node);
+  const possibleWorker = (type.isUnion() ? type.types : [type]).some(
+    part =>
+      part.flags & (ts.TypeFlags.Any | ts.TypeFlags.Unknown) ||
+      part
+        .getCallSignatures()
+        .some(
+          sig =>
+            sig.declaration?.name?.text === 'register' &&
+            sig.declaration.parent.name?.text === 'ServiceWorkerContainer',
+        ),
+  );
+  if (!possibleWorker) return;
+  const ref = enclosingArgument(node);
+  const use = ref.parent;
+  if (
+    ts.isTypeOfExpression(use) ||
+    ts.isIfStatement(use) ||
+    (ts.isPrefixUnaryExpression(use) && use.operator === ts.SyntaxKind.ExclamationToken)
+  )
+    return;
+  if (
+    ts.isBinaryExpression(use) &&
+    use.left === ref &&
+    [ts.SyntaxKind.EqualsToken, ts.SyntaxKind.AmpersandAmpersandToken].includes(use.operatorToken.kind)
+  )
+    return;
+  if (ts.isCallExpression(use) && use.expression === ref) return use.arguments[0];
+  if (use.expression === ref) {
+    const adapter = memberName(use);
+    const method = enclosingArgument(use);
+    const call = method.parent;
+    if (ts.isCallExpression(call) && call.expression === method) {
+      if (adapter === 'call') return call.arguments[1];
+      if (adapter === 'apply' && call.arguments[1] && ts.isArrayLiteralExpression(call.arguments[1]))
+        return call.arguments[1].elements[0];
+      if (adapter === 'bind') {
+        if (call.arguments[1]) return call.arguments[1];
+        const bound = enclosingArgument(call);
+        if (ts.isCallExpression(bound.parent) && bound.parent.expression === bound) return bound.parent.arguments[0];
+      }
+    }
+  }
+  throw new Error('Cannot verify an indirect service worker registration without a script URL');
+}
+
 // Each document has its own import map. Follow its modules and CSS imports with
 // their actual URLs, including when the same script runs under different maps.
 function codeGraph(refs, site, readCode, importedFiles, documentBase, deployedKeys) {
@@ -305,26 +366,20 @@ function codeGraph(refs, site, readCode, importedFiles, documentBase, deployedKe
   let parsingBase = documentBase;
   function inspectWorkerCalls(source, scriptUrl, workerBase) {
     const bases = workerBase ? [workerBase] : [...new Set([parsingBase, documentBase])];
-    const mayAliasRegistration = source.includes('serviceWorker');
     let checker;
+    const getChecker = node => (checker ??= registrationChecker(node.getSourceFile()));
     addScriptLiterals(refs, source, bases, scriptUrl, site, deployedKeys, node => {
-      const api = node.expression.name?.text ?? node.expression.argumentExpression?.text ?? node.expression.text;
-      if (!node.arguments?.length) return;
-      let startsWorker = ts.isNewExpression(node) && ['Worker', 'SharedWorker'].includes(api);
-      if (ts.isCallExpression(node) && (api === 'register' || mayAliasRegistration)) {
-        checker ??= registrationChecker(node.getSourceFile());
-        const declaration = checker.getResolvedSignature(node)?.declaration;
-        // An untyped receiver can come from another script. Verify a possible registration.
-        startsWorker = declaration
-          ? declaration.name?.text === 'register' && declaration.parent.name?.text === 'ServiceWorkerContainer'
-          : api === 'register';
-      }
-      if (startsWorker) {
+      const registration = registrationTarget(node, getChecker);
+      const call = ts.isCallExpression(node) || ts.isNewExpression(node);
+      const api = call && (memberName(node.expression) ?? node.expression.text);
+      const entryArgument =
+        registration || (ts.isNewExpression(node) && ['Worker', 'SharedWorker'].includes(api) && node.arguments?.[0]);
+      if (entryArgument) {
         for (const base of bases) {
-          const entry = workerAddress(node.arguments[0], base, scriptUrl, site);
+          const entry = workerAddress(entryArgument, base, scriptUrl, site);
           if (entry) visitCode(entry, 'js', entry);
         }
-      } else if (workerBase) {
+      } else if (workerBase && call && node.arguments?.length) {
         const [first, second] = node.arguments;
         let requests;
         if (api === 'importScripts') requests = node.arguments;
