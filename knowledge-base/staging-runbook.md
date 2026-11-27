@@ -1,7 +1,7 @@
 ---
 type: runbook
 title: ZvenFit staging deployment, E2E and frontend rollback runbook
-updated: 2026-11-17
+updated: 2026-11-27
 ---
 
 # Staging deployment, E2E and frontend rollback runbook
@@ -88,7 +88,7 @@ is refreshed before the HTML that references it; (4) HTML with no-cache.
 `--delete` stays only inside the crawl, config and HTML filters, so a removed
 page disappears with the release while assets referenced by previously
 served HTML are never deleted by a release or a rollback. Stale assets are
-removed only by a separate manual cleanup (see the Astro migration plan).
+reviewed in the [manual cleanup procedure](#manual-asset-cleanup).
 
 ## E2E safety invariants
 
@@ -174,10 +174,7 @@ What the revert does:
 - The first upload pass puts the assets of the reverted build back before the
   HTML switches, even if a manual cleanup has removed them. The assets of the
   rolled-back release stay in the bucket: a release never deletes assets. The
-  cleanup of stale assets is a separate manual procedure that the migration
-  plan adds after release A and that does not exist yet; once it does, do not
-  run it while the rollback window is open, that is for the time HTML may stay
-  cached after the last release or rollback.
+  [manual cleanup](#manual-asset-cleanup) can resume after the rollback window closes.
 - If an upload pass fails, the later passes do not run. Re-run the failed jobs
   of the same run, or go through a new pull request; never finish the upload
   by hand.
@@ -241,6 +238,74 @@ The revert of release A also takes this section and
 commit. After such a rollback read them from that commit, for example
 `git show ba8dd91:knowledge-base/staging-runbook.md` for the text as it was
 released.
+
+## Manual asset cleanup
+
+1. After this change has shipped, open **Actions → Clean up stale site assets →
+   Run workflow** on `main`. Run **staging** and **production** separately,
+   both with `execute` unchecked, `min_age_days=2` and `prefixes=_astro/`.
+   Choose a time when the release queue is clear. Cleanup shares the `deploy`
+   lock and GitHub can replace an earlier pending run in that group.
+2. Read the summary. Verify the environment, bucket and full SHA against the
+   last site deployment. The workflow reads the SHA and asset version from
+   the selected bucket’s `index.html` object metadata, then builds and checks
+   that exact checkout using the selected environment. It reads every HTML
+   object directly from storage, including 404. All pages must carry that
+   release metadata, the HTML paths must match, and the sets of `/_astro/`
+   references must agree. Missing metadata (including a deployment made before
+   this procedure), a partial upload or a mismatch calls for checking the last
+   deploy and completing or repairing it before retrying.
+3. Each row is an object under `_astro/` that is absent from the entire built
+   tree and was last written **strictly before** the UTC cutoff. The timestamp
+   and byte size let the owner check why it qualifies and reconcile the total.
+   Old files still in the build, including indirectly referenced assets, stay
+   protected. Legacy `js/`, `css/` and `images/` await a separate scope
+   change after B. Trainer photos and documents and the `zvenfit/v2` asset
+   store are outside this procedure.
+4. For a separately authorised deletion, wait at least 48 hours after the
+   last completed release or rollback in that environment and until its
+   rollback window has closed. Object age alone cannot protect an old asset
+   whose last HTML reference was removed yesterday. The summary shows the
+   earliest time allowed by the last HTML write. Check the deploy history for
+   a later completion, a failed release or an ongoing recovery. Resolve those
+   first. Dispatch with the same inputs and `execute` checked. The workflow
+   rereads the bucket and recomputes the plan under the lock. Check the final
+   confirmed deletion count. After a failure partway through, review a new
+   dry-run of what remains. [Retention calculation](cdn-runbook.md#minimum-age-for-asset-cleanup)
+
+Example dry-run summary (fixture data)
+
+```text
+Mode: dry-run · staging · zvenfit-frontend-staging
+Deployed SHA: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa · asset version 175
+Verified HTML pages: 2. Distinct /_astro/ references: 2.
+Candidates: 2 · Total bytes: 8192. Under _astro/, absent from dist,
+LastModified strictly before 2026-11-25T12:00:00.000Z (2 days).
+Rollback window from latest HTML upload ends at 2026-11-22T10:00:00.000Z.
+
+Key             LastModified (UTC)         Bytes
+_astro/old.css  2026-11-20T10:00:00.000Z    6144
+_astro/old.js   2026-11-20T10:00:00.000Z    2048
+```
+
+For a local read-only check, set `CLEANUP_ENVIRONMENT` to `staging` or
+`production`, use AWS CLI v2 credentials with bucket listing and HTML read
+access and install the control checkout’s dependencies with `npm ci`.
+`node scripts/cleanup-bucket-assets.cjs --deployment` prints the deployed
+SHA and asset version. In a separate checkout of that SHA, install from the
+lockfile and build with the same variables and guards as the workflow’s
+**Rebuild and check the deployed site** step. From the control checkout run
+`node scripts/cleanup-bucket-assets.cjs <built-checkout>` to print the summary.
+Use the workflow for execution so releases and cleanup share the lock.
+
+**Recovery.** If a current asset is missing, stop cleanup and repeat the full
+release of the current deployed revision through staging, E2E, production and
+smoke. When that SHA is still the head of `main`, use **Release** on `main`
+with `skip_staging` unchecked. If the required revision differs from current
+`main`, restore the required sources through the [frontend rollback
+procedure](#frontend-rollback) and release that reviewed tree. The first
+upload restores its assets before HTML switches. Verify the affected URLs,
+watch the 404 metric and restart the rollback window.
 
 ## Bucket snapshot before a release
 

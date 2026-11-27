@@ -627,6 +627,7 @@ jobs:
             --exclude "*" \
             --include "*.html" \
             --cache-control "no-cache, must-revalidate" \
+            --metadata "deployed-sha=${GITHUB_SHA},asset-version=${GITHUB_RUN_NUMBER}" \
             --metadata-directive REPLACE
 
       - name: Verify uploaded staging objects remain private

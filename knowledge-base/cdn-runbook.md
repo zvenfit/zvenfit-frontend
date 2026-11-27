@@ -1,7 +1,7 @@
 ---
 type: runbook
 title: ZvenFit CDN cache runbook
-updated: 2026-10-26
+updated: 2026-11-27
 ---
 
 # CDN cache runbook
@@ -31,6 +31,24 @@ release v3.0.12 for decision R12 in
   year under their key. When `js/*-config.js` moved to the no-cache upload pass
   (v3.0.12), the `?v=` keys were fresh while the bare keys kept the old objects
   until they were purged.
+
+## Minimum age for asset cleanup
+
+The 2026-10-26 measurements above give HTML **zero freshness time without
+revalidation** at the edge and in the browser. The origin sends
+`no-cache, must-revalidate` and the edge passes it through. Even using the
+edge fallback for an origin response without headers gives only 86,400 seconds
+(24 hours). The migration plan also requires 36 hours for CDN eviction.
+In whole days the conservative floor is **ceil(max(24 h, 0 h, 36 h) / 24 h)
+= 2 days**. The one-year immutable lifetime applies to assets. The 36 hours
+come from the plan, independently of the observed purge times.
+[Astro migration plan, §6](../docs/astro-migration.md#6-сборка-режимы-и-деплой)
+
+Use this floor in both environments and leave at least 48 hours after the
+latest release or rollback before executing cleanup. The owner can retain old
+objects longer with `min_age_days`. If HTML headers or CDN cache settings
+change, use dry-run until this calculation and the enforced minimum have
+been reviewed again. [Owner procedure](staging-runbook.md#manual-asset-cleanup)
 
 ## Purging paths
 

@@ -39,8 +39,22 @@ const policy = {
     },
   ],
 };
+// Deploy keeps its existing session policy. Cleanup can list the bucket and
+// read HTML. Only its execute session can delete, and only below _astro/.
+const mode = process.argv[3];
+if (mode === "cleanup-plan" || mode === "cleanup-execute") {
+  const [bucketAccess, objectAccess] = policy.Statement;
+  bucketAccess.Action = ["s3:ListBucket"];
+  objectAccess.Action = ["s3:GetObject"];
+  objectAccess.Resource = [`arn:aws:s3:::${bucket}/*.html`];
+  if (mode === "cleanup-execute") {
+    policy.Statement.push({ ...objectAccess, Action: ["s3:DeleteObject"], Resource: [`arn:aws:s3:::${bucket}/_astro/*`] });
+  }
+} else if (mode !== "deploy") {
+  throw new Error("unknown Object Storage session mode");
+}
 fs.writeFileSync(process.argv[1], JSON.stringify(policy), { mode: 0o600 });
-' "${SESSION_POLICY}" "${OBJECT_STORAGE_BUCKET}"
+' "${SESSION_POLICY}" "${OBJECT_STORAGE_BUCKET}" "${STORAGE_SESSION_MODE-deploy}"
 
 node -e '
 const fs = require("node:fs");

@@ -1,0 +1,118 @@
+name: Clean up stale site assets
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Site bucket to inspect
+        required: true
+        type: choice
+        options:
+          - staging
+          - production
+      execute:
+        description: Delete the verified candidates
+        type: boolean
+        default: false
+      min_age_days:
+        description: Minimum object age in whole days (at least 2)
+        required: true
+        type: number
+        default: 2
+      prefixes:
+        description: Asset prefixes (only _astro/ before release B)
+        required: true
+        type: string
+        default: '_astro/'
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  cleanup:
+    if: github.repository == 'zvenfit/zvenfit-frontend' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: ${{ inputs.environment }}
+    env:
+      CLEANUP_ENVIRONMENT: ${{ inputs.environment }}
+      CLEANUP_EXECUTE: ${{ inputs.execute }}
+      CLEANUP_MIN_AGE_DAYS: ${{ inputs.min_age_days }}
+      CLEANUP_PREFIXES: ${{ inputs.prefixes }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '22'
+          check-latest: true
+          cache: npm
+
+      - name: Install cleanup dependencies
+        run: npm ci
+
+      - name: Restore the Yandex Cloud CLI
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ${{ runner.temp }}/zvenfit-yc-cli-1.26.0
+          key: yc-cli-1.26.0-linux-amd64-b6bc853d
+      - run: bash scripts/install-yc-cli.sh
+      - name: Authenticate with the selected Environment's OIDC identity
+        env:
+          YC_FOLDER_ID: ${{ vars.YC_FOLDER_ID }}
+          YC_DEPLOY_SERVICE_ACCOUNT_ID: ${{ vars.YC_DEPLOY_SERVICE_ACCOUNT_ID }}
+          YC_WIF_AUDIENCE: https://github.com/zvenfit
+        run: bash scripts/auth-yc-wif.sh
+      - name: Issue a scoped Object Storage session
+        env:
+          YC_DEPLOY_SERVICE_ACCOUNT_ID: ${{ vars.YC_DEPLOY_SERVICE_ACCOUNT_ID }}
+          OBJECT_STORAGE_BUCKET: ${{ inputs.environment == 'production' && 'zvenfit-frontend' || 'zvenfit-frontend-staging' }}
+          STORAGE_SESSION_MODE: ${{ inputs.execute && 'cleanup-execute' || 'cleanup-plan' }}
+        run: bash scripts/issue-ephemeral-storage-key.sh
+
+      - name: Read deployed revision from the bucket
+        id: live
+        run: node scripts/cleanup-bucket-assets.cjs --deployment >> "$GITHUB_OUTPUT"
+      - name: Prepare the deployed checkout
+        env:
+          DEPLOYED_SHA: ${{ steps.live.outputs.sha }}
+        run: |
+          git merge-base --is-ancestor "$DEPLOYED_SHA" origin/main
+          git worktree add --detach "$RUNNER_TEMP/deployed" "$DEPLOYED_SHA"
+          cd "$RUNNER_TEMP/deployed"
+          npm ci
+
+      - name: Rebuild and check the deployed site
+        working-directory: ${{ runner.temp }}/deployed
+        env:
+          NODE_ENV: ${{ inputs.environment }}
+          ASSET_VERSION: ${{ steps.live.outputs.version }}
+          Y_MAPS_API_KEY: ${{ vars.Y_MAPS_API_KEY }}
+        run: |
+          if [[ "$NODE_ENV" == staging ]]; then
+            LEAD_API_URL=https://staging.zvenfit.ru/api/lead
+            SCHEDULE_API_URL=https://staging.zvenfit.ru/api/schedule
+            TRAFFIC_API_URL=https://staging.zvenfit.ru/api/traffic
+          else
+            function_url() {
+              yc serverless function get --name="$1" --format=json | jq -er '.http_invoke_url | select(length > 0)'
+            }
+            LEAD_API_URL=$(function_url zvenfit-telegram-lead)
+            SCHEDULE_API_URL=$(function_url zvenfit-fitbase-schedule)
+            TRAFFIC_API_URL=$(function_url zvenfit-site-traffic)
+          fi
+          export LEAD_API_URL SCHEDULE_API_URL TRAFFIC_API_URL
+          npm run build
+          node scripts/check-routes.cjs
+          node scripts/check-build.cjs
+          if [[ "$NODE_ENV" == staging ]]; then node scripts/check-staging-build.cjs; fi
+
+      - name: Verify live HTML and process candidates
+        run: node scripts/cleanup-bucket-assets.cjs "$RUNNER_TEMP/deployed"
