@@ -247,7 +247,8 @@ released.
    Release, manual staging and cleanup share the `deploy` lock and queue.
    Each waits its turn. Up to 100 runs can wait; GitHub rejects a new arrival
    when the queue is full. The cleanup job uses the selected Environment with
-   deployment tracking disabled, so deployment history records site rollouts.
+   deployment tracking disabled. Its temporary storage key can list and read
+   objects in the selected site bucket. Execute adds deletion under `_astro/`.
 2. Read the summary. Verify the environment, bucket and full SHA against the
    last site deployment. The workflow reads the SHA and asset version from
    the selected bucket’s `index.html` object metadata, then builds and checks
@@ -255,9 +256,10 @@ released.
    object directly from storage, including 404. All pages must carry that
    release metadata and match the rebuilt HTML byte for byte, including
    inline CSS and scripts. Every `_astro/` file in the build, including
-   indirect dependencies such as fonts, must exist in the bucket. Missing metadata (including a deployment made before
-   this procedure), a partial upload or a mismatch calls for checking the last
-   deploy and completing or repairing it before retrying.
+   indirect dependencies such as fonts, must exist in the bucket. Asset URLs
+   in inline and built stylesheets are resolved against their document or
+   stylesheet URL. Missing release metadata, an incomplete upload or a mismatch
+   calls for checking and repairing the last site deploy before retrying.
 3. Each row is an object under `_astro/` that is absent from the entire built
    tree and was last written **strictly before** the UTC cutoff. The timestamp
    and byte size let the owner check why it qualifies and reconcile the total.

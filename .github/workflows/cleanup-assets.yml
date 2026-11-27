@@ -122,8 +122,20 @@ jobs:
         run: |
           node <<'NODE'
           const { execFileSync } = require('node:child_process');
-          const { runWorkflow } = require('./scripts/cleanup-bucket-assets.cjs');
-          runWorkflow((bucket, key) => {
-            execFileSync('aws', ['s3api', 'delete-object', '--bucket', bucket, '--key', key, '--no-cli-pager']);
-          });
+          const { appendFileSync } = require('node:fs');
+          const { planForWorkflow } = require('./scripts/cleanup-bucket-assets.cjs');
+          const plan = planForWorkflow();
+          if (plan.execute) {
+            let deleted = 0;
+            try {
+              for (const key of plan.keys) {
+                execFileSync('aws', ['s3api', 'delete-object', '--bucket', plan.bucket, '--key', key, '--no-cli-pager']);
+                deleted++;
+              }
+            } finally {
+              const result = `Confirmed deletions: ${deleted} of ${plan.keys.length}.\n`;
+              console.log(result);
+              appendFileSync(process.env.GITHUB_STEP_SUMMARY, result);
+            }
+          }
           NODE

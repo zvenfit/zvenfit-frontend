@@ -85,6 +85,40 @@ function bucketClient(bucket, tempDir) {
   };
 }
 
+function addAssetUrl(refs, value, base, site) {
+  if (!URL.canParse(value, base)) return;
+  const url = new URL(value, base);
+  let key;
+  if (
+    site.allowedOrigins.includes(url.origin) ||
+    url.origin === `https://${site.s3Bucket}.storage.yandexcloud.net` ||
+    url.origin === `https://${site.s3Bucket}.website.yandexcloud.net`
+  ) {
+    key = url.pathname.slice(1);
+  } else if (url.origin === 'https://storage.yandexcloud.net' && url.pathname.startsWith(`/${site.s3Bucket}/`)) {
+    key = url.pathname.slice(site.s3Bucket.length + 2);
+  }
+  if (key !== undefined) {
+    const decoded = decodeURIComponent(key);
+    if (decoded.startsWith('_astro/')) refs.add(decoded);
+  }
+}
+
+function addCssReferences(refs, value, context, base, site) {
+  const ast = css.parse(value, { context, parseCustomProperty: true });
+  css.walk(ast, function (node) {
+    // CSS also accepts quoted URL strings directly in @import and image-set().
+    if (
+      node.type === 'Url' ||
+      (node.type === 'String' &&
+        ((this.atrule?.name.toLowerCase() === 'import' && this.atrulePrelude?.children.first === node) ||
+          ['image-set', '-webkit-image-set', 'image', 'src'].includes(this.function?.name.toLowerCase())))
+    ) {
+      addAssetUrl(refs, node.value, base, site);
+    }
+  });
+}
+
 function addReferences(refs, html, route, site) {
   const document = parse(html, { scriptingEnabled: false });
   const pageUrl = new URL(route, site.siteUrl);
@@ -98,15 +132,7 @@ function addReferences(refs, html, route, site) {
   const base = href && URL.canParse(href, pageUrl) ? new URL(href, pageUrl) : pageUrl;
   // URL attributes can contain spaces, parentheses, commas and HTML entities.
   function addUrl(value) {
-    if (!URL.canParse(value, base)) return;
-    const url = new URL(value, base);
-    if (site.allowedOrigins.includes(url.origin) && url.pathname.startsWith('/_astro/')) {
-      refs.add(decodeURIComponent(url.pathname.slice(1)));
-    }
-  }
-  function scanCss(value, context) {
-    const ast = css.parse(value, { context, parseCustomProperty: true });
-    css.walk(ast, { visit: 'Url', enter: node => addUrl(node.value) });
+    addAssetUrl(refs, value, base, site);
   }
   function scan(value) {
     for (const match of value.matchAll(/\/_astro\//g)) {
@@ -125,7 +151,7 @@ function addReferences(refs, html, route, site) {
     for (const { name, value } of node.attrs ?? []) {
       if (node.tagName === 'base' && name === 'href') continue;
       if (name === 'style') {
-        scanCss(value, 'declarationList');
+        addCssReferences(refs, value, 'declarationList', base, site);
       } else if (['href', 'src', 'poster', 'data', 'action'].includes(name)) {
         addUrl(value);
       } else if (name === 'srcset' || name === 'imagesrcset') {
@@ -137,7 +163,7 @@ function addReferences(refs, html, route, site) {
       }
     }
     if (node.nodeName === '#text') {
-      if (node.parentNode?.tagName === 'style') scanCss(node.value, 'stylesheet');
+      if (node.parentNode?.tagName === 'style') addCssReferences(refs, node.value, 'stylesheet', base, site);
       else scan(node.value);
     }
     for (const child of node.childNodes ?? []) visit(child);
@@ -180,7 +206,7 @@ function displayKey(key) {
   return '<code>' + key.replace(/[&<>|\x00-\x1f]/g, char => `&#${char.charCodeAt(0)};`) + '</code>';
 }
 
-function cleanup({ config, client, dist, sha, now = Date.now(), report }) {
+function planCleanup({ config, client, dist, sha, now = Date.now(), report }) {
   const release = client.deployment();
   if (sha !== release.sha) throw new Error('The checkout SHA differs from the deployed SHA');
   const files = new Set(
@@ -210,15 +236,17 @@ function cleanup({ config, client, dist, sha, now = Date.now(), report }) {
     addReferences(builtRefs, builtHtml.toString('utf8'), object.Key, site);
   }
   if (!builtRefs.size) throw new Error('No /_astro/ references in dist');
-  for (const key of builtRefs) {
-    if (!files.has(key)) throw new Error(`Incomplete dist: missing referenced asset ${key}`);
-  }
-
   const deployedKeys = new Set(objects.map(object => object.Key));
   for (const key of files) {
-    if (key.startsWith(config.prefix) && !deployedKeys.has(key)) {
-      throw new Error(`Incomplete deployment: missing bucket object ${key}`);
+    if (!key.startsWith(config.prefix)) continue;
+    if (!deployedKeys.has(key)) throw new Error(`Incomplete deployment: missing bucket object ${key}`);
+    if (key.endsWith('.css')) {
+      const stylesheet = fs.readFileSync(path.join(dist, key), 'utf8');
+      addCssReferences(builtRefs, stylesheet, 'stylesheet', new URL(key, site.siteUrl), site);
     }
+  }
+  for (const key of builtRefs) {
+    if (!files.has(key)) throw new Error(`Incomplete dist: missing referenced asset ${key}`);
   }
 
   const cutoff = now - config.days * DAY;
@@ -240,29 +268,18 @@ function cleanup({ config, client, dist, sha, now = Date.now(), report }) {
     '',
   ].join('\n');
   report(summary);
-  if (config.execute) {
-    if (now < windowEnds) throw new Error('Rollback window is still open');
-    let deleted = 0;
-    try {
-      for (const object of candidates) {
-        client.remove(object.Key);
-        deleted++;
-      }
-    } finally {
-      report(`Confirmed deletions: ${deleted} of ${candidates.length}.\n`);
-    }
-  }
+  if (config.execute && now < windowEnds) throw new Error('Rollback window is still open');
   return candidates;
 }
 
-function run(argv, env, removeObject) {
+function run(argv, env, workflowEntry = false) {
   const config = options(env);
   if (argv.length !== 1) throw new Error('Usage: cleanup-bucket-assets.cjs --deployment | <freshly built checkout>');
   const target = argv[0];
   const workflow = target === '--workflow';
   if (workflow) {
     if (
-      !removeObject ||
+      !workflowEntry ||
       env.GITHUB_ACTIONS !== 'true' ||
       env.GITHUB_EVENT_NAME !== 'workflow_dispatch' ||
       env.GITHUB_WORKFLOW_REF !== WORKFLOW_REF ||
@@ -278,7 +295,6 @@ function run(argv, env, removeObject) {
   const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'asset-cleanup-'));
   try {
     const client = bucketClient(config.bucket, temp);
-    if (workflow && config.execute) client.remove = key => removeObject(config.bucket, key);
     if (target === '--deployment') {
       const { sha, version } = client.deployment();
       console.log(`sha=${sha}\nversion=${version}`);
@@ -286,7 +302,7 @@ function run(argv, env, removeObject) {
     }
     const root = workflow ? path.join(env.RUNNER_TEMP, 'deployed') : path.resolve(target);
     const sha = execFileSync('git', ['-C', root, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
-    cleanup({
+    const candidates = planCleanup({
       config,
       client,
       dist: path.join(root, 'dist'),
@@ -296,17 +312,18 @@ function run(argv, env, removeObject) {
         if (env.GITHUB_STEP_SUMMARY) fs.appendFileSync(env.GITHUB_STEP_SUMMARY, message + '\n');
       },
     });
+    return { bucket: config.bucket, execute: config.execute, keys: candidates.map(item => item.Key) };
   } finally {
     fs.rmSync(temp, { recursive: true, force: true });
   }
 }
 
-// The CLI has no storage mutation capability. Only the locked workflow supplies it.
-function runWorkflow(removeObject) {
-  run(['--workflow'], process.env, removeObject);
+// Both entry points only read storage. The workflow owns the deletion loop.
+function planForWorkflow() {
+  return run(['--workflow'], process.env, true);
 }
 
-module.exports = { cleanup, options, selectCandidates, deployment, runWorkflow };
+module.exports = { planCleanup, options, selectCandidates, deployment, planForWorkflow };
 
 if (require.main === module) {
   try {

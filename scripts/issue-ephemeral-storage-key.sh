@@ -39,14 +39,13 @@ const policy = {
     },
   ],
 };
-// Deploy keeps its existing session policy. Cleanup can list the bucket and
-// read HTML. Only its execute session can delete, and only below _astro/.
+// The planner reads HTML directly from the selected site bucket. Resource
+// patterns in Object Storage support a wildcard after a key prefix.
 const mode = process.argv[3];
 if (mode === "cleanup-plan" || mode === "cleanup-execute") {
   const [bucketAccess, objectAccess] = policy.Statement;
   bucketAccess.Action = ["s3:ListBucket"];
   objectAccess.Action = ["s3:GetObject"];
-  objectAccess.Resource = [`arn:aws:s3:::${bucket}/*.html`];
   if (mode === "cleanup-execute") {
     policy.Statement.push({ ...objectAccess, Action: ["s3:DeleteObject"], Resource: [`arn:aws:s3:::${bucket}/_astro/*`] });
   }

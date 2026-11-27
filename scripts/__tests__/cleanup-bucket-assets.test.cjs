@@ -6,7 +6,7 @@ const { execFileSync, spawnSync } = require('node:child_process');
 const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
-const { cleanup, deployment, options, selectCandidates } = require('../cleanup-bucket-assets.cjs');
+const { planCleanup, deployment, options, selectCandidates } = require('../cleanup-bucket-assets.cjs');
 
 const release = { sha: 'a'.repeat(40), version: '175' };
 const now = Date.parse('2026-11-27T12:00:00Z');
@@ -40,7 +40,7 @@ function fixture(t, extra = []) {
   };
   const config = options({ CLEANUP_ENVIRONMENT: 'staging' });
   const run = (execute = false) =>
-    cleanup({
+    planCleanup({
       client,
       config: { ...config, execute },
       sha: release.sha,
@@ -55,7 +55,7 @@ test('an empty listing yields no candidates', () => {
   assert.deepEqual(selectCandidates([], new Set(), '_astro/', Date.parse(cutoff)), []);
 });
 
-test('execute deletes exactly old unbuilt assets inside the allowed prefix', t => {
+test('the execute plan contains exactly the old unbuilt assets inside the allowed prefix', t => {
   const candidate = object('_astro/old.css', old, 6144);
   const box = fixture(t, [
     candidate,
@@ -74,8 +74,8 @@ test('execute deletes exactly old unbuilt assets inside the allowed prefix', t =
     ].map(key => object(key)),
   ]);
   assert.deepEqual(box.run(true), [candidate]); // also protects the old, indirectly used font in dist
-  assert.deepEqual(box.removed, [candidate.Key]);
-  assert.match(box.reports[1], /Confirmed deletions: 1 of 1/);
+  assert.deepEqual(box.removed, []);
+  assert.equal(box.reports.length, 1);
 });
 
 test('dry-run with candidates issues zero delete calls and reports the evidence', t => {
@@ -135,6 +135,50 @@ test('identical pages resolve inline CSS against the document base and protect t
     assert.throws(() => box.run(true), /Incomplete dist: missing referenced asset _astro\/\(old\),file\.png/);
   }
   assert.deepEqual(box.removed, []);
+});
+
+test('quoted CSS imports and image-set URLs must exist in the rebuilt site', t => {
+  const box = fixture(t, [object('_astro/old.css')]);
+  for (const rule of ['@import "_astro/old.css" screen;', '.hero{background-image:image-set("_astro/old.css" 1x)}']) {
+    fs.writeFileSync(path.join(box.root, 'dist/index.html'), html + '<style>' + rule + '</style>');
+    for (const execute of [false, true]) {
+      assert.throws(() => box.run(execute), { message: 'Incomplete dist: missing referenced asset _astro/old.css' });
+    }
+  }
+  assert.deepEqual(box.reports, []);
+});
+
+test('absolute storage URLs protect only the selected site bucket', t => {
+  const candidate = object('_astro/old.css');
+  const box = fixture(t, [candidate]);
+  const file = path.join(box.root, 'dist/index.html');
+  const filename = '_astro/old.css';
+  for (const base of [
+    'https://storage.yandexcloud.net/zvenfit-frontend-staging/',
+    'https://zvenfit-frontend-staging.storage.yandexcloud.net/',
+    'https://zvenfit-frontend-staging.website.yandexcloud.net/',
+  ]) {
+    fs.writeFileSync(file, html + `<link href="${base}${filename}">`);
+    assert.throws(() => box.run(true), { message: 'Incomplete dist: missing referenced asset ' + filename });
+  }
+  fs.writeFileSync(file, html + `<img src="https://storage.yandexcloud.net/another-site/${filename}">`);
+  assert.deepEqual(box.run(true), [candidate]);
+});
+
+test('emitted CSS resolves relative dependencies against the stylesheet directory', t => {
+  const image = object('_astro/nested/old.png');
+  const css = object('_astro/nested/nested.css');
+  const stale = object('_astro/unused.js');
+  const box = fixture(t, [image, css, stale]);
+  const assets = path.join(box.root, 'dist/_astro');
+  fs.mkdirSync(path.join(assets, 'nested'));
+  fs.writeFileSync(path.join(assets, 'live.css'), '@import "nested/nested.css";');
+  fs.writeFileSync(path.join(assets, 'nested/nested.css'), '.hero{background:url(old.png)}');
+  for (const execute of [false, true]) {
+    assert.throws(() => box.run(execute), { message: 'Incomplete dist: missing referenced asset ' + image.Key });
+  }
+  fs.writeFileSync(path.join(assets, 'nested/old.png'), '');
+  assert.deepEqual(box.run(true), [stale]);
 });
 
 test('a missing live reference also stops execute', t => {
@@ -322,6 +366,19 @@ esac
   ]);
   assert.match(fs.readFileSync(summary, 'utf8'), /<code>_astro\/stale\.js<\/code>/);
 
+  // Importing the planner with the dispatch environment still only computes keys.
+  const readOnly = execFileSync(
+    process.execPath,
+    ['-e', 'const plan = require(process.argv[1]).planForWorkflow(); console.log(JSON.stringify(plan));', script],
+    { cwd: root, env: dispatch, encoding: 'utf8' },
+  );
+  assert.deepEqual(JSON.parse(readOnly.trim().split('\n').at(-1)), {
+    bucket: 'zvenfit-frontend-staging',
+    execute: true,
+    keys: ['_astro/stale.js'],
+  });
+  assert.equal(fs.existsSync(path.join(root, 'removed')), false);
+
   // Exercise the actual workflow step with the same AWS stub as the local CLI.
   fs.symlinkSync(path.resolve(__dirname, '..'), path.join(root, 'scripts'), 'dir');
   const workflow = fs.readFileSync(path.join(__dirname, '../../.github/workflows/cleanup-assets.yml'), 'utf8');
@@ -344,4 +401,45 @@ esac
   assert.equal(fs.existsSync(path.join(root, 'removed')), false);
   execFileSync('bash', shell, { cwd: root, env: dispatch });
   assert.deepEqual(fs.readFileSync(path.join(root, 'removed'), 'utf8').trim().split('\n'), ['_astro/stale.js']);
+  assert.match(fs.readFileSync(summary, 'utf8'), /Confirmed deletions: 1 of 1/);
+});
+
+test('ephemeral sessions use a bucket prefix for reads and grant delete only for execute', t => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'cleanup-session-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const capture = path.join(dir, 'policy.json');
+  fs.writeFileSync(
+    path.join(dir, 'curl'),
+    `#!/usr/bin/env node
+const fs = require('node:fs');
+const argument = name => process.argv[process.argv.indexOf(name) + 1];
+const request = JSON.parse(fs.readFileSync(argument('--data-binary').slice(1), 'utf8'));
+fs.writeFileSync(process.env.POLICY_CAPTURE, request.policy);
+fs.writeFileSync(argument('--output'), JSON.stringify({accessKeyId:'fixture',secret:'fixture',sessionToken:'fixture'}));
+process.stdout.write('200');`,
+    { mode: 0o755 },
+  );
+  for (const [mode, bucket] of [
+    ['cleanup-plan', 'zvenfit-frontend'],
+    ['cleanup-execute', 'zvenfit-frontend-staging'],
+  ]) {
+    execFileSync('bash', [path.join(__dirname, '../issue-ephemeral-storage-key.sh')], {
+      cwd: dir,
+      env: {
+        PATH: dir + path.delimiter + process.env.PATH,
+        YC_IAM_TOKEN: 'fixture',
+        YC_DEPLOY_SERVICE_ACCOUNT_ID: 'fixture',
+        STORAGE_SESSION_MODE: mode,
+        OBJECT_STORAGE_BUCKET: bucket,
+        GITHUB_ENV: path.join(dir, 'env'),
+        POLICY_CAPTURE: capture,
+      },
+    });
+    const { Statement } = JSON.parse(fs.readFileSync(capture, 'utf8'));
+    const arn = 'arn:aws:s3:::' + bucket;
+    const grant = (action, resource) => ({ Effect: 'Allow', Principal: '*', Action: [action], Resource: [resource] });
+    const expected = [grant('s3:ListBucket', arn), grant('s3:GetObject', arn + '/*')];
+    if (mode === 'cleanup-execute') expected.push(grant('s3:DeleteObject', arn + '/_astro/*'));
+    assert.deepEqual(Statement, expected);
+  }
 });
