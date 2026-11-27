@@ -2,6 +2,7 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
+const { routeToUrl } = require('./check-routes.cjs');
 
 function required(value, name) {
   const normalized = String(value || '').trim();
@@ -25,20 +26,17 @@ function collectHtmlRoutes(distDir) {
           continue;
         }
 
-        let route = `/${objectName}`;
-        if (objectName === 'index.html') {
-          route = '/';
-        } else if (objectName.endsWith('/index.html')) {
-          route = `/${objectName.slice(0, -'index.html'.length)}`;
-        }
-
-        routes.push({ route, objectName });
+        routes.push({ route: routeToUrl('', objectName), objectName });
       }
     }
   }
 
   walk(distDir);
   return routes.sort((left, right) => left.route.localeCompare(right.route));
+}
+
+function gatewayPaths(route) {
+  return route !== '/' && route.endsWith('/') ? [route, route.slice(0, -1)] : [route];
 }
 
 function storageOperation(bucket, objectName) {
@@ -87,10 +85,7 @@ function buildSpecification({
 }) {
   const paths = {};
   for (const { route, objectName } of collectHtmlRoutes(distDir)) {
-    paths[route] = { get: storageOperation(bucket, objectName) };
-    if (route !== '/' && route.endsWith('/')) {
-      paths[route.slice(0, -1)] = { get: storageOperation(bucket, objectName) };
-    }
+    for (const pathname of gatewayPaths(route)) paths[pathname] = { get: storageOperation(bucket, objectName) };
   }
 
   paths['/api/lead'] = { post: functionOperation(leadFunctionId, 'lead') };
@@ -176,4 +171,4 @@ if (require.main === module) {
   main();
 }
 
-module.exports = { buildSpecification, collectHtmlRoutes };
+module.exports = { buildSpecification, collectHtmlRoutes, gatewayPaths };

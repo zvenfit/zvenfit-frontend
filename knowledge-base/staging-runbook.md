@@ -290,7 +290,13 @@ released.
    is parsed. A relative script or stylesheet placed before a later `<base>`
    loads relative to the page URL. The check also covers the later base for
    navigation from form submit buttons and inline event handlers.
-   A nonempty `iframe[srcdoc]`, an embedded document with a `data:` URL, or a
+   The planner checks the object URL and the page’s directory URL. On staging it also
+   checks the slashless route served by the gateway. A missing page can return
+   `404.html` at any URL. Use root-relative or absolute resource URLs there, or
+   place a fixed `<base href="/">` before relative resources. Planning stops if a
+   404 script’s relative URL can address an old asset in the bucket.
+   A nonempty `iframe[srcdoc]`, a same-site embedded document (including SVG in
+   `<object>`), an embedded `data:` URL, a `javascript:` navigation URL or a
    `meta refresh` directive with content stops planning and reports the page.
    Production HTTP links to the site on its default port follow the CDN redirect to HTTPS.
    The planner also reads literal site asset URLs in inline and emitted

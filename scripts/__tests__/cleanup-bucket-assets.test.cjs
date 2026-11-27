@@ -142,6 +142,88 @@ test('embedded data documents and meta refresh stop before reporting any candida
   assert.deepEqual(box.removed, []);
 });
 
+test('local embedded documents stop planning before an SVG dependency can become a candidate', t => {
+  const old = object('_astro/used.png');
+  const box = fixture(t, [old, object('images/poster.svg')]);
+  const dist = path.join(box.root, 'dist');
+  fs.mkdirSync(path.join(dist, 'images'));
+  fs.writeFileSync(
+    path.join(dist, 'images/poster.svg'),
+    '<svg xmlns="http://www.w3.org/2000/svg"><image href="/_astro/used.png"/></svg>',
+  );
+  for (const tag of [
+    '<object type="image/svg+xml" data="/images/poster.svg"></object>',
+    '<iframe src="images/poster.svg"></iframe>',
+    '<embed src="https://storage.yandexcloud.net/zvenfit-frontend-staging/images/poster.svg">',
+  ]) {
+    fs.writeFileSync(path.join(dist, 'index.html'), html + tag);
+    for (const execute of [false, true]) assert.throws(() => box.run(execute), /local embedded document/);
+  }
+  assert.deepEqual(box.reports, []);
+  assert.deepEqual(box.removed, []);
+  fs.writeFileSync(path.join(dist, 'index.html'), html + '<iframe src="https://other.invalid/form"></iframe>');
+  assert.deepEqual(box.run(), [old]);
+});
+
+test('javascript navigation URLs stop both plans even with HTML entities and mixed case', t => {
+  const box = fixture(t, [object('_astro/used.png')]);
+  for (const tag of [
+    `<a href="javascript:void fetch('/_astro/used.png')">Open</a>`,
+    `<a href="JaVa&#9;ScRiPt:void fetch('/_astro/used.png')">Open</a>`,
+    `<svg><a xlink:href="javascript:void fetch('/_astro/used.png')"></a></svg>`,
+  ]) {
+    fs.writeFileSync(path.join(box.root, 'dist/index.html'), html + tag);
+    for (const execute of [false, true]) assert.throws(() => box.run(execute), /javascript: URL/);
+  }
+  assert.deepEqual(box.reports, []);
+  assert.deepEqual(box.removed, []);
+});
+
+test('staging verifies relative dependencies on the slashless and directory routes of each index', t => {
+  const used = object('_astro/used.png');
+  const stale = object('_astro/stale.png');
+  const key = 'contacts/platforms/index.html';
+  const box = fixture(t, [used, stale, object(key)]);
+  const dist = path.join(box.root, 'dist');
+  fs.mkdirSync(path.dirname(path.join(dist, key)), { recursive: true });
+  fs.writeFileSync(path.join(dist, key), '<img src="../_astro/used.png">');
+  for (const execute of [false, true])
+    assert.throws(() => box.run(execute), /missing referenced asset _astro\/used.png/);
+  assert.deepEqual(box.reports, []);
+  fs.writeFileSync(path.join(dist, used.Key), '');
+  assert.deepEqual(box.run(true), [stale]);
+  assert.deepEqual(box.removed, []);
+});
+
+test('404 dependencies must be independent of the arbitrary missing URL, including scripts and styles', t => {
+  const used = object('_astro/nested/used.png');
+  const box = fixture(t, [used]);
+  const dist = path.join(box.root, 'dist');
+  const file = path.join(dist, '404.html');
+  for (const fragment of [
+    '<img src="used.png">',
+    '<style>.error { background: url(../../../used.png) }</style>',
+    '<base href="./nested/"><img src="used.png">',
+    '<script type="module">import "./entry.js";</script>',
+    '<script>fetch("used.png")</script>',
+    '<script type="importmap">{"imports":{"widget":"./entry.js"}}</script>',
+    '<script type="importmap">{"scopes":{"/offer/":{"widget":"/_astro/used.js"}}}</script>',
+    '<base href="https:#top"><img src="used.png">',
+    '<img src="used.png"><base href="/">',
+  ]) {
+    fs.writeFileSync(file, fragment);
+    for (const execute of [false, true]) assert.throws(() => box.run(execute), /404/);
+  }
+  fs.writeFileSync(path.join(dist, '_astro/app.js'), 'fetch("../nested/used.png")');
+  fs.writeFileSync(file, '<script src="/_astro/app.js"></script>');
+  assert.throws(() => box.run(true), /404/);
+  assert.deepEqual(box.reports, []);
+  fs.writeFileSync(path.join(dist, '_astro/app.js'), '');
+  fs.writeFileSync(file, '<base href="/images/"><img src="used.png"><a href="#top">Top</a>');
+  assert.deepEqual(box.run(true), [used]);
+  assert.deepEqual(box.removed, []);
+});
+
 test('production HTTP links use the CDN redirect for the same host and default port', t => {
   const stale = object('_astro/old.pdf');
   const box = fixture(t, [stale]);

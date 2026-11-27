@@ -16,6 +16,9 @@ const { PRODUCTION, STAGING } = require('./validate-deployment-config.cjs');
 
 const { configDigest, deployedInputs } = require('./lib/deployed-site-config.cjs');
 
+const { routeToUrl } = require('./check-routes.cjs');
+const { gatewayPaths } = require('./generate-staging-gateway-spec.cjs');
+
 const DAY = 86_400_000;
 // Leave space within GitHub's 1 MiB step limit for the execute progress line.
 const PLAN_SUMMARY_BYTES = 1024 * 1024 - 1024;
@@ -101,6 +104,40 @@ function bucketClient(bucket, tempDir) {
   };
 }
 
+// A 404 is served at the missing request URL, which may be anywhere in the site.
+class ErrorPageUrl extends URL {
+  constructor(site, deployedKeys, files) {
+    super('404.html', site.siteUrl);
+    this.assetSuffixes = new Map();
+    for (const key of deployedKeys) {
+      if (!key.startsWith('_astro/') || files.has(key)) continue;
+      for (let start = 0; start < key.length; ) {
+        this.assetSuffixes.set(key.slice(start), key);
+        const slash = key.indexOf('/', start);
+        if (slash < 0) break;
+        start = slash + 1;
+      }
+    }
+  }
+
+  referenceKind(value) {
+    // For special URLs the browser accepts backslashes and same-scheme relative paths.
+    const reference = String(value)
+      .replace(/^[\x00-\x20]+|[\x00-\x20]+$/g, '')
+      .replace(/[\t\r\n]/g, '');
+    const scheme = reference.match(/^[a-z][a-z0-9+.-]*:/i)?.[0] ?? '';
+    if (scheme && scheme.toLowerCase() !== this.protocol) return 'fixed';
+    const rest = reference.slice(scheme.length);
+    if (rest === '' || /^[?#]/.test(rest)) return 'same-document';
+    return /^[/\\]/.test(rest) ? 'fixed' : 'relative';
+  }
+
+  requireFixedPath(value) {
+    if (this.referenceKind(value) === 'relative')
+      throw new Error('Cannot verify a path-relative URL on 404.html: ' + value);
+  }
+}
+
 function siteKey(value, base, site) {
   if (!URL.canParse(value, base)) return;
   const url = new URL(value, base);
@@ -135,6 +172,7 @@ function assetKey(value, base, site) {
 }
 
 function addAssetUrl(refs, value, base, site) {
+  if (base instanceof ErrorPageUrl) base.requireFixedPath(value);
   const key = assetKey(value, base, site);
   if (key) refs.add(key);
 }
@@ -160,6 +198,7 @@ function addModuleReferences(source, base, importMap, visitCode) {
   for (const { type, specifier, glob } of imports) {
     if (type === 'import-meta') continue;
     if (!specifier || glob) throw new Error(`Cannot verify a computed module import in ${base.pathname}`);
+    if (base instanceof ErrorPageUrl && /^(?:\.\.?[/\\]|https:)/i.test(specifier)) base.requireFixedPath(specifier);
     const { resolvedImport } = importMaps.resolve(specifier, importMap, base);
     if (resolvedImport) visitCode(resolvedImport, 'js');
   }
@@ -167,6 +206,7 @@ function addModuleReferences(source, base, importMap, visitCode) {
 
 // A classic script can load a site asset through Image, fetch, a worker, etc.
 function addScriptLiterals(refs, tree, bases, scriptUrl, site, deployedKeys, inspectNode) {
+  const errorBase = [...bases].find(base => base instanceof ErrorPageUrl);
   const assetBases = [...bases].filter(base => assetKey('.', base, site));
   const origin = new URL(site.siteUrl).origin;
   function visit(node) {
@@ -213,6 +253,19 @@ function addScriptLiterals(refs, tree, bases, scriptUrl, site, deployedKeys, ins
       ) {
         if (!externalOrigin(value, scriptUrl, site))
           throw new Error('Cannot verify a computed asset URL in ' + scriptUrl.href);
+      }
+      if (
+        errorBase &&
+        (!knownBase || knownBase instanceof ErrorPageUrl) &&
+        errorBase.referenceKind(value) === 'relative'
+      ) {
+        // Relative string literals may be DOM data or requests. At an unknown URL a
+        // normalized suffix can address any matching old key, including in a subdirectory.
+        const suffix = siteKey(value, errorBase, site);
+        const missing = errorBase.assetSuffixes.get(suffix);
+        if (fixedPath && missing)
+          throw new Error('Incomplete dist: missing referenced asset ' + missing + ' (404.html)');
+        if (!fixedPath && explicit) throw new Error('Cannot verify a path-relative asset URL on 404.html: ' + value);
       }
       if (fixedPath && !knownBase) {
         const workerKey = assetKey(value, scriptUrl, site);
@@ -281,7 +334,10 @@ function workerAddress(node, base, scriptUrl, site) {
     if (prefix.fixed) return workerAddress(address, new URL(prefix.text), scriptUrl, site);
   }
   const { text, fixed } = addressPrefix(node, base.origin);
-  if (fixed || /[?#]/.test(text)) return new URL(text, base);
+  if (fixed || /[?#]/.test(text)) {
+    if (base instanceof ErrorPageUrl) base.requireFixedPath(text);
+    return new URL(text, base);
+  }
   // Only a complete external origin is independent of the runtime filename.
   // Locally imported worker code can use an asset regardless of its own directory.
   if (externalOrigin(text, base, site)) return;
@@ -496,6 +552,15 @@ function codeGraph(refs, site, readCode, importedFiles, documentBase, deployedKe
       // Earlier code may run before registration, or import later after it.
       runEntries();
       seen.clear();
+      if (base instanceof ErrorPageUrl) {
+        const map = JSON.parse(source);
+        // Even an absolute scope can match some missing request paths but not others.
+        if (Object.keys(map.scopes ?? {}).length) throw new Error('Cannot verify scoped import map on 404.html');
+        for (const [specifier, target] of Object.entries(map.imports ?? {})) {
+          if (/^(?:\.\.?[/\\]|https:)/i.test(specifier)) base.requireFixedPath(specifier);
+          if (typeof target === 'string') base.requireFixedPath(target);
+        }
+      }
       const next = importMaps.parseFromString(source, base);
       const merge = (earlier, later) =>
         Object.fromEntries(Object.entries({ ...later, ...earlier }).sort(([a], [b]) => (a < b ? 1 : -1)));
@@ -506,9 +571,8 @@ function codeGraph(refs, site, readCode, importedFiles, documentBase, deployedKe
   };
 }
 
-function addReferences(refs, html, route, site, deployedKeys, readCode, importedFiles, scriptFor) {
-  const document = parse(html, { scriptingEnabled: false, sourceCodeLocationInfo: true });
-  const pageUrl = new URL(route, site.siteUrl);
+function addReferences(refs, document, pageUrl, site, deployedKeys, readCode, importedFiles, scriptFor) {
+  const route = pageUrl.pathname.slice(1) || '/';
   function firstBase(node) {
     if (
       node.tagName === 'base' &&
@@ -524,8 +588,11 @@ function addReferences(refs, html, route, site, deployedKeys, readCode, imported
   }
   const baseTag = firstBase(document);
   const href = baseTag?.attrs.find(attr => attr.name === 'href')?.value;
-  const finalBase = href && URL.canParse(href, pageUrl) ? new URL(href, pageUrl) : pageUrl;
+  if (pageUrl instanceof ErrorPageUrl && href) pageUrl.requireFixedPath(href);
+  const sameDocument = pageUrl instanceof ErrorPageUrl && pageUrl.referenceKind(href ?? '') === 'same-document';
+  const finalBase = href && !sameDocument && URL.canParse(href, pageUrl) ? new URL(href, pageUrl) : pageUrl;
   const graph = codeGraph(refs, site, readCode, importedFiles, finalBase, deployedKeys, scriptFor);
+  if (['javascript:', 'data:'].includes(finalBase.protocol)) throw new Error('Cannot verify document base in ' + route);
   const baseOffset = baseTag?.sourceCodeLocation?.startOffset ?? Infinity;
   // URL attributes can contain spaces, parentheses, commas and HTML entities.
   function scan(value, addUrl) {
@@ -555,8 +622,12 @@ function addReferences(refs, html, route, site, deployedKeys, readCode, imported
     }
     const embedded =
       node.tagName === 'object' ? attrs.data : ['iframe', 'embed', 'frame'].includes(node.tagName) && attrs.src;
-    if (embedded && URL.canParse(embedded, base) && new URL(embedded, base).protocol === 'data:') {
-      throw new Error('Cannot verify embedded data URL in ' + route);
+    if (embedded && URL.canParse(embedded, base)) {
+      if (new URL(embedded, base).protocol === 'data:') throw new Error('Cannot verify embedded data URL in ' + route);
+      // The content type can select an active document even for an extensionless URL.
+      if (siteKey(embedded, base, site) !== undefined || siteKey(embedded, finalBase, site) !== undefined) {
+        throw new Error('Cannot verify local embedded document in ' + route);
+      }
     }
     if (node.tagName === 'meta' && attrs['http-equiv']?.trim().toLowerCase() === 'refresh' && attrs.content?.trim()) {
       throw new Error('Cannot verify meta refresh in ' + route);
@@ -578,6 +649,9 @@ function addReferences(refs, html, route, site, deployedKeys, readCode, imported
         graph.entries.push({ source: value, base });
         if (base !== finalBase) graph.entries.push({ source: value, base: finalBase });
       } else if (['href', 'src', 'poster', 'data', 'action', 'formaction'].includes(name)) {
+        if (URL.canParse(value, base) && new URL(value, base).protocol === 'javascript:') {
+          throw new Error('Cannot verify javascript: URL in ' + route);
+        }
         addUrl(value);
         // A visitor can follow a link or submit a form after a later base takes effect.
         if (
@@ -704,18 +778,16 @@ function planCleanup({ config, client, dist, sha, now = Date.now(), report }) {
     // Byte equality proves even references embedded in inline code match the build.
     const builtHtml = fs.readFileSync(path.join(dist, object.Key));
     if (!builtHtml.equals(page.html)) throw new Error(`Live HTML differs from dist: ${object.Key}`);
-    documentBases.add(
-      addReferences(
-        builtRefs,
-        builtHtml.toString('utf8'),
-        object.Key,
-        site,
-        deployedKeys,
-        readCode,
-        importedFiles,
-        scriptFor,
-      ),
-    );
+    const route = routeToUrl('', object.Key);
+    const paths = new Set(['/' + object.Key, ...(site === STAGING ? gatewayPaths(route) : [route])]);
+    const document = parse(builtHtml.toString('utf8'), { scriptingEnabled: false, sourceCodeLocationInfo: true });
+    for (const pathname of paths) {
+      const pageUrl =
+        object.Key === '404.html' ? new ErrorPageUrl(site, deployedKeys, files) : new URL(pathname, site.siteUrl);
+      documentBases.add(
+        addReferences(builtRefs, document, pageUrl, site, deployedKeys, readCode, importedFiles, scriptFor),
+      );
+    }
   }
   if (!builtRefs.size) throw new Error('No /_astro/ references in dist');
   const fallback = codeGraph(builtRefs, site, readCode, importedFiles, new URL(site.siteUrl), deployedKeys, scriptFor);
