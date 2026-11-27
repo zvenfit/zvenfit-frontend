@@ -9,7 +9,16 @@ const path = require('node:path');
 const test = require('node:test');
 const { planCleanup, deployment, options, selectCandidates } = require('../cleanup-bucket-assets.cjs');
 
-const release = { sha: 'a'.repeat(40), version: '175' };
+const { configDigest } = require('../lib/deployed-site-config.cjs');
+const runtime = Object.fromEntries(
+  ['lead', 'schedule', 'traffic'].map(name => [
+    'js/' + name + '-config.js',
+    `window.ZVENFIT_${name.toUpperCase()}_API = 'https://deployed.invalid/${name}';\n`,
+  ]),
+);
+runtime['js/maps-config.js'] = 'window.ZVENFIT_MAPS = {"apiKey":"deployed-key"};\n';
+const digest = configDigest(key => runtime[key]);
+const release = { sha: 'a'.repeat(40), version: '175', digest };
 const now = Date.parse('2026-11-27T12:00:00Z');
 const old = '2026-11-20T10:00:00Z';
 const cutoff = '2026-11-25T12:00:00Z';
@@ -24,13 +33,15 @@ function fixture(t, extra = []) {
   const dist = path.join(root, 'dist');
   fs.mkdirSync(dist);
   fs.mkdirSync(path.join(dist, '_astro'));
+  fs.mkdirSync(path.join(dist, 'js'), { recursive: true });
+  for (const [key, source] of Object.entries(runtime)) fs.writeFileSync(path.join(dist, key), source);
   for (const key of ['live.css', 'app.js', 'font.woff2']) fs.writeFileSync(path.join(dist, '_astro', key), '');
   fs.writeFileSync(path.join(dist, 'index.html'), html);
   fs.writeFileSync(path.join(dist, '404.html'), '<script src="/_astro/app.js"></script>');
   const objects = ['index.html', '404.html', '_astro/live.css', '_astro/app.js', '_astro/font.woff2'].map(key =>
     object(key),
   );
-  objects.push(...extra);
+  objects.push(...Object.keys(runtime).map(key => object(key)), ...extra);
   const removed = [];
   const reports = [];
   const client = {
@@ -100,6 +111,19 @@ test('dry-run with candidates issues zero delete calls and reports the evidence'
   ]) {
     assert.ok(summary.includes(value), value);
   }
+});
+
+test('embedded iframe documents stop planning even for a relative asset without a leading slash', t => {
+  const stale = object('_astro/old.png');
+  const box = fixture(t, [stale]);
+  const file = path.join(box.root, 'dist/index.html');
+  fs.writeFileSync(file, html + `<iframe srcdoc="<img src='_astro/old.png'>"></iframe>`);
+  for (const execute of [false, true])
+    assert.throws(() => box.run(execute), /Cannot verify iframe\[srcdoc\] in index.html/);
+  assert.deepEqual(box.reports, []);
+  assert.deepEqual(box.removed, []);
+  fs.writeFileSync(file, html + '<iframe srcdoc=""></iframe>');
+  assert.deepEqual(box.run(), [stale]);
 });
 
 test('a live-only reference on another HTML page stops execute before any delete', t => {
@@ -424,7 +448,7 @@ test('checks literals in scripts outside _astro and resolves import.meta.url aga
   const used = object('_astro/old.png');
   const box = fixture(t, [used]);
   const dist = path.join(box.root, 'dist');
-  fs.mkdirSync(path.join(dist, 'js'));
+  fs.mkdirSync(path.join(dist, 'js'), { recursive: true });
   const config = path.join(dist, 'js/runtime.js');
   fs.writeFileSync(path.join(dist, 'index.html'), html + '<script src="/js/runtime.js"></script>');
   box.objects.push(object('js/runtime.js'));
@@ -526,7 +550,7 @@ test('import map exact, scoped and package URLs resolve per page through externa
   const stale = object('_astro/lib/retired.js');
   const box = fixture(t, [used, stale, object('js/entry.mjs')]);
   const dist = path.join(box.root, 'dist');
-  fs.mkdirSync(path.join(dist, 'js'));
+  fs.mkdirSync(path.join(dist, 'js'), { recursive: true });
   fs.mkdirSync(path.join(dist, '_astro/lib'));
   const entry = path.join(dist, 'js/entry.mjs');
   const map = imports => '<script type="importmap">' + JSON.stringify(imports) + '</script>';
@@ -603,7 +627,7 @@ test('an unknown worker-relative request filename stops both plans', t => {
   fs.writeFileSync(worker, 'self.indexedDB.open("cache", 2); fetch(new Request("https://another.invalid/a"))');
   assert.deepEqual(box.run(), [image]);
   const shared = 'js/shared.js';
-  fs.mkdirSync(path.join(dist, 'js'));
+  fs.mkdirSync(path.join(dist, 'js'), { recursive: true });
   fs.writeFileSync(path.join(dist, shared), 'self.onmessage = e => fetch("./old.png")');
   box.objects.push(object(shared));
   fs.writeFileSync(worker, 'importScripts("/js/shared.js")');
@@ -746,7 +770,7 @@ test('cleanup is manual, uses the release lock and rebuilds the revision stamped
   assert.match(cleanupWorkflow, /git worktree add --detach "\$RUNNER_TEMP\/deployed" "\$DEPLOYED_SHA"/);
   assert.match(
     workflow('_deploy-environment'),
-    /--metadata "deployed-sha=\$\{GITHUB_SHA\},asset-version=\$\{GITHUB_RUN_NUMBER\}"/,
+    /--metadata "deployed-sha=\$\{GITHUB_SHA\},asset-version=\$\{GITHUB_RUN_NUMBER\},runtime-config-sha256=\$\{config_digest\}"/,
   );
 });
 
@@ -991,7 +1015,7 @@ function dispatchFixture(t, extra = [object('_astro/stale.js')]) {
   );
   fs.writeFileSync(
     path.join(root, 'metadata'),
-    JSON.stringify({ Metadata: { 'deployed-sha': sha, 'asset-version': '175' } }),
+    JSON.stringify({ Metadata: { 'deployed-sha': sha, 'asset-version': '175', 'runtime-config-sha256': digest } }),
   );
   fs.writeFileSync(
     path.join(root, 'aws'),
@@ -1054,6 +1078,67 @@ echo "$STUB_MAIN_SHA"
   return { root, sha, summary, script, local, dispatch, shell };
 }
 
+test('the rebuild reads the deployed values of all four inputs after rotation', t => {
+  const { root, sha, script, local } = dispatchFixture(t);
+  const metadata = path.join(root, 'metadata');
+  const readInputs = () =>
+    execFileSync(process.execPath, [script, '--build-inputs'], {
+      cwd: root,
+      env: { ...local, Y_MAPS_API_KEY: 'new-value', LEAD_API_URL: 'https://current.invalid' },
+      encoding: 'utf8',
+      stdio: 'pipe',
+    });
+  const expected = {
+    LEAD_API_URL: 'https://deployed.invalid/lead',
+    SCHEDULE_API_URL: 'https://deployed.invalid/schedule',
+    TRAFFIC_API_URL: 'https://deployed.invalid/traffic',
+    Y_MAPS_API_KEY: 'deployed-key',
+  };
+  assert.equal(readInputs(), `inputs=${JSON.stringify(expected)}\nsha=${sha}\nversion=175\n`);
+  const workflow = fs.readFileSync(path.join(__dirname, '../../.github/workflows/cleanup-assets.yml'), 'utf8');
+  assert.match(workflow, /--build-inputs >> "\$GITHUB_OUTPUT"/);
+  for (const name of Object.keys(expected))
+    assert.ok(workflow.includes(name + ': ${{ fromJSON(steps.live.outputs.inputs).' + name + ' }}'));
+  assert.doesNotMatch(
+    workflow,
+    /vars\.Y_MAPS_API_KEY|yc serverless function get|https:\/\/staging\.zvenfit\.ru\/api\//,
+  );
+
+  const map = path.join(root, 'dist/js/maps-config.js');
+  fs.writeFileSync(map, 'window.ZVENFIT_MAPS = {"apiKey":""};\n');
+  assert.throws(readInputs, /configs differ from the release metadata/);
+  // Old SHA/version-only stamps can still reconstruct a dry-run, including an empty maps key.
+  const stamp = JSON.parse(fs.readFileSync(metadata));
+  delete stamp.Metadata['runtime-config-sha256'];
+  fs.writeFileSync(metadata, JSON.stringify(stamp));
+  assert.equal(
+    readInputs(),
+    `inputs=${JSON.stringify({ ...expected, Y_MAPS_API_KEY: '' })}\nsha=${sha}\nversion=175\n`,
+  );
+  fs.writeFileSync(path.join(root, 'dist/js/traffic-config.js'), 'window.ZVENFIT_TRAFFIC_API = getUrl();\n');
+  assert.throws(readInputs, /Invalid public runtime config: js\/traffic-config.js/);
+  assert.ok(!fs.existsSync(path.join(root, 'removed')));
+});
+
+test('planning verifies rebuilt configs and matching stamps on every page, preserving legacy dry-run', t => {
+  const stale = object('_astro/stale.png');
+  const box = fixture(t, [stale]);
+  const legacy = { sha: release.sha, version: release.version };
+  const read = box.client.readHtml;
+  box.client.readHtml = key => ({ ...read(key), release: key === '404.html' ? legacy : release });
+  for (const execute of [false, true]) assert.throws(() => box.run(execute), /Mixed deployment on 404.html/);
+  box.client.readHtml = read;
+  fs.writeFileSync(path.join(box.root, 'dist/js/maps-config.js'), 'window.ZVENFIT_MAPS = {"apiKey":"new"};\n');
+  for (const execute of [false, true])
+    assert.throws(() => box.run(execute), /configs differ from the release metadata/);
+  box.client.deployment = () => legacy;
+  box.client.readHtml = key => ({ ...read(key), release: legacy });
+  assert.throws(() => box.run(true), /Missing runtime config digest/);
+  assert.deepEqual(box.reports, []);
+  assert.deepEqual(box.run(), [stale]);
+  assert.deepEqual(box.removed, []);
+});
+
 test('the CLI only reads and the dispatch step deletes exactly the verified candidates on execute', t => {
   const { root, sha, summary, script, local, dispatch, shell } = dispatchFixture(t);
   function refused(target, env, error) {
@@ -1076,6 +1161,7 @@ test('the CLI only reads and the dispatch step deletes exactly the verified cand
     'head-object',
     'head-object',
     'list-objects-v2',
+    ...Object.keys(runtime).map(() => 'get-object'),
     'get-object',
     'get-object',
     'get-object',

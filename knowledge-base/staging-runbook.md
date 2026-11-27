@@ -96,8 +96,8 @@ public build variables. For either managed site bucket, refresh `origin/main`
 with `git fetch origin main` and choose a revision in its history. Supply the same API URLs and maps key via the environment
 or Vite’s mode-specific env files. Installation uses the lockfile. A failed
 guard or byte difference stops the command before its first storage request.
-It uploads the verified copy, stamps every HTML object with `deployed-sha` and
-`asset-version`, then removes obsolete HTML. This also refreshes metadata when
+It uploads the verified copy and stamps every HTML object with `deployed-sha`,
+`asset-version` and `runtime-config-sha256` before removing obsolete HTML. This also refreshes metadata when
 an existing object has the same size and timestamp. Release uses the same
 unconditional HTML upload followed by size-only reconciliation. Coordinate a local upload
 with the owner outside any active or queued release or cleanup.
@@ -266,7 +266,14 @@ released.
 2. Read the summary. Verify the environment, bucket and full SHA against the
    last site deployment. The workflow reads the SHA and asset version from
    the selected bucket’s `index.html` object metadata, then builds and checks
-   that exact checkout using the selected environment. Dependency installation,
+   that exact checkout. It reads the three API URLs and the public maps key from the
+   four deployed `js/*-config.js` files as data. CI and local deploys record their
+   combined SHA-256 in each HTML object. The workflow checks that digest before the
+   rebuild and compares the rebuilt configs, live configs and page stamps before execute.
+   Rotating the maps key or changing a function URL therefore preserves the ability to
+   rebuild an earlier release. A release stamped with only SHA and asset version can
+   still be inspected in dry-run. Execute requires the config digest from a verified deployment.
+   Dependency installation,
    build scripts and checks run in a container with the tracked sources, Node
    toolchain and public site settings. Only its `dist/` output is mounted writable.
    The host keeps the Environment’s OIDC and storage credentials. It reads every HTML
@@ -283,6 +290,8 @@ released.
    is parsed. A relative script or stylesheet placed before a later `<base>`
    loads relative to the page URL. The check also covers the later base for
    navigation from form submit buttons and inline event handlers.
+   A nonempty `iframe[srcdoc]` stops planning. Supporting embedded documents requires
+   checking their references in the context of their own document and effective base URL.
    The planner also reads literal site asset URLs in inline and emitted
    JavaScript, including URLs assembled from constant strings. Service worker
    registrations through a container alias use the same checks as direct
@@ -342,8 +351,10 @@ For a local read-only check, set `CLEANUP_ENVIRONMENT` to `staging` or
 `production`, use AWS CLI v2 credentials that can list the bucket and read HTML,
 scripts and stylesheets. Install the control checkout’s dependencies with `npm ci`.
 `node scripts/cleanup-bucket-assets.cjs --deployment` prints the deployed
-SHA and asset version. In a separate checkout of that SHA, install from the
-lockfile and build with the same variables and guards as the workflow’s
+SHA and asset version. Use `--build-inputs` to read the four deployed public
+settings as JSON from the `inputs=` line. In a separate checkout of the reported
+SHA, install from the lockfile, supply those settings, the reported `ASSET_VERSION`
+and the selected `NODE_ENV`, and run the same guards as the workflow’s
 **Rebuild and check the deployed site** step. From the control checkout run
 `node scripts/cleanup-bucket-assets.cjs <built-checkout>` to print the summary.
 The local command rejects execute mode. Only the manual workflow processes

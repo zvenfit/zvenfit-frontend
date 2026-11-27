@@ -676,6 +676,12 @@ test('local deploy:yc uploads the verified build with the same HTML metadata and
   fs.mkdirSync(path.join(dir, 'source'));
   const index = '<script src="https://storage.yandexcloud.net/zvenfit/v2/js/webflow.js?v=release-12"></script>';
   fs.writeFileSync(path.join(dir, 'source/index.html'), index);
+  fs.mkdirSync(path.join(dir, 'source/js'));
+  for (const name of ['lead', 'schedule', 'traffic', 'maps']) {
+    fs.writeFileSync(path.join(dir, 'source/js', name + '-config.js'), 'public fixture ' + name);
+  }
+  const { configDigest } = require('../lib/deployed-site-config.cjs');
+  const digest = configDigest(key => fs.readFileSync(path.join(dir, 'source', key)));
   fs.cpSync(path.join(dir, 'source'), path.join(dir, 'dist'), { recursive: true });
   for (const check of ['check-routes', 'check-build', 'check-staging-build']) {
     fs.mkdirSync(path.join(dir, 'guards'), { recursive: true });
@@ -756,9 +762,15 @@ test('local deploy:yc uploads the verified build with the same HTML metadata and
     const quoted = args.map(arg => (arg.startsWith('--') ? arg : JSON.stringify(arg))).join(' ');
     assert.equal(syncFilters(quoted), syncFilters(workflow[i]));
   }
-  assert.match(workflow[3], /--metadata "deployed-sha=\$\{GITHUB_SHA\},asset-version=\$\{GITHUB_RUN_NUMBER\}"/);
+  assert.match(
+    workflow[3],
+    /--metadata "deployed-sha=\$\{GITHUB_SHA\},asset-version=\$\{GITHUB_RUN_NUMBER\},runtime-config-sha256=\$\{config_digest\}"/,
+  );
   for (const args of calls.slice(3)) {
-    assert.equal(args[args.indexOf('--metadata') + 1], 'deployed-sha=' + sha + ',asset-version=release-12');
+    assert.equal(
+      args[args.indexOf('--metadata') + 1],
+      'deployed-sha=' + sha + ',asset-version=release-12,runtime-config-sha256=' + digest,
+    );
     assert.equal(args[args.indexOf('--include') + 1], '*.html');
   }
   assert.ok(calls[3].includes('--recursive'));
@@ -785,7 +797,10 @@ test('local deploy:yc uploads the verified build with the same HTML metadata and
     ['cp', 'sync'],
   );
   for (const [i, args] of stamped.entries()) {
-    assert.equal(args[args.indexOf('--metadata') + 1], 'deployed-sha=' + sha + ',asset-version=123');
+    assert.equal(
+      args[args.indexOf('--metadata') + 1],
+      'deployed-sha=' + sha + ',asset-version=123,runtime-config-sha256=' + digest,
+    );
     for (const flag of ['--include', '--exclude', '--cache-control']) {
       assert.equal(args[args.indexOf(flag) + 1], calls[i + 3][calls[i + 3].indexOf(flag) + 1]);
     }

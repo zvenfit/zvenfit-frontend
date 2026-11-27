@@ -14,6 +14,8 @@ const ts = require('typescript');
 const { parse: parseImports } = require('es-module-lexer');
 const { PRODUCTION, STAGING } = require('./validate-deployment-config.cjs');
 
+const { configDigest, deployedInputs } = require('./lib/deployed-site-config.cjs');
+
 const DAY = 86_400_000;
 // Leave space within GitHub's 1 MiB step limit for the execute progress line.
 const PLAN_SUMMARY_BYTES = 1024 * 1024 - 1024;
@@ -45,7 +47,9 @@ function deployment(metadata) {
   if (!/^[0-9a-f]{40}$/.test(sha ?? '') || !/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(version ?? '')) {
     throw new Error('Missing or invalid release metadata on live HTML. Check the last site deployment.');
   }
-  return { sha, version };
+  const digest = metadata['runtime-config-sha256'];
+  if (digest !== undefined && !/^[0-9a-f]{64}$/.test(digest)) throw new Error('Invalid runtime config digest');
+  return { sha, version, digest };
 }
 
 function bucketClient(bucket, tempDir) {
@@ -536,6 +540,10 @@ function addReferences(refs, html, route, site, deployedKeys, readCode, imported
     const base = node.sourceCodeLocation?.startOffset >= baseOffset ? finalBase : pageUrl;
     const addUrl = value => addAssetUrl(refs, value, base, site);
     const attrs = Object.fromEntries((node.attrs ?? []).map(({ name, value }) => [name, value]));
+    // srcdoc creates another document with its own base and script context.
+    if (node.tagName === 'iframe' && Object.hasOwn(attrs, 'srcdoc') && attrs.srcdoc.trim()) {
+      throw new Error('Cannot verify iframe[srcdoc] in ' + route);
+    }
     const rel = (attrs.rel || '').toLowerCase().split(/\s+/);
     if (node.tagName === 'script' && attrs.src) graph.entries.push({ url: new URL(attrs.src, base), kind: 'js', base });
     if (node.tagName === 'link' && attrs.href) {
@@ -659,10 +667,20 @@ function planCleanup({ config, client, dist, sha, now = Date.now(), report }) {
     }
     return verifiedCode.get(key);
   }
+  if (release.digest !== undefined) {
+    if (configDigest(readCode) !== release.digest)
+      throw new Error('Public runtime configs differ from the release metadata');
+  } else if (config.execute) {
+    throw new Error('Missing runtime config digest. Deploy the site with release metadata before executing cleanup.');
+  }
   let lastHtml = 0;
   for (const object of htmlObjects) {
     const page = client.readHtml(object.Key);
-    if (page.release.sha !== sha || page.release.version !== release.version) {
+    if (
+      page.release.sha !== sha ||
+      page.release.version !== release.version ||
+      page.release.digest !== release.digest
+    ) {
       throw new Error(`Mixed deployment on ${object.Key}. Check the last site deployment.`);
     }
     lastHtml = Math.max(lastHtml, modified(object));
@@ -735,7 +753,8 @@ function planCleanup({ config, client, dist, sha, now = Date.now(), report }) {
 
 function run(argv, env, workflowEntry = false) {
   const config = options(env);
-  if (argv.length !== 1) throw new Error('Usage: cleanup-bucket-assets.cjs --deployment | <freshly built checkout>');
+  if (argv.length !== 1)
+    throw new Error('Usage: cleanup-bucket-assets.cjs --deployment | --build-inputs | <freshly built checkout>');
   const target = argv[0];
   const workflow = target === '--workflow';
   if (workflow) {
@@ -756,8 +775,12 @@ function run(argv, env, workflowEntry = false) {
   const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'asset-cleanup-'));
   try {
     const client = bucketClient(config.bucket, temp);
-    if (target === '--deployment') {
-      const { sha, version } = client.deployment();
+    if (target === '--deployment' || target === '--build-inputs') {
+      const { sha, version, digest } = client.deployment();
+      if (target === '--build-inputs') {
+        const inputs = deployedInputs(client.readAsset, digest);
+        console.log('inputs=' + JSON.stringify(inputs));
+      }
       console.log(`sha=${sha}\nversion=${version}`);
       return;
     }

@@ -90,7 +90,7 @@ jobs:
 
       - name: Read deployed revision from the bucket
         id: live
-        run: node scripts/cleanup-bucket-assets.cjs --deployment >> "$GITHUB_OUTPUT"
+        run: node scripts/cleanup-bucket-assets.cjs --build-inputs >> "$GITHUB_OUTPUT"
       - name: Prepare the deployed checkout
         env:
           DEPLOYED_SHA: ${{ steps.live.outputs.sha }}
@@ -102,21 +102,11 @@ jobs:
         env:
           NODE_ENV: ${{ inputs.environment }}
           ASSET_VERSION: ${{ steps.live.outputs.version }}
-          Y_MAPS_API_KEY: ${{ vars.Y_MAPS_API_KEY }}
+          LEAD_API_URL: ${{ fromJSON(steps.live.outputs.inputs).LEAD_API_URL }}
+          SCHEDULE_API_URL: ${{ fromJSON(steps.live.outputs.inputs).SCHEDULE_API_URL }}
+          TRAFFIC_API_URL: ${{ fromJSON(steps.live.outputs.inputs).TRAFFIC_API_URL }}
+          Y_MAPS_API_KEY: ${{ fromJSON(steps.live.outputs.inputs).Y_MAPS_API_KEY }}
         run: |
-          if [[ "$NODE_ENV" == staging ]]; then
-            LEAD_API_URL=https://staging.zvenfit.ru/api/lead
-            SCHEDULE_API_URL=https://staging.zvenfit.ru/api/schedule
-            TRAFFIC_API_URL=https://staging.zvenfit.ru/api/traffic
-          else
-            function_url() {
-              yc serverless function get --name="$1" --format=json | jq -er '.http_invoke_url | select(length > 0)'
-            }
-            LEAD_API_URL=$(function_url zvenfit-telegram-lead)
-            SCHEDULE_API_URL=$(function_url zvenfit-fitbase-schedule)
-            TRAFFIC_API_URL=$(function_url zvenfit-site-traffic)
-          fi
-          export LEAD_API_URL SCHEDULE_API_URL TRAFFIC_API_URL
           echo 'YC_IAM_TOKEN=' >> "$GITHUB_ENV"
           # Historical build output is ordinary text, including any workflow-command-looking lines.
           marker=$(cat /proc/sys/kernel/random/uuid)

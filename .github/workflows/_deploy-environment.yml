@@ -622,20 +622,21 @@ jobs:
 
       - name: Upload HTML (no-cache)
         run: |
+          config_digest=$(node scripts/lib/deployed-site-config.cjs dist)
           # Stamp every page, including same-size pages that sync would skip.
           aws s3 cp ./dist s3://${{ inputs.s3_bucket }}/ \
             --recursive \
             --exclude "*" \
             --include "*.html" \
             --cache-control "no-cache, must-revalidate" \
-            --metadata "deployed-sha=${GITHUB_SHA},asset-version=${GITHUB_RUN_NUMBER}"
+            --metadata "deployed-sha=${GITHUB_SHA},asset-version=${GITHUB_RUN_NUMBER},runtime-config-sha256=${config_digest}"
           aws s3 sync ./dist s3://${{ inputs.s3_bucket }} \
             --delete \
             --size-only \
             --exclude "*" \
             --include "*.html" \
             --cache-control "no-cache, must-revalidate" \
-            --metadata "deployed-sha=${GITHUB_SHA},asset-version=${GITHUB_RUN_NUMBER}" \
+            --metadata "deployed-sha=${GITHUB_SHA},asset-version=${GITHUB_RUN_NUMBER},runtime-config-sha256=${config_digest}" \
             --metadata-directive REPLACE
 
       - name: Verify uploaded staging objects remain private

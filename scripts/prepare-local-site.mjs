@@ -5,6 +5,7 @@ import { mkdirSync, readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import path from 'node:path';
 import { loadEnv } from 'vite';
+import publicConfig from './lib/deployed-site-config.cjs';
 import planner from './cleanup-bucket-assets.cjs';
 
 const temp = process.argv[2];
@@ -51,4 +52,5 @@ run('node', ['scripts/check-routes.cjs']);
 run('node', ['scripts/check-build.cjs']);
 if (mode === 'staging') run('node', ['scripts/check-staging-build.cjs']);
 run('diff', ['-qr', path.join(root, 'dist'), path.join(site, 'dist')]);
-console.log(`deployed-sha=${sha},asset-version=${version}`);
+const digest = publicConfig.configDigest(key => readFileSync(path.join(site, 'dist', key)));
+console.log(`deployed-sha=${sha},asset-version=${version},runtime-config-sha256=${digest}`);
