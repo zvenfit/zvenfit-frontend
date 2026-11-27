@@ -119,13 +119,19 @@ jobs:
           import { promisify } from 'node:util';
           import planner from './scripts/cleanup-bucket-assets.cjs';
 
-          const plan = planner.planForWorkflow();
+          const log = promisify(process.stdout.write.bind(process.stdout));
+          let plan;
+          try {
+            plan = planner.planForWorkflow();
+          } finally {
+            // Drain the candidate table before a failed guard can terminate Node.
+            await log('');
+          }
           if (plan.execute) {
             const main = execFileSync('gh', ['api', `repos/${process.env.GITHUB_REPOSITORY}/git/ref/heads/main`, '--jq', '.object.sha'], { encoding: 'utf8' }).trim();
             if (!/^[0-9a-f]{40}$/.test(main) || main !== process.env.GITHUB_SHA) {
               throw new Error('Execution requires the current main revision. Start a new dispatch on main.');
             }
-            const log = promisify(process.stdout.write.bind(process.stdout));
             const summary = openSync(process.env.GITHUB_STEP_SUMMARY, 'r+');
             try {
               // Update a single footer after each acknowledgement, including on partial runs.

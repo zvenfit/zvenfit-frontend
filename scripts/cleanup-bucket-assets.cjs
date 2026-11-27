@@ -182,28 +182,104 @@ function addAssetUrl(refs, value, base, site) {
   if (key) refs.add(key);
 }
 
-function addCssReferences(refs, value, context, base, site, visitCode) {
-  const ast = css.parse(value, { context, parseCustomProperty: true });
-  css.walk(ast, function (node) {
-    if (node.type === 'Atrule' && css.ident.decode(node.name).toLowerCase() === 'import') {
-      let target = node.prelude?.children?.first;
-      if (target?.type === 'Function' && css.ident.decode(target.name).toLowerCase() === 'url')
-        target = target.children.first;
-      if (!target || !['String', 'Url'].includes(target.type)) throw new Error('Cannot verify CSS @import');
-      addAssetUrl(refs, target.value, base, site);
-      visitCode(new URL(target.value, base), 'css');
-    } else if (
-      node.type === 'Url' ||
-      (node.type === 'String' &&
-        this.function &&
-        ['url', 'image-set', '-webkit-image-set', 'image', 'src'].includes(
-          css.ident.decode(this.function.name).toLowerCase(),
-        ))
-    ) {
-      // A fragment-only paint server is part of the SVG document itself.
-      if (context !== 'value' || !node.value.startsWith('#')) addAssetUrl(refs, node.value, base, site);
+// Unregistered custom properties keep their tokens until substitution. Resolve possible URLs
+// at each var() use, after all stylesheets have been visited, including chains of aliases.
+function cssAssetReferences(refs, site, deployedKeys) {
+  const literals = new Map();
+  const aliases = new Map();
+  const consumers = new Map();
+
+  function record(map, key, item) {
+    if (!map.has(key)) map.set(key, new Set());
+    map.get(key).add(item);
+  }
+
+  function addPossibleUrl(value, base) {
+    // Strings can also be font names or ordinary text. Only a matching bucket object is at risk.
+    if (base instanceof ErrorPageUrl && base.referenceKind(value) === 'relative') {
+      const key = base.assetSuffixes.get(siteKey(value, base, site));
+      if (key) refs.add(key);
+    } else {
+      const key = assetKey(value, base, site);
+      if (deployedKeys.has(key)) refs.add(key);
     }
-  });
+  }
+
+  function scan(value, context, base, visitCode, finalBase = base) {
+    const ast = css.parse(value, { context, parseCustomProperty: true });
+    css.walk(ast, function (node) {
+      let property = this.declaration && css.ident.decode(this.declaration.property);
+      if (
+        property?.toLowerCase() === 'initial-value' &&
+        css.ident.decode(this.atrule?.name ?? '').toLowerCase() === 'property'
+      ) {
+        const registered = this.atrule.prelude?.children?.first;
+        if (registered?.type === 'Identifier') property = css.ident.decode(registered.name);
+      }
+      const custom = property?.startsWith('--');
+      if (node.type === 'Raw') {
+        // New CSS syntax may be retained as opaque text. Do not overlook a hidden URL or var().
+        css.tokenize(node.value, (type, start, end) => {
+          const fn =
+            type === css.tokenTypes.Function && css.ident.decode(node.value.slice(start, end - 1)).toLowerCase();
+          if (
+            fn === 'var' ||
+            (custom && (fn === 'url' || type === css.tokenTypes.Url || type === css.tokenTypes.String))
+          )
+            throw new Error('Cannot verify CSS custom property expression at ' + base.pathname);
+        });
+      } else if (node.type === 'Function' && css.ident.decode(node.name).toLowerCase() === 'var') {
+        const name = node.children.first;
+        if (name?.type !== 'Identifier') throw new Error('Cannot verify CSS var()');
+        const dependency = css.ident.decode(name.name);
+        if (custom) record(aliases, property, dependency);
+        else {
+          record(consumers, base, dependency);
+          if (base !== finalBase) record(consumers, finalBase, dependency);
+        }
+      } else if (custom && (node.type === 'Url' || node.type === 'String')) {
+        // An image-set() may receive its quoted URL from a custom property.
+        record(literals, property, node.value);
+        // Keep the declaration base too: a registered URL property can compute its value there.
+        addPossibleUrl(node.value, base);
+      } else if (
+        node.type === 'String' &&
+        this.function &&
+        css.ident.decode(this.function.name).toLowerCase() === 'var'
+      ) {
+        addPossibleUrl(node.value, base);
+        if (base !== finalBase) addPossibleUrl(node.value, finalBase);
+      } else if (node.type === 'Atrule' && css.ident.decode(node.name).toLowerCase() === 'import') {
+        let target = node.prelude?.children?.first;
+        if (target?.type === 'Function' && css.ident.decode(target.name).toLowerCase() === 'url')
+          target = target.children.first;
+        if (!target || !['String', 'Url'].includes(target.type)) throw new Error('Cannot verify CSS @import');
+        addAssetUrl(refs, target.value, base, site);
+        visitCode(new URL(target.value, base), 'css');
+      } else if (
+        node.type === 'Url' ||
+        (node.type === 'String' &&
+          this.function &&
+          ['url', 'image-set', '-webkit-image-set', 'image', 'src'].includes(
+            css.ident.decode(this.function.name).toLowerCase(),
+          ))
+      ) {
+        // A fragment-only paint server is part of the SVG document itself.
+        if (context !== 'value' || !node.value.startsWith('#')) addAssetUrl(refs, node.value, base, site);
+      }
+    });
+  }
+
+  function resolve() {
+    for (const [base, names] of consumers) {
+      // Set iteration includes newly added aliases and visits each name once even in a cycle.
+      for (const name of names) {
+        for (const alias of aliases.get(name) ?? []) names.add(alias);
+        for (const value of literals.get(name) ?? []) addPossibleUrl(value, base);
+      }
+    }
+  }
+  return { scan, resolve };
 }
 
 function addModuleReferences(source, base, importMap, visitCode) {
@@ -489,7 +565,7 @@ function scriptCache() {
 
 // Each document has its own import map. Follow its modules and CSS imports with
 // their actual URLs, including when the same script runs under different maps.
-function codeGraph(refs, site, readVerifiedText, importedFiles, documentBase, deployedKeys, scriptFor) {
+function codeGraph(refs, site, readVerifiedText, importedFiles, documentBase, deployedKeys, scriptFor, scanCss) {
   const seen = new Set();
   let importMap = {};
   const entries = [];
@@ -541,7 +617,7 @@ function codeGraph(refs, site, readVerifiedText, importedFiles, documentBase, de
     seen.add(identity);
     const source = readVerifiedText(key);
     if (kind === 'css' || (kind === 'module' && /\.css$/i.test(key))) {
-      addCssReferences(refs, source, 'stylesheet', url, site, visitCode);
+      scanCss(source, 'stylesheet', url, visitCode);
     } else {
       importedFiles.add(key);
       addModuleReferences(source, url, workerBase ? {} : importMap, (target, type) =>
@@ -591,7 +667,7 @@ function addReferences(
   refs,
   document,
   pageUrl,
-  { site, deployedKeys, readVerifiedText, importedFiles, scriptFor, checkNavigation, checkManifest },
+  { site, deployedKeys, readVerifiedText, importedFiles, scriptFor, checkNavigation, checkManifest, scanCss },
 ) {
   const route = pageUrl.pathname.slice(1) || '/';
   function firstBase(node) {
@@ -612,7 +688,7 @@ function addReferences(
   if (pageUrl instanceof ErrorPageUrl && href) pageUrl.requireFixedPath(href);
   const sameDocument = pageUrl instanceof ErrorPageUrl && pageUrl.referenceKind(href ?? '') === 'same-document';
   const finalBase = href && !sameDocument && URL.canParse(href, pageUrl) ? new URL(href, pageUrl) : pageUrl;
-  const graph = codeGraph(refs, site, readVerifiedText, importedFiles, finalBase, deployedKeys, scriptFor);
+  const graph = codeGraph(refs, site, readVerifiedText, importedFiles, finalBase, deployedKeys, scriptFor, scanCss);
   if (!['https:', 'http:'].includes(finalBase.protocol)) throw new Error('Cannot verify document base in ' + route);
   const baseOffset = baseTag?.sourceCodeLocation?.startOffset ?? Infinity;
   // URL attributes can contain spaces, parentheses, commas and HTML entities.
@@ -656,6 +732,7 @@ function addReferences(
     if (node.tagName === 'meta' && attrs['http-equiv']?.trim().toLowerCase() === 'refresh' && attrs.content?.trim()) {
       throw new Error('Cannot verify meta refresh in ' + route);
     }
+    const html = node.namespaceURI === 'http://www.w3.org/1999/xhtml';
     const svg = node.namespaceURI === 'http://www.w3.org/2000/svg';
     const rel = (attrs.rel || '').toLowerCase().split(/\s+/);
     if (node.tagName === 'script') {
@@ -678,7 +755,14 @@ function addReferences(
       if (svg && prefix === 'xlink' && name === 'href' && attrs.href !== undefined) continue;
       if (node.tagName === 'base' && name === 'href') continue;
       if (name === 'style') {
-        addCssReferences(refs, value, 'declarationList', base, site, graph.visitCode);
+        scanCss(value, 'declarationList', base, graph.visitCode, finalBase);
+      } else if (
+        name === 'background' &&
+        html &&
+        ['body', 'table', 'thead', 'tbody', 'tfoot', 'tr', 'td', 'th'].includes(node.tagName)
+      ) {
+        addUrl(value);
+        if (base !== finalBase) addAssetUrl(refs, value, finalBase, site);
       } else if (name.startsWith('on') && value.trim()) {
         graph.entries.push({ source: value, base });
         if (base !== finalBase) graph.entries.push({ source: value, base: finalBase });
@@ -699,8 +783,8 @@ function addReferences(
           }
         }
       } else if (svg && /[(\\]/.test(value) && (name === 'color-profile' || css.lexer.getProperty(name))) {
-        addCssReferences(refs, value, 'value', base, site, graph.visitCode);
-        if (base !== finalBase) addCssReferences(refs, value, 'value', finalBase, site, graph.visitCode);
+        scanCss(value, 'value', base, graph.visitCode);
+        if (base !== finalBase) scanCss(value, 'value', finalBase, graph.visitCode);
       } else if (name === 'srcset' || name === 'imagesrcset') {
         // A candidate starts at the beginning or after a separator. Commas
         // inside its URL are legal; trailing commas delimit descriptorless URLs.
@@ -710,9 +794,9 @@ function addReferences(
       }
     }
     if (node.nodeName === '#text') {
-      if (node.parentNode?.tagName === 'style')
-        addCssReferences(refs, node.value, 'stylesheet', base, site, graph.visitCode);
-      else if (node.parentNode?.tagName === 'script') {
+      if (node.parentNode?.tagName === 'style') {
+        scanCss(node.value, 'stylesheet', base, graph.visitCode, finalBase);
+      } else if (node.parentNode?.tagName === 'script') {
         const type =
           node.parentNode.attrs
             .find(attr => attr.name === 'type')
@@ -845,7 +929,18 @@ function planCleanup({ config, client, dist, sha, now = Date.now(), report }) {
   } else if (config.execute) {
     throw new Error('Missing runtime config digest. Deploy the site with release metadata before executing cleanup.');
   }
-  const review = { site, deployedKeys, readVerifiedText, importedFiles, scriptFor, checkNavigation, checkManifest };
+  const styles = cssAssetReferences(builtRefs, site, deployedKeys);
+  const scanCss = styles.scan;
+  const review = {
+    site,
+    deployedKeys,
+    readVerifiedText,
+    importedFiles,
+    scriptFor,
+    checkNavigation,
+    checkManifest,
+    scanCss,
+  };
   let lastHtml = 0;
   for (const object of htmlObjects) {
     const page = client.readHtml(object.Key);
@@ -878,6 +973,7 @@ function planCleanup({ config, client, dist, sha, now = Date.now(), report }) {
     new URL(site.siteUrl),
     deployedKeys,
     scriptFor,
+    scanCss,
   );
   for (const key of files) {
     if (key.startsWith(config.prefix) && !deployedKeys.has(key))
@@ -888,16 +984,10 @@ function planCleanup({ config, client, dist, sha, now = Date.now(), report }) {
       if (!importedFiles.has(key)) addModuleReferences(source, fileUrl, {}, fallback.visitCode);
       addScriptLiterals(builtRefs, scriptFor(source).tree, documentBases, fileUrl, site, deployedKeys);
     } else if (/\.css$/i.test(key)) {
-      addCssReferences(
-        builtRefs,
-        fs.readFileSync(path.join(dist, key), 'utf8'),
-        'stylesheet',
-        fileUrl,
-        site,
-        fallback.visitCode,
-      );
+      scanCss(fs.readFileSync(path.join(dist, key), 'utf8'), 'stylesheet', fileUrl, fallback.visitCode);
     }
   }
+  styles.resolve();
   for (const key of builtRefs) {
     if (!files.has(key)) throw new Error(`Incomplete dist: missing referenced asset ${key}`);
   }

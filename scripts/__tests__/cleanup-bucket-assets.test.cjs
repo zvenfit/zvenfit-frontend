@@ -395,6 +395,81 @@ test('quoted CSS imports and image-set URLs must exist in the rebuilt site', t =
   assert.deepEqual(box.reports, []);
 });
 
+test('CSS custom property URLs follow the stylesheet consuming var(), including strings and aliases', t => {
+  const used = object('_astro/old.png');
+  const stale = object('_astro/unused.png');
+  const box = fixture(t, [used, stale, object('css/vars.css')]);
+  const dist = path.join(box.root, 'dist');
+  fs.mkdirSync(path.join(dist, 'css'));
+  // The consuming stylesheet is visited first. Definitions may come from a later sheet.
+  fs.writeFileSync(
+    path.join(dist, 'index.html'),
+    html + '<link rel="stylesheet" href="/_astro/live.css"><link rel="stylesheet" href="/css/vars.css">',
+  );
+  for (const [declarations, use] of [
+    ['--cover: url(old.png)', 'var(--cover)'],
+    ['--source: "old.png"; --cover: var(--source)', 'image-set(var(--cover) 1x)'],
+    ['--cover: var(--unset, url(old.png))', 'var(--cover)'],
+  ]) {
+    fs.writeFileSync(path.join(dist, 'css/vars.css'), ':root{' + declarations + '; --unused:url(unused.png)}');
+    fs.writeFileSync(path.join(dist, '_astro/live.css'), 'body{background-image:' + use + '}');
+    for (const execute of [false, true])
+      assert.throws(() => box.run(execute), { message: 'Incomplete dist: missing referenced asset ' + used.Key });
+  }
+  fs.writeFileSync(
+    path.join(dist, 'css/vars.css'),
+    '@property --cover{syntax:"*";inherits:false;initial-value:"old.png"}',
+  );
+  fs.writeFileSync(path.join(dist, '_astro/live.css'), 'body{background:image-set(var(--cover) 1x)}');
+  for (const execute of [false, true])
+    assert.throws(() => box.run(execute), { message: 'Incomplete dist: missing referenced asset ' + used.Key });
+  assert.deepEqual(box.reports, []);
+  fs.writeFileSync(path.join(dist, used.Key), '');
+  for (const execute of [false, true]) assert.deepEqual(box.run(execute), [stale]);
+
+  fs.writeFileSync(path.join(dist, 'css/vars.css'), ':root{--cover: if(style(--flag: 1): "unused.png"; else: none)}');
+  for (const execute of [false, true]) assert.throws(() => box.run(execute), /Cannot verify CSS custom property/);
+});
+
+test('inline var() uses the document base while an earlier CSS import keeps its own URL', t => {
+  const used = object('_astro/old.png');
+  const box = fixture(t, [used, object('vars.css')]);
+  const dist = path.join(box.root, 'dist');
+  fs.writeFileSync(path.join(dist, 'vars.css'), ':root{--cover: url(old.png)}');
+  fs.writeFileSync(
+    path.join(dist, 'index.html'),
+    html + '<style>@import "vars.css";</style><div style="background: var(--cover)"></div><base href="/_astro/">',
+  );
+  for (const execute of [false, true])
+    assert.throws(() => box.run(execute), { message: 'Incomplete dist: missing referenced asset ' + used.Key });
+  fs.writeFileSync(path.join(dist, used.Key), '');
+  assert.deepEqual(box.run(true), []);
+});
+
+test('HTML background attributes protect relative images on body and table elements', t => {
+  const used = object('_astro/old.png');
+  const stale = object('_astro/unused.png');
+  const box = fixture(t, [used, stale]);
+  const dist = path.join(box.root, 'dist');
+  const missing = { message: 'Incomplete dist: missing referenced asset ' + used.Key };
+  const rows = '<tr><td></td><th></th></tr>';
+  const table = '<table><thead>' + rows + '</thead><tbody>' + rows + '</tbody><tfoot>' + rows + '</tfoot></table>';
+  for (const tag of ['body', 'table', 'thead', 'tbody', 'tfoot', 'tr', 'td', 'th']) {
+    const markup = ('<body>' + table).replace('<' + tag + '>', '<' + tag + ' background="_astro/old.png">');
+    fs.writeFileSync(path.join(dist, 'index.html'), html + markup);
+    for (const execute of [false, true]) assert.throws(() => box.run(execute), missing);
+  }
+  fs.writeFileSync(path.join(dist, 'index.html'), html + '<table background="old.png"></table><base href="/_astro/">');
+  for (const execute of [false, true]) assert.throws(() => box.run(execute), missing);
+  assert.deepEqual(box.reports, []);
+  fs.writeFileSync(path.join(dist, used.Key), '');
+  fs.writeFileSync(
+    path.join(dist, 'index.html'),
+    html + '<body background="_astro/old.png"><div background="_astro/unused.png"></div>',
+  );
+  for (const execute of [false, true]) assert.deepEqual(box.run(execute), [stale]);
+});
+
 test('absolute storage URLs protect only the selected site bucket', t => {
   const candidate = object('_astro/old.css');
   const box = fixture(t, [candidate]);
@@ -1640,6 +1715,39 @@ test('a candidate table over the UTF-8 summary limit remains complete in the lin
   assert.match(compact, /LastModified strictly before/);
   assert.ok(compact.includes('[job log](' + dispatch.CLEANUP_JOB_URL + ')'));
   assert.equal(fs.existsSync(path.join(root, 'removed')), false);
+});
+
+test('early execute failures flush every candidate row to the linked log before any deletion', t => {
+  const objects = Array.from({ length: 9000 }, (_, i) =>
+    object('_astro/' + 'я'.repeat(30) + String(i).padStart(5, '0') + '.png'),
+  );
+  const { root, dispatch, shell, summary } = dispatchFixture(t, objects);
+  const listingPath = path.join(root, 'listing');
+  const listing = JSON.parse(fs.readFileSync(listingPath, 'utf8'));
+  for (const [head, uploaded, reason] of [
+    [dispatch.GITHUB_SHA, new Date().toISOString(), /Rollback window is still open/],
+    ['b'.repeat(40), '2000-01-01T00:00:00Z', /requires the current main revision/],
+  ]) {
+    listing.Contents.find(o => o.Key === 'index.html').LastModified = uploaded;
+    fs.writeFileSync(listingPath, JSON.stringify(listing));
+    fs.writeFileSync(summary, '');
+    const result = spawnSync('bash', shell, {
+      cwd: root,
+      env: { ...dispatch, STUB_MAIN_SHA: head },
+      encoding: 'utf8',
+      maxBuffer: 4 * 1024 * 1024,
+    });
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, reason);
+    const keys = [...result.stdout.matchAll(/<code>([^<]+)<\/code>/g)].map(match => match[1]);
+    assert.equal(keys.length, objects.length);
+    assert.deepEqual(
+      keys,
+      objects.map(o => o.Key),
+    );
+    assert.ok(fs.readFileSync(summary, 'utf8').includes('[job log](' + dispatch.CLEANUP_JOB_URL + ')'));
+    assert.ok(!fs.readFileSync(path.join(root, 'calls'), 'utf8').includes('delete-object'));
+  }
 });
 
 test('concurrent ephemeral sessions use a bucket prefix for reads and grant delete only for execute', async t => {

@@ -282,7 +282,14 @@ released.
    inline CSS and scripts. Every `_astro/` file in the build, including
    indirect dependencies such as fonts, must exist in the bucket. Asset URLs
    in inline and built stylesheets are resolved against their document or
-   stylesheet URL. Literal JavaScript module imports resolve against the module
+   stylesheet URL. For CSS custom properties, the planner checks matching bucket keys
+   at the declaration and at each stylesheet or inline style that consumes the value
+   through `var()`. It follows aliases and includes quoted URLs used by `image-set()`.
+   The cascade can select different declarations, so any matching declaration can
+   protect an asset. The planner stops if it cannot parse an expression that could
+   supply a resource through a custom property. The legacy HTML `background` attribute on the body and table
+   elements also counts as an image reference.
+   Literal JavaScript module imports resolve against the module
    URL. Linked and preloaded site scripts and stylesheets, including their local
    module and CSS imports, must exist in the build and match their bytes in storage, even when
    their names are outside `_astro/`. An external script in inline SVG receives the same
@@ -329,7 +336,9 @@ released.
    and byte size let the owner check why it qualifies and reconcile the total.
    If the table exceeds the step summary budget, the summary keeps the counts,
    byte totals, cutoff and a link to the job log for that attempt. Open **Verify live HTML
-   and process candidates** there for the complete table in the log.
+   and process candidates** there for the complete table in the log. The step waits
+   for the full table to reach the log before the rollback or current-main guard
+   can end an execute attempt.
    Old files still in the build, including indirectly referenced assets, stay
    protected. Legacy `js/`, `css/` and `images/` await a separate scope
    change after B. Trainer photos and documents and the `zvenfit/v2` asset
