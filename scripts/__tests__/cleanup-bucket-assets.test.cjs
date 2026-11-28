@@ -493,6 +493,29 @@ test('style writes through lexical aliases preserve the same assets as direct as
   assert.deepEqual(box.run(true), [stale]);
 });
 
+test('DOM style receivers protect static image URLs after mutable or conditional selection', t => {
+  const used = object('_astro/old.png');
+  const stale = object('_astro/unused.png');
+  const box = fixture(t, [used, stale]);
+  const dist = path.join(box.root, 'dist');
+  const script = path.join(dist, '_astro/app.js');
+  for (const init of [
+    'let style=document.body.style',
+    'const style=wide ? document.body.style : document.documentElement.style',
+    'let style; if(wide) style=document.body.style; else style={}',
+    'const style=getStyleFromOtherScript()',
+  ]) {
+    fs.writeFileSync(script, init + '; style.backgroundImage="url(/_astro/old.png)"');
+    for (const execute of [false, true])
+      assert.throws(() => box.run(execute), { message: 'Incomplete dist: missing referenced asset ' + used.Key });
+  }
+  assert.deepEqual(box.reports, []);
+  fs.writeFileSync(path.join(dist, used.Key), '');
+  assert.deepEqual(box.run(true), [stale]);
+  fs.writeFileSync(script, 'let model={}; model.backgroundImage="url(/_astro/unused.png)"');
+  assert.deepEqual(box.run(true), [stale]);
+});
+
 test('CSS custom property URLs follow the stylesheet consuming var(), including strings and aliases', t => {
   const used = object('_astro/old.png');
   const stale = object('_astro/unused.png');

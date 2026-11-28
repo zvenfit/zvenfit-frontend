@@ -613,23 +613,16 @@ function scriptCache(origin, scriptDeclarations) {
       const getChecker = () => (checker ??= scriptChecker(tree));
       const bindingOf = node => getChecker().getSymbolAtLocation(node)?.valueDeclaration;
       const address = scriptAddressResolver(bindingOf);
-      const styleReceivers = new Map();
-      function isStyleReceiver(node) {
-        if (ts.isParenthesizedExpression(node)) return isStyleReceiver(node.expression);
-        if (memberName(node) === 'style') return true;
-        if (!ts.isIdentifier(node)) return false;
-        const declaration = bindingOf(node);
-        if (!declaration) return false;
-        if (!styleReceivers.has(declaration)) {
-          styleReceivers.set(declaration, false);
-          const init = constantInitializer(declaration);
-          const destructuredStyle =
-            ts.isBindingElement(declaration) &&
-            ts.isObjectBindingPattern(declaration.parent) &&
-            (declaration.propertyName ?? declaration.name).text === 'style';
-          styleReceivers.set(declaration, destructuredStyle || Boolean(init && isStyleReceiver(init)));
-        }
-        return styleReceivers.get(declaration);
+      function isPossibleStyleReceiver(node) {
+        const type = getChecker().getTypeAtLocation(node);
+        return (type.isUnion() ? type.types : [type]).some(
+          part =>
+            // Untyped JS can obtain an element's style from another script.
+            part.flags & (ts.TypeFlags.Any | ts.TypeFlags.Unknown) ||
+            part
+              .getProperty('setProperty')
+              ?.declarations?.some(decl => decl.parent.name?.text === 'CSSStyleDeclaration'),
+        );
       }
 
       function addStyleValue(property, valueNode) {
@@ -683,7 +676,8 @@ function scriptCache(origin, scriptDeclarations) {
           // Resolve an alias only for assignments that could write a CSS property.
           if (
             memberName(receiver) === 'style' ||
-            ((!property || property === 'cssText' || css.lexer.getProperty(property)) && isStyleReceiver(receiver))
+            ((!property || property === 'cssText' || css.lexer.getProperty(property)) &&
+              isPossibleStyleReceiver(receiver))
           )
             addStyleValue(property, node.right);
         }
