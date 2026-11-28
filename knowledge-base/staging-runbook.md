@@ -325,8 +325,9 @@ released.
    written by `style.setProperty()`, inline style assignments and
    `setAttribute("style", …)` are checked against document and stylesheet URLs,
    including values that flow through a CSS custom property. For assignments such as
-   `style.backgroundImage`, a receiver that could be a DOM style object is checked
-   even when its type is unknown or the script selects it conditionally. Service worker
+   `style.backgroundImage`, the planner checks the CSS value even when the receiver
+   has an unknown type or a plain-object fallback. It excludes a local empty data
+   object only when all uses of its binding are property writes. Service worker
    registrations through a container alias use the same checks as direct
    registrations, including access through a constant property name. An unknown
    property of the service worker container stops the check. If code passes

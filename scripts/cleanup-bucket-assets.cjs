@@ -613,16 +613,58 @@ function scriptCache(origin, scriptDeclarations) {
       const getChecker = () => (checker ??= scriptChecker(tree));
       const bindingOf = node => getChecker().getSymbolAtLocation(node)?.valueDeclaration;
       const address = scriptAddressResolver(bindingOf);
-      function isPossibleStyleReceiver(node) {
-        const type = getChecker().getTypeAtLocation(node);
-        return (type.isUnion() ? type.types : [type]).some(
-          part =>
-            // Untyped JS can obtain an element's style from another script.
-            part.flags & (ts.TypeFlags.Any | ts.TypeFlags.Unknown) ||
-            part
-              .getProperty('setProperty')
-              ?.declarations?.some(decl => decl.parent.name?.text === 'CSSStyleDeclaration'),
-        );
+      function everyUse(declaration, accepts) {
+        let used = false;
+        let valid = true;
+        function inspect(node) {
+          if (!valid) return;
+          if (ts.isIdentifier(node) && node !== declaration.name && node.text === declaration.name.text) {
+            const binding = ts.isShorthandPropertyAssignment(node.parent)
+              ? getChecker().getShorthandAssignmentValueSymbol(node.parent)?.valueDeclaration
+              : bindingOf(node);
+            if (binding === declaration) {
+              used = true;
+              valid = accepts(enclosingArgument(node));
+            }
+          }
+          if (valid) ts.forEachChild(node, inspect);
+        }
+        inspect(tree);
+        return used && valid;
+      }
+
+      // A DOM style and an ordinary object can both have inferred type {}. Exclude
+      // only a block-local empty object when all its uses are plain property writes.
+      const localData = new Map();
+      function isLocalDataObject(node) {
+        if (!ts.isIdentifier(node)) return false;
+        const declaration = bindingOf(node);
+        if (
+          !declaration ||
+          !ts.isVariableDeclaration(declaration) ||
+          !declaration.initializer ||
+          !ts.isObjectLiteralExpression(declaration.initializer) ||
+          declaration.initializer.properties.length ||
+          !(declaration.parent.flags & ts.NodeFlags.BlockScoped) ||
+          !ts.isBlock(declaration.parent.parent.parent)
+        )
+          return false;
+        if (!localData.has(declaration)) {
+          localData.set(
+            declaration,
+            everyUse(declaration, ref => {
+              const member = ref.parent;
+              return (
+                (ts.isPropertyAccessExpression(member) || ts.isElementAccessExpression(member)) &&
+                member.expression === ref &&
+                ts.isBinaryExpression(member.parent) &&
+                member.parent.left === member &&
+                member.parent.operatorToken.kind === ts.SyntaxKind.EqualsToken
+              );
+            }),
+          );
+        }
+        return localData.get(declaration);
       }
 
       function addStyleValue(property, valueNode) {
@@ -673,11 +715,10 @@ function scriptCache(origin, scriptDeclarations) {
           const property =
             member === 'cssText' ? member : member?.replace(/[A-Z]/g, letter => '-' + letter.toLowerCase());
           const receiver = node.left.expression;
-          // Resolve an alias only for assignments that could write a CSS property.
+          // A write to a CSS property can target a style object regardless of its inferred type.
           if (
             memberName(receiver) === 'style' ||
-            ((!property || property === 'cssText' || css.lexer.getProperty(property)) &&
-              isPossibleStyleReceiver(receiver))
+            ((!property || property === 'cssText' || css.lexer.getProperty(property)) && !isLocalDataObject(receiver))
           )
             addStyleValue(property, node.right);
         }
@@ -687,27 +728,16 @@ function scriptCache(origin, scriptDeclarations) {
       const fragments = new Map();
       function onlyUsedInComposition(declaration) {
         if (!fragments.has(declaration)) {
-          let used = false;
-          let standalone = false;
-          function inspect(node) {
-            if (
-              ts.isIdentifier(node) &&
-              node !== declaration.name &&
-              node.text === declaration.name.text &&
-              bindingOf(node) === declaration
-            ) {
-              used = true;
-              const parent = enclosingArgument(node).parent;
-              if (
-                !(ts.isBinaryExpression(parent) && parent.operatorToken.kind === ts.SyntaxKind.PlusToken) &&
-                !ts.isTemplateSpan(parent)
-              )
-                standalone = true;
-            }
-            if (!standalone) ts.forEachChild(node, inspect);
-          }
-          inspect(tree);
-          fragments.set(declaration, used && !standalone);
+          fragments.set(
+            declaration,
+            everyUse(declaration, ref => {
+              const parent = ref.parent;
+              return (
+                (ts.isBinaryExpression(parent) && parent.operatorToken.kind === ts.SyntaxKind.PlusToken) ||
+                ts.isTemplateSpan(parent)
+              );
+            }),
+          );
         }
         return fragments.get(declaration);
       }

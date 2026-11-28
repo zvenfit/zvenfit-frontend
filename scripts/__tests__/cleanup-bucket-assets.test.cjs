@@ -512,7 +512,37 @@ test('DOM style receivers protect static image URLs after mutable or conditional
   assert.deepEqual(box.reports, []);
   fs.writeFileSync(path.join(dist, used.Key), '');
   assert.deepEqual(box.run(true), [stale]);
-  fs.writeFileSync(script, 'let model={}; model.backgroundImage="url(/_astro/unused.png)"');
+  fs.writeFileSync(script, '{let model={}; model.backgroundImage="url(/_astro/unused.png)"}');
+  assert.deepEqual(box.run(true), [stale]);
+});
+
+test('a plain-object fallback cannot hide a DOM style receiver', t => {
+  const used = object('_astro/old.png');
+  const stale = object('_astro/unused.png');
+  const box = fixture(t, [used, stale]);
+  const dist = path.join(box.root, 'dist');
+  const page = path.join(dist, 'index.html');
+  // The element exists. The browser takes the style branch even if TypeScript infers {}.
+  for (const expression of ['el?.style ?? {}', 'el.style || {}', 'el ? el.style : {}']) {
+    fs.writeFileSync(
+      page,
+      html +
+        '<body id="hero"><script>const el=document.getElementById("hero"); const style=' +
+        expression +
+        '; style.backgroundImage="url(/_astro/old.png)"</script></body>',
+    );
+    for (const execute of [false, true])
+      assert.throws(() => box.run(execute), { message: 'Incomplete dist: missing referenced asset ' + used.Key });
+  }
+  fs.writeFileSync(
+    page,
+    html +
+      '<script>{const data={}; data.backgroundImage="url(/_astro/old.png)"; Object.assign(document.body.style, data); data.color="red"}</script>',
+  );
+  for (const execute of [false, true])
+    assert.throws(() => box.run(execute), { message: 'Incomplete dist: missing referenced asset ' + used.Key });
+  assert.deepEqual(box.reports, []);
+  fs.writeFileSync(path.join(dist, used.Key), '');
   assert.deepEqual(box.run(true), [stale]);
 });
 
