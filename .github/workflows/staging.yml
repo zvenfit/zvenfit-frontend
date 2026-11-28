@@ -9,6 +9,7 @@ on:
 concurrency:
   group: deploy
   cancel-in-progress: false
+  queue: max
 
 permissions:
   contents: read

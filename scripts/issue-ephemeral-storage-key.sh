@@ -13,10 +13,10 @@ if [[ ! "${OBJECT_STORAGE_BUCKET}" =~ ^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$ ]]; the
   exit 1
 fi
 
-SESSION_POLICY="$(mktemp /tmp/zvenfit-storage-session-policy.XXXXXX.json)"
-REQUEST_BODY="$(mktemp /tmp/zvenfit-ephemeral-key-request.XXXXXX.json)"
-RESPONSE_BODY="$(mktemp /tmp/zvenfit-ephemeral-key-response.XXXXXX.json)"
-AUTH_HEADER="$(mktemp /tmp/zvenfit-ephemeral-key-auth.XXXXXX.txt)"
+SESSION_POLICY="$(mktemp "${TMPDIR:-/tmp}/zvenfit-storage-session-policy.XXXXXX")"
+REQUEST_BODY="$(mktemp "${TMPDIR:-/tmp}/zvenfit-ephemeral-key-request.XXXXXX")"
+RESPONSE_BODY="$(mktemp "${TMPDIR:-/tmp}/zvenfit-ephemeral-key-response.XXXXXX")"
+AUTH_HEADER="$(mktemp "${TMPDIR:-/tmp}/zvenfit-ephemeral-key-auth.XXXXXX")"
 trap 'rm -f -- "${SESSION_POLICY}" "${REQUEST_BODY}" "${RESPONSE_BODY}" "${AUTH_HEADER}"' EXIT
 SESSION_NAME="gha-${GITHUB_RUN_ID:-local}-${GITHUB_RUN_ATTEMPT:-1}"
 node -e '
@@ -39,8 +39,21 @@ const policy = {
     },
   ],
 };
+// The planner reads HTML directly from the selected site bucket. Resource
+// patterns in Object Storage support a wildcard after a key prefix.
+const mode = process.argv[3];
+if (mode === "cleanup-plan" || mode === "cleanup-execute") {
+  const [bucketAccess, objectAccess] = policy.Statement;
+  bucketAccess.Action = ["s3:ListBucket"];
+  objectAccess.Action = ["s3:GetObject"];
+  if (mode === "cleanup-execute") {
+    policy.Statement.push({ ...objectAccess, Action: ["s3:DeleteObject"], Resource: [`arn:aws:s3:::${bucket}/_astro/*`] });
+  }
+} else if (mode !== "deploy") {
+  throw new Error("unknown Object Storage session mode");
+}
 fs.writeFileSync(process.argv[1], JSON.stringify(policy), { mode: 0o600 });
-' "${SESSION_POLICY}" "${OBJECT_STORAGE_BUCKET}"
+' "${SESSION_POLICY}" "${OBJECT_STORAGE_BUCKET}" "${STORAGE_SESSION_MODE-deploy}"
 
 node -e '
 const fs = require("node:fs");

@@ -657,7 +657,10 @@ test('the deploy guard takes its profile from deploy.config.json and no argument
 test('every Node.js setup resolves the latest release of the pinned major', () => {
   const qualityWorkflow = fs.readFileSync(path.join(ROOT, '.github/workflows/quality.yml'), 'utf8');
 
-  for (const [file, workflow] of [['quality.yml', qualityWorkflow], ['_deploy-environment.yml', reusableWorkflow]]) {
+  for (const [file, workflow] of [
+    ['quality.yml', qualityWorkflow],
+    ['_deploy-environment.yml', reusableWorkflow],
+  ]) {
     const setups = workflow.match(/node-version: [^\n]+\n(?: +[a-z-]+: [^\n]+\n)*/g) || [];
     assert.ok(setups.length > 0, `${file} sets up Node.js`);
     for (const setup of setups) {
@@ -666,18 +669,142 @@ test('every Node.js setup resolves the latest release of the pinned major', () =
   }
 });
 
-test('local deploy:yc mirrors the workflow upload order and filters', () => {
-  const local = packageJson.scripts['deploy:yc'].split(' && ');
-  const workflowCommands = reusableWorkflow.match(SYNC_COMMAND) || [];
-
-  assert.equal(local.length, workflowCommands.length);
-  local.forEach((command, index) => {
-    assert.match(command, /^aws s3 sync \.\/dist /);
+test('local deploy:yc uploads the verified build with the same HTML metadata and filters as CI', t => {
+  const dir = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'local-site-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  fs.symlinkSync(path.join(ROOT, 'scripts'), path.join(dir, 'scripts'));
+  fs.mkdirSync(path.join(dir, 'source'));
+  const index = '<script src="https://storage.yandexcloud.net/zvenfit/v2/js/webflow.js?v=release-12"></script>';
+  fs.writeFileSync(path.join(dir, 'source/index.html'), index);
+  fs.mkdirSync(path.join(dir, 'source/js'));
+  for (const name of ['lead', 'schedule', 'traffic', 'maps']) {
+    fs.writeFileSync(path.join(dir, 'source/js', name + '-config.js'), 'public fixture ' + name);
+  }
+  const { configDigest } = require('../lib/deployed-site-config.cjs');
+  const digest = configDigest(key => fs.readFileSync(path.join(dir, 'source', key)));
+  fs.cpSync(path.join(dir, 'source'), path.join(dir, 'dist'), { recursive: true });
+  for (const check of ['check-routes', 'check-build', 'check-staging-build']) {
+    fs.mkdirSync(path.join(dir, 'guards'), { recursive: true });
+    fs.writeFileSync(path.join(dir, 'guards', check + '.cjs'), '');
+  }
+  const git = (...args) => execFileSync('git', args, { cwd: dir, encoding: 'utf8' }).trim();
+  git('init', '--quiet');
+  git('add', 'source', 'guards');
+  git(
+    '-c',
+    'user.name=Fixture',
+    '-c',
+    'user.email=fixture@example.invalid',
+    '-c',
+    'core.hooksPath=/dev/null',
+    'commit',
+    '--quiet',
+    '--no-gpg-sign',
+    '-m',
+    'site',
+  );
+  const sha = git('rev-parse', 'HEAD');
+  fs.writeFileSync(path.join(dir, '.env.staging'), 'LEAD_API_URL=https://fixture.invalid/lead\n');
+  fs.writeFileSync(
+    path.join(dir, 'npm'),
+    [
+      '#!/usr/bin/env bash',
+      'set -eu',
+      'if [[ "$1" == ci ]]; then exit 0; fi',
+      '[[ "$*" == "run build" && "$NODE_ENV" == staging && "$ASSET_VERSION" == release-12 ]]',
+      '[[ "$LEAD_API_URL" == https://fixture.invalid/lead && -z "${AWS_SESSION_TOKEN:-}" ]]',
+      'cp -R source dist',
+      'cp -R guards scripts',
+    ].join('\n'),
+    { mode: 0o755 },
+  );
+  const log = path.join(dir, 'storage');
+  fs.writeFileSync(
+    path.join(dir, 'aws'),
+    [
+      '#!/usr/bin/env node',
+      "const fs = require('node:fs');",
+      "if (!fs.readFileSync('dist/index.html', 'utf8').includes('release-12')) process.exit(1);",
+      "fs.appendFileSync(process.env.STORAGE_LOG, JSON.stringify(process.argv.slice(2)) + '\\n');",
+    ].join('\n'),
+    { mode: 0o755 },
+  );
+  const publish = () =>
+    execFileSync('bash', ['-ec', packageJson.scripts['deploy:yc']], {
+      cwd: dir,
+      stdio: 'pipe',
+      env: {
+        PATH: dir + path.delimiter + process.env.PATH,
+        STORAGE_LOG: log,
+        YC_S3_BUCKET: 'zvenfit-frontend-staging',
+        AWS_SESSION_TOKEN: 'fixture',
+      },
+    });
+  assert.throws(publish); // A site release must be reproducible from origin/main.
+  assert.equal(fs.existsSync(log), false);
+  git('update-ref', 'refs/remotes/origin/main', sha);
+  fs.writeFileSync(path.join(dir, 'dist/index.html'), index + 'changed');
+  assert.throws(publish);
+  assert.equal(fs.existsSync(log), false);
+  fs.writeFileSync(path.join(dir, 'dist/index.html'), index);
+  publish();
+  const calls = fs
+    .readFileSync(log, 'utf8')
+    .trim()
+    .split('\n')
+    .map(line => JSON.parse(line));
+  assert.deepEqual(
+    calls.map(args => args[1]),
+    ['sync', 'sync', 'sync', 'cp', 'sync'],
+  );
+  const workflow = reusableWorkflow.match(SYNC_COMMAND);
+  for (const [i, args] of [calls[0], calls[1], calls[2], calls[4]].entries()) {
+    const quoted = args.map(arg => (arg.startsWith('--') ? arg : JSON.stringify(arg))).join(' ');
+    assert.equal(syncFilters(quoted), syncFilters(workflow[i]));
+  }
+  assert.match(
+    workflow[3],
+    /--metadata "deployed-sha=\$\{GITHUB_SHA\},asset-version=\$\{GITHUB_RUN_NUMBER\},runtime-config-sha256=\$\{config_digest\}"/,
+  );
+  for (const args of calls.slice(3)) {
     assert.equal(
-      syncFilters(command),
-      syncFilters(workflowCommands[index]),
-      `deploy:yc command ${index + 1} diverges from the workflow`,
+      args[args.indexOf('--metadata') + 1],
+      'deployed-sha=' + sha + ',asset-version=release-12,runtime-config-sha256=' + digest,
     );
+    assert.equal(args[args.indexOf('--include') + 1], '*.html');
+  }
+  assert.ok(calls[3].includes('--recursive'));
+  assert.ok(calls[4].includes('--size-only'));
+
+  // Exercise the actual CI HTML pass against the same inert storage command.
+  fs.writeFileSync(log, '');
+  const ciHtml = reusableWorkflow
+    .split('      - name: Upload HTML (no-cache)\n')[1]
+    .split('\n      - name:')[0]
+    .split('        run: |\n')[1]
+    .replaceAll('${{ inputs.s3_bucket }}', 'zvenfit-frontend-staging');
+  execFileSync('bash', ['-ec', ciHtml], {
+    cwd: dir,
+    env: { PATH: dir + path.delimiter + process.env.PATH, STORAGE_LOG: log, GITHUB_SHA: sha, GITHUB_RUN_NUMBER: '123' },
   });
-  assert.doesNotMatch(local[0], /--delete/);
+  const stamped = fs
+    .readFileSync(log, 'utf8')
+    .trim()
+    .split('\n')
+    .map(line => JSON.parse(line));
+  assert.deepEqual(
+    stamped.map(args => args[1]),
+    ['cp', 'sync'],
+  );
+  for (const [i, args] of stamped.entries()) {
+    assert.equal(
+      args[args.indexOf('--metadata') + 1],
+      'deployed-sha=' + sha + ',asset-version=123,runtime-config-sha256=' + digest,
+    );
+    for (const flag of ['--include', '--exclude', '--cache-control']) {
+      assert.equal(args[args.indexOf(flag) + 1], calls[i + 3][calls[i + 3].indexOf(flag) + 1]);
+    }
+  }
+  assert.ok(stamped[0].includes('--recursive'));
+  assert.ok(stamped[1].includes('--delete') && stamped[1].includes('--size-only'));
 });

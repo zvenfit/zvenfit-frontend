@@ -1,0 +1,152 @@
+name: Clean up stale site assets
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Site bucket to inspect
+        required: true
+        type: choice
+        options:
+          - staging
+          - production
+      execute:
+        description: Delete the verified candidates
+        type: boolean
+        default: false
+      min_age_days:
+        description: Minimum object age in whole days (at least 2)
+        required: true
+        type: number
+        default: 2
+      prefixes:
+        description: Asset prefixes (only _astro/ before release B)
+        required: true
+        type: string
+        default: '_astro/'
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+  queue: max
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  cleanup:
+    if: github.repository == 'zvenfit/zvenfit-frontend' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: ${{ inputs.environment }}
+      deployment: false
+    env:
+      CLEANUP_ENVIRONMENT: ${{ inputs.environment }}
+      CLEANUP_MIN_AGE_DAYS: ${{ inputs.min_age_days }}
+      CLEANUP_PREFIXES: ${{ inputs.prefixes }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          # Pin control code to the dispatch. The full fetch keeps origin/main at its current tip on re-run.
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Require current main for execution
+        if: inputs.execute
+        run: |
+          if [[ "$GITHUB_SHA" != "$(git rev-parse refs/remotes/origin/main)" ]]; then
+            echo "::error::Execution requires the current main revision. Start a new dispatch on main."
+            exit 1
+          fi
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '22'
+          check-latest: true
+          cache: npm
+
+      - name: Install cleanup dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Restore the Yandex Cloud CLI
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ${{ runner.temp }}/zvenfit-yc-cli-1.26.0
+          key: yc-cli-1.26.0-linux-amd64-b6bc853d
+      - run: bash scripts/install-yc-cli.sh
+      - name: Authenticate with the selected Environment's OIDC identity
+        env:
+          YC_FOLDER_ID: ${{ vars.YC_FOLDER_ID }}
+          YC_DEPLOY_SERVICE_ACCOUNT_ID: ${{ vars.YC_DEPLOY_SERVICE_ACCOUNT_ID }}
+          YC_WIF_AUDIENCE: https://github.com/zvenfit
+        run: bash scripts/auth-yc-wif.sh
+      - name: Issue a scoped Object Storage session
+        env:
+          YC_DEPLOY_SERVICE_ACCOUNT_ID: ${{ vars.YC_DEPLOY_SERVICE_ACCOUNT_ID }}
+          OBJECT_STORAGE_BUCKET: ${{ inputs.environment == 'production' && 'zvenfit-frontend' || 'zvenfit-frontend-staging' }}
+          STORAGE_SESSION_MODE: ${{ inputs.execute && 'cleanup-execute' || 'cleanup-plan' }}
+        run: bash scripts/issue-ephemeral-storage-key.sh
+
+      - name: Read deployed revision from the bucket
+        id: live
+        run: node scripts/cleanup-bucket-assets.cjs --deployment >> "$GITHUB_OUTPUT"
+      - name: Prepare the deployed checkout
+        env:
+          DEPLOYED_SHA: ${{ steps.live.outputs.sha }}
+        run: |
+          git merge-base --is-ancestor "$DEPLOYED_SHA" origin/main
+          git worktree add --detach "$RUNNER_TEMP/deployed" "$DEPLOYED_SHA"
+
+      - name: Rebuild and check the deployed site
+        run: |
+          echo 'YC_IAM_TOKEN=' >> "$GITHUB_ENV"
+          # Historical build output is ordinary text, including any workflow-command-looking lines.
+          marker=$(cat /proc/sys/kernel/random/uuid)
+          echo "::stop-commands::$marker"
+          trap 'echo "::$marker::"' EXIT
+          node scripts/cleanup-bucket-assets.cjs --rebuild "$RUNNER_TEMP/deployed"
+
+      - name: Verify live HTML and process candidates
+        env:
+          CLEANUP_JOB_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/job/${{ job.check_run_id }}
+          GH_TOKEN: ${{ github.token }}
+          CLEANUP_EXECUTE: ${{ inputs.execute }}
+        run: |
+          node --input-type=module <<'NODE'
+          import { execFileSync } from 'node:child_process';
+          import { closeSync, fstatSync, openSync, writeSync } from 'node:fs';
+          import { promisify } from 'node:util';
+          import planner from './scripts/cleanup-bucket-assets.cjs';
+
+          const log = promisify(process.stdout.write.bind(process.stdout));
+          let plan;
+          try {
+            plan = planner.planForWorkflow();
+          } finally {
+            // Drain the candidate table before a failed guard can terminate Node.
+            await log('');
+          }
+          if (plan.execute) {
+            const main = execFileSync('gh', ['api', `repos/${process.env.GITHUB_REPOSITORY}/git/ref/heads/main`, '--jq', '.object.sha'], { encoding: 'utf8' }).trim();
+            if (!/^[0-9a-f]{40}$/.test(main) || main !== process.env.GITHUB_SHA) {
+              throw new Error('Execution requires the current main revision. Start a new dispatch on main.');
+            }
+            const summary = openSync(process.env.GITHUB_STEP_SUMMARY, 'r+');
+            try {
+              // Update a single footer after each acknowledgement, including on partial runs.
+              const footer = fstatSync(summary).size;
+              const checkpoint = count => writeSync(summary, `Confirmed deletions: ${count} of ${plan.keys.length}.\n`, footer);
+              let deleted = 0;
+              checkpoint(deleted);
+              await log('Starting verified deletions.\n');
+              for (const key of plan.keys) {
+                execFileSync('aws', ['s3api', 'delete-object', '--bucket', plan.bucket, '--key', key, '--no-cli-pager']);
+                checkpoint(++deleted);
+                await log(`Confirmed deletion ${deleted}/${plan.keys.length}: ${JSON.stringify(key)}\n`);
+              }
+            } finally {
+              closeSync(summary);
+            }
+          }
+          NODE
