@@ -448,6 +448,51 @@ test('CSSOM setProperty values protect URLs in inline and linked scripts', t => 
   for (const execute of [false, true]) assert.throws(() => box.run(execute), /Cannot verify a computed CSSOM resource/);
 });
 
+test('unresolved CSSOM choices check resources in named constant branches', t => {
+  const used = object('_astro/old.png');
+  const box = fixture(t, [used]);
+  const script = path.join(box.root, 'dist/_astro/app.js');
+  for (const definition of [
+    'const hero="url(/_astro/old.png)"',
+    'const path="/_astro/old.png"; const css="url("+path+")"; const hero=css',
+  ]) {
+    fs.writeFileSync(
+      script,
+      definition + '; document.body.style.setProperty("background-image", wide ? hero : "none")',
+    );
+    for (const execute of [false, true])
+      assert.throws(() => box.run(execute), /Cannot verify a computed CSSOM resource/);
+  }
+  assert.deepEqual(box.reports, []);
+  fs.writeFileSync(script, 'const hero="red"; document.body.style.setProperty("color", wide ? hero : "blue")');
+  assert.deepEqual(box.run(true), [used]);
+});
+
+test('style writes through lexical aliases preserve the same assets as direct assignments', t => {
+  const used = object('_astro/old.png');
+  const stale = object('_astro/unused.png');
+  const box = fixture(t, [used, stale]);
+  const dist = path.join(box.root, 'dist');
+  const script = path.join(dist, '_astro/app.js');
+  for (const source of [
+    'const style=document.body.style; style.backgroundImage="url(/_astro/old.png)"',
+    'const style=document.body.style; const alias=style; alias["cssText"]="color:red;background:url(/_astro/old.png)"',
+    'const {style: inline}=document.body; inline.backgroundImage="url(/_astro/old.png)"',
+  ]) {
+    fs.writeFileSync(script, source);
+    for (const execute of [false, true])
+      assert.throws(() => box.run(execute), { message: 'Incomplete dist: missing referenced asset ' + used.Key });
+  }
+  assert.deepEqual(box.reports, []);
+  fs.writeFileSync(path.join(dist, used.Key), '');
+  assert.deepEqual(box.run(true), [stale]);
+  fs.writeFileSync(
+    script,
+    'const style=document.body.style; {const style={}; style.backgroundImage="url(/_astro/unused.png)"}',
+  );
+  assert.deepEqual(box.run(true), [stale]);
+});
+
 test('CSS custom property URLs follow the stylesheet consuming var(), including strings and aliases', t => {
   const used = object('_astro/old.png');
   const stale = object('_astro/unused.png');

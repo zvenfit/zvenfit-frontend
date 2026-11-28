@@ -417,27 +417,31 @@ function addScriptLiterals(refs, script, bases, scriptUrl, site, deployedKeys, i
   visit(script.tree);
 }
 
+function constantInitializer(declaration) {
+  if (
+    declaration &&
+    ts.isVariableDeclaration(declaration) &&
+    ts.isIdentifier(declaration.name) &&
+    declaration.parent.flags & ts.NodeFlags.Const
+  )
+    return declaration.initializer;
+}
+
 // Return the fixed portion of a request before its first runtime substitution.
-function scriptAddressResolver(getChecker) {
+function scriptAddressResolver(bindingOf) {
   const constants = new Map();
   const unknown = { text: '', fixed: false };
   function address(node, origin) {
     if (ts.isIdentifier(node)) {
-      const declaration = getChecker().getSymbolAtLocation(node)?.valueDeclaration;
-      if (
-        !declaration ||
-        !ts.isVariableDeclaration(declaration) ||
-        !ts.isIdentifier(declaration.name) ||
-        !(declaration.parent.flags & ts.NodeFlags.Const) ||
-        !declaration.initializer
-      )
-        return unknown;
+      const declaration = bindingOf(node);
+      const init = constantInitializer(declaration);
+      if (!init) return unknown;
       if (!constants.has(origin)) constants.set(origin, new Map());
       const values = constants.get(origin);
       if (!values.has(declaration)) {
         // Stop cycles, and share results for aliases referenced more than once.
         values.set(declaration, unknown);
-        values.set(declaration, address(declaration.initializer, origin));
+        values.set(declaration, address(init, origin));
       }
       return values.get(declaration);
     }
@@ -607,7 +611,27 @@ function scriptCache(origin, scriptDeclarations) {
       const tree = ts.createSourceFile('asset.js', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
       let checker;
       const getChecker = () => (checker ??= scriptChecker(tree));
-      const address = scriptAddressResolver(getChecker);
+      const bindingOf = node => getChecker().getSymbolAtLocation(node)?.valueDeclaration;
+      const address = scriptAddressResolver(bindingOf);
+      const styleReceivers = new Map();
+      function isStyleReceiver(node) {
+        if (ts.isParenthesizedExpression(node)) return isStyleReceiver(node.expression);
+        if (memberName(node) === 'style') return true;
+        if (!ts.isIdentifier(node)) return false;
+        const declaration = bindingOf(node);
+        if (!declaration) return false;
+        if (!styleReceivers.has(declaration)) {
+          styleReceivers.set(declaration, false);
+          const init = constantInitializer(declaration);
+          const destructuredStyle =
+            ts.isBindingElement(declaration) &&
+            ts.isObjectBindingPattern(declaration.parent) &&
+            (declaration.propertyName ?? declaration.name).text === 'style';
+          styleReceivers.set(declaration, destructuredStyle || Boolean(init && isStyleReceiver(init)));
+        }
+        return styleReceivers.get(declaration);
+      }
+
       function addStyleValue(property, valueNode) {
         const value = address(valueNode, origin);
         if (property && value.fixed)
@@ -617,11 +641,22 @@ function scriptCache(origin, scriptDeclarations) {
           function check(text) {
             if (hasCssResourceToken(text, true)) throw new Error('Cannot verify a computed CSSOM resource');
           }
+          const seen = new Set();
           function inspect(part) {
-            if (ts.isStringLiteralLike(part) || ts.isTemplateLiteralToken(part)) check(part.text);
-            ts.forEachChild(part, inspect);
+            if (!part || seen.has(part)) return;
+            seen.add(part);
+            if (ts.isConditionalExpression(part)) {
+              inspect(part.whenTrue);
+              inspect(part.whenFalse);
+              return;
+            }
+            const possible = address(part, origin);
+            check(possible.text);
+            if (possible.fixed) return;
+            if (ts.isIdentifier(part)) inspect(constantInitializer(bindingOf(part)));
+            else if (ts.isTemplateLiteralToken(part)) check(part.text);
+            else ts.forEachChild(part, inspect);
           }
-          check(value.text);
           inspect(valueNode);
         }
       }
@@ -639,14 +674,18 @@ function scriptCache(origin, scriptDeclarations) {
         } else if (
           ts.isBinaryExpression(node) &&
           node.operatorToken.kind === ts.SyntaxKind.EqualsToken &&
-          (ts.isPropertyAccessExpression(node.left) || ts.isElementAccessExpression(node.left)) &&
-          memberName(node.left.expression) === 'style'
+          (ts.isPropertyAccessExpression(node.left) || ts.isElementAccessExpression(node.left))
         ) {
-          const property = memberName(node.left);
-          addStyleValue(
-            property === 'cssText' ? property : property?.replace(/[A-Z]/g, letter => '-' + letter.toLowerCase()),
-            node.right,
-          );
+          const member = memberName(node.left);
+          const property =
+            member === 'cssText' ? member : member?.replace(/[A-Z]/g, letter => '-' + letter.toLowerCase());
+          const receiver = node.left.expression;
+          // Resolve an alias only for assignments that could write a CSS property.
+          if (
+            memberName(receiver) === 'style' ||
+            ((!property || property === 'cssText' || css.lexer.getProperty(property)) && isStyleReceiver(receiver))
+          )
+            addStyleValue(property, node.right);
         }
         ts.forEachChild(node, collectDeclarations);
       }
@@ -661,7 +700,7 @@ function scriptCache(origin, scriptDeclarations) {
               ts.isIdentifier(node) &&
               node !== declaration.name &&
               node.text === declaration.name.text &&
-              getChecker().getSymbolAtLocation(node)?.valueDeclaration === declaration
+              bindingOf(node) === declaration
             ) {
               used = true;
               const parent = enclosingArgument(node).parent;
